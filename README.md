@@ -10,6 +10,7 @@ Jeu de plateforme 2D rapide en pixel art. Personnage principal : **KAGE**, ninja
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # version de production dans dist/
+npm run standalone # dist/kage-standalone.html : jeu complet en un fichier, jouable par double-clic
 ```
 
 Commandes : flèches pour courir, Espace pour sauter, Maj (ou J) pour le dash, ↑ + Maj pour le dash vertical, ↓ (ou K) pour glisser, H pour afficher la hitbox. Boutons tactiles sur mobile.

@@ -1,9 +1,17 @@
 // Chargement d'un personnage décrit par un fichier de métadonnées (ex. kage.json),
 // recoloration par skin et lecture des animations.
 
+// Version autonome (un seul fichier HTML) : les ressources sont intégrées dans
+// window.__KAGE_EMBED, indexées par leur chemin.
+const embedded = (url) => globalThis.__KAGE_EMBED?.[url];
+
+async function loadJson(url) {
+  return embedded(url) ?? (await fetch(url)).json();
+}
+
 export async function loadImage(url) {
   const img = new Image();
-  img.src = url;
+  img.src = embedded(url) ?? url;
   await img.decode();
   return img;
 }
@@ -42,11 +50,11 @@ export function applySkin(indexImage, meta, skin) {
 }
 
 export async function loadCharacter(baseUrl, metaFile, skinIds) {
-  const meta = await (await fetch(`${baseUrl}/${metaFile}`)).json();
+  const meta = await loadJson(`${baseUrl}/${metaFile}`);
   const indexImage = await loadImage(`${baseUrl}/${meta.indexImage}`);
   const skins = {};
   for (const id of skinIds ?? meta.skins) {
-    const skin = await (await fetch(`${baseUrl}/skins/${id}.json`)).json();
+    const skin = await loadJson(`${baseUrl}/skins/${id}.json`);
     skins[id] = { ...skin, sheet: applySkin(indexImage, meta, skin) };
   }
   return { meta, skins };
