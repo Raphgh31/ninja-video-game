@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KAGE — terrain d'essai</title>
+  </head>
+  <body>
+    <header class="bar">
+      <h1>KAGE <span>terrain d'essai</span></h1>
+      <p class="state" data-state aria-live="off">idle</p>
+    </header>
+    <main class="stage">
+      <canvas id="game" aria-label="Terrain d'essai du personnage KAGE"></canvas>
+    </main>
+    <footer class="bar bar--bottom">
+      <dl class="keys">
+        <div><dt>← →</dt><dd>courir</dd></div>
+        <div><dt>Espace</dt><dd>sauter</dd></div>
+        <div><dt>Maj / J</dt><dd>dash</dd></div>
+        <div><dt>↑ + Maj</dt><dd>dash vertical</dd></div>
+        <div><dt>↓ / K</dt><dd>glissade</dd></div>
+        <div><dt>H</dt><dd>hitbox</dd></div>
+      </dl>
+      <div class="skins" aria-label="Skin"></div>
+    </footer>
+    <div class="touch">
+      <div class="touch__pad">
+        <button type="button" data-action="left">Gauche</button>
+        <button type="button" data-action="right">Droite</button>
+      </div>
+      <div class="touch__pad">
+        <button type="button" data-action="slide">Glisser</button>
+        <button type="button" data-action="dash">Dash</button>
+        <button type="button" data-action="up dash">Dash ↑</button>
+        <button type="button" data-action="jump">Saut</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
