@@ -12,10 +12,9 @@ const P = {
   jumpCut: 0.45,     // relâcher le saut tôt = saut plus court
   coyote: 0.09,
   buffer: 0.11,
-  dashSpeed: 340,
-  dashTime: 0.2,
-  vdashSpeed: 330,
-  vdashTime: 0.18,
+  dashSpeed: 290,     // un peu plus lent qu'avant (340 px/s)
+  dashTime: 0.17,     // poussée, puis freinage jusqu'à la fin de l'animation (0,25 s) :
+  dashBrake: 4000,    // ~60 px au total au lieu de 68, et chaque frame reste visible plus longtemps
   slideSpeed: 190,
   slideTime: 0.36,
   landTime: 0.12,
@@ -77,16 +76,14 @@ export class Player {
         if (this.anim.finished) this.setState('idle');
         return;
       case 'dash':
-        this.vx = this.facing * P.dashSpeed;
         this.vy = 0;
-        if (this.timer >= P.dashTime) this.endSpecial();
-        break;
-      case 'dash_vertical':
-        this.vx = 0;
-        this.vy = -P.vdashSpeed;
-        if (this.timer >= P.vdashTime) {
-          this.vy *= 0.35;
-          this.endSpecial();
+        if (this.timer < P.dashTime) {
+          this.vx = this.facing * P.dashSpeed;
+        } else {
+          // freinage : on revient vers la vitesse de course pendant la dernière frame
+          const target = dir * P.run;
+          this.vx += Math.sign(target - this.vx) * Math.min(Math.abs(target - this.vx), P.dashBrake * dt);
+          if (this.anim.finished) this.endSpecial();
         }
         break;
       case 'slide':
@@ -112,14 +109,11 @@ export class Player {
         if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump') {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
-        if (input.wasPressed('dash') && (this.onGround || this.airDash)) {
+        const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;
+        if (dashDir && (this.onGround || this.airDash)) {
           if (!this.onGround) this.airDash = false;
-          if (input.isHeld('up') || input.wasPressed('up')) {
-            this.setState('dash_vertical');
-            this.onGround = false;
-          } else {
-            this.setState('dash');
-          }
+          this.facing = dashDir;
+          this.setState('dash');
           break;
         }
         if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && Math.abs(this.vx) > 20) {
@@ -129,8 +123,8 @@ export class Player {
       }
     }
 
-    // gravité (sauf pendant les dashs)
-    if (this.state !== 'dash' && this.state !== 'dash_vertical') {
+    // gravité (sauf pendant le dash)
+    if (this.state !== 'dash') {
       this.vy = Math.min(P.maxFall, this.vy + P.gravity * dt);
     }
     const wasGround = this.onGround;

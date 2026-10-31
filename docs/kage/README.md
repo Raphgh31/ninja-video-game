@@ -39,8 +39,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | jump | 4 | 14 | non (reste sur la dernière) | montée |
 | fall | 3 | 10 | oui | descente |
 | land | 3 | 18 | non | contact avec le sol |
-| dash | 5 | 24 | non | dash horizontal (0,2 s) |
-| dash_vertical | 4 | 22 | non | dash vers le haut |
+| dash | 5 | 20 | non | dash (double appui ← ← ou → →), 0,25 s |
 | slide | 3 | 12 | oui, à partir de la frame 2 | glissade |
 | death | 6 | 14 | non | destruction en blocs |
 | respawn | 3 | 10 | non | recomposition |

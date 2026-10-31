@@ -13,7 +13,7 @@ npm run build      # version de production dans dist/
 npm run standalone # dist/kage-standalone.html : jeu complet en un fichier, jouable par double-clic
 ```
 
-Commandes : flèches pour courir, Espace pour sauter, Maj (ou J) pour le dash, ↑ + Maj pour le dash vertical, ↓ (ou K) pour glisser, H pour afficher la hitbox. Boutons tactiles sur mobile.
+Commandes : flèches pour courir, double appui rapide sur ← ou → pour le dash, Espace pour sauter, ↓ (ou K) pour glisser, H pour afficher la hitbox. Boutons tactiles sur mobile (double appui sur Gauche/Droite pour le dash).
 
 ## Sprites
 

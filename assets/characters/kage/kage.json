@@ -399,7 +399,7 @@
     "dash": {
       "row": 5,
       "frameCount": 5,
-      "fps": 24,
+      "fps": 20,
       "loop": false,
       "loopStart": 0,
       "state": "dash",
@@ -410,79 +410,40 @@
           "y": 170,
           "w": 32,
           "h": 32,
-          "duration": 42
+          "duration": 50
         },
         {
           "x": 34,
           "y": 170,
           "w": 32,
           "h": 32,
-          "duration": 42
+          "duration": 50
         },
         {
           "x": 68,
           "y": 170,
           "w": 32,
           "h": 32,
-          "duration": 42
+          "duration": 50
         },
         {
           "x": 102,
           "y": 170,
           "w": 32,
           "h": 32,
-          "duration": 42
+          "duration": 50
         },
         {
           "x": 136,
           "y": 170,
           "w": 32,
           "h": 32,
-          "duration": 42
-        }
-      ]
-    },
-    "dash_vertical": {
-      "row": 6,
-      "frameCount": 4,
-      "fps": 22,
-      "loop": false,
-      "loopStart": 0,
-      "state": "dash_vertical",
-      "strip": "anims/kage_dash_vertical.png",
-      "frames": [
-        {
-          "x": 0,
-          "y": 204,
-          "w": 32,
-          "h": 32,
-          "duration": 45
-        },
-        {
-          "x": 34,
-          "y": 204,
-          "w": 32,
-          "h": 32,
-          "duration": 45
-        },
-        {
-          "x": 68,
-          "y": 204,
-          "w": 32,
-          "h": 32,
-          "duration": 45
-        },
-        {
-          "x": 102,
-          "y": 204,
-          "w": 32,
-          "h": 32,
-          "duration": 45
+          "duration": 50
         }
       ]
     },
     "slide": {
-      "row": 7,
+      "row": 6,
       "frameCount": 3,
       "fps": 12,
       "loop": true,
@@ -492,21 +453,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 238,
+          "y": 204,
           "w": 32,
           "h": 32,
           "duration": 83
         },
         {
           "x": 34,
-          "y": 238,
+          "y": 204,
           "w": 32,
           "h": 32,
           "duration": 83
         },
         {
           "x": 68,
-          "y": 238,
+          "y": 204,
           "w": 32,
           "h": 32,
           "duration": 83
@@ -514,7 +475,7 @@
       ]
     },
     "death": {
-      "row": 8,
+      "row": 7,
       "frameCount": 6,
       "fps": 14,
       "loop": false,
@@ -524,42 +485,42 @@
       "frames": [
         {
           "x": 0,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 34,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 68,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 102,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 136,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 170,
-          "y": 272,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 71
@@ -567,7 +528,7 @@
       ]
     },
     "respawn": {
-      "row": 9,
+      "row": 8,
       "frameCount": 3,
       "fps": 10,
       "loop": false,
@@ -577,21 +538,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 306,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 100
         },
         {
           "x": 34,
-          "y": 306,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 100
         },
         {
           "x": 68,
-          "y": 306,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 100

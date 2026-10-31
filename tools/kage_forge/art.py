@@ -217,52 +217,6 @@ DASH = [
 ]
 
 # ---------------------------------------------------------------------------
-# DASH VERTICAL (vers le haut) — compression, fusée (x2), ouverture
-# ---------------------------------------------------------------------------
-VSTREAKS = A("""
-z.......z
-z..z....z
-...z.....
-z..z.....
-z.......z
-........z
-""", x=10, bottom=31)
-
-DASH_V = [
-    F(pose(torso="crouch", tx=12, ty=21, head="head_r_up",
-           near_leg=[(17, 27), (17, 28)], far_leg=[(13, 27), (12, 28)],
-           near_arm=[(16, 24), (17, 25)], far_arm=[(12, 24), (11, 25)],
-           tail_long=[(-2, 0), (-4, 2), (-6, 4), (-8, 7)],
-           tail_short=[(-2, 1), (-4, 3), (-5, 6)])),
-    F(pose(torso="up", tx=12, ty=13, head="head_r_up",
-           near_leg=[(16, 22), (15, 24)], near_foot="down",
-           far_leg=[(13, 22), (13, 24)], far_foot="down",
-           near_arm=[(16, 17), (16, 19)], far_arm=[(12, 17), (12, 19)],
-           tail_long=[(-2, 2), (-2, 6), (-3, 10), (-3, 13)],
-           tail_short=[(-1, 2), (-1, 5), (-2, 8)]), VSTREAKS),
-    F(pose(torso="up", tx=12, ty=13, head="head_r_up",
-           near_leg=[(16, 22), (15, 24)], near_foot="down",
-           far_leg=[(13, 22), (13, 24)], far_foot="down",
-           near_arm=[(16, 17), (16, 19)], far_arm=[(12, 17), (12, 19)],
-           tail_long=[(-2, 2), (-3, 6), (-2, 10), (-3, 13)],
-           tail_short=[(-1, 2), (-2, 5), (-1, 8)]),
-      A("""
-.z.......
-.z.....z.
-.......z.
-.z.....z.
-.........
-.z.......
-""", x=9, bottom=31)),
-    F(pose(torso="up", tx=12, ty=14, head="head_r_up",
-           near_leg=[(17, 22), (17, 24)], near_foot="tuck",
-           far_leg=[(14, 22), (13, 24)], far_foot="down",
-           near_arm=[(17, 16), (19, 15)], far_arm=[(12, 16), (10, 15)],
-           tail_long=[(-2, 2), (-4, 5), (-5, 8), (-6, 12)],
-           tail_short=[(-2, 2), (-3, 5), (-4, 8)])),
-]
-
-# ---------------------------------------------------------------------------
 # SLIDE — plongée au ras du sol, glissade (x2)
 # ---------------------------------------------------------------------------
 SLIDE = [
@@ -290,7 +244,7 @@ SLIDE = [
 
 ANIMS_POSED = {
     "idle": IDLE, "run": RUN, "jump": JUMP, "fall": FALL, "land": LAND,
-    "dash": DASH, "dash_vertical": DASH_V, "slide": SLIDE,
+    "dash": DASH, "slide": SLIDE,
 }
 
 # ---------------------------------------------------------------------------
@@ -525,8 +479,7 @@ ANIMS = {
     "jump":          dict(frames=JUMP,    fps=14, loop=False, state="jump"),
     "fall":          dict(frames=FALL,    fps=10, loop=True,  state="fall"),
     "land":          dict(frames=LAND,    fps=18, loop=False, state="land"),
-    "dash":          dict(frames=DASH,    fps=24, loop=False, state="dash"),
-    "dash_vertical": dict(frames=DASH_V,  fps=22, loop=False, state="dash_vertical"),
+    "dash":          dict(frames=DASH,    fps=20, loop=False, state="dash"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),
