@@ -117,6 +117,7 @@ export class TouchControls {
     this.canvas = canvas;
     this.input = input;
     this.scale = 1;
+    this.rotW = 0;                  // portrait : largeur de l'écran (jeu pivoté d'un quart de tour)
     this.buttons = [];
     this.pointers = new Map();      // pointerId -> { type: 'stick' | 'button', ... }
     this.stick = null;              // { id, ox, oy, x, y, outAt, outDir }
@@ -144,7 +145,13 @@ export class TouchControls {
     ];
   }
 
+  /** Portrait : le jeu est pivoté de 90° (son haut est à droite de l'écran). */
+  setRotation(screenW) {
+    this.rotW = screenW;
+  }
+
   toGame(e) {
+    if (this.rotW) return { x: e.clientY / this.scale, y: (this.rotW - e.clientX) / this.scale };
     const rect = this.canvas.getBoundingClientRect();
     return { x: (e.clientX - rect.left) / this.scale, y: (e.clientY - rect.top) / this.scale };
   }

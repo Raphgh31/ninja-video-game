@@ -17,7 +17,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
 - Résolution interne 320×180 sur ordinateur, mise à l'échelle **entière** uniquement (pixels nets, `imageSmoothingEnabled = false`).
-- Mobile (`pointer: coarse`) : plein écran, échelle toujours entière ; c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'adapte à l'écran. Commandes tactiles dessinées dans le canvas (`src/engine/touch.js`).
+- Mobile (`pointer: coarse`) : plein écran, même cadrage que sur ordinateur (~180 px de jeu en hauteur) ; l'échelle est entière **en pixels réels de l'écran** (`devicePixelRatio`) et c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'ajuste. En portrait, tout le bloc de jeu pivote d'un quart de tour (classe `rotated`) : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Commandes tactiles dessinées dans le canvas (`src/engine/touch.js`, `setRotation`).
 - `assets/` est le `publicDir` de Vite : les chemins des ressources commencent à `./characters/...`.
 - Boucle à pas fixe de 120 Hz (`src/main.js`).
 

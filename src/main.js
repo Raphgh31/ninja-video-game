@@ -12,8 +12,11 @@ import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import './style.css';
 
-// Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
-// reste entière (pixels nets) et c'est la zone visible qui s'adapte à l'écran.
+// Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran, même cadrage
+// que sur ordinateur (~180 px de jeu en hauteur). L'échelle est entière en pixels
+// réels de l'écran (pixels nets) et c'est la zone visible qui s'ajuste au millimètre.
+// En portrait, le jeu pivote d'un quart de tour : il suffit de tourner le téléphone,
+// même si la rotation automatique est bloquée.
 const MOBILE = matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('mobile', MOBILE);
 let VIEW_W = 320;
@@ -28,13 +31,29 @@ const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
+const stage = canvas.parentElement;
+if (MOBILE) {
+  // le bouton du son et l'écran de fin tournent avec le jeu
+  stage.append(document.querySelector('.mute'), document.querySelector('.win'));
+}
+const MOBILE_VIEW_H = 180;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 function fit() {
   if (MOBILE) {
-    const W = window.innerWidth, H = window.innerHeight;
-    // au moins ~240×150 pixels de jeu visibles en paysage (180 de large en portrait)
-    SCALE = Math.max(1, Math.floor(Math.min(W / (W > H ? 240 : 180), H / 150)));
-    VIEW_W = Math.ceil(W / SCALE);
-    VIEW_H = Math.ceil(H / SCALE);
+    const W = window.innerWidth, H = window.innerHeight;     // pixels CSS
+    const dpr = window.devicePixelRatio || 1;
+    const rotated = H > W;                                     // portrait : jeu pivoté
+    const LW = rotated ? H : W, LH = rotated ? W : H;          // côtés du jeu, en paysage
+    // échelle entière en pixels réels de l'écran, la plus proche de 180 px de jeu en hauteur
+    let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
+    while (dev > 1 && (LW * dpr) / dev < 280) dev--;           // jamais trop étroit
+    SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
+    VIEW_W = Math.ceil((LW * dpr) / dev);
+    VIEW_H = Math.ceil((LH * dpr) / dev);
+    document.body.classList.toggle('rotated', rotated);
+    stage.style.width = `${LW}px`;
+    stage.style.height = `${LH}px`;
+    stage.style.transform = rotated ? `translateX(${W}px) rotate(90deg)` : '';
+    touch?.setRotation(rotated ? W : 0);
   } else {
     const stage = canvas.parentElement.getBoundingClientRect();
     SCALE = Math.max(1, Math.floor(Math.min(stage.width / 320, stage.height / 180)));
