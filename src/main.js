@@ -245,12 +245,6 @@ function update(dt) {
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
-  // le sprint tactile se coupe tout seul à l'arrêt ou quand on est essoufflé
-  if (touch?.sprintOn) {
-    const moving = input.isHeld('left') || input.isHeld('right');
-    touch.idleSprint = moving ? 0 : (touch.idleSprint ?? 0) + dt;
-    if (player.energy.exhausted || touch.idleSprint > 0.5) touch.setSprint(false);
-  }
   level.update(dt);
   shurikens.update(dt);
   for (const t of enemies) {
