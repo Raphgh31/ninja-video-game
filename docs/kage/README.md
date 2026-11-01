@@ -51,6 +51,21 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 - **Ancrage** : `(16, 31)`, milieu bas de la cellule, sous les pieds. Toutes les frames au sol posent les pieds sur la ligne 31 (vérifié automatiquement).
 - **Orientation** : les animations regardent à droite. Pour la gauche, on retourne le sprite (`flipForLeft: true`). L'asymétrie (nœud derrière la tête, pans qui traînent derrière) est relative à l'orientation, donc le retournement reste juste. Seule la vue de référence « profil gauche » est dessinée à part : le pan long y passe du côté éloigné, plus sombre.
 
+## Énergie
+
+Anneau au-dessus de la tête de KAGE (un peu en arrière), qui se vide dans le sens des aiguilles d'une montre et s'efface quand il est plein. Réglages dans `src/game/energy.js` (`ENERGY`).
+
+| Action | Effet |
+|---|---|
+| Courir | −4 %/s (≈ 25 s de course pour vider la barre) |
+| Immobile au sol | +55 %/s après 0,35 s (vide → plein en moins de 2 s) |
+| Dash | −33 % (refusé s'il manque de l'énergie) |
+| Saut | −10 % (toujours possible, même à vide) |
+| Coup de sabre | −12 % (refusé s'il manque de l'énergie) |
+| Shuriken | gratuit |
+
+À zéro, KAGE est **essoufflé** : anneau rouge, course à 65 % de la vitesse, dash et sabre impossibles jusqu'à ce que l'énergie remonte à 40 %. Une action refusée fait clignoter l'anneau en rouge. L'énergie est remplie à la réapparition.
+
 ## Palette (et futurs skins)
 
 Les skins sont mis de côté pour l'instant. Le jeu n'utilise qu'une palette, `skins/encre.json`.

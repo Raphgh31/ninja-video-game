@@ -57,6 +57,8 @@ function draw() {
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  // anneau d'énergie au-dessus de la tête, légèrement en arrière
+  player.energy.draw(ctx, player.x - cam.x - player.facing * 9, player.y - cam.y - 37);
   shurikens.drawHud(ctx, look.projectiles.shuriken);
   if (debug) {
     const b = player.box();
@@ -70,7 +72,7 @@ function draw() {
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }
-  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount}`;
+  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} %`;
 }
 
 // Boucle à pas fixe (120 Hz) pour une physique stable quel que soit l'écran.

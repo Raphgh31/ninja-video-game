@@ -1,6 +1,7 @@
 // KAGE : physique de plateforme + machine d'états reliée aux animations.
 import { Animator } from '../engine/sprites.js';
 import { TILE } from './level.js';
+import { ENERGY, Energy } from './energy.js';
 
 const P = {
   run: 120,          // px/s
@@ -27,6 +28,7 @@ export class Player {
     this.meta = meta;
     this.level = level;
     this.anim = new Animator(meta);
+    this.energy = new Energy();
     this.respawn(true);
   }
 
@@ -43,6 +45,7 @@ export class Player {
     this.timer = 0;
     this.airDash = true;
     this.level.resetTargets?.();
+    this.energy?.reset();
     this.onRespawn?.();
     this.setState(instant ? 'idle' : 'respawn');
   }
@@ -118,7 +121,7 @@ export class Player {
         break;
       default: {
         // contrôle horizontal
-        const target = dir * P.run;
+        const target = dir * P.run * this.energy.speedFactor;
         const a = dir !== 0 ? P.accel : P.friction;
         if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
         else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
@@ -126,6 +129,7 @@ export class Player {
 
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = -P.jump;
+          this.energy.spend(ENERGY.jump);   // le saut reste toujours possible
           this.onGround = false;
           this.coyote = 0;
           this.jumpBuffer = 0;
@@ -135,13 +139,13 @@ export class Player {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
         const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;
-        if (dashDir && (this.onGround || this.airDash)) {
+        if (dashDir && (this.onGround || this.airDash) && this.energy.trySpend(ENERGY.dash)) {
           if (!this.onGround) this.airDash = false;
           this.facing = dashDir;
           this.setState('dash');
           break;
         }
-        if (input.wasPressed('attack')) {
+        if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
           this.setState('attack');
           break;
         }
@@ -189,6 +193,10 @@ export class Player {
     }
 
     if (this.level.hitsSpike(this.box()) || this.y > this.level.height + 64) this.die();
+    this.energy.update(dt, {
+      running: this.onGround && this.state === 'run' && Math.abs(this.vx) > 10,
+      resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
+    });
     this.anim.update(dt);
   }
 
