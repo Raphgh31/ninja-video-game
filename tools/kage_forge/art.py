@@ -790,23 +790,26 @@ KICK = [
            tail_long=[(-2, 1), (-3, 3), (-4, 6), (-5, 9)], tail_short=[(-2, 2), (-3, 4), (-3, 7)])),
     # 2. détente : la jambe file vers l'avant, le buste bascule en arrière
     F(pose(torso="back", tx=9, ty=19, head="head_r_squint", **KICK_FAR_LEG,
-           near_leg=[(20, 20), (25, 18)], near_foot="point",
+           near_leg=[(19, 20), (23, 19)], near_foot="flex",
            near_arm=[(14, 21), (16, 19)], far_arm=[(9, 22), (7, 24)],
            tail_long=[(-2, -1), (-4, -3), (-5, -6), (-6, -8)], tail_short=[(-2, 1), (-4, 0), (-5, -2)])),
     # 3. impact : jambe tendue à l'horizontale, talon en avant
     Frame([G(pose(torso="back", tx=8, ty=19, head="head_r_squint", **KICK_FAR_LEG,
-                  near_leg=[(21, 19), (28, 16)], near_foot="point",
+                  near_leg=[(20, 19), (26, 17)], near_foot="flex",
                   near_arm=[(13, 21), (15, 19)], far_arm=[(8, 22), (6, 25)],
                   tail_long=[(-2, -2), (-3, -4), (-4, -7), (-5, -9)], tail_short=[(-2, 0), (-4, -1), (-5, -3)])),
-           A("X.\n.X\nX.", x=33, bottom=18)], outline=True),
-    # 4. retrait : la jambe se replie, genou haut
-    F(pose(torso="up", tx=10, ty=19, **KICK_FAR_LEG,
+           A("X.\n.X\nX.", x=31, bottom=18)], outline=True),
+    # 4. retrait : la jambe se replie, genou haut ; l'effort se lit sur le visage
+    F(pose(torso="up", tx=10, ty=19, head="head_r_squint", **KICK_FAR_LEG,
            near_leg=[(19, 21), (17, 24)], near_foot="down",
            near_arm=[(16, 21), (18, 19)], far_arm=[(12, 21), (14, 20)],
-           tail_long=[(-2, 1), (-3, 3), (-4, 6), (-5, 9)], tail_short=[(-2, 2), (-3, 4), (-3, 7)])),
-    # 5. retour en garde
-    F(pose(torso="up", tx=12, ty=19, **STANCE,
-           tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)], tail_short=[(-2, 2), (-3, 4), (-3, 8)])),
+           tail_long=[(-2, 1), (-3, 3), (-4, 6), (-5, 9)], tail_short=[(-2, 2), (-3, 4), (-3, 7)]),
+      A("qq\n.q", x=20, bottom=16)),
+    # 5. retour en garde, tassé : KAGE souffle (le coup lui a coûté)
+    F(pose(torso="up", tx=12, ty=20, head="head_r_squint", **STANCE_LOW,
+           tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)], tail_short=[(-2, 2), (-3, 4), (-3, 8)]),
+      A(".qq.\nqqqq\n.q.q", x=22, bottom=17),     # grande expiration devant la bouche
+      A("q\nq", x=8, bottom=12)),                 # goutte de sueur derrière la tête
 ]
 
 # ---------------------------------------------------------------------------
@@ -859,7 +862,7 @@ ANIMS = {
                           durations=[70, 45, 90, 90], release=AIR_THROW_RELEASE),
     "skid":          dict(frames=SKID,    fps=12, loop=True,  state="skid"),
     "kick":          dict(frames=KICK,    fps=14, loop=False, state="kick",
-                          durations=[70, 50, 120, 70, 80]),
+                          durations=[70, 50, 120, 90, 130]),
     "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),

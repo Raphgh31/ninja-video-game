@@ -101,6 +101,7 @@ const SOUNDS = {
     noise({ dur: 0.05, vol: 0.08, type: 'highpass', f: 3000 });
   },
   kick: () => noise({ dur: 0.1, vol: 0.08, f: 1800, to: 700, q: 1.3, attack: 0.01 }),
+  breath: () => noise({ dur: 0.22, vol: 0.05, type: 'bandpass', f: 1300, to: 600, q: 0.7, attack: 0.03 }),
   kickHit: () => { noise({ dur: 0.08, vol: 0.16, type: 'lowpass', f: 700 }); tone({ f: 120, to: 70, dur: 0.09, type: 'sine', vol: 0.12 }); },
   throw: () => noise({ dur: 0.09, vol: 0.07, f: 4200, to: 1800, q: 2 }),
   stick: () => { tone({ f: 1900, dur: 0.03, vol: 0.05 }); noise({ dur: 0.035, vol: 0.06, type: 'highpass', f: 2500 }); },

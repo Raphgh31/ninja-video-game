@@ -130,6 +130,7 @@ player.onEvent = (n, d) => {
     case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
+    case 'kick_breath': sfx('breath'); break;
     case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');

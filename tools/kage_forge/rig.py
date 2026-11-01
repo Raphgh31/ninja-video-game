@@ -146,7 +146,11 @@ FEET = {
     "down": "DD\nDD\n.D",    # pointe vers le bas (jambe arrière levée)
     "back": "DDD\nD..",      # semelle vers l'arrière (poussée)
     "tuck": "DD\nDDD",
+    # pied fléchi (coup de pied de côté) : talon en avant, orteils vers le haut.
+    # Posé au bout du tibia et remonte au-dessus (voir FOOT_OFFSET).
+    "flex": ".D\nDD\nDD\nDD",
 }
+FOOT_OFFSET = {"flex": (2, -2)}   # décalage depuis la cheville (par défaut : (0, 1), sous la cheville)
 for k, v in FEET.items():
     stamp("foot_" + k, v)
     stamp("foot_" + k + "_far", v.replace("D", "d"))
@@ -308,7 +312,8 @@ def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
     if near_leg:
         c.limb([hn] + near_leg, ["T", "T"], sep=True)
         ax, ay = near_leg[-1]
-        c.stamp(f"foot_{near_foot}", ax, ay + 1)
+        ox, oy = FOOT_OFFSET.get(near_foot, (0, 1))
+        c.stamp(f"foot_{near_foot}", ax + ox, ay + oy)
     def draw_near_arm():
         c.limb([sn] + near_arm, ["T", "A"], sep=True)
         if blade:
