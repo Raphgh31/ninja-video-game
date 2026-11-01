@@ -31,6 +31,20 @@ PAL = {
 NO_OUTLINE = set("XxZhl")
 
 
+# Agrandissement de TATE : on double quelques lignes et une colonne du dessin
+# (avant le contour), là où les formes sont verticales. Indices = dessin d'origine.
+GROW_ROWS = (17, 22, 26)   # armure, hakama, jambes : +3 px de haut
+GROW_COLS = (15,)          # milieu du corps : +1 px de large
+
+
+def grow(g):
+    for r in GROW_ROWS:                     # le sol (ligne 30) ne bouge pas
+        g = np.vstack([g[1:r + 1], g[r:r + 1], g[r + 1:]])
+    for c in sorted(GROW_COLS, reverse=True):
+        g = np.hstack([g[:, :c + 1], g[:, c:c + 1], g[:, c + 1:-1]])
+    return g
+
+
 class Canvas:
     def __init__(self):
         self.g = np.full((H, W), ".", dtype="<U1")
@@ -45,6 +59,9 @@ class Canvas:
             self.put(x, y + j, r)
 
     def outline(self):
+        if (self.g[:len(GROW_ROWS)] != ".").any() or (self.g[:, -len(GROW_COLS):] != ".").any():
+            raise ValueError("pas assez de marge pour agrandir TATE")
+        self.g = grow(self.g)
         solid = (self.g != ".") & ~np.isin(self.g, list(NO_OUTLINE)) & (self.g != "O")
         near = np.zeros_like(solid)
         near[1:, :] |= solid[:-1, :]

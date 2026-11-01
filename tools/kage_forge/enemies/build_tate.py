@@ -77,9 +77,9 @@ def main():
                          "note": "un genou à terre (long), bascule (rapide), impact, au sol ; 0 = jusqu'à la fin"},
         },
         "boxes": {
-            "body": {"x": 8, "y": 8, "w": 14, "h": 23, "note": "corps solide"},
-            "shield": {"x": 21, "y": 9, "w": 10, "h": 22, "note": "bouclier (bloque de face)"},
-            "bash": {"x": 26, "y": 8, "w": 12, "h": 23, "note": "bouclier projeté : touche KAGE"},
+            "body": {"x": 8, "y": 5, "w": 15, "h": 26, "note": "corps solide"},
+            "shield": {"x": 22, "y": 6, "w": 10, "h": 25, "note": "bouclier (bloque de face)"},
+            "bash": {"x": 27, "y": 5, "w": 12, "h": 26, "note": "bouclier projeté : touche KAGE"},
         },
     }
     (OUT / "tate.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))

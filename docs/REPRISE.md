@@ -98,6 +98,7 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 ## 5. L'ennemi TATE
 
 - **Garde de temple au grand bouclier** : chapeau conique laqué à liseré rouge, masque de fer aux yeux ambrés, armure rouge sourd, vêtements indigo, jambes courtes (pas lourd), **talisman de papier dans le dos** (cordon de paille en bandoulière, papier qui ondule, **halo** qui pulse quand le dos est exposé).
+- **Taille** : agrandi légèrement à la demande de l'utilisateur (29 px de haut au lieu de 26, +1 px de large) en doublant trois lignes et une colonne du dessin (`GROW_ROWS`, `GROW_COLS` dans `tate.py`) : le jeu n'accepte qu'une mise à l'échelle entière.
 - **Comportement** : marche à 18 px/s, demi-tour lent (0,7 s), bloque tout de face (étincelles), corps solide sauf en glissade (on passe entre ses jambes), **charge au bouclier** après un élan de 0,45 s, étourdi 1,4 s s'il rate sa charge, 4 points de vie, frappé seulement dans le dos.
 - **Mort lourde en 4 temps** : un genou à terre (long), bascule, impact avec poussière, au sol, puis fondu.
 - Ne traverse pas les murs et ne s'avance pas au-dessus du vide.
