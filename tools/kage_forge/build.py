@@ -146,9 +146,8 @@ def main():
     # projectile : shuriken (cellules 10x10, contour auto, partie enfoncée coupée)
     SC = 10
     proj = {}
-    sh_rgba = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))
-    sh_idx = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))
-    for i, (name, (text, anchor)) in enumerate(SHURIKEN.items()):
+    cells = []
+    for name, (text, anchor) in SHURIKEN.items():
         g = np.full((SC, SC), ".", dtype="<U1")
         art = parse(text)
         g[1:1 + art.shape[0], 1:1 + art.shape[1]] = art
@@ -158,6 +157,13 @@ def main():
             g[:, ax + 1:] = "."          # ce qui dépasse dans le mur n'est pas visible
         if name == "stuck_ground":
             g[ay + 1:, :] = "."          # idem dans le sol
+        cells.append((name, g, (ax, ay)))
+        if name == "stuck_ground":
+            # même image en miroir : demi-lame vers l'arrière, lame entière vers l'avant
+            cells.append(("stuck_ground_b", np.fliplr(g), (SC - 1 - ax, ay)))
+    sh_rgba = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
+    sh_idx = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
+    for i, (name, g, (ax, ay)) in enumerate(cells):
         sh_rgba.paste(to_rgba(g, ref), (i * SC, 0))
         sh_idx.paste(to_index(g), (i * SC, 0))
         proj[name] = {"x": i * SC, "y": 0, "w": SC, "h": SC, "anchor": {"x": ax, "y": ay}}
@@ -195,6 +201,7 @@ def main():
                 "indexImage": "kage_shuriken_index.png",
                 "frames": proj,
                 "spin": ["spin0", "spin1"],
+                "ground": ["stuck_ground", "stuck_ground_b"],
                 "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface",
             }
         },

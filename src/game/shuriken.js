@@ -48,8 +48,11 @@ export class Shurikens {
           const wx = s.dir > 0 ? tx * TILE : (tx + 1) * TILE;
           this.plant({ kind: 'stuck_wall', x: wx, y: Math.round(s.y), dir: s.dir });
         } else {
-          // entrée par le dessus : planté dans le sol
-          this.plant({ kind: 'stuck_ground', x: Math.round(s.x), y: ty * TILE, dir: s.dir });
+          // entrée par le dessus : planté dans le sol, avec une des deux
+          // inclinaisons tirée au hasard (la rotation à l'impact varie)
+          const variants = this.meta.ground;
+          const kind = variants[Math.floor(Math.random() * variants.length)];
+          this.plant({ kind, x: Math.round(s.x), y: ty * TILE, dir: 1 });
         }
         s.dead = true;
       } else if (s.x < -32 || s.x > lv.width + 32 || s.y > lv.height + 32) {
@@ -77,12 +80,11 @@ export class Shurikens {
   }
 
   // Dessine l'image `kind` de façon que son ancre tombe sur (x, y) : le pixel
-  // juste avant la surface (mur / sol). dir < 0 : image retournée (lancer vers
-  // la gauche, mur à gauche, inclinaison inversée dans le sol).
+  // juste avant la surface (mur / sol). dir < 0 : image retournée (mur à gauche).
   blit(ctx, sheet, kind, x, y, dir, cam) {
     const f = this.meta.frames[kind];
     const sx = Math.round(x - cam.x), sy = Math.round(y - cam.y);
-    const oy = kind === 'stuck_ground' ? 1 : 0;
+    const oy = kind.startsWith('stuck_ground') ? 1 : 0;
     if (dir < 0) {
       ctx.save();
       ctx.translate(sx, 0);

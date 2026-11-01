@@ -780,11 +780,25 @@
             "x": 5,
             "y": 4
           }
+        },
+        "stuck_ground_b": {
+          "x": 40,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
         }
       },
       "spin": [
         "spin0",
         "spin1"
+      ],
+      "ground": [
+        "stuck_ground",
+        "stuck_ground_b"
       ],
       "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface"
     }
