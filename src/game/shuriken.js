@@ -5,7 +5,7 @@ export const SHURIKEN = {
   speed: 260,        // px/s, horizontal, constant
   range: 160,        // portée sur terrain plat, lancé à l'arrêt : 10 carreaux
   maxStuck: 40,      // nombre de shurikens plantés conservés dans le décor
-  spinStep: 0.045,   // s par image de rotation
+  spinStep: 0.12,    // s par image de rotation (rotation lente et lisible)
 };
 
 export class Shurikens {

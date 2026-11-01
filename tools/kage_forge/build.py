@@ -143,8 +143,8 @@ def main():
         im.save(OUT / "views" / f"kage_view_{k}.png")
     vs.save(OUT / "kage_views.png")
 
-    # projectile : shuriken (cellules 8x8, contour auto, partie enfoncée coupée)
-    SC = 8
+    # projectile : shuriken (cellules 10x10, contour auto, partie enfoncée coupée)
+    SC = 10
     proj = {}
     sh_rgba = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))
     sh_idx = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))

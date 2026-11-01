@@ -454,24 +454,28 @@ THROW = [
            tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
 ]
 
-# Projectile : cellules 8x8. Rotation (2 images), puis planté dans un mur
+# Projectile : cellules 10x10. Rotation (2 images), puis planté dans un mur
 # (mur à droite) et planté dans le sol, en plus petit. L'ancre est le point
 # posé sur la surface touchée.
 SHURIKEN = {
     "spin0": ("""
-..W..
-..W..
-WWgWW
-..W..
-..W..
-""", (3, 3)),
+...W...
+...W...
+..WWW..
+WWWgWWW
+..WWW..
+...W...
+...W...
+""", (4, 4)),
     "spin1": ("""
-W...W
-.W.W.
-..g..
-.W.W.
-W...W
-""", (3, 3)),
+W.....W
+.W...W.
+..WwW..
+..wgw..
+..WwW..
+.W...W.
+W.....W
+""", (4, 4)),
     "stuck_wall": ("""
 ..W
 WWg

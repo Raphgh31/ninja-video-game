@@ -22,7 +22,7 @@ Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau 
 |---|---|
 | `kage_sheet.png` | planche complète : une ligne par animation, cellules 48×32 (personnage dans les 32 premières colonnes, place devant pour le sabre), espacement 2 px, fond transparent |
 | `kage_sheet_index.png` | même planche en **carte d'index** : canal R = numéro du slot (voir `kage.json`) |
-| `kage_shuriken.png`, `kage_shuriken_index.png` | shuriken : 2 images de rotation, planté dans un mur, planté dans le sol (cellules 8×8, ancre = point sur la surface) |
+| `kage_shuriken.png`, `kage_shuriken_index.png` | shuriken : 2 images de rotation, planté dans un mur, planté dans le sol (cellules 10×10, ancre = point sur la surface) |
 | `kage.json` | métadonnées : cellules, ancrage, hitbox, slots, animations (frames, durées, fps, boucle) |
 | `kage_views.png`, `views/` | face, dos, profil gauche, profil droit |
 | `anims/kage_<anim>.png` | chaque animation exportée seule (bande horizontale) |
