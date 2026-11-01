@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
 from art import ANIMS, VIEWS  # noqa: E402
-from core import CELL, render  # noqa: E402
+from core import CH, CW, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,7 +40,7 @@ def load_skins():
 
 
 def to_rgba(grid, colors, only=None):
-    a = np.zeros((CELL, CELL, 4), np.uint8)
+    a = np.zeros(grid.shape + (4,), np.uint8)
     for s in SLOTS:
         if only is not None and s not in only:
             continue
@@ -51,7 +51,7 @@ def to_rgba(grid, colors, only=None):
 
 
 def to_index(grid):
-    a = np.zeros((CELL, CELL, 4), np.uint8)
+    a = np.zeros((CH, CW, 4), np.uint8)
     for i, s in enumerate(SLOT_ORDER):
         m = grid == s
         a[m] = (i + 1, 0, 0, 255)
@@ -98,15 +98,15 @@ def main():
         shutil.rmtree(OUT / d, ignore_errors=True)
         (OUT / d).mkdir(parents=True)
 
-    step = CELL + SPACING
+    sx, sy = CW + SPACING, CH + SPACING
     cols = max(len(v) for v in rendered.values())
-    W, H = cols * step - SPACING, len(order) * step - SPACING
+    W, H = cols * sx - SPACING, len(order) * sy - SPACING
 
     def sheet(fn):
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         for r, k in enumerate(order):
             for c, g in enumerate(rendered[k]):
-                im.paste(fn(g), (c * step, r * step))
+                im.paste(fn(g), (c * sx, r * sy))
         return im
 
     # planche de référence + carte d'index + calques
@@ -117,7 +117,7 @@ def main():
         sheet(lambda g, slots=slots: to_rgba(g, ref, only=slots)).save(OUT / "layers" / f"kage_{part}.png")
     # silhouette pleine (masque)
     sheet(lambda g: Image.fromarray(
-        np.dstack([np.zeros((CELL, CELL, 3), np.uint8),
+        np.dstack([np.zeros((CH, CW, 3), np.uint8),
                    np.where((g != ".") & ~np.isin(g, list(NO_OUTLINE)), 255, 0).astype(np.uint8)]),
         "RGBA")).save(OUT / "layers" / "kage_silhouette.png")
 
@@ -127,19 +127,19 @@ def main():
 
     # animations individuelles
     for k in order:
-        strip = Image.new("RGBA", (CELL * len(rendered[k]), CELL), (0, 0, 0, 0))
+        strip = Image.new("RGBA", (CW * len(rendered[k]), CH), (0, 0, 0, 0))
         for i, g in enumerate(rendered[k]):
             im = to_rgba(g, ref)
-            strip.paste(im, (i * CELL, 0))
+            strip.paste(im, (i * CW, 0))
             im.save(OUT / "frames" / f"kage_{k}_{i:02d}.png")
         strip.save(OUT / "anims" / f"kage_{k}.png")
 
     # vues
     vorder = ["front", "back", "left", "right"]
-    vs = Image.new("RGBA", (4 * step - SPACING, CELL), (0, 0, 0, 0))
+    vs = Image.new("RGBA", (4 * sx - SPACING, CH), (0, 0, 0, 0))
     for i, k in enumerate(vorder):
         im = to_rgba(views[k], ref)
-        vs.paste(im, (i * step, 0))
+        vs.paste(im, (i * sx, 0))
         im.save(OUT / "views" / f"kage_view_{k}.png")
     vs.save(OUT / "kage_views.png")
 
@@ -149,7 +149,7 @@ def main():
         "version": 1,
         "image": "kage_sheet.png",
         "indexImage": "kage_sheet_index.png",
-        "cell": {"w": CELL, "h": CELL},
+        "cell": {"w": CW, "h": CH},
         "spacing": SPACING,
         "margin": 0,
         "pivot": {"x": PIVOT[0], "y": PIVOT[1], "note": "milieu bas de la cellule, sous les pieds"},
@@ -159,13 +159,13 @@ def main():
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 10, "y": 17, "w": 13, "h": 14},
             "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
-            "attack": {"x": 19, "y": 6, "w": 13, "h": 25, "frames": [2, 3, 4],
+            "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
         },
         "slots": [{"index": i + 1, "slot": s, "part": SLOTS[s][0], "role": SLOTS[s][1]}
                   for i, s in enumerate(SLOT_ORDER)],
         "animations": {},
-        "views": {k: {"x": i * step, "y": 0, "w": CELL, "h": CELL, "image": "kage_views.png"}
+        "views": {k: {"x": i * sx, "y": 0, "w": CW, "h": CH, "image": "kage_views.png"}
                   for i, k in enumerate(vorder)},
         "skins": sorted(skins),
     }
@@ -180,7 +180,7 @@ def main():
             "loopStart": a.get("loop_start", 0),
             "state": a["state"],
             "strip": f"anims/kage_{k}.png",
-            "frames": [{"x": c * step, "y": r * step, "w": CELL, "h": CELL,
+            "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],
         }
@@ -214,21 +214,22 @@ def build_docs(rendered, views, skins, order, vorder):
 
     # planche de référence : 4 vues + taille réelle + palette
     labels = {"front": "FACE", "back": "DOS", "left": "PROFIL GAUCHE", "right": "PROFIL DROIT"}
-    cw = CELL * Z
+    cw = CH * Z
+    sq = lambda g: g[:, :CH]   # les vues tiennent dans les 32 premières colonnes
     W = 40 + 4 * (cw + 24)
     H = 120 + cw + 290
     im = Image.new("RGB", (W, H), (226, 222, 212))
     d = ImageDraw.Draw(im)
     d.text((40, 30), "KAGE — planche de référence", fill=INK, font=font(30))
-    d.text((40, 70), "Skin « Encre » (référence) · grille 32×32 · ancrage des pieds en (16, 31)",
+    d.text((40, 70), "Skin « Encre » (référence) · cellule 48×32 · ancrage des pieds en (16, 31)",
            fill=(80, 80, 86), font=font(16))
     for i, k in enumerate(vorder):
         x = 40 + i * (cw + 24)
         d.rectangle([x, 110, x + cw - 1, 110 + cw - 1], fill=BG)
-        im.paste(to_rgba(views[k], ref).resize((cw, cw), Image.NEAREST), (x, 110),
-                 to_rgba(views[k], ref).resize((cw, cw), Image.NEAREST))
+        big = to_rgba(sq(views[k]), ref).resize((cw, cw), Image.NEAREST)
+        im.paste(big, (x, 110), big)
         d.text((x, 120 + cw), labels[k], fill=INK, font=font(16))
-        small = to_rgba(views[k], ref)
+        small = to_rgba(sq(views[k]), ref)
         im.paste(small, (x + cw - 40, 120 + cw), small)
         x2 = small.resize((64, 64), Image.NEAREST)
         im.paste(x2, (x + cw - 120, 120 + cw - 18), x2)
@@ -246,22 +247,22 @@ def build_docs(rendered, views, skins, order, vorder):
 
     # planche d'animations annotée
     Z2 = 4
-    cw2 = CELL * Z2
+    cw2, ch2 = CW * Z2, CH * Z2
     cols = max(len(v) for v in rendered.values())
     W = 230 + cols * (cw2 + 10)
-    H = 30 + len(order) * (cw2 + 10)
+    H = 30 + len(order) * (ch2 + 10)
     im = Image.new("RGB", (W, H), (226, 222, 212))
     d = ImageDraw.Draw(im)
     for r, k in enumerate(order):
-        y = 20 + r * (cw2 + 10)
+        y = 20 + r * (ch2 + 10)
         a = ANIMS[k]
-        d.text((20, y + 40), k.upper(), fill=INK, font=font(18))
-        d.text((20, y + 66), f"{len(rendered[k])} frames · {a['fps']} i/s"
+        d.text((20, y + 30), k.upper(), fill=INK, font=font(18))
+        d.text((20, y + 56), f"{len(rendered[k])} frames · {a['fps']} i/s"
                f"{' · boucle' if a['loop'] else ''}", fill=(80, 80, 86), font=font(13))
         for c, g in enumerate(rendered[k]):
             x = 230 + c * (cw2 + 10)
-            d.rectangle([x, y, x + cw2 - 1, y + cw2 - 1], fill=BG)
-            big = to_rgba(g, ref).resize((cw2, cw2), Image.NEAREST)
+            d.rectangle([x, y, x + cw2 - 1, y + ch2 - 1], fill=BG)
+            big = to_rgba(g, ref).resize((cw2, ch2), Image.NEAREST)
             im.paste(big, (x, y), big)
     im.save(DOCS / "kage_animations.png")
 
@@ -273,7 +274,7 @@ def build_docs(rendered, views, skins, order, vorder):
     for i, s in enumerate(sk):
         x = 40 + i * (cw + 24)
         d.rectangle([x, 30, x + cw - 1, 30 + cw - 1], fill=BG)
-        big = to_rgba(views["right"], s["colors"]).resize((cw, cw), Image.NEAREST)
+        big = to_rgba(sq(views["right"]), s["colors"]).resize((cw, cw), Image.NEAREST)
         im.paste(big, (x, 30), big)
         d.text((x, 44 + cw), s["name"] + ("  (référence)" if s.get("reference") else "  (exemple)"),
                fill=INK, font=font(18))
@@ -285,8 +286,8 @@ def build_docs(rendered, views, skins, order, vorder):
         a = ANIMS[k]
         frames = []
         for g in rendered[k]:
-            f = Image.new("RGBA", (CELL * Z3, CELL * Z3), BG + (255,))
-            big = to_rgba(g, ref).resize((CELL * Z3, CELL * Z3), Image.NEAREST)
+            f = Image.new("RGBA", (CW * Z3, CH * Z3), BG + (255,))
+            big = to_rgba(g, ref).resize((CW * Z3, CH * Z3), Image.NEAREST)
             f.paste(big, (0, 0), big)
             frames.append(f.convert("RGB"))
         dur = round(1000 / a["fps"])

@@ -10,7 +10,7 @@ Après la pose, des retouches pixel par pixel (blocs A) peuvent être appliquée
 """
 import numpy as np
 
-from core import CELL, STAMPS, A, S, parse, stamp
+from core import CELL, CH, CW, STAMPS, A, S, parse, stamp
 
 # ---------------------------------------------------------------------------
 # Tampons dessinés à la main
@@ -163,10 +163,10 @@ def _line(p0, p1):
 class Canvas:
     """Toile de pose (voir aussi sword() pour le sabre tenu en main)."""
     def __init__(self):
-        self.g = np.full((CELL, CELL), ".", dtype="<U1")
+        self.g = np.full((CH, CW), ".", dtype="<U1")
 
     def put(self, x, y, c):
-        if 0 <= x < CELL and 0 <= y < CELL:
+        if 0 <= x < CW and 0 <= y < CH:
             self.g[y, x] = c
         else:
             raise ValueError(f"pixel hors cellule ({x},{y})")
@@ -184,7 +184,7 @@ class Canvas:
     def limb(self, pts, colors, sep=False):
         """Membre de 2 px d'épaisseur passant par pts ; colors[i] pour le segment i.
         sep=True : liseré sombre là où le membre recouvre le corps (lisibilité)."""
-        mask = np.zeros((CELL, CELL), bool)
+        mask = np.zeros((CH, CW), bool)
         layer = {}
         for i in range(len(pts) - 1):
             for (x, y) in _line(pts[i], pts[i + 1]):
@@ -195,7 +195,7 @@ class Canvas:
         if sep:
             for (x, y) in list(layer):
                 for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                    if 0 <= nx < CELL and 0 <= ny < CELL and not mask[ny, nx] \
+                    if 0 <= nx < CW and 0 <= ny < CH and not mask[ny, nx] \
                             and self.g[ny, nx] in "tTUlL":
                         self.g[ny, nx] = "O"
         for (x, y), c in layer.items():
@@ -204,18 +204,25 @@ class Canvas:
 
     def sword(self, hand, tip):
         """Sabre tenu dans la main (coin haut-gauche du tampon 2x2) : pommeau et
-        garde en g, lame d'1 px en acier W avec le dernier pixel en ombre w."""
+        garde en g, lame de 2 px (fil en acier W, dos en ombre w), pointe d'1 px."""
         cx, cy = hand[0] + 1, hand[1] + 1
         path = _line((cx, cy), tip)
         dx, dy = tip[0] - cx, tip[1] - cy
         n = max(abs(dx), abs(dy)) or 1
         pommel = (round(cx - dx / n * 2), round(cy - dy / n * 2))
         self.put(*pommel, "g")
+        # épaisseur : décalage perpendiculaire d'1 px (sous la lame si elle est
+        # plutôt horizontale, derrière elle si elle est plutôt verticale)
+        ox, oy = ((0, 1) if abs(dx) >= abs(dy) else (-1 if dy < 0 else 1, 0))
+        last = len(path) - 1
+        for i, (x, y) in enumerate(path):
+            if 2 <= i < last - 1:
+                self.put(x + ox, y + oy, "w")
         for i, p in enumerate(path):
             if i <= 1:
                 self.put(*p, "g")          # poignée + garde
             else:
-                self.put(*p, "w" if i == len(path) - 1 else "W")
+                self.put(*p, "w" if i == last else "W")
 
     def ribbon(self, pts, colors, length):
         """Pan de foulard d'1 px suivant une polyligne, tronqué à `length` pixels :

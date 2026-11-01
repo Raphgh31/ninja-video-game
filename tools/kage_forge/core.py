@@ -14,7 +14,8 @@ import numpy as np
 
 from palette import NO_OUTLINE, SLOTS
 
-CELL = 32
+CW, CH = 48, 32   # cellule : 48 de large (place devant pour le sabre), 32 de haut
+CELL = CH
 GROUND = 30  # dernière ligne intérieure ; la ligne 31 accueille le contour des pieds
 
 STAMPS: dict[str, np.ndarray] = {}
@@ -74,7 +75,7 @@ def _blit(canvas: np.ndarray, grid: np.ndarray, x: int, y: int) -> None:
             if c == ".":
                 continue
             cx, cy = x + gx, y + gy
-            if 0 <= cx < CELL and 0 <= cy < CELL:
+            if 0 <= cx < CW and 0 <= cy < CH:
                 canvas[cy, cx] = c
             else:
                 raise ValueError(f"pixel hors cellule ({cx},{cy})")
@@ -94,7 +95,7 @@ def add_outline(canvas: np.ndarray) -> np.ndarray:
 
 
 def render(frame: Frame) -> np.ndarray:
-    canvas = np.full((CELL, CELL), ".", dtype="<U1")
+    canvas = np.full((CH, CW), ".", dtype="<U1")
     for op in frame.ops:
         if isinstance(op, A):
             g = parse(op.text)

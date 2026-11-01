@@ -19,7 +19,7 @@ Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau 
 
 | Fichier | Contenu |
 |---|---|
-| `kage_sheet.png` | planche complète : une ligne par animation, cellules 32×32, espacement 2 px, fond transparent |
+| `kage_sheet.png` | planche complète : une ligne par animation, cellules 48×32 (personnage dans les 32 premières colonnes, place devant pour le sabre), espacement 2 px, fond transparent |
 | `kage_sheet_index.png` | même planche en **carte d'index** : canal R = numéro du slot (voir `kage.json`) |
 | `kage.json` | métadonnées : cellules, ancrage, hitbox, slots, animations (frames, durées, fps, boucle) |
 | `kage_views.png`, `views/` | face, dos, profil gauche, profil droit |

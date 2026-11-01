@@ -1,6 +1,6 @@
 """KAGE — poses de toutes les animations (orientation de référence : droite).
 
-Coordonnées absolues dans la cellule 32x32, y vers le bas. Les pieds au sol
+Coordonnées absolues dans la cellule 48x32 (personnage sur x 0..31, sabre jusqu'à 47), y vers le bas. Les pieds au sol
 touchent la ligne 30 (cheville en y=28 avec un pied « flat ») ; la ligne 31
 reçoit le contour. Chaque frame est posée individuellement.
 """
@@ -251,7 +251,7 @@ import random  # noqa: E402
 
 import numpy as np  # noqa: E402
 
-from core import CELL, add_outline, render, stamp  # noqa: E402
+from core import CELL, CH, CW, add_outline, render, stamp  # noqa: E402
 
 # 1. impact : recul, bras projetés, yeux plissés (posé à la main)
 HIT = F(pose(torso="up", tx=11, ty=17, head="head_r_squint",
@@ -270,8 +270,8 @@ def _blocks(grid):
     (direction depuis le centre du corps + petite variation fixe, puis gravité)."""
     rnd = random.Random(7)
     out = []
-    for by in range(0, CELL, BLOCK):
-        for bx in range(0, CELL, BLOCK):
+    for by in range(0, CH, BLOCK):
+        for bx in range(0, CW, BLOCK):
             sub = grid[by:by + BLOCK, bx:bx + BLOCK]
             filled = sub[sub != "."]
             if filled.size == 0:
@@ -289,7 +289,7 @@ def _blocks(grid):
 
 
 def _death_frame(blocks, t):
-    g = np.full((CELL, CELL), ".", dtype="<U1")
+    g = np.full((CH, CW), ".", dtype="<U1")
     for b in blocks:
         d = (0, 0.9, 2.4, 4.2, 6.0)[t]
         x = round(b["x"] + b["vx"] * d)
@@ -305,7 +305,7 @@ def _death_frame(blocks, t):
         else:           # dernières étincelles
             pieces = [(x, y, "q")] if b["k"] < 0.3 else []
         for px, py, c in pieces:
-            if 0 <= px < CELL and 0 <= py < CELL:
+            if 0 <= px < CW and 0 <= py < CH:
                 g[py, px] = c
     return g
 
@@ -327,7 +327,7 @@ _iblk = _blocks(_idle0)
 
 
 def _converge(blocks, t, keep_below=None):
-    g = np.full((CELL, CELL), ".", dtype="<U1")
+    g = np.full((CH, CW), ".", dtype="<U1")
     if keep_below is not None:
         g[keep_below:] = _idle0[keep_below:]
     for b in blocks:
@@ -343,7 +343,7 @@ def _converge(blocks, t, keep_below=None):
             pieces = [(x + i, y + j, c) for i in range(2) for j in range(2)]
             pieces[0] = (x, y, "X")
         for px, py, c in pieces:
-            if 0 <= px < CELL and 0 <= py < CELL and g[py, px] == ".":
+            if 0 <= px < CW and 0 <= py < CH and g[py, px] == ".":
                 g[py, px] = c
     return g
 
@@ -368,13 +368,13 @@ SLASH_C = (17, 20)   # centre du demi-cercle : l'épaule proche pendant la fente
 def slash(a0, a1, layers):
     """Traînée de lame : arc de cercle (angles en degrés, 0 = devant, -90 = haut).
     layers = [(rayon, slot), ...] ; dessinée sous le personnage, sans contour."""
-    g = np.full((CELL, CELL), ".", dtype="<U1")
+    g = np.full((CH, CW), ".", dtype="<U1")
     for r, c in layers:
         for k in range(0, 1 + int(abs(a1 - a0) * 2)):
             a = math.radians(a0 + (a1 - a0) * k / max(1, int(abs(a1 - a0) * 2)))
             x = round(SLASH_C[0] + r * math.cos(a))
             y = round(SLASH_C[1] + r * math.sin(a))
-            if 0 <= x < CELL and 0 <= y < 31:
+            if 0 <= x < CW and 0 <= y < 31:
                 g[y, x] = c
     return G(g)
 
@@ -391,21 +391,21 @@ ATTACK = [
            near_arm=[(16, 23), (14, 24)], far_arm=[(13, 22), (12, 24)],
            tail_long=[(-2, 1), (-4, 3), (-6, 5), (-8, 9)],
            tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
-    # 2. dégainé : fente avant, la lame monte devant le visage
-    F(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 19), (21, 17)], blade=(27, 7))),
-    # 3. demi-cercle : la lame passe à l'horizontale devant
-    Frame([slash(-72, -8, [(13, "q"), (12, "X")]),
-           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 20), (22, 19)], blade=(31, 18)))]),
-    # 4. demi-cercle : la lame descend devant les pieds
-    Frame([slash(-72, -12, [(12, "X")]), slash(-12, 62, [(13, "q"), (12, "X")]),
-           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 22), (21, 22)], blade=(28, 29)))]),
-    # 5. suivi : la lame finit basse, la traînée s'éteint
-    Frame([slash(15, 70, [(12, "z")]),
+    # 2. dégainé : fente avant, bras qui se déplie, lame dressée devant le visage
+    F(pose(**LUNGE, head="head_r_squint", near_arm=[(19, 19), (21, 16)], blade=(26, 3))),
+    # 3. demi-cercle : bras à demi tendu devant, lame à l'horizontale
+    Frame([slash(-76, -6, [(20, "q"), (19, "X")]),
+           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 20), (23, 19)], blade=(36, 17)))]),
+    # 4. demi-cercle : le bras accompagne la lame qui descend devant les pieds
+    Frame([slash(-76, -12, [(19, "X")]), slash(-12, 52, [(20, "q"), (19, "X")]),
+           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 22), (23, 23)], blade=(35, 30)))]),
+    # 5. suivi : bras encore tendu vers le bas, la traînée s'éteint
+    Frame([slash(14, 50, [(19, "z")]),
            G(pose(**{**LUNGE, "ty": 20, "near_leg": [(20, 27), (21, 28)], "far_leg": [(12, 27), (10, 28)]},
-                  near_arm=[(19, 23), (20, 24)], blade=(26, 30)))]),
+                  near_arm=[(19, 23), (22, 25)], blade=(32, 30)))]),
     # 6. rengainé : la lame revient à la hanche et glisse vers l'arrière
     F(pose(torso="up", tx=12, ty=20, near_leg=STANCE_LOW["near_leg"], far_leg=STANCE_LOW["far_leg"],
-           near_arm=[(16, 22), (15, 23)], far_arm=[(13, 22), (12, 24)], blade=(10, 25),
+           near_arm=[(16, 22), (15, 23)], far_arm=[(13, 22), (12, 24)], blade=(9, 25),
            tail_long=[(-3, 0), (-5, 2), (-7, 4), (-9, 7)],
            tail_short=[(-2, 1), (-4, 3), (-5, 6)])),
     # 7. retour en garde, main encore sur la poignée

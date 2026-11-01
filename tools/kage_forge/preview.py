@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from core import CELL, render
+from core import CH, CW, render
 
 ROOT = Path(__file__).resolve().parents[2]
 SKIN = json.loads((ROOT / "assets/characters/kage/skins/encre.json").read_text())["colors"]
@@ -21,10 +21,10 @@ def hex2rgb(h):
 
 
 def to_image(grid, skin=SKIN, bg=None):
-    img = Image.new("RGBA", (CELL, CELL), bg or (0, 0, 0, 0))
+    img = Image.new("RGBA", (CW, CH), bg or (0, 0, 0, 0))
     px = img.load()
-    for y in range(CELL):
-        for x in range(CELL):
+    for y in range(CH):
+        for x in range(CW):
             c = grid[y, x]
             if c != ".":
                 px[x, y] = hex2rgb(skin[c]) + (255,)
@@ -33,26 +33,27 @@ def to_image(grid, skin=SKIN, bg=None):
 
 def sheet(frames, z=10, bgs=((150, 162, 176), (226, 222, 210), (58, 66, 80))):
     n = len(frames)
-    W = n * (CELL * z + 8) + 8
-    H = len(bgs) * (CELL * z + 8) + 8 + (len(bgs)) * (CELL * 2 + 8)
+    W = n * (CW * z + 8) + 8
+    H = len(bgs) * (CH * z + 8) + 8 + (len(bgs)) * (CH * 2 + 8)
     out = Image.new("RGB", (W, H), (30, 30, 30))
     d = ImageDraw.Draw(out)
     for r, bg in enumerate(bgs):
         for i, g in enumerate(frames):
-            im = to_image(g, bg=bg + (255,)).resize((CELL * z, CELL * z), Image.NEAREST)
-            ox, oy = 8 + i * (CELL * z + 8), 8 + r * (CELL * z + 8)
+            im = to_image(g, bg=bg + (255,)).resize((CW * z, CH * z), Image.NEAREST)
+            ox, oy = 8 + i * (CW * z + 8), 8 + r * (CH * z + 8)
             out.paste(im, (ox, oy))
             if r == 0:
-                for k in range(0, CELL + 1, 4):
+                for k in range(0, CW + 1, 4):
                     col = (90, 90, 90) if k % 8 else (60, 60, 60)
-                    d.line([(ox + k * z, oy), (ox + k * z, oy + CELL * z)], fill=col)
-                    d.line([(ox, oy + k * z), (ox + CELL * z, oy + k * z)], fill=col)
+                    d.line([(ox + k * z, oy), (ox + k * z, oy + CH * z)], fill=col)
+                    if k <= CH:
+                        d.line([(ox, oy + k * z), (ox + CW * z, oy + k * z)], fill=col)
     # taille réelle x2
-    base = 8 + len(bgs) * (CELL * z + 8)
+    base = 8 + len(bgs) * (CH * z + 8)
     for r, bg in enumerate(bgs):
         for i, g in enumerate(frames):
-            im = to_image(g, bg=bg + (255,)).resize((CELL * 2, CELL * 2), Image.NEAREST)
-            out.paste(im, (8 + i * (CELL * 2 + 8), base + r * (CELL * 2 + 8)))
+            im = to_image(g, bg=bg + (255,)).resize((CW * 2, CH * 2), Image.NEAREST)
+            out.paste(im, (8 + i * (CW * 2 + 8), base + r * (CH * 2 + 8)))
     return out
 
 

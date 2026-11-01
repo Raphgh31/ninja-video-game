@@ -11,7 +11,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Personnage KAGE
 - Les PNG de `assets/characters/kage/` sont **générés** : ne jamais les éditer à la main. Modifier `tools/kage_forge/` puis `npm run sprites`.
 - Le build échoue si un contrôle qualité échoue (pieds hors du sol, slot inconnu, pixel isolé) : corriger la pose, ne pas désactiver le contrôle.
-- Cellule 32×32, ancrage (16, 31), orientation droite, retournement pour la gauche.
+- Cellule 48×32 (le personnage occupe les 32 premières colonnes ; les 16 de droite servent au sabre), ancrage (16, 31), orientation droite, retournement pour la gauche.
 - Skins = tables slot → couleur (`skins/*.json`), appliquées depuis `kage_sheet_index.png`. Un skin ne change jamais la silhouette.
 - Chaque animation est liée à un état de `src/game/player.js` (même nom que dans `kage.json`).
 
