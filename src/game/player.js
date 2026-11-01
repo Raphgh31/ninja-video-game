@@ -30,6 +30,7 @@ const P = {
   wallCoyote: 0.1,    // s pendant lesquelles on peut encore sauter après avoir quitté le mur
   skidSpeed: 70,      // vitesse minimale pour déraper en changeant de sens (px/s)
   skidTime: 0.2,      // s de dérapage au plus
+  skidWindow: 0.12,   // s après une course rapide pendant lesquelles un demi-tour fait déraper
   skidDecel: 650,     // freinage pendant le dérapage (px/s²) : assez doux pour qu'on le voie
   throwCooldown: 0.35,// s minimum entre deux lancers de shuriken
   airAttackFall: 160, // chute maximale pendant un coup de sabre en l'air (px/s)
@@ -64,6 +65,8 @@ export class Player {
     this.lastWallJump = null; // { side, tx } : pas deux sauts d'affilée sur le même mur
     this.throwCd = 0;
     this.fxTimer = 0;
+    this.fastDir = 0;         // sens de la dernière course rapide (pour le dérapage)
+    this.fastTimer = 0;
     this.level.resetTargets?.();
     this.energy?.reset();
     this.hp = HEALTH.max;
@@ -138,6 +141,7 @@ export class Player {
     this.wallLock = Math.max(0, this.wallLock - dt);
     this.wallCoyote = Math.max(0, this.wallCoyote - dt);
     this.throwCd = Math.max(0, this.throwCd - dt);
+    this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
     const prevFrame = this.anim.frame;
     const L = input.isHeld('left'), R = input.isHeld('right');
@@ -248,10 +252,16 @@ export class Player {
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
         this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
-        // dérapage : demi-tour brusque en pleine course (y compris juste après avoir lâché la touche)
-        if (this.onGround && dir !== 0 && Math.sign(this.vx) === -dir && Math.abs(this.vx) > P.skidSpeed
+        // dérapage : demi-tour brusque en pleine course, ou juste après (fenêtre de 0,12 s)
+        if (this.onGround && Math.abs(this.vx) > P.skidSpeed && Math.sign(this.vx) === dir) {
+          this.fastDir = dir;
+          this.fastTimer = P.skidWindow;
+        }
+        if (this.onGround && dir !== 0 && dir === -this.fastDir && this.fastTimer > 0
             && (this.state === 'run' || this.state === 'sprint' || this.state === 'idle')) {
-          this.facing = Math.sign(this.vx);
+          this.vx = this.fastDir * Math.max(Math.abs(this.vx), P.skidSpeed + 10);
+          this.facing = this.fastDir;
+          this.fastTimer = 0;
           this.emit('skid');
           this.setState('skid');
           break;
