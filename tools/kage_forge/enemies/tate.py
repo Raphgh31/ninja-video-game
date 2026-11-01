@@ -111,13 +111,11 @@ def body(cv, x, y, lean=0):
 
 
 def legs(cv, x, y, phase=0):
-    """Jambes larges, guêtres claires, sandales ; phase = 0 / 1 (marche)."""
+    """Jambes courtes et larges (pas lourd), guêtres claires, sandales ; phase = 0 / 1."""
     if phase == 0:
         cv.block(x, y, [
             ".cC.....cC..",
             ".gG.....gG..",
-            ".gG.....gG..",
-            "gG.......gG.",
             "gG.......gG.",
             "ss........ss",
             "sss.......sss",
@@ -125,8 +123,6 @@ def legs(cv, x, y, phase=0):
     else:
         cv.block(x, y, [
             "..cC...cC...",
-            "..gG...gG...",
-            "..gG...gG...",
             "..gG...gG...",
             ".gG.....gG..",
             ".ss.....ss..",
@@ -145,49 +141,47 @@ def back_arm(cv, x, y, raised=False):
 def walk(phase):
     cv = Canvas()
     bob = 1 if phase else 0
-    legs(cv, 9, 23, phase)
-    back_arm(cv, 8, 14 + bob)
-    body(cv, 10, 13 + bob)
-    cv.block(6, 13 + bob, TALISMAN)
-    cv.block(12, 9 + bob, HEAD)
-    cv.block(7, 4 + bob, HAT)
-    shield(cv, 21, 7 + bob)
+    legs(cv, 9, 25, phase)
+    back_arm(cv, 8, 16 + bob)
+    body(cv, 10, 15 + bob)
+    cv.block(6, 15 + bob, TALISMAN)
+    cv.block(11, 11 + bob, HEAD)          # tête dans l'axe du cou
+    cv.block(8, 6 + bob, HAT)
+    shield(cv, 21, 9 + bob, h=21)
     return cv.outline()
 
 
 def guard():
     """Coup bloqué : le bouclier encaisse, étincelles devant, buste arc-bouté."""
     cv = Canvas()
-    legs(cv, 8, 23, 0)
-    back_arm(cv, 7, 15)
-    body(cv, 10, 14, lean=1)
-    cv.block(6, 14, TALISMAN)
-    cv.block(13, 10, HEAD)
-    cv.block(8, 5, HAT)
-    shield(cv, 22, 7, tilt=-1)
-    cv.block(31, 10, ["X.x", ".X.", "X.X", "..x"])
-    cv.block(32, 18, ["x.X", ".X."])
+    legs(cv, 8, 25, 0)
+    back_arm(cv, 7, 17)
+    body(cv, 10, 16, lean=1)
+    cv.block(6, 16, TALISMAN)
+    cv.block(12, 12, HEAD)
+    cv.block(9, 7, HAT)
+    shield(cv, 22, 9, h=21, tilt=-1)
+    cv.block(31, 12, ["X.x", ".X.", "X.X", "..x"])
+    cv.block(32, 20, ["x.X", ".X."])
     return cv.outline()
 
 
 def bash():
     """Coup de bouclier : il se jette en avant, bouclier projeté, poussière."""
     cv = Canvas()
-    cv.block(9, 23, [
+    cv.block(9, 25, [
         "..cC......cC",
-        "..gG.....gG.",
         ".gG.....gG..",
-        ".gG....gG...",
         "gG....gG....",
         "ss....ss....",
         "sss...sss...",
     ])
-    back_arm(cv, 12, 14)
-    body(cv, 13, 13, lean=2)
-    cv.block(9, 13, TALISMAN)
-    cv.block(16, 9, HEAD)
-    cv.block(11, 4, HAT)
-    shield(cv, 27, 6, h=24)
+    back_arm(cv, 12, 16)
+    body(cv, 13, 15, lean=2)
+    cv.block(9, 15, TALISMAN)
+    cv.block(15, 11, HEAD)
+    cv.block(12, 6, HAT)
+    shield(cv, 27, 8, h=22)
     cv.block(2, 28, ["x..x", ".xx."])
     return cv.outline()
 
@@ -195,15 +189,15 @@ def bash():
 def stunned():
     """Étourdi après un coup de bouclier raté : chapeau de travers, bouclier bas."""
     cv = Canvas()
-    legs(cv, 9, 23, 1)
-    back_arm(cv, 8, 15)
-    body(cv, 10, 14)
-    cv.block(6, 14, TALISMAN)
-    cv.block(12, 10, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
-    cv.block(6, 6, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
-    shield(cv, 21, 12, h=18)
-    cv.block(9, 2, ["Z...Z", ".Z.Z.", "..Z.."])
-    cv.block(19, 4, ["Z", ".", "Z"])
+    legs(cv, 9, 25, 1)
+    back_arm(cv, 8, 17)
+    body(cv, 10, 16)
+    cv.block(6, 16, TALISMAN)
+    cv.block(10, 12, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
+    cv.block(6, 8, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
+    shield(cv, 21, 14, h=16)
+    cv.block(9, 3, ["Z...Z", ".Z.Z.", "..Z.."])
+    cv.block(19, 5, ["Z", ".", "Z"])
     return cv.outline()
 
 
@@ -217,7 +211,7 @@ def defeated():
     ])
     body(cv, 10, 17, lean=1)
     cv.block(6, 17, TALISMAN)
-    cv.block(13, 13, ["..cmMMMMn", ".cmMMXMXn", ".cmnMnMn.", "..cmmmm.."])
+    cv.block(12, 13, ["..cmMMMMn", ".cmMMXMXn", ".cmnMnMn.", "..cmmmm.."])
     # bouclier tombé à plat, fendu
     cv.put(22, 28, "VvVw.VvVwVvBRB")
     cv.put(22, 29, "BRBBb.BBRBVvVw")
