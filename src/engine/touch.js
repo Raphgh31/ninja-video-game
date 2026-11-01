@@ -38,18 +38,20 @@ const ICONS = {
     '...#...',
     '...#...',
   ],
-  // silhouette du ninja en sprint : buste plongé, bras tendus vers l'arrière
+  // KAGE en sprint, simplifié : grosse tête encapuchonnée (bande des yeux
+  // ajourée), pan du foulard derrière, buste plongé, bras tendus vers l'arrière
   sprint: [
-    '........##.',
-    '.......####',
-    '.......###.',
-    '###...###..',
-    '.#######...',
-    '.....###...',
-    '.....####..',
-    '....##..##.',
-    '...##....#.',
-    '..#......#.',
+    '.......#####.',
+    '......#######',
+    '.##...##ooo##',
+    '..###.#######',
+    '....######...',
+    '#########....',
+    '.....####....',
+    '.....######..',
+    '....###..###.',
+    '...##.....##.',
+    '..##.......#.',
   ],
   attack: [
     '...........##',

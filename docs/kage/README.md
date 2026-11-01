@@ -38,7 +38,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 |---|---|---|---|---|
 | idle | 4 | 6 | oui | immobile au sol |
 | run | 6 | 12 | oui | course normale (96 px/s) |
-| sprint | 6 | 16 | oui | sprint (165 px/s) : buste plongé, corps plus bas, bras tendus vers l'arrière, foulard à l'horizontale |
+| sprint | 6 | 16 | oui | sprint (140 px/s) : buste plongé, corps plus bas, bras tendus vers l'arrière, foulard à l'horizontale |
 | jump | 4 | 14 | non (reste sur la dernière) | montée |
 | fall | 3 | 10 | oui | descente |
 | land | 3 | 18 | non | contact avec le sol |

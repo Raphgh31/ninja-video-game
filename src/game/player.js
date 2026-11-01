@@ -5,7 +5,7 @@ import { ENERGY, Energy } from './energy.js';
 
 const P = {
   run: 96,           // px/s (course normale)
-  sprint: 165,       // px/s (sprint : Ctrl / bouton tactile)
+  sprint: 140,       // px/s (sprint : Maj / bouton tactile)
   accel: 1400,
   friction: 1800,
   gravity: 980,

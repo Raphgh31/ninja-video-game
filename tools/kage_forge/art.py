@@ -499,8 +499,8 @@ def _sprint(ty, near_leg, far_leg, near_foot="flat", far_foot="flat", tails=0, s
     short_t = [[(-4, 1), (-7, 2), (-9, 2)], [(-4, 2), (-7, 2), (-9, 3)]][tails]
     g = pose(torso="dive", tx=14, ty=ty,
              near_leg=near_leg, far_leg=far_leg, near_foot=near_foot, far_foot=far_foot,
-             # bras tendus vers l'arrière, légèrement relevés (le proche passe devant le buste)
-             near_arm=[(14, ty + 1), (9, ty - 1)], far_arm=[(12, ty), (7, ty - 2)],
+             # bras tendus vers l'arrière, à l'horizontale (le proche passe devant le buste)
+             near_arm=[(14, ty + 1), (9, ty + 1)], far_arm=[(12, ty), (7, ty)],
              tail_long=long_t, tail_short=short_t)
     ops = [G(g)]
     if streak:
