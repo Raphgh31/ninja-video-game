@@ -455,7 +455,8 @@ THROW = [
 ]
 
 # Projectile : cellules 10x10. Rotation (2 images), puis planté dans un mur
-# (mur à droite) et planté dans le sol, en plus petit. L'ancre est le point
+# (mur à droite) et planté dans le sol en biais (lancé vers la droite : une lame
+# entière ressort vers l'arrière, une demi-lame vers l'avant), en plus petit. L'ancre est le point
 # posé sur la surface touchée.
 SHURIKEN = {
     "spin0": ("""
@@ -482,9 +483,11 @@ WWg
 ..W
 """, (3, 2)),
     "stuck_ground": ("""
-..W..
-.wgw.
-""", (3, 2)),
+W....
+.W...
+..gWw
+.w...
+""", (3, 4)),
 }
 
 # ---------------------------------------------------------------------------

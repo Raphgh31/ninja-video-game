@@ -66,7 +66,7 @@ export class Shurikens {
 
   /** Les shurikens plantés font partie du décor : dessinés avant le personnage. */
   drawStuck(ctx, sheet, cam) {
-    for (const s of this.stuck) this.blit(ctx, sheet, s.kind, s.x, s.y, s.kind === 'stuck_wall' ? s.dir : 1, cam);
+    for (const s of this.stuck) this.blit(ctx, sheet, s.kind, s.x, s.y, s.dir, cam);
   }
 
   drawFlying(ctx, sheet, cam) {
@@ -76,20 +76,21 @@ export class Shurikens {
     }
   }
 
-  // Dessine l'image `kind` de façon que son ancre tombe sur (x, y). Pour un mur
-  // à gauche (dir < 0), l'image est retournée.
+  // Dessine l'image `kind` de façon que son ancre tombe sur (x, y) : le pixel
+  // juste avant la surface (mur / sol). dir < 0 : image retournée (lancer vers
+  // la gauche, mur à gauche, inclinaison inversée dans le sol).
   blit(ctx, sheet, kind, x, y, dir, cam) {
     const f = this.meta.frames[kind];
     const sx = Math.round(x - cam.x), sy = Math.round(y - cam.y);
+    const oy = kind === 'stuck_ground' ? 1 : 0;
     if (dir < 0) {
       ctx.save();
       ctx.translate(sx, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, -f.anchor.x - 1, sy - f.anchor.y, f.w, f.h);
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, -f.anchor.x - 1, sy - f.anchor.y - oy, f.w, f.h);
       ctx.restore();
     } else {
-      // l'ancre est posée sur le pixel juste avant la surface (mur à droite / sol dessous)
-      const ox = kind === 'stuck_wall' ? 1 : 0, oy = kind === 'stuck_ground' ? 1 : 0;
+      const ox = kind === 'stuck_wall' ? 1 : 0;
       ctx.drawImage(sheet, f.x, f.y, f.w, f.h, sx - f.anchor.x - ox, sy - f.anchor.y - oy, f.w, f.h);
     }
   }
