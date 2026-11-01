@@ -11,7 +11,7 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # version de production dans dist/
 npm run standalone # dist/kage-standalone.html : jeu complet en un fichier, jouable par double-clic
-npm test           # tests de bout en bout dans un vrai navigateur (18 vérifications)
+npm test           # tests de bout en bout dans un vrai navigateur (19 vérifications)
 ```
 
 Commandes : flèches pour courir, Maj + flèche pour sprinter, double appui rapide sur ← ou → pour le dash, Espace pour sauter (contre un mur en l'air : saut mural), ↓ (ou C) pour glisser, J (ou X) pour le coup de sabre, K (ou V) pour lancer un shuriken, H pour afficher la hitbox, M pour couper le son. Sur mobile, le jeu passe en plein écran avec des commandes dans le jeu : joystick flottant sous le pouce gauche (coup très rapide et court vers un côté puis relâché = dash, vers le bas = glissade) et boutons ronds à droite (saut, sabre, shuriken) et petit interrupteur de sprint (il se coupe à l'arrêt ou quand l'énergie est vide). À jouer en paysage.

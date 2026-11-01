@@ -86,6 +86,11 @@ const SOUNDS = {
   wallSlide: () => noise({ dur: 0.07, vol: 0.025, f: 3200, q: 2 }),
   wallJump: () => { tone({ f: 320, to: 620, dur: 0.1, vol: 0.06 }); noise({ dur: 0.06, vol: 0.06, type: 'lowpass', f: 700 }); },
   swing: () => noise({ dur: 0.13, vol: 0.11, f: 3200, to: 1100, q: 1.2, attack: 0.01 }),
+  swingHeavy: () => {
+    // armé (court frémissement métallique) puis grand souffle descendant
+    tone({ f: 1800, to: 2400, dur: 0.12, type: 'triangle', vol: 0.03 });
+    noise({ dur: 0.22, vol: 0.14, f: 2600, to: 500, q: 1.1, attack: 0.03, delay: 0.14 });
+  },
   hit: () => {
     noise({ dur: 0.1, vol: 0.22, type: 'lowpass', f: 1000 });
     tone({ f: 150, to: 60, dur: 0.12, vol: 0.1 });

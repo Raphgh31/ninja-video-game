@@ -34,6 +34,7 @@ const P = {
   skidDecel: 650,     // freinage pendant le dérapage (px/s²) : assez doux pour qu'on le voie
   throwCooldown: 0.35,// s minimum entre deux lancers de shuriken
   airAttackFall: 160, // chute maximale pendant un coup de sabre en l'air (px/s)
+  airChopPlunge: 140, // pendant la frappe aérienne, KAGE est entraîné vers le bas (px/s)
 };
 const STEP_FRAMES = [0, 3];   // images de contact au sol dans les cycles de course et de sprint
 
@@ -179,6 +180,8 @@ export class Player {
         const f = this.anim.frame;
         const lunge = this.state === 'attack' && this.onGround;
         const want = lunge ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.onGround ? 0 : this.vx;
+        // coup aérien : léger plongeon pendant la frappe (images 3 à 5)
+        if (this.state === 'air_attack' && !this.onGround && f >= 2 && f <= 4) this.vy = Math.max(this.vy, P.airChopPlunge);
         this.vx += Math.sign(want - this.vx) * Math.min(Math.abs(want - this.vx), P.friction * dt);
         const box = this.attackBox();
         if (box) this.level.hitTargets(box, this.facing);
@@ -303,7 +306,7 @@ export class Player {
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
-          this.emit('swing');
+          this.emit(this.onGround ? 'swing' : 'swing_heavy');
           this.setState(this.onGround ? 'attack' : 'air_attack');
           break;
         }

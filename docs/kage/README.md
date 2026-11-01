@@ -47,7 +47,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | hurt | 2 | 8 | non | touché : recul, visage crispé |
 | wall_slide | 2 | 6 | oui | glissade le long d'un mur (dos au mur, foulard soufflé vers le haut) |
 | wall_jump | 2 | 10 | non | poussée sur le mur |
-| air_attack | 6 | durées par frame | non | sabre en l'air : même demi-cercle, sans fente, jambes repliées (`hitbox.air_attack`) |
+| air_attack | 6 | durées par frame | non | coup aérien à deux mains : sabre levé au-dessus de la tête (temps d'arrêt), puis abattu devant lui en plongeant ; 3 dégâts (`hitbox.air_attack`) |
 | air_throw | 4 | durées par frame | non | shuriken en l'air, bras tendu au lâcher |
 | skid | 2 | 12 | oui | dérapage au demi-tour en pleine course |
 | attack | 7 | durées par frame (≈ 0,4 s) | non | coup de sabre : dégainé en fente, demi-cercle devant, rengainé. Zone de frappe active sur les frames 3 à 5 (`hitbox.attack`) |
@@ -95,7 +95,8 @@ Réglages dans `src/game/combat.js` (valeurs provisoires, à rééquilibrer).
 | Dégâts subis | | Dégâts infligés | |
 |---|---|---|---|
 | Coup de bouclier de TATE | 2 | Coup de sabre | 2 |
-| Contact avec TATE | 0 (repousse) | Shuriken | 1 |
+| Contact avec TATE | 0 (repousse) | Coup aérien (sabre à deux mains) | 3 |
+| | | Shuriken | 1 |
 | Pics | 1, puis retour au dernier sol sûr | | |
 | Chute hors du niveau | mort immédiate | | |
 

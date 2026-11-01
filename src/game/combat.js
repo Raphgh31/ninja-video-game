@@ -19,5 +19,6 @@ export const DAMAGE_TAKEN = {
 // dégâts infligés par KAGE
 export const DAMAGE_DEALT = {
   sword: 2,
+  airSword: 3,         // coup aérien à deux mains, plus lourd
   shuriken: 1,
 };

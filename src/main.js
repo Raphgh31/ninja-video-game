@@ -5,7 +5,7 @@ import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
-import { HEALTH } from './game/combat.js';
+import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
@@ -97,6 +97,7 @@ player.onEvent = (n, d) => {
       break;
     case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
     case 'swing': sfx('swing'); break;
+    case 'swing_heavy': sfx('swingHeavy'); break;
     case 'hurt':
       sfx('hurt');
       fx.shake(2, 0.2);
@@ -169,10 +170,11 @@ let debug = false;
 const stateEl = document.querySelector('[data-state]');
 
 function update(dt) {
-  // micro-arrêt sur un coup : tout se fige un instant (les appuis sont gardés)
+  // touches d'interface : traitées même pendant un micro-arrêt
+  if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
+  if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }
+  // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
-  if (input.wasPressed('debug')) debug = !debug;
-  if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); }
   player.update(dt, input);
   // le sprint tactile se coupe tout seul à l'arrêt ou quand on est essoufflé
   if (touch?.sprintOn) {
@@ -186,9 +188,14 @@ function update(dt) {
   tate.interact(player);
   const ab = player.attackBox();
   if (ab) {
-    const r = tate.takeHit(ab, player.x, player.attackId);
-    if (r === 'hit') fx.hitStop(0.07);
-    else if (r === 'blocked') fx.hitStop(0.04);
+    const heavy = player.state === 'air_attack';
+    const r = tate.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
+    if (r === 'hit') {
+      fx.hitStop(heavy ? 0.11 : 0.07);
+      if (heavy) fx.shake(2, 0.18);
+    } else if (r === 'blocked') {
+      fx.hitStop(0.04);
+    }
   }
   fx.update(dt);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());

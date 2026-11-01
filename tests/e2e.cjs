@@ -179,6 +179,15 @@ async function main() {
     expect(a.state === 'air_attack' && b.state === 'air_throw', `${a.state} / ${b.state}`);
   });
 
+  await test('coup aérien : 3 dégâts dans le dos', async () => {
+    await reset(500, 192, 480);
+    await ev(() => { const g = window.__kage; g.tate.facing = -1; g.tate.setState('stunned'); g.tate.timer = -5; g.player.facing = -1; });
+    await k.press('Space'); await wait(110); await k.press('KeyJ');
+    let hp = 4;
+    for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 4) break; await wait(10); }
+    expect(hp === 1, `vie TATE ${hp} (attendu 4 - 3 = 1)`);
+  });
+
   await test('touche M : coupe le son', async () => {
     const before = await page.locator('.mute').getAttribute('aria-pressed');
     await k.press('KeyM'); await wait(60);

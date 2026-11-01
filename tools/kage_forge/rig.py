@@ -251,7 +251,8 @@ SHORT_TAIL = 6   # longueur constante du pan court (px)
 def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
          near_arm=None, far_arm=None, near_leg=None, far_leg=None,
          near_foot="flat", far_foot="flat", tail_long=None, tail_short=None,
-         collar=True, hands=True, long_colors="GGFG", short_colors="ffF", blade=None):
+         collar=True, hands=True, long_colors="GGFG", short_colors="ffF", blade=None,
+         near_behind=False):
     """Construit une frame.
 
     near_arm/far_arm : [coude, main] (points absolus, coin haut-gauche 2x2)
@@ -289,11 +290,27 @@ def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
         c.limb([hn] + near_leg, ["T", "T"], sep=True)
         ax, ay = near_leg[-1]
         c.stamp(f"foot_{near_foot}", ax, ay + 1)
+    def draw_near_arm():
+        c.limb([sn] + near_arm, ["T", "A"], sep=True)
+        if blade:
+            c.sword(near_arm[-1], blade)
+        if hands:
+            c.stamp("hand", *near_arm[-1])
+
+    # bras levés au-dessus de la tête : dessinés derrière la tête (visage dégagé)
+    if near_arm and near_behind:
+        draw_near_arm()
     c.stamp(head, hx, hy)
     c.stamp("bow_r", hx - 1, hy + 2)
     if collar:
         c.stamp("collar_r", *collar_at)
-    if near_arm:
+    if near_arm and near_behind:
+        # les mains et la lame restent visibles au-dessus de la tête
+        if blade:
+            c.sword(near_arm[-1], blade)
+        if hands:
+            c.stamp("hand", *near_arm[-1])
+    if near_arm and not near_behind:
         c.limb([sn] + near_arm, ["T", "A"], sep=True)
         if blade:
             c.sword(near_arm[-1], blade)
