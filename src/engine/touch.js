@@ -1,8 +1,8 @@
 // Commandes tactiles dessinées dans le jeu (pixel art) :
 // - joystick flottant sous le pouce gauche (gauche/droite = courir, bas = glissade,
 //   coup très rapide et court vers un côté puis relâché = dash) ;
-// - boutons ronds sous le pouce droit : saut (le plus gros), sabre, shuriken,
-//   et un petit interrupteur de sprint.
+// - boutons ronds sous le pouce droit : saut (le plus gros), sabre, coup de pied,
+//   shuriken, et un petit interrupteur de sprint.
 // Les positions sont en pixels du jeu ; les doigts sont convertis via l'échelle.
 
 const STICK = {
@@ -58,6 +58,20 @@ const ICONS = {
     '....###..###.',
     '...##.....##.',
     '..##.......#.',
+  ],
+  // KAGE en coup de pied de côté : tête, buste en arrière, jambe tendue, jambe d'appui
+  kick: [
+    '.##..........',
+    '####.........',
+    '####.........',
+    '.###.........',
+    '.####.....###',
+    '..#########..',
+    '..######.....',
+    '..###........',
+    '..##.........',
+    '..##.........',
+    '.###.........',
   ],
   attack: [
     '...........##',
@@ -139,6 +153,7 @@ export class TouchControls {
     this.buttons = [
       { action: 'jump', x: w - 28, y: h - 30, r: 17 },
       { action: 'attack', x: w - 68, y: h - 22, r: 14 },
+      { action: 'kick', x: w - 97, y: h - 44, r: 12 },
       { action: 'throw', x: w - 56, y: h - 61, r: 12 },
       // petit interrupteur : un appui active le sprint, un autre le coupe
       { action: 'sprint', x: w - 20, y: h - 64, r: 10, toggle: true, down: !!this.sprintOn },

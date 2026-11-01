@@ -22,6 +22,7 @@ export const TATE = {
   hp: 5,              // 3 coups de sabre (2 dégâts) ou 5 shurikens (1 dégât)
   defeatFade: 2.4,     // s avant de disparaître une fois vaincu (chute ≈ 0,94 s, puis au sol, puis fondu)
   fadeTime: 0.6,       // s de fondu à la fin
+  pushDecel: 900,      // px/s² : freinage du recul donné par un coup de pied
 };
 
 export class Tate {
@@ -51,6 +52,21 @@ export class Tate {
     this.lastHit = -1;
     this.lastFrame = null;
     this.gone = false;
+    this.shove = 0;            // recul en cours (px/s), donné par un coup de pied
+  }
+
+  /** Coup de pied : TATE recule un peu (même s'il a paré de face). */
+  push(dir, speed) {
+    if (this.alive) this.shove = dir * speed;
+  }
+
+  applyShove(dt) {
+    if (!this.shove) return;
+    const dir = Math.sign(this.shove);
+    if (this.canStep(dir)) this.x += this.shove * dt;
+    else this.shove = 0;
+    const v = Math.max(0, Math.abs(this.shove) - TATE.pushDecel * dt);
+    this.shove = dir * v;
   }
 
   // ---- boîtes (en coordonnées du monde) ------------------------------------
@@ -129,6 +145,7 @@ export class Tate {
     } else {
       this.lastFrame = null;
     }
+    this.applyShove(dt);
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     const playerAlive = player.state !== 'death' && player.state !== 'respawn';

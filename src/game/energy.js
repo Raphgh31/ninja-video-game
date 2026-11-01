@@ -1,18 +1,22 @@
 // Énergie de KAGE (endurance), affichée en anneau en haut à gauche de l'écran,
 // à côté du stock de shurikens (façon Breath of the Wild en simplifié).
 
+// Toutes les dépenses sont multipliées par COST (85 % : un peu moins coûteux
+// qu'avant, en gardant les mêmes proportions entre les actions).
+const COST = 0.85;
 export const ENERGY = {
-  runDrain: 0.04,      // par seconde de course (≈ 25 s pour vider la barre)
-  sprintDrain: 0.16,   // par seconde de sprint (≈ 6 s pour vider la barre)
-  regen: 0.55,         // par seconde à l'arrêt (vide -> plein en < 2 s)
-  regenDelay: 0.35,    // s d'immobilité avant que la recharge démarre
-  dash: 1 / 3,
-  jump: 0.1,
-  attack: 0.12,        // coup de sabre (le shuriken est gratuit)
-  recover: 0.4,        // essoufflé jusqu'à ce que l'énergie remonte à ce niveau
-  tolerance: 0.15,     // une action passe s'il manque au plus 15 % de son coût
-                       // (la course entre deux dashs ne doit pas empêcher le 3e)
-  exhaustedSpeed: 0.65,// vitesse de course quand on est essoufflé
+  runDrain: 0.04 * COST,     // par seconde de course (≈ 29 s pour vider la barre)
+  sprintDrain: 0.16 * COST,  // par seconde de sprint (≈ 7 s pour vider la barre)
+  regen: 0.55,               // par seconde à l'arrêt (vide -> plein en < 2 s)
+  walkRegen: 0.55 * 0.6,     // par seconde en marchant, à bout de souffle (un peu moins qu'à l'arrêt)
+  regenDelay: 0.35,          // s sans dépenser avant que la recharge démarre
+  dash: (1 / 3) * COST,
+  jump: 0.1 * COST,
+  attack: 0.12 * COST,       // coup de sabre (le shuriken est gratuit)
+  kick: 0.15 * COST,         // coup de pied : un peu plus cher que le sabre
+  recover: 0.4,              // à bout de souffle (mode marche) jusqu'à ce que l'énergie remonte ici
+  tolerance: 0.15,           // une action passe s'il manque au plus 15 % de son coût
+                             // (la course entre deux dashs ne doit pas empêcher le 3e)
 };
 
 const RING = { outer: 8, inner: 5 };   // anneau épais, en pixels du jeu
@@ -54,14 +58,18 @@ export class Energy {
     return true;
   }
 
-  /** running : en train de courir au sol (sprinting : en sprint) ; resting : immobile au sol. */
-  update(dt, { running, sprinting, resting }) {
+  /**
+   * running : en train de courir au sol (sprinting : en sprint) ; resting : immobile au sol ;
+   * walking : marche à bout de souffle (l'énergie remonte, un peu moins vite qu'à l'arrêt).
+   */
+  update(dt, { running, sprinting, resting, walking }) {
     this.flash = Math.max(0, this.flash - dt);
     if (running) {
       this.spend((sprinting ? ENERGY.sprintDrain : ENERGY.runDrain) * dt);
-    } else if (resting) {
+    } else if (resting || walking) {
       this.idle += dt;
-      if (this.idle >= ENERGY.regenDelay) this.value = Math.min(1, this.value + ENERGY.regen * dt);
+      const rate = resting ? ENERGY.regen : ENERGY.walkRegen;
+      if (this.idle >= ENERGY.regenDelay) this.value = Math.min(1, this.value + rate * dt);
     } else {
       this.idle = 0;
     }
@@ -70,10 +78,6 @@ export class Energy {
     this.fullFor = this.value >= 1 ? this.fullFor + dt : 0;
     const target = this.fullFor < 0.6 ? 1 : 0;
     this.shown += Math.sign(target - this.shown) * Math.min(Math.abs(target - this.shown), dt * 4);
-  }
-
-  get speedFactor() {
-    return this.exhausted ? ENERGY.exhaustedSpeed : 1;
   }
 
   /** Anneau dessiné pixel par pixel (net à toutes les échelles entières). */

@@ -34,6 +34,9 @@ const P = {
   skidWindow: 0.12,   // s après une course rapide pendant lesquelles un demi-tour fait déraper
   skidDecel: 650,     // freinage pendant le dérapage (px/s²) : assez doux pour qu'on le voie
   throwCooldown: 0.35,// s minimum entre deux lancers de shuriken
+  kickCooldown: 0.35, // s après un coup de pied avant de pouvoir en donner un autre
+  kickPush: 170,      // px/s : recul donné aux ennemis par le coup de pied
+  walk: 34,           // px/s : marche à bout de souffle
   airAttackFall: 160, // chute maximale pendant un coup de sabre en l'air (px/s)
   airChopPlunge: 140, // pendant la frappe aérienne, KAGE est entraîné vers le bas (px/s)
 };
@@ -143,6 +146,7 @@ export class Player {
     this.wallLock = Math.max(0, this.wallLock - dt);
     this.wallCoyote = Math.max(0, this.wallCoyote - dt);
     this.throwCd = Math.max(0, this.throwCd - dt);
+    this.kickCd = Math.max(0, (this.kickCd ?? 0) - dt);
     this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
     const prevFrame = this.anim.frame;
@@ -187,6 +191,17 @@ export class Player {
         const box = this.attackBox();
         if (box) this.level.hitTargets(box, this.facing);
         if (this.anim.finished) this.endSpecial();
+        break;
+      }
+      case 'kick': {
+        // au sol on se plante sur sa jambe d'appui ; en l'air on garde son élan
+        if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
+        const box = this.kickBox();
+        if (box) this.level.hitTargets(box, this.facing);
+        if (this.anim.finished) {
+          this.kickCd = P.kickCooldown;
+          this.endSpecial();
+        }
         break;
       }
       case 'throw':
@@ -257,13 +272,15 @@ export class Player {
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
         this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
+        // à bout de souffle : KAGE ne peut plus que marcher (l'énergie remonte en marchant)
+        const tired = this.energy.exhausted;
         // dérapage : demi-tour brusque en pleine course, ou juste après (fenêtre de 0,12 s)
         if (this.onGround && Math.abs(this.vx) > P.skidSpeed && Math.sign(this.vx) === dir) {
           this.fastDir = dir;
           this.fastTimer = P.skidWindow;
         }
         if (this.onGround && dir !== 0 && dir === -this.fastDir && this.fastTimer > 0
-            && (this.state === 'run' || this.state === 'sprint' || this.state === 'idle')) {
+            && !tired && (this.state === 'run' || this.state === 'sprint' || this.state === 'idle')) {
           this.vx = this.fastDir * Math.max(Math.abs(this.vx), P.skidSpeed + 10);
           this.facing = this.fastDir;
           this.fastTimer = 0;
@@ -271,7 +288,7 @@ export class Player {
           this.setState('skid');
           break;
         }
-        const target = dir * (this.sprinting ? P.sprint : P.run) * this.energy.speedFactor;
+        const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run);
         if (this.wallLock <= 0) {
           const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
@@ -312,6 +329,12 @@ export class Player {
           this.setState(this.onGround ? 'attack' : 'air_attack');
           break;
         }
+        if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
+          this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
+          this.emit('kick');
+          this.setState('kick');
+          break;
+        }
         if (input.wasPressed('throw') && this.throwCd <= 0 && (this.canThrow?.() ?? true)) {
           this.thrown = false;
           this.setState(this.onGround ? 'throw' : 'air_throw');
@@ -347,8 +370,8 @@ export class Player {
 
     // transitions d'animation
     const s = this.state;
-    const moving = this.sprinting ? 'sprint' : 'run';
-    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump') {
+    const moving = this.energy.exhausted ? 'walk' : this.sprinting ? 'sprint' : 'run';
+    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'walk' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump') {
       const side = this.wallSide();
       if (!this.onGround && this.vy > 0 && side && dir === side && s !== 'wall_jump' || (s === 'wall_jump' && this.vy > 0 && side && dir === side)) {
         // contre un mur en tombant, en poussant vers lui : glissade murale
@@ -375,6 +398,9 @@ export class Player {
     if ((this.state === 'run' || this.state === 'sprint') && this.anim.frame !== prevFrame && STEP_FRAMES.includes(this.anim.frame)) {
       this.emit('step', { sprint: this.state === 'sprint' });
     }
+    if (this.state === 'walk' && this.anim.frame !== prevFrame && (this.anim.frame === 0 || this.anim.frame === 2)) {
+      this.emit('step', { walk: true });
+    }
 
     if (this.y > this.level.height + 64) {
       this.die();
@@ -392,6 +418,7 @@ export class Player {
       running: this.onGround && (this.state === 'run' || this.state === 'sprint') && Math.abs(this.vx) > 10,
       sprinting: this.onGround && this.state === 'sprint',
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
+      walking: this.onGround && this.state === 'walk',
     });
     this.anim.update(dt);
   }
@@ -438,6 +465,21 @@ export class Player {
     const { pivot } = this.meta;
     const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
     return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };
+  }
+
+  /** Zone de frappe du coup de pied, active pendant la détente et l'impact. */
+  kickBox() {
+    if (this.state !== 'kick') return null;
+    const a = this.meta.hitbox.kick;
+    if (!a.frames.includes(this.anim.frame)) return null;
+    const { pivot } = this.meta;
+    const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
+    return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };
+  }
+
+  /** Recul donné aux ennemis par le coup de pied (px/s). */
+  get kickPush() {
+    return P.kickPush;
   }
 
   ceilingAbove() {

@@ -115,7 +115,7 @@ player.onEvent = (n, d) => {
       break;
     case 'dash': sfx('dash'); fx.dust(d.x - d.dir * 4, d.y, 7, { dir: -d.dir, spread: 50, up: 12 }); break;
     case 'step':
-      sfx('step', { sprint: d.sprint });
+      sfx('step', { sprint: d.sprint, walk: d.walk });
       if (d.sprint) fx.dust(d.x - d.facing * 4, d.y, 2, { dir: -d.facing, up: 10, life: 0.3 });
       break;
     case 'skid': sfx('skid'); break;
@@ -130,6 +130,7 @@ player.onEvent = (n, d) => {
     case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
+    case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
       fx.shake(2, 0.2);
@@ -258,6 +259,20 @@ function update(dt) {
         if (heavy) fx.shake(2, 0.18);
       } else if (r === 'blocked') {
         fx.hitStop(0.04);
+      }
+    }
+  }
+  // coup de pied : 1 dégât, et l'ennemi recule (même s'il pare)
+  const kb = player.kickBox();
+  if (kb) {
+    level.hitGongs(kb);
+    for (const t of enemies) {
+      const r = t.takeHit(kb, player.x, player.attackId, DAMAGE_DEALT.kick);
+      if (r) {
+        t.push(player.facing, player.kickPush);
+        sfx('kickHit');
+        fx.hitStop(r === 'hit' ? 0.06 : 0.035);
+        fx.dust(t.x - player.facing * 4, t.y, 4, { dir: player.facing, spread: 30, up: 8 });
       }
     }
   }

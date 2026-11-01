@@ -117,6 +117,16 @@ lLtTTTTU.
 tTl......
 """, neck=(4, 0), sh_near=(6, 1), sh_far=(4, 1), hip_near=(2, 4), hip_far=(0, 4)),
 }
+# coup de pied de côté : buste qui part en arrière (épaules derrière les hanches)
+TORSOS["back"] = dict(text="""
+tTTUU...
+tTTTTUU.
+.tTTTTU.
+.tTTTTTU
+..tTTTUU
+..lLLLLl
+..tTTTTU
+""", neck=(1, 0), sh_near=(3, 1), sh_far=(1, 1), hip_near=(5, 6), hip_far=(3, 6))
 # glissade : assis sur la hanche, buste incliné en arrière (~45°), fesses au sol
 TORSOS["recline"] = dict(text="""
 tTTUU...
