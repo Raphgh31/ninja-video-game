@@ -1,0 +1,237 @@
+"""TATE — garde au bouclier. Planche de design (avant intégration en jeu).
+
+Dessin pixel par pixel : chaque pose est peinte sur une cellule 48x32 avec des
+primitives (chaînes de pixels posées à des coordonnées), orientation droite.
+Le contour extérieur est ajouté automatiquement, comme pour KAGE.
+"""
+import numpy as np
+
+W, H = 48, 32
+
+# palette propre à TATE (caractère -> couleur)
+PAL = {
+    "O": "#140e0d",                                   # contour
+    "j": "#1f1513", "J": "#3a2522", "i": "#6a4136",   # chapeau laqué
+    "r": "#8e3b34",                                   # liseré rouge du chapeau
+    "m": "#2a2d34", "M": "#4c515c", "n": "#6d737e",   # masque de fer
+    "e": "#f0c25a",                                   # yeux ambrés
+    "c": "#1b2030", "C": "#2b3349", "k": "#46516c",   # vêtements indigo
+    "a": "#5a2621", "A": "#8e3b34", "q": "#b25a4c",   # armure laquée
+    "y": "#c9b48a", "Y": "#9c8762",                   # corde de paille
+    "g": "#a39d8a", "G": "#76705f",                   # guêtres
+    "s": "#3a2c22",                                   # sandales
+    "w": "#4e321d", "V": "#6f4b2c", "v": "#946a40",   # bois du bouclier
+    "b": "#33373f", "B": "#5f656f", "R": "#a3a9b3",   # fer, rivets
+    "E": "#a8433a",                                   # emblème peint
+    "p": "#e8e0c4", "P": "#c9bf9e",                   # talisman de papier
+    "X": "#f4e7b8", "x": "#c9bd90",                   # étincelles / poussière (sans contour)
+    "Z": "#f0c25a",                                   # étoiles d'étourdissement (sans contour)
+}
+NO_OUTLINE = set("XxZ")
+
+
+class Canvas:
+    def __init__(self):
+        self.g = np.full((H, W), ".", dtype="<U1")
+
+    def put(self, x, y, text):
+        for i, c in enumerate(text):
+            if c != "." and 0 <= x + i < W and 0 <= y < H:
+                self.g[y, x + i] = c
+
+    def block(self, x, y, rows):
+        for j, r in enumerate(rows):
+            self.put(x, y + j, r)
+
+    def outline(self):
+        solid = (self.g != ".") & ~np.isin(self.g, list(NO_OUTLINE)) & (self.g != "O")
+        near = np.zeros_like(solid)
+        near[1:, :] |= solid[:-1, :]
+        near[:-1, :] |= solid[1:, :]
+        near[:, 1:] |= solid[:, :-1]
+        near[:, :-1] |= solid[:, 1:]
+        self.g[(self.g == ".") & near] = "O"
+        return self.g
+
+
+# ---------------------------------------------------------------------------
+# pièces
+# ---------------------------------------------------------------------------
+HAT = [                       # jingasa : cône large et pointu, liseré rouge
+    ".......J.......",
+    ".....jjJii.....",
+    "...jjjJJJii....",
+    ".jjjjJJJJJJii..",
+    "rrrrrrrrrrrrrrr",
+]
+HEAD = [                      # masque de fer, yeux ambrés vers l'avant
+    ".cmMMMMn",
+    ".cmMMeMe",
+    ".cmnMnMn",
+    "..cmmmm.",
+]
+TALISMAN = [                  # ofuda : bande de papier nouée dans le dos (point faible)
+    "yy",
+    "pp",
+    "Ep",
+    "pp",
+    "Ep",
+    "pp",
+    "P.",
+]
+
+
+def shield(cv, x, y, h=23, tilt=0):
+    """Grand bouclier vu de trois quarts : face en planches, tranche à droite."""
+    for j in range(h):
+        row = "VvVwVvV" + "ww"
+        if j in (2, h // 2, h - 3):
+            row = "BRBBBRB" + "bb"          # bandes de fer et rivets
+        cv.put(x + (tilt if j < h // 2 else 0), y + j, row)
+    # emblème : tomoe stylisé
+    mx, my = x + 1 + tilt, y + h // 2 - 5
+    cv.block(mx, my, [".EEE.", "EE.EE", "E..EE", "EEEE.", ".EE.."])
+
+
+def body(cv, x, y, lean=0):
+    """Buste en armure laquée, ceinture de corde, hakama."""
+    cv.block(x + lean, y, [
+        "..aAAqAc....",
+        ".aAAAAAAc...",
+        "aAqAAqAAa...",
+        "aaAaaAaaa...",
+        "aAAqAAqAa...",
+    ])
+    cv.block(x, y + 5, [
+        "yYyyYyyYy...",
+        ".cCCcCCkC...",
+        ".cCCcCCCC...",
+        "cCCkcCCCCc..",
+    ])
+
+
+def legs(cv, x, y, phase=0):
+    """Jambes larges, guêtres claires, sandales ; phase = 0 / 1 (marche)."""
+    if phase == 0:
+        cv.block(x, y, [
+            ".cC.....cC..",
+            ".gG.....gG..",
+            ".gG.....gG..",
+            "gG.......gG.",
+            "gG.......gG.",
+            "ss........ss",
+            "sss.......sss",
+        ])
+    else:
+        cv.block(x, y, [
+            "..cC...cC...",
+            "..gG...gG...",
+            "..gG...gG...",
+            "..gG...gG...",
+            ".gG.....gG..",
+            ".ss.....ss..",
+            ".sss....sss.",
+        ])
+
+
+def back_arm(cv, x, y, raised=False):
+    rows = ["aA", "cC", "cC", "bB", "gG"] if not raised else ["aA", "cC", "bB", "gG"]
+    cv.block(x, y, rows)
+
+
+# ---------------------------------------------------------------------------
+# poses
+# ---------------------------------------------------------------------------
+def walk(phase):
+    cv = Canvas()
+    bob = 1 if phase else 0
+    legs(cv, 9, 23, phase)
+    back_arm(cv, 8, 14 + bob)
+    body(cv, 10, 13 + bob)
+    cv.block(6, 13 + bob, TALISMAN)
+    cv.block(12, 9 + bob, HEAD)
+    cv.block(7, 4 + bob, HAT)
+    shield(cv, 21, 7 + bob)
+    return cv.outline()
+
+
+def guard():
+    """Coup bloqué : le bouclier encaisse, étincelles devant, buste arc-bouté."""
+    cv = Canvas()
+    legs(cv, 8, 23, 0)
+    back_arm(cv, 7, 15)
+    body(cv, 10, 14, lean=1)
+    cv.block(6, 14, TALISMAN)
+    cv.block(13, 10, HEAD)
+    cv.block(8, 5, HAT)
+    shield(cv, 22, 7, tilt=-1)
+    cv.block(31, 10, ["X.x", ".X.", "X.X", "..x"])
+    cv.block(32, 18, ["x.X", ".X."])
+    return cv.outline()
+
+
+def bash():
+    """Coup de bouclier : il se jette en avant, bouclier projeté, poussière."""
+    cv = Canvas()
+    cv.block(9, 23, [
+        "..cC......cC",
+        "..gG.....gG.",
+        ".gG.....gG..",
+        ".gG....gG...",
+        "gG....gG....",
+        "ss....ss....",
+        "sss...sss...",
+    ])
+    back_arm(cv, 12, 14)
+    body(cv, 13, 13, lean=2)
+    cv.block(9, 13, TALISMAN)
+    cv.block(16, 9, HEAD)
+    cv.block(11, 4, HAT)
+    shield(cv, 27, 6, h=24)
+    cv.block(2, 28, ["x..x", ".xx."])
+    return cv.outline()
+
+
+def stunned():
+    """Étourdi après un coup de bouclier raté : chapeau de travers, bouclier bas."""
+    cv = Canvas()
+    legs(cv, 9, 23, 1)
+    back_arm(cv, 8, 15)
+    body(cv, 10, 14)
+    cv.block(6, 14, TALISMAN)
+    cv.block(12, 10, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
+    cv.block(6, 6, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
+    shield(cv, 21, 12, h=18)
+    cv.block(9, 2, ["Z...Z", ".Z.Z.", "..Z.."])
+    cv.block(19, 4, ["Z", ".", "Z"])
+    return cv.outline()
+
+
+def defeated():
+    """Vaincu : bouclier fendu au sol, TATE à genoux, chapeau tombé."""
+    cv = Canvas()
+    cv.block(9, 26, [
+        "cCCCcCCCC.",
+        "gGGgGGs...",
+        "sssss.....",
+    ])
+    body(cv, 10, 17, lean=1)
+    cv.block(6, 17, TALISMAN)
+    cv.block(13, 13, ["..cmMMMMn", ".cmMMXMXn", ".cmnMnMn.", "..cmmmm.."])
+    # bouclier tombé à plat, fendu
+    cv.put(22, 28, "VvVw.VvVwVvBRB")
+    cv.put(22, 29, "BRBBb.BBRBVvVw")
+    cv.put(22, 30, "wwwww.wwwwwwww")
+    # chapeau au sol
+    cv.block(36, 24, ["...J...", "..jJi..", "rrrrrrr"])
+    return cv.outline()
+
+
+POSES = {
+    "marche_1": walk(0),
+    "marche_2": walk(1),
+    "garde": guard(),
+    "coup_de_bouclier": bash(),
+    "etourdi": stunned(),
+    "vaincu": defeated(),
+}
