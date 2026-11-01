@@ -26,18 +26,16 @@ const ICONS = {
     '....###....',
     '....###....',
   ],
+  // même dessin que le shuriken du jeu (image « spin0 » de la forge), affiché
+  // en pixels doublés : # = lame, o = centre ajouré
   throw: [
-    '.....#.....',
-    '.....#.....',
-    '....###....',
-    '...#####...',
-    '..###.###..',
-    '####...####',
-    '..###.###..',
-    '...#####...',
-    '....###....',
-    '.....#.....',
-    '.....#.....',
+    '...#...',
+    '...#...',
+    '..###..',
+    '###o###',
+    '..###..',
+    '...#...',
+    '...#...',
   ],
   attack: [
     '...........##',
@@ -63,6 +61,7 @@ const COLORS = {
   icon: '#e9e5da',
   iconDown: '#15171c',
   knob: 'rgba(233, 229, 218, 0.7)',
+  iconEdge: 'rgba(6, 7, 10, 0.55)',
 };
 
 function disc(ctx, cx, cy, r, color) {
@@ -81,6 +80,22 @@ function circle(ctx, cx, cy, r, color) {
       if (d <= r + 0.5 && d > r - 0.5) ctx.fillRect(cx + x, cy + y, 1, 1);
     }
   }
+}
+
+/** Icône avec contour sombre translucide (aspect d'un sprite), pixels agrandis k fois. */
+function outlinedIcon(ctx, src, cx, cy, color, edge, k = 1) {
+  const rows = src.flatMap((r) => Array(k).fill([...r].map((c) => c.repeat(k)).join('')));
+  const h = rows.length, w = rows[0].length;
+  const at = (x, y) => (rows[y] && rows[y][x]) || '.';
+  const ox = cx - (w >> 1), oy = cy - (h >> 1);
+  ctx.fillStyle = edge;
+  for (let y = -1; y <= h; y++) {
+    for (let x = -1; x <= w; x++) {
+      if (at(x, y) !== '.') continue;
+      if ([at(x + 1, y), at(x - 1, y), at(x, y + 1), at(x, y - 1)].includes('#')) ctx.fillRect(ox + x, oy + y, 1, 1);
+    }
+  }
+  icon(ctx, rows, cx, cy, color);
 }
 
 function icon(ctx, rows, cx, cy, color) {
@@ -237,7 +252,8 @@ export class TouchControls {
       disc(ctx, b.x, b.y, b.r, b.down ? COLORS.fillDown : COLORS.fill);
       circle(ctx, b.x, b.y, b.r, COLORS.edge);
       const c = b.down ? COLORS.iconDown : COLORS.icon;
-      icon(ctx, ICONS[b.action], b.x, b.y, c);
+      if (b.action === 'throw') outlinedIcon(ctx, ICONS.throw, b.x, b.y, c, COLORS.iconEdge, 2);
+      else icon(ctx, ICONS[b.action], b.x, b.y, c);
     }
   }
 }
