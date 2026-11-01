@@ -283,7 +283,7 @@ def _blocks(grid):
             vx, vy = dx / n * sp + rnd.uniform(-0.5, 0.5), dy / n * sp - 1.0 + rnd.uniform(-0.4, 0.4)
             # couleur dominante (hors contour) pour les petits fragments
             inner = [c for c in filled if c != "O"] or list(filled)
-            dom = max(set(inner), key=inner.count)
+            dom = max(sorted(set(inner)), key=inner.count)   # trié : même résultat à chaque build
             out.append(dict(x=bx, y=by, sub=sub.copy(), vx=vx, vy=vy, dom=dom, k=rnd.random()))
     return out
 
