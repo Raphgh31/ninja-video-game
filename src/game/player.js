@@ -2,6 +2,7 @@
 import { Animator } from '../engine/sprites.js';
 import { TILE } from './level.js';
 import { ENERGY, Energy } from './energy.js';
+import { DAMAGE_TAKEN, HEALTH } from './combat.js';
 
 const P = {
   run: 96,           // px/s (course normale)
@@ -48,6 +49,9 @@ export class Player {
     this.airDash = true;
     this.level.resetTargets?.();
     this.energy?.reset();
+    this.hp = HEALTH.max;
+    this.invuln = 0;
+    this.safe = { x: this.x, y: this.y };
     this.onRespawn?.();
     this.setState(instant ? 'idle' : 'respawn');
   }
@@ -55,7 +59,7 @@ export class Player {
   setState(s) {
     this.state = s;
     this.timer = 0;
-    this.anim.play(s === 'land' ? 'land' : s, { restart: true });
+    this.anim.play(s === 'hurt' ? 'fall' : s, { restart: true });
   }
 
   /** Boîte de collision selon l'état (définie dans kage.json, relative à la cellule). */
@@ -69,6 +73,7 @@ export class Player {
 
   update(dt, input) {
     this.timer += dt;
+    this.invuln = Math.max(0, this.invuln - dt);
     const L = input.isHeld('left'), R = input.isHeld('right');
     const dir = (R ? 1 : 0) - (L ? 1 : 0);
     if (input.wasPressed('jump')) this.jumpBuffer = P.buffer;
@@ -93,6 +98,10 @@ export class Player {
           this.vx += Math.sign(target - this.vx) * Math.min(Math.abs(target - this.vx), P.dashBrake * dt);
           if (this.anim.finished) this.endSpecial();
         }
+        break;
+      case 'hurt':
+        if (this.timer >= HEALTH.hurtLock && this.onGround) this.endSpecial();
+        else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
       case 'attack': {
         // légère fente pendant le dégainé et le demi-cercle, puis on s'arrête
@@ -198,7 +207,18 @@ export class Player {
       }
     }
 
-    if (this.level.hitsSpike(this.box()) || this.y > this.level.height + 64) this.die();
+    if (this.y > this.level.height + 64) {
+      this.die();
+    } else if (this.level.hitsSpike(this.box())) {
+      if (this.hurt(DAMAGE_TAKEN.spikes, this.x - this.facing) && this.state !== 'death') {
+        this.x = this.safe.x;
+        this.y = this.safe.y;
+        this.vx = 0;
+        this.vy = 0;
+      }
+    } else if (this.onGround && this.state !== 'hurt') {
+      this.safe = { x: this.x, y: this.y };
+    }
     this.energy.update(dt, {
       running: this.onGround && (this.state === 'run' || this.state === 'sprint') && Math.abs(this.vx) > 10,
       sprinting: this.onGround && this.state === 'sprint',
@@ -209,6 +229,27 @@ export class Player {
 
   endSpecial() {
     this.setState(this.onGround ? (Math.abs(this.vx) > 10 ? 'run' : 'idle') : 'fall');
+  }
+
+  /**
+   * KAGE est touché : perd `dmg` points de vie, recule à l'opposé de `fromX`,
+   * clignote et devient invincible un instant. Renvoie true si le coup a porté.
+   */
+  hurt(dmg, fromX) {
+    if (this.invuln > 0 || this.state === 'death' || this.state === 'respawn') return false;
+    this.hp = Math.max(0, this.hp - dmg);
+    this.onHurt?.(dmg);
+    if (this.hp <= 0) {
+      this.die();
+      return true;
+    }
+    this.invuln = HEALTH.invulnerable;
+    const away = Math.sign(this.x - fromX) || -this.facing;
+    this.vx = away * HEALTH.knockback;
+    this.vy = -HEALTH.knockup;
+    this.onGround = false;
+    this.setState('hurt');
+    return true;
   }
 
   die() {
@@ -274,6 +315,7 @@ export class Player {
   }
 
   draw(ctx, sheet, cam) {
+    if (this.invuln > 0 && Math.floor(this.invuln * 16) % 2 === 0) return;   // clignote
     this.anim.draw(ctx, sheet, this.x - Math.round(cam.x), this.y - Math.round(cam.y), this.facing);
   }
 }

@@ -2,7 +2,9 @@
 // De face, il bloque tout (sabre : étincelles ; shuriken : rebond). Il avance
 // lentement, se retourne lentement, et charge d'un coup de bouclier quand KAGE
 // est proche devant lui. Une charge ratée le laisse étourdi. Son point faible
-// est le talisman dans son dos : 2 coups par-derrière le battent.
+// est le talisman dans son dos (4 points de vie : 2 coups de sabre, 4 shurikens).
+
+import { DAMAGE_DEALT, DAMAGE_TAKEN } from './combat.js';
 
 export const TATE = {
   walk: 18,            // px/s : lent et lourd
@@ -16,7 +18,7 @@ export const TATE = {
   stun: 1.4,           // s étourdi après une charge ratée
   cooldown: 0.9,       // s avant de pouvoir recharger
   guardFlash: 0.22,    // s de pose de garde quand un coup est bloqué
-  hp: 2,
+  hp: 4,              // 2 coups de sabre (2 dégâts) ou 4 shurikens (1 dégât)
   defeatFade: 2.4,     // s avant de disparaître une fois vaincu (chute ≈ 0,94 s, puis au sol, puis fondu)
   fadeTime: 0.6,       // s de fondu à la fin
 };
@@ -70,14 +72,14 @@ export class Tate {
    * Un coup touche TATE : 'hit' (dans le dos), 'blocked' (sur le bouclier) ou
    * null (raté). `id` évite qu'un même coup de sabre compte plusieurs fois.
    */
-  takeHit(box, attackerX, id = null) {
+  takeHit(box, attackerX, id = null, dmg = DAMAGE_DEALT.sword) {
     if (!this.alive || (id !== null && id === this.lastHit)) return null;
     const body = this.box('body'), shield = this.box('shield');
     const touches = (b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y;
     if (!touches(body) && !touches(shield)) return null;
     if (id !== null) this.lastHit = id;
     if (this.backExposedTo(attackerX)) {
-      this.hp--;
+      this.hp -= dmg;
       this.flash = 0.18;
       if (this.hp <= 0) {
         this.state = 'defeated';
@@ -178,7 +180,7 @@ export class Tate {
     const overlap = (b) => pb.x < b.x + b.w && pb.x + pb.w > b.x && pb.y < b.y + b.h && pb.y + pb.h > b.y;
     if (this.state === 'bash' && player.state !== 'slide' && overlap(this.box('bash'))) {
       this.bashHit = true;
-      player.die();
+      player.hurt(DAMAGE_TAKEN.tateBash, this.x);
       return;
     }
     if (player.state === 'slide') return;   // glisse entre ses jambes

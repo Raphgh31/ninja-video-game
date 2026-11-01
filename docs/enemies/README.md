@@ -18,8 +18,8 @@ Garde de temple trapu, retranché derrière un grand bouclier en bois cerclé de
 | Demi-tour | 0,7 s : passer dans son dos donne une ouverture |
 | De face | bloque tout : sabre → pose de garde + étincelles ; shuriken → rebondit et retombe (récupérable) |
 | Corps | solide : KAGE est repoussé, sauf en glissade (il passe entre ses jambes) |
-| Coup de bouclier | à moins de 44 px devant lui : élan de 0,45 s (le bouclier tremble), puis charge de 0,32 s (≈ 48 px) ; mortelle pour KAGE |
+| Coup de bouclier | à moins de 44 px devant lui : élan de 0,45 s (le bouclier tremble), puis charge de 0,32 s (≈ 48 px) ; 2 dégâts à KAGE |
 | Esquive | sauter par-dessus à la fin de l'élan, ou glisser sous lui |
 | Charge ratée | étourdi 1,4 s |
-| Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 2 coups (sabre ou shuriken) le battent |
+| Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 4 points de vie : 2 coups de sabre ou 4 shurikens |
 | Vaincu | mort lourde en 4 temps : un genou à terre (0,6 s), bascule (0,12 s), impact avec poussière (0,22 s), au sol ; puis fondu. Il revient quand KAGE réapparaît |

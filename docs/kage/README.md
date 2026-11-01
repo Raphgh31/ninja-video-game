@@ -68,6 +68,21 @@ Anneau en haut à gauche de l'écran, à côté du stock de shurikens ; il se vi
 
 À zéro, KAGE est **essoufflé** : anneau rouge, course à 65 % de la vitesse, dash et sabre impossibles jusqu'à ce que l'énergie remonte à 40 %. Une action refusée fait clignoter l'anneau en rouge. L'énergie est remplie à la réapparition.
 
+## Vie et dégâts
+
+Réglages dans `src/game/combat.js` (valeurs provisoires, à rééquilibrer).
+
+- **5 points de vie**, barre de 5 segments en haut à gauche (sous l'énergie et les shurikens) ; le segment perdu clignote.
+- Touché : recul, 0,3 s sans contrôle, puis **1 s d'invincibilité** (KAGE clignote).
+- À 0 : mort puis réapparition avec la vie pleine. Pas de régénération automatique.
+
+| Dégâts subis | | Dégâts infligés | |
+|---|---|---|---|
+| Coup de bouclier de TATE | 2 | Coup de sabre | 2 |
+| Contact avec TATE | 0 (repousse) | Shuriken | 1 |
+| Pics | 1, puis retour au dernier sol sûr | | |
+| Chute hors du niveau | mort immédiate | | |
+
 ## Palette (et futurs skins)
 
 Les skins sont mis de côté pour l'instant. Le jeu n'utilise qu'une palette, `skins/encre.json`.

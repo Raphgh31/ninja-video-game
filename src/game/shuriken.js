@@ -1,3 +1,5 @@
+import { DAMAGE_DEALT } from './combat.js';
+
 // Shurikens : stock de 3, projectiles en vol, plantés dans le décor puis
 // ramassés en passant dessus.
 import { TILE } from './level.js';
@@ -82,7 +84,7 @@ export class Shurikens {
       if (!s.deflected) {
         const box = { x: s.x - 2, y: s.y - 2, w: 4, h: 4 };
         for (const e of this.enemies) {
-          if (e.takeHit(box, s.x - s.dir * 20)) {
+          if (e.takeHit(box, s.x - s.dir * 20, null, DAMAGE_DEALT.shuriken)) {
             s.deflected = true;
             s.vx *= -0.2;
             s.vy = -60;

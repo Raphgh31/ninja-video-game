@@ -5,6 +5,7 @@ import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate } from './game/tate.js';
+import { HEALTH } from './game/combat.js';
 import './style.css';
 
 // Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
@@ -60,6 +61,25 @@ const tateMeta = await loadJson('./characters/tate/tate.json');
 const tate = new Tate(tateMeta, await loadImage(`./characters/tate/${tateMeta.image}`),
   await loadImage(`./characters/tate/${tateMeta.glowImage}`), 30 * 16, level.spawn.y);
 shurikens.enemies.push(tate);
+// barre de vie : le segment perdu clignote un instant
+let lostFlash = 0;
+player.onHurt = () => { lostFlash = 0.5; };
+function drawHealth(x, y) {
+  const seg = 7, gap = 2, h = 4;
+  for (let i = 0; i < HEALTH.max; i++) {
+    const sx = x + i * (seg + gap);
+    ctx.fillStyle = '#06070a';                       // contour
+    ctx.fillRect(sx - 1, y - 1, seg + 2, h + 2);
+    const full = i < player.hp;
+    const justLost = !full && i < player.hp + 2 && lostFlash > 0 && Math.floor(lostFlash * 14) % 2 === 0;
+    ctx.fillStyle = full ? '#d4574a' : justLost ? '#f2ede6' : '#1b1e27';
+    ctx.fillRect(sx, y, seg, h);
+    if (full) {                                       // reflet en haut du segment
+      ctx.fillStyle = '#e88a78';
+      ctx.fillRect(sx, y, seg, 1);
+    }
+  }
+}
 player.onRespawn = () => {
   shurikens.reset();
   tate.reset();
@@ -88,6 +108,7 @@ function update(dt) {
   }
   level.update(dt);
   shurikens.update(dt);
+  lostFlash = Math.max(0, lostFlash - dt);
   tate.update(dt, player);
   tate.interact(player);
   const ab = player.attackBox();
@@ -110,6 +131,7 @@ function draw() {
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
   shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
+  drawHealth(5, 27);
   touch?.draw(ctx);
   if (debug) {
     const b = player.box();
@@ -128,7 +150,7 @@ function draw() {
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }
-  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} %`;
+  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`;
 }
 
 // Boucle à pas fixe (120 Hz) pour une physique stable quel que soit l'écran.

@@ -1,0 +1,23 @@
+// Réglages de combat : vie de KAGE, dégâts reçus et infligés.
+// Tout est ici pour pouvoir rééquilibrer facilement.
+
+export const HEALTH = {
+  max: 5,              // points de vie de KAGE
+  invulnerable: 1.0,   // s d'invincibilité (clignotement) après un coup
+  knockback: 120,      // px/s de recul horizontal quand KAGE est touché
+  knockup: 160,        // px/s de recul vers le haut
+  hurtLock: 0.3,       // s sans contrôle juste après un coup
+};
+
+// dégâts subis par KAGE
+export const DAMAGE_TAKEN = {
+  tateBash: 2,         // coup de bouclier de TATE
+  spikes: 1,           // pics (KAGE est replacé au dernier sol sûr)
+  // chute hors du niveau : mort immédiate
+};
+
+// dégâts infligés par KAGE
+export const DAMAGE_DEALT = {
+  sword: 2,
+  shuriken: 1,
+};
