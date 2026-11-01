@@ -84,12 +84,12 @@ def design_board():
     BW, BH = 1500, 870
     board = Image.new("RGB", (BW, BH), PAPER)
     d = ImageDraw.Draw(board)
-    d.text((40, 28), "WARA — pantin de paille du dojo", fill=INK, font=font(32))
-    d.text((40, 74), "Proposition de design · ennemi de base, mignon et un peu ridicule · cellule 48×32 comme KAGE · 2 points de vie",
+    d.text((40, 28), "WARA — l'épouvantail du dojo", fill=INK, font=font(32))
+    d.text((40, 74), "Proposition de design · ennemi de base, un petit épouvantail mignon et un peu ridicule · cellule 48×32 comme KAGE · 2 points de vie",
            fill=GREY, font=font(15))
 
     # héros, recadré sur la silhouette
-    hero = img(POSES["repos_1"]).crop((0, 2, 34, 32))
+    hero = img(POSES["repos_1"]).crop((0, 0, 34, 32))
     hx, hy = 40, 120
     d.rectangle([hx, hy, hx + hero.width * Z - 1, hy + hero.height * Z - 1], fill=BG)
     b = big(hero, Z)
@@ -97,21 +97,21 @@ def design_board():
 
     # annotations : (point visé en pixels de la cellule, libellé)
     notes = [
-        ((17, 7), "Chignon de paille : il trahit ses humeurs. Dressé tout droit, il va attaquer ; en vrille, il a le tournis"),
-        ((15, 14), "Pas de visage : une grosse tête ronde en toile, cousue sur la paille"),
-        ((14, 18), "Cou et taille serrés de cordes torsadées"),
-        ((23, 20), "Bras : bottes de paille liées aux poignets, qui ballottent comme ceux d'un pantin"),
-        ((18, 21), "Le talisman cloué sur la poitrine : c'est lui qui l'a réveillé"),
-        ((11, 26), "Petite jupe de paille en cloche"),
-        ((16, 29), "Pieu court à virole de fer : il avance en sautillant"),
+        ((7, 3), "Grand chapeau de paille : il saute de la tête avant une attaque, tombe sur les yeux au tournis"),
+        ((15, 13), "Tête en toile de sac : deux points, un sourire. Fâché, sa bouche se coud en zigzag"),
+        ((14, 16), "Col noué d'une corde"),
+        ((26, 16), "Bras : une traverse de bois, touffes de paille aux bouts. Elle tourne en hélice"),
+        ((20, 20), "Le talisman cloué sur la poitrine : c'est lui qui l'a réveillé"),
+        ((11, 23), "Robe de paille en pans, effilochée"),
+        ((16, 28), "Long pieu à virole de fer : il avance en sautillant"),
     ]
     lx = hx + hero.width * Z + 60
     ly = hy + 6
     f = font(15, bold=False)
     for i, ((px, py), label) in enumerate(notes):
         ax = hx + px * Z + Z // 2
-        ay = hy + (py - 2) * Z + Z // 2
-        ty = ly + i * 52
+        ay = hy + py * Z + Z // 2
+        ty = ly + i * 56
         d.line([(ax, ay), (lx - 46, ty + 9), (lx - 12, ty + 9)], fill=INK, width=2)
         d.ellipse([ax - 5, ay - 5, ax + 5, ay + 5], outline=INK, width=2)
         d.text((lx - 8, ty), f"{i + 1}", fill=RED, font=font(16))
@@ -121,18 +121,18 @@ def design_board():
     tx = lx + 440
     y = hy
     d.text((tx, y), "Histoire", fill=INK, font=font(18))
-    y = wrap(d, "Les petits mannequins d'entraînement du dojo. Un talisman cloué sur leur poitrine les a "
-                "réveillés : ils sautillent partout sur leur pieu et veulent jouer à la bagarre, sans trop savoir "
-                "comment. Plus gênants que dangereux. Une fois battus, le talisman s'envole et ils redeviennent "
-                "de simples mannequins.", (tx, y + 30), 400, f)
+    y = wrap(d, "Les épouvantails du potager du dojo. Un talisman cloué sur leur poitrine les a réveillés : "
+                "ils sautillent partout sur leur pieu et veulent jouer à la bagarre, sans trop savoir comment. "
+                "Plus gênants que dangereux. Une fois battus, le talisman s'envole et ils redeviennent de simples "
+                "épouvantails.", (tx, y + 30), 400, f)
     y += 18
     d.text((tx, y), "Rôle en jeu", fill=INK, font=font(18))
     y = wrap(d, "L'ennemi le plus courant, en groupes de 2 ou 3 entre deux TATE. Il apprend le sabre et le bon "
                 "moment pour frapper.", (tx, y + 30), 400, f)
     y += 18
     d.text((tx, y), "L'inverse de TATE", fill=INK, font=font(18))
-    wrap(d, "TATE bloque tout de face : il faut passer dans son dos.\nWARA mouline des bras tout autour "
-            "de lui : son dos n'est pas une faille. Il faut attendre la fin de son moulinet, quand il a le "
+    wrap(d, "TATE bloque tout de face : il faut passer dans son dos.\nWARA fait tourner sa traverse tout "
+            "autour de lui : son dos n'est pas une faille. Il faut attendre la fin de son moulinet, quand il a le "
             "tournis, puis frapper.", (tx, y + 30), 400, f)
 
     # échelle : KAGE, WARA, TATE
@@ -170,16 +170,16 @@ def design_board():
 # 2. poses
 # ---------------------------------------------------------------------------
 ROWS = [
-    ("REPOS", "il se dandine, bras ballants, 2 × 0,35 s", [("repos_1", "1"), ("repos_2", "2")]),
-    ("BOND", "il sautille, ~0,6 s par bond", [("bond_1_tasse", "1 · se ratatine"), ("bond_2_envol", "2 · raide comme un crayon"),
+    ("REPOS", "il se dandine, la traverse penche d'un côté puis de l'autre", [("repos_1", "1"), ("repos_2", "2")]),
+    ("BOND", "il sautille, ~0,6 s par bond", [("bond_1_tasse", "1 · se ratatine"), ("bond_2_envol", "2 · chapeau sur les yeux"),
                                              ("bond_3_sommet", "3 · youpi !"), ("bond_4_atterrit", "4 · en accordéon")]),
-    ("MOULINET", "attaque, touche des deux côtés", [("moulinet_1_elan", "1 · chignon dressé (signal)"),
-                                                    ("moulinet_2", "2 · bras en hélice"), ("moulinet_3", "3 · de dos")]),
-    ("VERTIGE", "après le moulinet : fenêtre pour frapper", [("vertige_1", "1 · tête qui penche"), ("vertige_2", "2 · de l'autre côté")]),
+    ("MOULINET", "attaque, touche des deux côtés", [("moulinet_1_elan", "1 · le chapeau saute (signal)"),
+                                                    ("moulinet_2", "2 · traverse en hélice"), ("moulinet_3", "3 · suite du tour")]),
+    ("VERTIGE", "après le moulinet : fenêtre pour frapper", [("vertige_1", "1 · chapeau sur les yeux"), ("vertige_2", "2 · de l'autre côté")]),
     ("TOUCHÉ", "1er coup, puis état abîmé", [("touche", "touché"), ("abime_repos", "abîmé (1 PV)"),
                                              ("abime_touche", "abîmé touché")]),
     ("MORT", "4 temps, puis fondu", [("mort_1_coupe", "1 · tranché"), ("mort_2_pouf", "2 · pouf !"),
-                                    ("mort_3_en_tas", "3 · la tête sur le tas"), ("mort_4_libere", "4 · le talisman s'envole")]),
+                                    ("mort_3_en_tas", "3 · sur le tas"), ("mort_4_libere", "4 · le talisman s'envole")]),
 ]
 
 
@@ -241,24 +241,24 @@ def gameplay_board():
     OPEN = (90, 170, 90, 90)
     panels = [
         ("1 · Il arrive en sautillant",
-         "Petits bonds sur son pieu vers KAGE dès qu'il le voit (120 px), bras en l'air à chaque saut. Entre "
-         "deux bonds, il se dandine pour lui faire face.",
+         "Petits bonds sur son pieu vers KAGE dès qu'il le voit (120 px) ; son chapeau s'envole un peu à "
+         "chaque saut. Entre deux bonds, il se dandine pour lui faire face.",
          scene([(wl("bond_1_tasse"), 112, 0, 90), (wl("bond_3_sommet"), 92, -12, 140),
                 (wl("bond_4_atterrit"), 72, 0, 255), (kr("idle"), 22, 0, 255)])),
-        ("2 · Le signal : le chignon se dresse",
-         "À moins de 30 px, son chignon se dresse tout droit et il lève un bras pendant 0,45 s, comme s'il "
-         "remontait ses manches. C'est le moment de reculer ou de sauter.",
+        ("2 · Le signal : le chapeau saute",
+         "À moins de 30 px, son chapeau saute de sa tête, pointe dressée, et sa bouche se coud en zigzag "
+         "pendant 0,45 s. C'est le moment de reculer ou de sauter.",
          scene([(wl("moulinet_1_elan"), 80, 0, 255), (kr("idle"), 46, 0, 255)])),
         ("3 · Moulinet : devant ET derrière",
-         "Il mouline des bras en tous sens (0,5 s), des deux côtés à 22 px (1 dégât). Contrairement à TATE, "
+         "Sa traverse tourne en hélice (0,5 s) et touche des deux côtés à 22 px (1 dégât). Contrairement à TATE, "
          "passer dans son dos ne protège pas.",
          scene([(wr("moulinet_2"), 75, 0, 255), (kl("hurt"), 88, 0, 255)], zones=[(53, 97, HIT)])),
         ("4 · Vertige : frapper !",
-         "Après son moulinet, il a le tournis 0,9 s : tête qui penche, chignon en vrille, sans défense. Un coup de sabre (2) suffit à l'abattre ; s'il "
+         "Après son moulinet, il a le tournis 0,9 s : chapeau sur les yeux, traverse de travers, sans défense. Un coup de sabre (2) suffit à l'abattre ; s'il "
          "survit, il passe à l'état abîmé.",
          scene([(wl("vertige_1"), 84, 0, 255), (kr("attack", 3), 58, 0, 255)], zones=[(66, 102, OPEN)])),
         ("5 · Abîmé : vexé",
-         "Avec 1 point de vie, la paille sort par les coutures et son chignon se défait. Vexé, il sautille plus "
+         "Avec 1 point de vie, la paille sort par les coutures et son chapeau se déchire. Vexé, il sautille plus "
          "vite et son signal raccourcit à 0,3 s. Un coup de plus et il tombe.",
          scene([(wl("abime_repos"), 90, 0, 255), (kr("run", 2), 40, 0, 255)])),
         ("6 · Les autres réponses",

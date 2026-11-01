@@ -24,11 +24,11 @@ Garde de temple trapu, retranché derrière un grand bouclier en bois cerclé de
 | Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 4 points de vie : 2 coups de sabre ou 4 shurikens |
 | Vaincu | mort lourde en 4 temps : un genou à terre (0,6 s), bascule (0,12 s), impact avec poussière (0,22 s), au sol ; puis fondu. Il revient quand KAGE réapparaît |
 
-## WARA — pantin de paille du dojo (proposition, pas encore en jeu)
+## WARA — l'épouvantail du dojo (proposition, pas encore en jeu)
 
 ![Concept](wara_design.png)
 
-Petit mannequin d'entraînement réveillé par un talisman cloué sur sa poitrine. Mignon et un peu ridicule : pas de visage (une grosse tête ronde en toile), proportions de poupée, gestuelle de pantin désarticulé. Son chignon de paille trahit ses humeurs : **dressé tout droit, il va attaquer** (c'est le signal) ; en vrille, il a le tournis. Ennemi de base, l'inverse de TATE : il mouline des bras tout autour de lui, donc on ne le prend pas à revers ; on le frappe pendant son vertige, après son moulinet. Vaincu, il retombe en tas et le talisman s'envole.
+Petit épouvantail réveillé par un talisman cloué sur sa poitrine, mignon et un peu ridicule. Il a un grand chapeau de paille à pointe pliée et une tête en toile de sac (deux points pour les yeux, un sourire, une bouche cousue en zigzag quand il se fâche). Ses bras sont une traverse de bois, il porte une robe de paille effilochée et se tient sur un long pieu. Son chapeau trahit ses humeurs : **il saute de sa tête quand WARA va attaquer** (c'est le signal) et lui tombe sur les yeux quand il a le tournis. Ennemi de base, l'inverse de TATE : sa traverse tourne en hélice tout autour de lui, donc on ne le prend pas à revers ; on le frappe pendant son vertige, après son moulinet. Vaincu, il retombe en tas, la tête et le chapeau par-dessus, et le talisman s'envole.
 
 **Planches**
 - [Concept](wara_design.png) : anatomie annotée, histoire, échelle avec KAGE et TATE, palette

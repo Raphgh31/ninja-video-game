@@ -1,11 +1,14 @@
-"""WARA — pantin de paille du dojo. Planche de design (avant intégration en jeu).
+"""WARA — l'épouvantail du dojo. Planche de design (avant intégration en jeu).
 
-Un petit mannequin d'entraînement, réveillé par un talisman cloué sur sa
-poitrine. Pas de visage : une tête ronde en toile, et un chignon de paille qui
-trahit ses humeurs (dressé = il va attaquer, en vrille = il a le tournis).
-Gestuelle de pantin désarticulé. Dessin pixel par pixel sur une cellule 48x32,
-orientation droite, contour extérieur ajouté automatiquement (comme KAGE et TATE).
+Un petit épouvantail réveillé par un talisman cloué sur sa poitrine : grand
+chapeau de paille à pointe pliée, tête en toile de sac (deux points pour les
+yeux, un sourire), bras en traverse de bois, poncho de paille, long pieu.
+Le chapeau trahit ses humeurs (il saute de la tête = il va attaquer, il tombe
+sur les yeux = il a le tournis) ; la traverse tourne en hélice pour attaquer.
+Dessin pixel par pixel sur une cellule 48x32, orientation droite, contour
+extérieur ajouté automatiquement (comme KAGE et TATE).
 """
+import math
 import numpy as np
 
 W, H = 48, 32
@@ -17,7 +20,8 @@ PAL = {
     "t": "#5c5134", "T": "#8c7f57", "u": "#c2ae78",   # paille : ombre, médium, clair
     "U": "#e2d29d",                                   # paille : reflet
     "r": "#3e2c1a", "R": "#6e5133",                   # corde torsadée
-    "c": "#cdc7b8", "C": "#9d978a",                   # toile du masque
+    "c": "#cbbd9f", "C": "#978b73",                   # toile de sac du visage
+    "k": "#2a2420",                                   # yeux et bouche (fil sombre)
     "w": "#2f2217", "W": "#5a4129",                   # bois : pieu, traverse
     "n": "#383c45", "N": "#727985", "I": "#b7bdc6",   # fer du clou et de la virole
     "p": "#e8e0c4", "P": "#c4b994",                   # papier du talisman
@@ -65,139 +69,162 @@ def flipped(grid):
 
 
 # ---------------------------------------------------------------------------
-# Pose maîtresse (repos). Chaque partie = (x, y, lignes) en coordonnées de
-# cellule ; le pieu est en x = 15-16 (ancrage 16 comme KAGE). Proportions de
-# poupée : grosse tête ronde, petit corps, pieu court.
+# Pièces (coordonnées de cellule). Pieu en x = 15-16 (ancrage 16 comme KAGE).
 # ---------------------------------------------------------------------------
-MASTER = {
-    "sprout": (11, 7, [            # chignon de paille, replié vers l'avant
-        "......uU",
-        ".....uUu",
-    ]),
-    "head": (11, 9, [
-        "....rR",                  # lien du chignon
-        "..tuUuUut",
-        ".tTuUuUuTt",
-        "tTuCccccCt",              # visage : toile vierge, cousue sur la paille
-        "RuccccccCC",
-        "tTcccccccC",
-        "tuCcccccCC",
-        ".tTCccCCt",
-        "..tuTuTt",
-    ]),
-    "neck": (11, 18, ["..tRrRr"]),
-    "torso": (11, 19, [
-        ".tuTUuUuTt",
-        "tTuTUuNIuT",              # tête du clou
-        "tuTuUuppTt",              # talisman
-    ]),
-    "arm_l": (4, 19, [
-        "...Uu..",
-        "..uTuRu",                 # botte de paille liée au poignet
-        "...ttrt",
-    ]),
-    "arm_r": (21, 19, [
-        "..uU",
-        "RuTu",
-        "trt.",
-    ]),
-    "waist": (11, 22, ["..rRrRepR"]),
-    "skirt": (9, 23, [            # jupe en cloche, effilochée au bord
-        "...ttTtuPtTt",
-        "..tuTuUuTuUut",
-        ".tuTuUuTuUuTt",
-        "tT.u.T.uU.u.Tt",
-    ]),
-}
-ORDER = ["skirt", "waist", "torso", "neck", "head", "sprout", "arm_l", "arm_r"]
-NAIL = (17, 20)           # tête du clou (sur la poitrine)
-STAKE_TOP = 26
+HAT = [                       # grand chapeau de paille, pointe pliée vers l'arrière
+    "...Uu",
+    "...uTu",
+    "....tuU",
+    ".....tuUu",
+    ".....tTuUuU",
+    "....tTuUuTuUu",
+    "....rRrRrRrRrR",
+    "..TuUuUuTuUuTuUuu",
+    ".tTuTuUuTuUuTuTuUuUu",
+    "...............tTuTu",
+    ".................tt",
+]
+HAT_UP = [                    # pointe dressée (le chapeau saute : il va attaquer)
+    ".........U",
+    "........uU",
+    "........Tu",
+    ".......tuU",
+    "......tTuUu",
+    ".....tTuUuTu",
+    "....rRrRrRrRrR",
+    "..TuUuUuTuUuTuUuu",
+    ".tTuTuUuTuUuTuTuUuUu",
+    "...............tTuTu",
+    ".................tt",
+]
+HAT_TORN = [                  # bord déchiré, paille qui pend, pointe cassée
+    "....",
+    ".....u",
+    "....tuU.u",
+    ".....tuUu",
+    ".....tTuUuU",
+    "....tTuUuTuUu",
+    "....rRr..RrRrR",
+    "..TuUuU..UuTuUuu",
+    ".tTuT.u.TuUuTuT.uUu",
+    "...u.....u.....tT.Tu",
+    ".................t",
+]
+HAT_XY = (3, 1)
 
-# ---------------------------------------------------------------------------
-# variantes de parties : (x, y, lignes) absolus
-# ---------------------------------------------------------------------------
-SPROUT_UP = (11, 3, [         # chignon dressé tout droit : il va attaquer
-    "...U.U",
-    "...uUu",
-    "....Uu",
-    "....uU",
-    "....uU",
-    "....uU",
-])
-SPROUT_DROOP = (8, 8, [       # chignon retombé en vrille : il a le tournis
-    "uUu.....",
-    "U.uU....",
-    ".Uu.uU..",
-])
-SPROUT_FLAT = (12, 7, [       # chignon aplati vers l'arrière (élan du bond)
-    "uUUu...",
-    "..uUu..",
-])
-SPROUT_TORN = (11, 6, [       # chignon à moitié défait
-    "...U..uU",
-    "u...uU.u",
-    ".u..uUu.",
-])
-HEAD_TORN = (11, 9, [         # la paille sort par les coutures
-    "U...rR..u",
-    ".utuUuUutU",
-    ".tTuUuUuTt",
-    "tTuCccc.uU",
-    "RuccccuU.",
-    "tTcccccCu",
-    "tuCcccccCC",
-    ".tTCccCCt",
-    "..tuTuTt",
-])
-TORSO_TORN = (11, 19, [
-    "utuTUuUuTt.U",
-    "tTuTUuNIuT",
-    "tuTuUuppTt",
-])
-HEAD_BACK = (11, 9, [         # vue de dos : nœud du masque
-    "....rR",
-    "..tuUuUut",
-    ".tTuUuUuTt",
-    "tTuUuTuTut",
-    "tuTuRrRuTt",
-    "tTuRuuRuTt",
-    "tuTuRRuTut",
-    ".tTuUuTut",
-    "..tuTuTt",
-])
-# bras : levés (youpi), ballants, collés au corps, en moulinet
-ARM_L_UP = (5, 13, ["Uu...", "uTu..", ".uTu.", "..uR.", "...tu", "....tt"])
-ARM_R_UP = (21, 13, ["...uU", "..uTu", ".uTu.", ".Ru..", "tu...", "t...."])
-ARM_L_LIMP = (6, 19, ["...tuT", "..uTu.", ".Ru...", "uU...."])
-ARM_R_LIMP = (21, 19, ["Tut...", ".uTu..", "...uR.", "....Uu"])
-ARM_L_TUCK = (8, 19, ["..tu", ".uTu", ".uR.", ".Uu."])
-ARM_R_TUCK = (21, 19, ["ut..", "uTu.", ".Ru.", ".uU."])
-ARM_L_OUT = (0, 19, ["Uu.........", "uTRuTuUuTuT", ".trttTttTtt"])
-ARM_R_OUT = (21, 19, ["........uU", "TuTuUuTuRTu", "tTttTttrtt"])
+FACE = [                      # toile de sac : deux points pour les yeux, un sourire
+    "..CcccccC.",
+    ".CccccccccC",
+    ".ccckcccckc",
+    ".cccccccccC",
+    ".cckcccckcC",
+    ".ccCkkkkcCC",
+    "..CcCcCcCC",
+]
+FACE_GRR = [                  # fâché : bouche cousue en zigzag
+    "..CcccccC.",
+    ".CccccccccC",
+    ".ccckcccckc",
+    ".cccccccccC",
+    ".cckckckccC",
+    "..CckckcCC",
+    "..CcCcCcCC",
+]
+FACE_OUCH = [                 # aïe : yeux plissés, bouche en o
+    "..CcccccC.",
+    ".CccccccccC",
+    ".cckkccckkc",
+    ".cccccccccC",
+    ".ccccckkccC",
+    ".ccCckkcCCC",
+    "..CcCcCcCC",
+]
+FACE_WOOZY = [                # tournis : bouche ondulée (les yeux sont sous le chapeau)
+    "..CcccccC.",
+    ".CccccccccC",
+    ".ccckcccckc",
+    ".cccccccccC",
+    ".cckcckcccC",
+    ".ccCkCckkCC",
+    "..CcCcCcCC",
+]
+FACE_TORN = [                 # couture qui lâche : la paille sort par la joue
+    "..CcccccC.",
+    ".CcccccccU",
+    ".ccckccckuU",
+    ".cccccccuT",
+    ".cckcccckU",
+    ".ccCkkkkcCu",
+    "..CcCcCcCC",
+]
+FACE_XY = (11, 9)
 
-SKIRT_SQUASH = (7, 24, [
-    ".....tuTUuPuUt",
-    "...ttuTuUuTuUutt",
-    ".tuT.uUu...TuTut",
-    "T...u.T.....u..Tt",
-])
-SKIRT_STRETCH = (10, 23, [
-    "..tuTUuPuU",
-    "..tuTuUuTt",
-    "..tuT.uTt",
-    "...T.u.T",
-    "...t..T",
-])
-SKIRT_OPEN = (5, 23, [        # au sommet du bond, la jupe s'ouvre en corolle
-    ".......tuTUuPuUt",
-    ".....ttuTuUuTuUutt",
-    "...tuT..uU..u..TuTt",
-    "..tT...u...T....uTt",
-    ".t.....T.......u...t",
-])
+PONCHO = [                    # robe de paille en pans, effilochée en bas
+    "....tuUuTut....",
+    "...tuTUutTuUt..",
+    "...tuTuUtTuUt..",
+    "..tuTuUutTuUut.",
+    "..tuTuUutTuUuT.",
+    ".tuTuUuTtuTuUuT",
+    ".tuTuUuTtuTuUuT",
+    "tuTuUuTutTuTuUT",
+    "tuTuUuTutTuTuUt",
+    "tT.uU.TutuT.uUt",
+    "t..T..u.t..T..t",
+]
+PONCHO_SQUASH = [
+    ".....tuUuTut.....",
+    "....tuTUutTuUt...",
+    "...tuTuUutTuUut..",
+    "..tuTuUuTtuTuUuT.",
+    ".tuTuUuTutTuTuUuT",
+    "tuTuUuTuutTuuTuUt",
+    "tT.uU.TutuT.uU.Tt",
+    "t...T..u.t..T...t",
+]
+PONCHO_STRETCH = [
+    "...tuUuTut...",
+    "...tuTUtTuU..",
+    "..tuTuUtTuUt.",
+    "..tuTuUtTuUt.",
+    "..tuTUutTuTt.",
+    "..tuTuUtTuUt.",
+    ".tuTuUtTuUuT.",
+    ".tuTuUtTuUuT.",
+    ".tuTUutTuTuT.",
+    ".tT.uUtT.uTt.",
+    ".t..T..t..u.t",
+    "....t.....t..",
+]
+PONCHO_OPEN = [               # en corolle au sommet du bond
+    ".......tuUuTut.....",
+    "......tuTUutTuUt...",
+    ".....tuTuUutTuUut..",
+    "....tuTuUuTtuTuUuT.",
+    "...tuTuUuTutTuTuUuT",
+    "..ttuTu.uTtuT.uUuTt",
+    ".tuT..uU.t.Tu..uU.T",
+    "tT....T..t..T....uT",
+    "t.....u..t.......t.",
+]
+PONCHO_TORN = [
+    "....tuUuTut....",
+    "...tuTUutTuUt.U",
+    "...tuTuU.TuUt..",
+    "..tuTu..tTuUut.",
+    "..tuTuU..tTuUT.",
+    ".tuTuU.TtuT.uuT",
+    ".tuT.UuTt.TuUuT",
+    "tuTu..TutTu..UT",
+    "tuT.UuTutT.uU.t",
+    "tT...T.utuT..Ut",
+    "t......u.t.....t",
+]
+PONCHO_X = 9
+PONCHO_Y = 16
 
 
-def stake(cv, top=STAKE_TOP, x=CX - 1, bottom=GROUND):
+def stake(cv, top=22, x=CX - 1, bottom=GROUND):
     """Pieu de bois (2 px), virole de fer en bas."""
     for y in range(top, bottom - 1):
         cv.put(x, y, "Ww")
@@ -205,40 +232,59 @@ def stake(cv, top=STAKE_TOP, x=CX - 1, bottom=GROUND):
     cv.put(x, bottom, "nN")
 
 
-def draw(cv, parts=None, shift=None, skip=(), stake_top=STAKE_TOP):
-    """Compose WARA. parts remplace des parties (x, y, lignes), shift les décale de (dx, dy)."""
-    parts = parts or {}
-    shift = shift or {}
-    stake(cv, stake_top)
-    for name in ORDER:
-        if name in skip:
-            continue
-        x, y, rows = parts.get(name, MASTER[name])
-        dx, dy = shift.get(name, (0, 0))
-        cv.block(x + dx, y + dy, rows)
+def bar(cv, cx=CX, cy=16, half=10, angle=0.0, tufts=True):
+    """Bras : traverse de bois (2 px d'épaisseur) inclinée de `angle` degrés,
+    touffes de paille aux deux bouts."""
+    a = math.radians(angle)
+    dx, dy = math.cos(a), math.sin(a)
+    steep = abs(dy) > abs(dx)
+    pts = []
+    for i in range(-half, half + 1):
+        x, y = round(cx + i * dx), round(cy + i * dy)
+        pts.append((x, y))
+        cv.put(x, y, "W")
+        if steep:
+            cv.put(x + 1, y, "w")
+        else:
+            cv.put(x, y + 1, "w")
+    if tufts:
+        for (x, y), side in ((pts[0], -1), (pts[-1], 1)):
+            ox, oy = round(side * dx * 1.5), round(side * dy * 1.5)
+            cv.pixels([(x + ox, y + oy), (x + ox, y + oy + 1)], "u")
+            cv.pixels([(x + ox - 1, y + oy + 1), (x + ox + 1, y + oy + 1)], "T")
+            cv.pixels([(x + 2 * ox, y + 2 * oy), (x + ox, y + oy - 1)], "U")
+            cv.pixels([(x + ox - 1, y + oy + 2), (x + ox + 1, y + oy + 2)], "t")
 
 
-UPPER = ("sprout", "head", "neck", "torso", "arm_l", "arm_r", "waist")
-
-
-def lift(dy, dx=0, names=UPPER):
-    return {n: (dx, dy) for n in names}
+def talisman(cv, dx=0, dy=0):
+    cv.block(19 + dx, 18 + dy, ["NI", "pp", "ep", "pe", "P."])
 
 
 def glow_nail(cv, dx=0, dy=0, strong=False):
-    """Lueur sur le clou (le talisman se réveille)."""
-    x, y = NAIL[0] + 2 + dx, NAIL[1] + dy
+    """Lueur sur le clou du talisman (il se réveille)."""
+    x, y = 21 + dx, 18 + dy
     cv.pixels([(x, y), (x, y - 1)], "g")
     if strong:
         cv.pixels([(x + 1, y), (x, y - 2)], "G")
 
 
-def _torn(parts, torn):
-    if torn:
-        parts.setdefault("head", HEAD_TORN)
-        parts.setdefault("sprout", SPROUT_TORN)
-        parts.setdefault("torso", TORSO_TORN)
-    return parts
+def figure(cv, *, face=FACE, hat=HAT, hat_d=(0, 0), face_d=(0, 0), poncho=PONCHO, poncho_d=(0, 0),
+           arm=0.0, arm_d=(0, 0), stake_top=22, body_d=(0, 0), torn=False, arm_front=False):
+    """Assemble l'épouvantail. *_d = décalages (dx, dy) ; arm = inclinaison de la traverse."""
+    bx, by = body_d
+    stake(cv, stake_top)
+    if not arm_front:
+        bar(cv, CX + bx + arm_d[0], 16 + by + arm_d[1], angle=arm)
+    pd = PONCHO_TORN if torn and poncho is PONCHO else poncho
+    cv.block(PONCHO_X + bx + poncho_d[0] - (len(pd[0]) - len(PONCHO[0])) // 2, PONCHO_Y + by + poncho_d[1], pd)
+    talisman(cv, bx + poncho_d[0], by + poncho_d[1])
+    cv.put(13 + bx, 16 + by, "rRrRr")                          # col noué
+    f = FACE_TORN if torn and face is FACE else face
+    cv.block(FACE_XY[0] + bx + face_d[0], FACE_XY[1] + by + face_d[1], f)
+    h = HAT_TORN if torn and hat is HAT else hat
+    cv.block(HAT_XY[0] + bx + hat_d[0], HAT_XY[1] + by + hat_d[1], h)
+    if arm_front:                                              # en hélice : devant le corps
+        bar(cv, CX + bx + arm_d[0], 16 + by + arm_d[1], half=9, angle=arm)
 
 
 def star(cv, x, y):
@@ -251,130 +297,111 @@ def star(cv, x, y):
 # poses
 # ---------------------------------------------------------------------------
 def idle(phase=0, torn=False):
-    """Repos : il se dandine sur son pieu, un bras ballant puis l'autre."""
+    """Repos : il se dandine, la traverse penche d'un côté puis de l'autre."""
     cv = Canvas()
     if phase == 0:
-        parts = {"arm_r": ARM_R_LIMP}
-        sh = {"sprout": (1, 0)}
+        figure(cv, arm=-6, torn=torn)
     else:
-        parts = {"arm_l": ARM_L_LIMP}
-        sh = lift(1, -1, ("head", "sprout", "neck"))
-        sh["sprout"] = (-2, 1)
-    draw(cv, _torn(parts, torn), sh)
+        figure(cv, arm=6, hat_d=(-1, 1), face_d=(0, 1), body_d=(0, 0), torn=torn)
+    if torn:
+        glow_nail(cv)
     return cv.outline()
 
 
 def hop_crouch(torn=False):
-    """Bond 1 : il se ratatine, bras collés, prêt à jaillir."""
+    """Bond 1 : il se ratatine, le chapeau s'enfonce."""
     cv = Canvas()
-    parts = _torn({"skirt": SKIRT_SQUASH, "arm_l": ARM_L_TUCK, "arm_r": ARM_R_TUCK}, torn)
-    sh = lift(3)
-    sh["head"] = (0, 3)
-    draw(cv, parts, sh, stake_top=27)
+    figure(cv, poncho=PONCHO_SQUASH, poncho_d=(0, 3), arm_d=(0, 3), face_d=(0, 3), hat_d=(0, 4),
+           stake_top=24, torn=torn)
     cv.put(CX - 8, GROUND, "x..............x")
     return cv.outline()
 
 
 def hop_rise(torn=False):
-    """Bond 2 : il file vers le haut, raide comme un crayon, chignon aplati."""
+    """Bond 2 : il file vers le haut ; le chapeau, en retard, lui tombe sur les yeux."""
     cv = Canvas()
-    parts = _torn({"skirt": SKIRT_STRETCH, "arm_l": ARM_L_TUCK, "arm_r": ARM_R_TUCK,
-                   "sprout": SPROUT_FLAT}, torn)
-    draw(cv, parts, lift(-1))
+    figure(cv, poncho=PONCHO_STRETCH, poncho_d=(1, -1), arm_d=(0, -1), face_d=(0, -1), hat_d=(0, 1),
+           arm=-4, torn=torn)
     return cv.outline()
 
 
 def hop_air(torn=False):
-    """Bond 3 : au sommet, bras en l'air — youpi !"""
+    """Bond 3 : au sommet, le chapeau flotte au-dessus de sa tête — youpi !"""
     cv = Canvas()
-    parts = _torn({"skirt": SKIRT_OPEN, "arm_l": ARM_L_UP, "arm_r": ARM_R_UP}, torn)
-    draw(cv, parts)
+    figure(cv, poncho=PONCHO_OPEN, poncho_d=(0, 2), arm=8, hat=HAT_UP, hat_d=(0, -1), torn=torn)
     cv.pixels([(4, 26), (28, 25), (2, 28)], "f")
     return cv.outline()
 
 
 def hop_land(torn=False):
-    """Bond 4 : atterrissage en accordéon, les bras rebondissent."""
+    """Bond 4 : atterrissage en accordéon, le chapeau retombe sur le nez."""
     cv = Canvas()
-    parts = _torn({"skirt": SKIRT_SQUASH, "arm_l": ARM_L_LIMP, "arm_r": ARM_R_LIMP}, torn)
-    sh = lift(3)
-    sh["head"] = (0, 2)
-    sh["sprout"] = (1, 1)
-    draw(cv, parts, sh, stake_top=27)
+    figure(cv, poncho=PONCHO_SQUASH, poncho_d=(0, 3), arm_d=(0, 3), face_d=(0, 3), hat_d=(0, 5),
+           arm=-5, stake_top=24, torn=torn)
     cv.block(3, GROUND - 2, ["x...................x", ".xX.................Xx", "..x..................x"])
-    cv.pixels([(7, 17), (26, 15)], "F")
+    cv.pixels([(7, 12), (26, 10)], "F")
     return cv.outline()
 
 
 def spin_windup():
-    """Moulinet 1 : le chignon se dresse d'un coup, il remonte ses manches (signal)."""
+    """Moulinet 1 (signal) : le chapeau saute, pointe dressée ; il fronce sa bouche cousue."""
     cv = Canvas()
-    parts = {"sprout": SPROUT_UP, "arm_l": ARM_L_UP, "arm_r": ARM_R_TUCK, "skirt": SKIRT_SQUASH}
-    sh = lift(2)
-    sh["sprout"] = (0, 2)
-    draw(cv, parts, sh, stake_top=27)
+    figure(cv, face=FACE_GRR, hat=HAT_UP, hat_d=(0, -1), arm=-20, poncho=PONCHO_SQUASH,
+           poncho_d=(0, 2), face_d=(0, 1), arm_d=(0, 1))
     glow_nail(cv, 0, 2, strong=True)
-    cv.pixels([(13, 3), (19, 3), (12, 6), (20, 6)], "X")   # traits de surprise
+    cv.pixels([(9, 2), (8, 4), (21, 1), (22, 3)], "X")          # traits de surprise
     return cv.outline()
 
 
 def spin_a():
-    """Moulinet 2 : bras en hélice (gauche en haut, droit en bas), paille qui vole."""
+    """Moulinet 2 : la traverse tourne en hélice (penchée vers l'avant)."""
     cv = Canvas()
-    parts = {"sprout": SPROUT_UP, "arm_l": ARM_L_UP, "arm_r": ARM_R_LIMP}
-    draw(cv, parts, {"sprout": (-1, 1)})
-    cv.put(1, 12, "ss")
-    cv.put(0, 16, "s")
-    cv.put(29, 26, "ss")
-    cv.put(31, 22, "s")
-    cv.pixels([(3, 21), (30, 14)], "f")
+    figure(cv, face=FACE_GRR, arm=32, arm_front=True)
+    cv.put(1, 8, "ss")
+    cv.put(3, 6, "s")
+    cv.put(28, 25, "ss")
+    cv.put(27, 27, "s")
+    cv.pixels([(4, 21), (29, 9)], "f")
     glow_nail(cv)
     return cv.outline()
 
 
 def spin_b():
-    """Moulinet 3 : de dos, bras inversés (droit en haut, gauche en bas)."""
+    """Moulinet 3 : la traverse continue son tour (penchée vers l'arrière)."""
     cv = Canvas()
-    parts = {"head": HEAD_BACK, "sprout": SPROUT_UP, "arm_l": ARM_L_LIMP, "arm_r": ARM_R_UP}
-    draw(cv, parts, {"sprout": (1, 1)})
-    cv.put(30, 12, "ss")
-    cv.put(32, 16, "s")
-    cv.put(1, 26, "ss")
-    cv.put(0, 22, "s")
-    cv.pixels([(29, 21), (2, 14)], "f")
+    figure(cv, face=FACE_GRR, arm=-32, hat_d=(1, 0), arm_front=True)
+    cv.put(28, 8, "ss")
+    cv.put(27, 6, "s")
+    cv.put(2, 25, "ss")
+    cv.put(4, 27, "s")
+    cv.pixels([(29, 21), (3, 9)], "f")
     return cv.outline()
 
 
 def dizzy(phase=0):
-    """Vertige : tête penchée, bras ballants, chignon en vrille, étoiles."""
+    """Vertige : chapeau tombé sur les yeux, traverse de travers, étoiles."""
     cv = Canvas()
     side = 1 if phase == 0 else -1
-    parts = {"sprout": SPROUT_DROOP, "arm_l": ARM_L_LIMP, "arm_r": ARM_R_LIMP}
-    sh = {"head": (side, 1), "sprout": (side + (4 if side < 0 else 0), 1), "neck": (0, 0)}
-    draw(cv, parts, sh)
+    figure(cv, face=FACE_WOOZY, hat_d=(side, 3), arm=12 * side)
     if phase == 0:
-        star(cv, 10, 5)
-        star(cv, 22, 3)
-        cv.put(16, 2, "F")
+        star(cv, 9, 4)
+        star(cv, 24, 2)
+        cv.put(17, 1, "F")
     else:
-        star(cv, 14, 2)
-        star(cv, 24, 6)
-        cv.put(9, 4, "F")
+        star(cv, 13, 1)
+        star(cv, 27, 5)
+        cv.put(7, 3, "F")
     return cv.outline()
 
 
 def hurt(torn=False):
-    """Touché : il bondit en arrière, bras en l'air, le chignon s'envole presque."""
+    """Touché : il plie en arrière, yeux plissés, le chapeau saute de travers."""
     cv = Canvas()
-    parts = _torn({"arm_l": ARM_L_UP, "arm_r": ARM_R_UP}, torn)
-    parts["sprout"] = SPROUT_UP if not torn else SPROUT_TORN
-    sh = lift(-1, -2)
-    sh["head"] = (-3, -1)
-    sh["sprout"] = (-4, -2)
-    draw(cv, parts, sh)
-    cv.pixels([(27, 17), (29, 19), (28, 23), (31, 15), (26, 12)], "F")
-    cv.pixels([(30, 21), (32, 17), (33, 23)], "f")
-    cv.block(24, 18, ["X..", ".X.", "..X"])
+    figure(cv, face=FACE_OUCH, hat=HAT_UP, hat_d=(-3, -1), face_d=(-1, 0), arm=-25,
+           poncho_d=(-1, 0), body_d=(0, 0), torn=torn)
+    cv.pixels([(27, 14), (29, 16), (28, 21), (31, 12), (26, 9)], "F")
+    cv.pixels([(30, 19), (32, 15), (33, 21)], "f")
+    cv.block(24, 15, ["X..", ".X.", "..X"])
     return cv.outline()
 
 
@@ -382,11 +409,11 @@ def hurt(torn=False):
 # Mort en 4 temps : tranché, pouf, en tas, le talisman s'envole
 # ---------------------------------------------------------------------------
 def death_cut():
-    """Mort 1 : tranché en biais ; le haut glisse, l'air étonné (chignon dressé)."""
+    """Mort 1 : tranché en biais ; le haut glisse, l'air ahuri."""
     cv = Canvas()
-    draw(cv, _torn({"sprout": SPROUT_UP, "arm_l": ARM_L_UP, "arm_r": ARM_R_UP}, True))
+    figure(cv, face=FACE_OUCH, hat=HAT_UP, torn=True)
     g = cv.g
-    line = lambda x: 23 - (x - CX) * 2 // 3
+    line = lambda x: 21 - (x - CX) * 2 // 3
     upper = np.full_like(g, ".")
     for y in range(H):
         for x in range(W):
@@ -397,7 +424,7 @@ def death_cut():
         for x in range(W - 1, -1, -1):
             if upper[y, x] != "." and y + 1 < H and x + 2 < W:
                 g[y + 1, x + 2] = upper[y, x]
-    for x in range(3, 30):
+    for x in range(2, 31):
         y = line(x)
         if 0 <= y < H and g[y, x] == ".":
             g[y, x] = "X"
@@ -405,58 +432,55 @@ def death_cut():
 
 
 def death_poof():
-    """Mort 2 : pouf ! un nuage de paille ; la tête saute en l'air."""
+    """Mort 2 : pouf ! la paille s'envole, le chapeau et la tête sautent en l'air."""
     cv = Canvas()
-    stake(cv, 25)
-    cv.block(9, 24, ["..tuT.uUu.TuTt", "tT.u.T..u.uTt"])
-    x, y, rows = MASTER["head"]
-    cv.block(22, 1, rows[1:])                                  # la tête saute
-    cv.block(27, 0, ["uU"])
-    cv.block(15, 13, ["pp", "ep", "pe"])                       # talisman décroché
-    for (px, py, c) in [(4, 9, "F"), (7, 14, "f"), (2, 17, "F"), (9, 6, "f"), (19, 9, "F"),
-                        (13, 4, "f"), (35, 13, "F"), (32, 18, "f"), (11, 9, "F"), (24, 15, "f"),
-                        (1, 12, "f"), (37, 8, "F"), (10, 18, "f"), (27, 19, "F"), (6, 3, "F"),
-                        (5, 21, "f"), (36, 21, "f"), (18, 6, "f"), (21, 18, "F")]:
+    stake(cv, 22)
+    cv.block(PONCHO_X, 25, PONCHO[-2:])
+    cv.block(24, 4, FACE_OUCH)
+    cv.block(27, 0, HAT[5:9])
+    bar(cv, 9, 12, half=6, angle=35, tufts=False)
+    cv.block(15, 13, ["pp", "ep", "pe"])
+    for (px, py, c) in [(4, 9, "F"), (7, 15, "f"), (2, 18, "F"), (9, 6, "f"), (19, 9, "F"),
+                        (13, 4, "f"), (36, 13, "F"), (33, 18, "f"), (11, 19, "F"), (22, 16, "f"),
+                        (1, 12, "f"), (38, 8, "F"), (10, 22, "f"), (27, 19, "F"), (6, 3, "F"),
+                        (5, 21, "f"), (36, 21, "f"), (18, 6, "f"), (21, 19, "F")]:
         cv.put(px, py, c)
-    cv.block(6, 18, ["x.xx.", "xx..x", ".x.x."])                 # petit nuage
-    cv.block(24, 20, [".xx.x", "x..xx"])
-    cv.block(3, 12, ["Uu..", ".uTR", "..tt"])                  # bras qui retombent
-    cv.block(30, 9, ["..uU", "RuT.", "tt.."])
+    cv.block(5, 17, ["x.xx.", "xx..x", ".x.x."])
+    cv.block(24, 21, [".xx.x", "x..xx"])
     return cv.outline()
 
 
 def _pile(cv):
-    """Tas de paille, bras qui dépassent, la tête posée dessus comme une cerise."""
-    cv.block(6, 26, [
-        "...........u..T.....",
-        ".......tuTUu.uTu.T..",
-        "...tuTuUuTuUuTuTuut.",
-        ".tTuUuTuTuUuTuTuTuTt",
+    """Tas de paille, traverse couchée, tête posée dessus avec le chapeau."""
+    bar(cv, 23, 30, half=8, angle=0, tufts=False)
+    cv.block(4, 25, [
+        "............u..T.......",
+        ".........tuTUu.uTu.T...",
+        ".....tuTuUuTuUuTuTuut..",
+        "..tTuUuTuTuUuTuTuTuTut.",
+        ".tuTuUuTuTuUuTuTuTuTuTt",
     ])
-    cv.block(3, 27, ["Uu.", "uTR"])                            # bras qui dépassent
-    cv.block(26, 27, [".uU", "RuT"])
-    x, y, rows = MASTER["head"]
-    cv.block(11, 18, rows[1:])
-    cv.block(16, 16, ["uU", "uUu"])                            # chignon tout mou
+    cv.block(10, 19, FACE[:6])
+    cv.block(4, 12, HAT[3:9])
 
 
 def death_pile():
-    """Mort 3 : il retombe en tas, la tête atterrit dessus."""
+    """Mort 3 : il retombe en tas, la tête (et le chapeau) atterrissent dessus."""
     cv = Canvas()
     _pile(cv)
-    cv.block(4, 29, ["x..x", ".xx."])
-    cv.block(27, 25, ["x.x"])
-    star(cv, 8, 15)
-    star(cv, 25, 13)
+    cv.block(2, 29, ["x..x", ".xx."])
+    cv.block(29, 26, ["x.x"])
+    star(cv, 6, 9)
+    star(cv, 25, 11)
     return cv.outline()
 
 
 def death_free():
-    """Mort 4 : le talisman s'envole en voletant ; WARA redevient un simple mannequin."""
+    """Mort 4 : le talisman s'envole en voletant ; WARA redevient un épouvantail."""
     cv = Canvas()
     _pile(cv)
-    cv.block(23, 4, ["pp", "ep", "pe", ".P"])                 # le talisman s'en va
-    cv.pixels([(21, 9), (22, 11), (20, 13)], "a")
+    cv.block(26, 3, ["pp", "ep", "pe", ".P"])
+    cv.pixels([(24, 8), (25, 10), (23, 12)], "a")
     return cv.outline()
 
 
