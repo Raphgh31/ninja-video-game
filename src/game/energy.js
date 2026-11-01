@@ -1,5 +1,5 @@
-// Énergie de KAGE (endurance), affichée en anneau au-dessus de la tête,
-// façon Breath of the Wild en simplifié.
+// Énergie de KAGE (endurance), affichée en anneau en haut à gauche de l'écran,
+// à côté du stock de shurikens (façon Breath of the Wild en simplifié).
 
 export const ENERGY = {
   runDrain: 0.04,      // par seconde de course (≈ 25 s pour vider la barre)
@@ -74,11 +74,11 @@ export class Energy {
   }
 
   /** Anneau dessiné pixel par pixel (net à toutes les échelles entières). */
-  draw(ctx, cx, cy) {
-    if (this.shown <= 0.01) return;
+  draw(ctx, cx, cy, { always = false } = {}) {
+    if (!always && this.shown <= 0.01) return;
     const red = this.exhausted || (this.flash > 0 && Math.floor(this.flash * 12) % 2 === 0);
     const fill = this.value * Math.PI * 2;
-    ctx.globalAlpha = this.shown;
+    ctx.globalAlpha = always ? 1 : this.shown;
     const R = RING.outer + 1;
     for (let y = -R; y <= R; y++) {
       for (let x = -R; x <= R; x++) {

@@ -12,7 +12,7 @@ Ninja du vent, compact et agile. Tête volontairement grande (10 px sur ~24) pou
 - **Bande de visage et mains visibles** (yeux sombres sur la peau), demandées après la première version pour la lisibilité. Le bas du visage reste masqué.
 - Tunique courte, ceinture, protections d'avant-bras, chaussures compactes.
 - **Sabre** : visible uniquement pendant l'attaque (fourreau supposé caché derrière la hanche).
-- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor. KAGE en porte **3 au maximum** (compteur en haut à gauche) : un shuriken planté se ramasse en passant dessus (après 0,3 s), un shuriken qui brise une cible est dévié puis retombe au sol, un shuriken sorti du niveau revient dans le stock, et le stock est rempli à la réapparition. Ils utilisent les couleurs de la lame.
+- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor. KAGE en porte **3 au maximum** (compteur en haut à gauche, à droite de l'anneau d'énergie) : un shuriken planté se ramasse en passant dessus (après 0,3 s), un shuriken qui brise une cible est dévié puis retombe au sol, un shuriken sorti du niveau revient dans le stock, et le stock est rempli à la réapparition. Ils utilisent les couleurs de la lame.
 
 La palette, **Encre**, est entièrement noire et anthracite. La peau est la seule couleur chaude.
 
@@ -53,7 +53,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 
 ## Énergie
 
-Anneau au-dessus de la tête de KAGE (un peu en arrière), qui se vide dans le sens des aiguilles d'une montre et s'efface quand il est plein. Réglages dans `src/game/energy.js` (`ENERGY`).
+Anneau en haut à gauche de l'écran, à côté du stock de shurikens ; il se vide dans le sens des aiguilles d'une montre. Réglages dans `src/game/energy.js` (`ENERGY`).
 
 | Action | Effet |
 |---|---|

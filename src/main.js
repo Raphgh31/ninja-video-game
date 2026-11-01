@@ -57,9 +57,9 @@ function draw() {
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
-  // anneau d'énergie au-dessus de la tête, légèrement en arrière
-  player.energy.draw(ctx, player.x - cam.x - player.facing * 9, player.y - cam.y - 37);
-  shurikens.drawHud(ctx, look.projectiles.shuriken);
+  // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
+  player.energy.draw(ctx, 13, 13, { always: true });
+  shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';

@@ -108,13 +108,13 @@ export class Shurikens {
     this.stuck.push({ ...d, age: 0 });
   }
 
-  /** Compteur en haut à gauche de l'écran (coordonnées écran). */
-  drawHud(ctx, sheet) {
+  /** Compteur en haut à gauche de l'écran (coordonnées écran, coin haut-gauche en x, y). */
+  drawHud(ctx, sheet, x = 4, y = 4) {
     const f = this.meta.frames[this.meta.spin[0]];
     const blinkOn = this.emptyBlink > 0 && Math.floor(this.emptyBlink * 12) % 2 === 0;
     for (let i = 0; i < SHURIKEN.stock; i++) {
       ctx.globalAlpha = i < this.stock ? 1 : blinkOn ? 0.75 : 0.25;
-      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, 4 + i * 11, 4, f.w, f.h);
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, x + i * 11, y, f.w, f.h);
     }
     ctx.globalAlpha = 1;
   }
