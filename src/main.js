@@ -1,9 +1,10 @@
-import { loadCharacter } from './engine/sprites.js';
+import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
+import { Tate } from './game/tate.js';
 import './style.css';
 
 // Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
@@ -54,7 +55,15 @@ const player = new Player(meta, level);
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => shurikens.throw(x, y, dir, height);
 player.canThrow = () => shurikens.canThrow();
-player.onRespawn = () => shurikens.reset();
+// ennemi : TATE, posté au milieu du terrain
+const tateMeta = await loadJson('./characters/tate/tate.json');
+const tate = new Tate(tateMeta, await loadImage(`./characters/tate/${tateMeta.image}`),
+  await loadImage(`./characters/tate/${tateMeta.glowImage}`), 30 * 16, level.spawn.y);
+shurikens.enemies.push(tate);
+player.onRespawn = () => {
+  shurikens.reset();
+  tate.reset();
+};
 const input = new Input();
 touch = MOBILE ? new TouchControls(canvas, input) : null;
 if (MOBILE) {
@@ -79,6 +88,10 @@ function update(dt) {
   }
   level.update(dt);
   shurikens.update(dt);
+  tate.update(dt, player);
+  tate.interact(player);
+  const ab = player.attackBox();
+  if (ab) tate.takeHit(ab, player.x, player.attackId);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
@@ -91,6 +104,7 @@ function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
+  tate.draw(ctx, cam, player);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
@@ -105,6 +119,11 @@ function draw() {
     if (ab) {
       ctx.strokeStyle = '#ffd400';
       ctx.strokeRect(Math.round(ab.x - cam.x) + 0.5, Math.round(ab.y - cam.y) + 0.5, ab.w - 1, ab.h - 1);
+    }
+    for (const [name, color] of [['body', '#ff3b3b'], ['shield', '#3bb3ff']]) {
+      const tb = tate.box(name);
+      ctx.strokeStyle = color;
+      ctx.strokeRect(Math.round(tb.x - cam.x) + 0.5, Math.round(tb.y - cam.y) + 0.5, tb.w - 1, tb.h - 1);
     }
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
@@ -130,4 +149,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch };
+window.__kage = { player, input, level, shurikens, touch, tate };

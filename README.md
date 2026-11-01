@@ -21,7 +21,7 @@ Commandes : flèches pour courir, Maj + flèche pour sprinter, double appui rapi
 npm run sprites    # régénère assets/characters/kage/ et docs/kage/ (Python 3 + Pillow + numpy)
 ```
 
-Documentation du personnage, des animations et de la palette : [docs/kage/README.md](docs/kage/README.md).
+Documentation du personnage, des animations et de la palette : [docs/kage/README.md](docs/kage/README.md). Ennemis : [docs/enemies/README.md](docs/enemies/README.md).
 
 ## Structure
 

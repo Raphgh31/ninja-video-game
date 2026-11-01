@@ -150,6 +150,7 @@ export class Player {
           break;
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
+          this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
           this.setState('attack');
           break;
         }

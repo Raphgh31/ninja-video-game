@@ -16,6 +16,9 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Couleurs = palette slot → couleur (`skins/encre.json`), appliquée depuis `kage_sheet_index.png`. Les skins sont mis de côté pour l'instant (une seule palette) ; un futur skin ne changera jamais la silhouette.
 - Chaque animation est liée à un état de `src/game/player.js` (même nom que dans `kage.json`).
 
+## Ennemis
+- TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.
+
 ## Vérifications avant de pousser
 - `npm run sprites` puis `npm run build` sans erreur.
 - Tester dans un navigateur sur ordinateur, et en mode tactile en paysage (~844×390) et en portrait (~390×844).

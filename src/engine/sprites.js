@@ -5,7 +5,7 @@
 // window.__KAGE_EMBED, indexées par leur chemin.
 const embedded = (url) => globalThis.__KAGE_EMBED?.[url];
 
-async function loadJson(url) {
+export async function loadJson(url) {
   return embedded(url) ?? (await fetch(url)).json();
 }
 

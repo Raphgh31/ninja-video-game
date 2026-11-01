@@ -18,7 +18,8 @@ export class Shurikens {
     this.flying = [];
     this.stuck = [];
     this.stock = SHURIKEN.stock;
-    this.emptyBlink = 0;   // clignotement du compteur quand on essaie de lancer sans stock
+    this.emptyBlink = 0;
+    this.enemies = [];     // ennemis touchables (méthode takeHit)   // clignotement du compteur quand on essaie de lancer sans stock
   }
 
   /** Réapparition : tout redevient disponible. */
@@ -76,6 +77,20 @@ export class Shurikens {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       const tx = Math.floor(s.x / TILE), ty = Math.floor(s.y / TILE);
+      // ennemi : bloqué par le bouclier ou touché dans le dos ; dans les deux
+      // cas le shuriken est dévié et retombe (il reste récupérable)
+      if (!s.deflected) {
+        const box = { x: s.x - 2, y: s.y - 2, w: 4, h: 4 };
+        for (const e of this.enemies) {
+          if (e.takeHit(box, s.x - s.dir * 20)) {
+            s.deflected = true;
+            s.vx *= -0.2;
+            s.vy = -60;
+            s.gravity = Math.max(s.gravity, 400);
+            break;
+          }
+        }
+      }
       // cible d'entraînement : elle se brise, le shuriken est dévié et retombe
       if (lv.hitTargets({ x: s.x - 2, y: s.y - 2, w: 4, h: 4 }, s.dir)) {
         s.vx *= -0.2;

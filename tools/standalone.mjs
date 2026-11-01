@@ -18,6 +18,14 @@ for (const id of meta.skins) {
   embed[`./${base}/skins/${id}.json`] = JSON.parse(readFileSync(join(dist, base, 'skins', `${id}.json`), 'utf8'));
 }
 
+// ennemis
+const tbase = 'characters/tate';
+const tmeta = JSON.parse(readFileSync(join(dist, tbase, 'tate.json'), 'utf8'));
+embed[`./${tbase}/tate.json`] = tmeta;
+for (const f of [tmeta.image, tmeta.glowImage]) {
+  embed[`./${tbase}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, tbase, f)).toString('base64');
+}
+
 let html = readFileSync(join(dist, 'index.html'), 'utf8');
 const js = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.js'));
 const css = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.css'));

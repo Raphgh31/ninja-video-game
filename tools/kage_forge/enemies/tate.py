@@ -175,26 +175,28 @@ def walk(phase, glow=False):
     back_gear(cv, 10, 15 + bob, glow)
     cv.block(11, 11 + bob, HEAD)          # tête dans l'axe du cou
     cv.block(8, 6 + bob, HAT)
-    shield(cv, 21, 9 + bob, h=21)
+    shield(cv, 21, 9 + bob, h=21 - bob)   # le bouclier reste posé au sol
     return cv.outline()
 
 
-def guard():
-    """Coup bloqué : le bouclier encaisse, étincelles devant, buste arc-bouté."""
+def guard(glow=False, sparks=True):
+    """Coup bloqué : le bouclier encaisse, étincelles devant, buste arc-bouté.
+    Sans étincelles, la même pose sert d'élan avant le coup de bouclier."""
     cv = Canvas()
     legs(cv, 8, 25, 0)
     back_arm(cv, 7, 17)
     body(cv, 10, 16, lean=1)
-    back_gear(cv, 10, 16)
+    back_gear(cv, 10, 16, glow)
     cv.block(12, 12, HEAD)
     cv.block(9, 7, HAT)
     shield(cv, 22, 9, h=21, tilt=-1)
-    cv.block(31, 12, ["X.x", ".X.", "X.X", "..x"])
-    cv.block(32, 20, ["x.X", ".X."])
+    if sparks:
+        cv.block(31, 12, ["X.x", ".X.", "X.X", "..x"])
+        cv.block(32, 20, ["x.X", ".X."])
     return cv.outline()
 
 
-def bash():
+def bash(glow=False):
     """Coup de bouclier : il se jette en avant, bouclier projeté, poussière."""
     cv = Canvas()
     cv.block(9, 25, [
@@ -206,7 +208,7 @@ def bash():
     ])
     back_arm(cv, 12, 16)
     body(cv, 13, 15, lean=2)
-    back_gear(cv, 13, 15)
+    back_gear(cv, 13, 15, glow)
     cv.block(15, 11, HEAD)
     cv.block(12, 6, HAT)
     shield(cv, 27, 8, h=22)
@@ -214,13 +216,13 @@ def bash():
     return cv.outline()
 
 
-def stunned():
+def stunned(glow=False):
     """Étourdi après un coup de bouclier raté : chapeau de travers, bouclier bas."""
     cv = Canvas()
     legs(cv, 9, 25, 1)
     back_arm(cv, 8, 17)
     body(cv, 10, 16)
-    back_gear(cv, 10, 16)
+    back_gear(cv, 10, 16, glow)
     cv.block(10, 12, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
     cv.block(6, 8, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
     shield(cv, 21, 14, h=16)
@@ -258,3 +260,17 @@ POSES = {
     "etourdi": stunned(),
     "vaincu": defeated(),
 }
+
+
+# ---------------------------------------------------------------------------
+# Jeu : ordre des images dans la planche, et poses équivalentes avec halo
+# ---------------------------------------------------------------------------
+GAME_FRAMES = [
+    ("walk_1", lambda g=False: walk(0, g)),
+    ("walk_2", lambda g=False: walk(1, g)),
+    ("guard", guard),
+    ("windup", lambda g=False: guard(g, sparks=False)),
+    ("bash", bash),
+    ("stunned", stunned),
+    ("defeated", lambda g=False: defeated()),
+]
