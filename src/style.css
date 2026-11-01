@@ -1,0 +1,92 @@
+:root {
+  --ink: #e9e5da;
+  --muted: #8e939c;
+  --bg: #15171c;
+  --line: #2a2e36;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color: var(--ink);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; }
+
+.bar {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding: .7rem 1.2rem; border-bottom: 1px solid var(--line);
+}
+.bar--bottom { border-bottom: 0; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
+h1 { margin: 0; font-size: 1rem; letter-spacing: .18em; }
+h1 span { color: var(--muted); letter-spacing: .04em; font-weight: 400; margin-left: .6rem; }
+.state { margin: 0; color: var(--muted); font-size: .8rem; }
+
+.stage { display: grid; place-items: center; overflow: hidden; padding: .5rem; min-height: 0; }
+#game { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
+
+.keys { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: 0; font-size: .78rem; }
+.keys div { display: flex; gap: .45rem; }
+.keys dt { color: var(--ink); }
+.keys dd { margin: 0; color: var(--muted); }
+
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* --- Mobile (écran tactile) : le jeu occupe tout l'écran, commandes dans le jeu --- */
+.rotate-hint { display: none; }
+body.mobile { display: block; overflow: hidden; background: #000; touch-action: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+body.mobile .bar { display: none; }
+body.mobile .stage { position: fixed; inset: 0; padding: 0; display: block; overflow: hidden; }
+body.mobile #game { position: absolute; left: 0; top: 0; touch-action: none; }
+@media (orientation: portrait) {
+  body.mobile .rotate-hint {
+    display: block; position: fixed; top: 3.4rem; left: 50%; transform: translateX(-50%);
+    margin: 0; padding: .4rem .7rem; font-size: .75rem; color: var(--ink);
+    background: rgba(21, 23, 28, .85); border: 1px solid var(--line); pointer-events: none;
+    white-space: nowrap;
+  }
+}
+
+/* petits écrans d'ordinateur : rien ne doit dépasser la largeur de la fenêtre */
+html, body { overflow-x: hidden; }
+.bar { min-width: 0; }
+.state { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 600px) {
+  .bar { padding: .6rem .8rem; }
+  h1 span { display: none; }
+}
+
+/* bouton du son : coin bas-droit sur ordinateur, coin haut-droit sur mobile */
+.mute {
+  position: fixed; right: 1rem; bottom: .55rem; z-index: 2;
+  font: inherit; font-size: .75rem; color: var(--ink); background: transparent;
+  border: 1px solid var(--line); padding: .3rem .6rem; cursor: pointer;
+}
+.mute:hover { border-color: var(--muted); }
+.mute[aria-pressed="true"] { color: var(--muted); }
+body.mobile .mute {
+  top: .4rem; right: .4rem; bottom: auto; font-size: .65rem; padding: .2rem .45rem;
+  background: rgba(21, 23, 28, .55); border-color: rgba(233, 229, 218, .25);
+}
+
+/* choix du niveau (ordinateur) */
+.levels { display: flex; gap: 1rem; margin-right: auto; margin-left: 1.5rem; font-size: .8rem; }
+.levels a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+.levels a:hover { color: var(--ink); }
+.levels a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
+
+/* écran d'arrivée */
+.win {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3;
+  min-width: 15rem; padding: 1.2rem 1.4rem; background: #15171c; border: 1px solid var(--ink);
+  color: var(--ink);
+}
+.win[hidden] { display: none; }
+.win__title { margin: 0 0 .8rem; font-size: 1rem; letter-spacing: .14em; text-transform: uppercase; }
+.win dl { margin: 0 0 1rem; display: grid; gap: .3rem; }
+.win dl div { display: flex; justify-content: space-between; gap: 2rem; font-size: .85rem; }
+.win dt { color: var(--muted); }
+.win dd { margin: 0; }
+.win button {
+  font: inherit; font-size: .8rem; color: var(--bg); background: var(--ink); border: 0;
+  padding: .45rem .9rem; cursor: pointer;
+}

@@ -1,0 +1,1066 @@
+{
+  "name": "KAGE",
+  "version": 1,
+  "image": "kage_sheet.png",
+  "indexImage": "kage_sheet_index.png",
+  "cell": {
+    "w": 48,
+    "h": 32
+  },
+  "spacing": 2,
+  "margin": 0,
+  "pivot": {
+    "x": 16,
+    "y": 31,
+    "note": "milieu bas de la cellule, sous les pieds"
+  },
+  "facing": "right",
+  "flipForLeft": true,
+  "hitbox": {
+    "default": {
+      "x": 12,
+      "y": 9,
+      "w": 9,
+      "h": 22
+    },
+    "slide": {
+      "x": 10,
+      "y": 17,
+      "w": 13,
+      "h": 14
+    },
+    "dash": {
+      "x": 10,
+      "y": 14,
+      "w": 13,
+      "h": 16
+    },
+    "air_attack": {
+      "x": 18,
+      "y": 0,
+      "w": 22,
+      "h": 32,
+      "frames": [
+        2,
+        3,
+        4
+      ],
+      "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"
+    },
+    "attack": {
+      "x": 19,
+      "y": 0,
+      "w": 20,
+      "h": 31,
+      "frames": [
+        2,
+        3,
+        4
+      ],
+      "note": "zone de frappe du sabre, active sur les frames listées"
+    }
+  },
+  "slots": [
+    {
+      "index": 1,
+      "slot": "O",
+      "part": "outline",
+      "role": "line"
+    },
+    {
+      "index": 2,
+      "slot": "h",
+      "part": "hood",
+      "role": "shadow"
+    },
+    {
+      "index": 3,
+      "slot": "H",
+      "part": "hood",
+      "role": "base"
+    },
+    {
+      "index": 4,
+      "slot": "I",
+      "part": "hood",
+      "role": "light"
+    },
+    {
+      "index": 5,
+      "slot": "M",
+      "part": "mask",
+      "role": "base"
+    },
+    {
+      "index": 6,
+      "slot": "N",
+      "part": "skin",
+      "role": "base"
+    },
+    {
+      "index": 7,
+      "slot": "n",
+      "part": "skin",
+      "role": "shadow"
+    },
+    {
+      "index": 8,
+      "slot": "E",
+      "part": "eyes",
+      "role": "glow"
+    },
+    {
+      "index": 9,
+      "slot": "e",
+      "part": "eyes",
+      "role": "dim"
+    },
+    {
+      "index": 10,
+      "slot": "t",
+      "part": "outfit",
+      "role": "shadow"
+    },
+    {
+      "index": 11,
+      "slot": "T",
+      "part": "outfit",
+      "role": "base"
+    },
+    {
+      "index": 12,
+      "slot": "U",
+      "part": "outfit",
+      "role": "light"
+    },
+    {
+      "index": 13,
+      "slot": "a",
+      "part": "bracers",
+      "role": "shadow"
+    },
+    {
+      "index": 14,
+      "slot": "A",
+      "part": "bracers",
+      "role": "light"
+    },
+    {
+      "index": 15,
+      "slot": "l",
+      "part": "belt",
+      "role": "shadow"
+    },
+    {
+      "index": 16,
+      "slot": "L",
+      "part": "belt",
+      "role": "base"
+    },
+    {
+      "index": 17,
+      "slot": "d",
+      "part": "shoes",
+      "role": "shadow"
+    },
+    {
+      "index": 18,
+      "slot": "D",
+      "part": "shoes",
+      "role": "base"
+    },
+    {
+      "index": 19,
+      "slot": "f",
+      "part": "scarf",
+      "role": "shadow"
+    },
+    {
+      "index": 20,
+      "slot": "F",
+      "part": "scarf",
+      "role": "base"
+    },
+    {
+      "index": 21,
+      "slot": "G",
+      "part": "scarf",
+      "role": "light"
+    },
+    {
+      "index": 22,
+      "slot": "W",
+      "part": "blade",
+      "role": "light"
+    },
+    {
+      "index": 23,
+      "slot": "w",
+      "part": "blade",
+      "role": "shadow"
+    },
+    {
+      "index": 24,
+      "slot": "g",
+      "part": "hilt",
+      "role": "base"
+    },
+    {
+      "index": 25,
+      "slot": "k",
+      "part": "accessory",
+      "role": "shadow"
+    },
+    {
+      "index": 26,
+      "slot": "K",
+      "part": "accessory",
+      "role": "base"
+    },
+    {
+      "index": 27,
+      "slot": "x",
+      "part": "fx",
+      "role": "dark"
+    },
+    {
+      "index": 28,
+      "slot": "X",
+      "part": "fx",
+      "role": "light"
+    },
+    {
+      "index": 29,
+      "slot": "z",
+      "part": "fx",
+      "role": "streak"
+    },
+    {
+      "index": 30,
+      "slot": "q",
+      "part": "fx",
+      "role": "spark"
+    }
+  ],
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frameCount": 4,
+      "fps": 6,
+      "loop": true,
+      "loopStart": 0,
+      "state": "idle",
+      "strip": "anims/kage_idle.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        },
+        {
+          "x": 50,
+          "y": 0,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        },
+        {
+          "x": 100,
+          "y": 0,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        },
+        {
+          "x": 150,
+          "y": 0,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        }
+      ]
+    },
+    "run": {
+      "row": 1,
+      "frameCount": 6,
+      "fps": 12,
+      "loop": true,
+      "loopStart": 0,
+      "state": "run",
+      "strip": "anims/kage_run.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 50,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 100,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 150,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 200,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 250,
+          "y": 34,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        }
+      ]
+    },
+    "sprint": {
+      "row": 2,
+      "frameCount": 6,
+      "fps": 16,
+      "loop": true,
+      "loopStart": 0,
+      "state": "sprint",
+      "strip": "anims/kage_sprint.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        },
+        {
+          "x": 50,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        },
+        {
+          "x": 100,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        },
+        {
+          "x": 150,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        },
+        {
+          "x": 200,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        },
+        {
+          "x": 250,
+          "y": 68,
+          "w": 48,
+          "h": 32,
+          "duration": 62
+        }
+      ]
+    },
+    "jump": {
+      "row": 3,
+      "frameCount": 4,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "jump",
+      "strip": "anims/kage_jump.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 102,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 50,
+          "y": 102,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 100,
+          "y": 102,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 150,
+          "y": 102,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        }
+      ]
+    },
+    "fall": {
+      "row": 4,
+      "frameCount": 3,
+      "fps": 10,
+      "loop": true,
+      "loopStart": 0,
+      "state": "fall",
+      "strip": "anims/kage_fall.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 136,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        },
+        {
+          "x": 50,
+          "y": 136,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        },
+        {
+          "x": 100,
+          "y": 136,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        }
+      ]
+    },
+    "land": {
+      "row": 5,
+      "frameCount": 3,
+      "fps": 18,
+      "loop": false,
+      "loopStart": 0,
+      "state": "land",
+      "strip": "anims/kage_land.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 170,
+          "w": 48,
+          "h": 32,
+          "duration": 56
+        },
+        {
+          "x": 50,
+          "y": 170,
+          "w": 48,
+          "h": 32,
+          "duration": 56
+        },
+        {
+          "x": 100,
+          "y": 170,
+          "w": 48,
+          "h": 32,
+          "duration": 56
+        }
+      ]
+    },
+    "dash": {
+      "row": 6,
+      "frameCount": 5,
+      "fps": 20,
+      "loop": false,
+      "loopStart": 0,
+      "state": "dash",
+      "strip": "anims/kage_dash.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 204,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 50,
+          "y": 204,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 100,
+          "y": 204,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 150,
+          "y": 204,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 200,
+          "y": 204,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        }
+      ]
+    },
+    "attack": {
+      "row": 7,
+      "frameCount": 7,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "attack",
+      "strip": "anims/kage_attack.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 60
+        },
+        {
+          "x": 50,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 100,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 40
+        },
+        {
+          "x": 150,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 45
+        },
+        {
+          "x": 200,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 250,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 300,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        }
+      ]
+    },
+    "throw": {
+      "row": 8,
+      "frameCount": 5,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "throw",
+      "strip": "anims/kage_throw.png",
+      "release": {
+        "frame": 2,
+        "x": 28,
+        "y": 20
+      },
+      "frames": [
+        {
+          "x": 0,
+          "y": 272,
+          "w": 48,
+          "h": 32,
+          "duration": 80
+        },
+        {
+          "x": 50,
+          "y": 272,
+          "w": 48,
+          "h": 32,
+          "duration": 60
+        },
+        {
+          "x": 100,
+          "y": 272,
+          "w": 48,
+          "h": 32,
+          "duration": 45
+        },
+        {
+          "x": 150,
+          "y": 272,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        },
+        {
+          "x": 200,
+          "y": 272,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        }
+      ]
+    },
+    "hurt": {
+      "row": 9,
+      "frameCount": 2,
+      "fps": 8,
+      "loop": false,
+      "loopStart": 0,
+      "state": "hurt",
+      "strip": "anims/kage_hurt.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 306,
+          "w": 48,
+          "h": 32,
+          "duration": 125
+        },
+        {
+          "x": 50,
+          "y": 306,
+          "w": 48,
+          "h": 32,
+          "duration": 125
+        }
+      ]
+    },
+    "wall_slide": {
+      "row": 10,
+      "frameCount": 2,
+      "fps": 6,
+      "loop": true,
+      "loopStart": 0,
+      "state": "wall_slide",
+      "strip": "anims/kage_wall_slide.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 340,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        },
+        {
+          "x": 50,
+          "y": 340,
+          "w": 48,
+          "h": 32,
+          "duration": 167
+        }
+      ]
+    },
+    "wall_jump": {
+      "row": 11,
+      "frameCount": 2,
+      "fps": 10,
+      "loop": false,
+      "loopStart": 0,
+      "state": "wall_jump",
+      "strip": "anims/kage_wall_jump.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 374,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        },
+        {
+          "x": 50,
+          "y": 374,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        }
+      ]
+    },
+    "air_attack": {
+      "row": 12,
+      "frameCount": 6,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "air_attack",
+      "strip": "anims/kage_air_attack.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 60
+        },
+        {
+          "x": 50,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        },
+        {
+          "x": 100,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 40
+        },
+        {
+          "x": 150,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 200,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 80
+        },
+        {
+          "x": 250,
+          "y": 408,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        }
+      ]
+    },
+    "air_throw": {
+      "row": 13,
+      "frameCount": 4,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "air_throw",
+      "strip": "anims/kage_air_throw.png",
+      "release": {
+        "frame": 1,
+        "x": 28,
+        "y": 18
+      },
+      "frames": [
+        {
+          "x": 0,
+          "y": 442,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 50,
+          "y": 442,
+          "w": 48,
+          "h": 32,
+          "duration": 45
+        },
+        {
+          "x": 100,
+          "y": 442,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        },
+        {
+          "x": 150,
+          "y": 442,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        }
+      ]
+    },
+    "skid": {
+      "row": 14,
+      "frameCount": 2,
+      "fps": 12,
+      "loop": true,
+      "loopStart": 0,
+      "state": "skid",
+      "strip": "anims/kage_skid.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 476,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 50,
+          "y": 476,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        }
+      ]
+    },
+    "slide": {
+      "row": 15,
+      "frameCount": 3,
+      "fps": 12,
+      "loop": true,
+      "loopStart": 1,
+      "state": "slide",
+      "strip": "anims/kage_slide.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 50,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        },
+        {
+          "x": 100,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 83
+        }
+      ]
+    },
+    "death": {
+      "row": 16,
+      "frameCount": 6,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "death",
+      "strip": "anims/kage_death.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 50,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 100,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 150,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 200,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        },
+        {
+          "x": 250,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 71
+        }
+      ]
+    },
+    "respawn": {
+      "row": 17,
+      "frameCount": 3,
+      "fps": 10,
+      "loop": false,
+      "loopStart": 0,
+      "state": "respawn",
+      "strip": "anims/kage_respawn.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 578,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        },
+        {
+          "x": 50,
+          "y": 578,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        },
+        {
+          "x": 100,
+          "y": 578,
+          "w": 48,
+          "h": 32,
+          "duration": 100
+        }
+      ]
+    }
+  },
+  "views": {
+    "front": {
+      "x": 0,
+      "y": 0,
+      "w": 48,
+      "h": 32,
+      "image": "kage_views.png"
+    },
+    "back": {
+      "x": 50,
+      "y": 0,
+      "w": 48,
+      "h": 32,
+      "image": "kage_views.png"
+    },
+    "left": {
+      "x": 100,
+      "y": 0,
+      "w": 48,
+      "h": 32,
+      "image": "kage_views.png"
+    },
+    "right": {
+      "x": 150,
+      "y": 0,
+      "w": 48,
+      "h": 32,
+      "image": "kage_views.png"
+    }
+  },
+  "skins": [
+    "encre"
+  ],
+  "projectiles": {
+    "shuriken": {
+      "image": "kage_shuriken.png",
+      "indexImage": "kage_shuriken_index.png",
+      "frames": {
+        "spin0": {
+          "x": 0,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
+        },
+        "spin1": {
+          "x": 10,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
+        },
+        "stuck_wall": {
+          "x": 20,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 3,
+            "y": 2
+          }
+        },
+        "stuck_ground": {
+          "x": 30,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 5,
+            "y": 4
+          }
+        },
+        "stuck_ground_b": {
+          "x": 40,
+          "y": 0,
+          "w": 10,
+          "h": 10,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
+        }
+      },
+      "spin": [
+        "spin0",
+        "spin1"
+      ],
+      "ground": [
+        "stuck_ground",
+        "stuck_ground_b"
+      ],
+      "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface"
+    }
+  }
+}
