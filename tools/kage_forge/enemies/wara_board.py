@@ -84,8 +84,8 @@ def design_board():
     BW, BH = 1500, 870
     board = Image.new("RGB", (BW, BH), PAPER)
     d = ImageDraw.Draw(board)
-    d.text((40, 28), "WARA — pantin du dojo maudit", fill=INK, font=font(32))
-    d.text((40, 74), "Proposition de design · ennemi de base · cellule 48×32 comme KAGE · 2 points de vie",
+    d.text((40, 28), "WARA — pantin de paille du dojo", fill=INK, font=font(32))
+    d.text((40, 74), "Proposition de design · ennemi de base, mignon et un peu ridicule · cellule 48×32 comme KAGE · 2 points de vie",
            fill=GREY, font=font(15))
 
     # héros, recadré sur la silhouette
@@ -97,13 +97,13 @@ def design_board():
 
     # annotations : (point visé en pixels de la cellule, libellé)
     notes = [
-        ((17, 5), "Chignon de paille (chonmage), replié vers l'avant"),
-        ((16, 11), "Œil unique : une cible de tir à l'arc (mato) peinte à l'encre. Le centre rougeoie quand il va frapper"),
-        ((14, 15), "Cou et taille serrés de cordes torsadées"),
-        ((23, 17), "Bras : bottes de paille liées aux poignets"),
-        ((16, 18), "Clou de fer et talisman (ofuda) : la malédiction qui l'anime. La pointe ressort dans le dos"),
-        ((10, 25), "Jupe de paille effilochée"),
-        ((16, 29), "Pieu à virole de fer : il avance en bondissant"),
+        ((17, 7), "Chignon de paille : il trahit ses humeurs. Dressé tout droit, il va attaquer ; en vrille, il a le tournis"),
+        ((15, 14), "Pas de visage : une grosse tête ronde en toile, cousue sur la paille"),
+        ((14, 18), "Cou et taille serrés de cordes torsadées"),
+        ((23, 20), "Bras : bottes de paille liées aux poignets, qui ballottent comme ceux d'un pantin"),
+        ((18, 21), "Le talisman cloué sur la poitrine : c'est lui qui l'a réveillé"),
+        ((11, 26), "Petite jupe de paille en cloche"),
+        ((16, 29), "Pieu court à virole de fer : il avance en sautillant"),
     ]
     lx = hx + hero.width * Z + 60
     ly = hy + 6
@@ -121,18 +121,19 @@ def design_board():
     tx = lx + 440
     y = hy
     d.text((tx, y), "Histoire", fill=INK, font=font(18))
-    y = wrap(d, "Les mannequins d'entraînement d'un dojo abandonné. Quelqu'un les a cloués d'un grand clou de fer "
-                "qui retient un talisman de malédiction : depuis, ils s'arrachent du sol et bondissent sur leur "
-                "pieu. Leur œil est la cible sur laquelle s'entraînaient les élèves.", (tx, y + 30), 400, f)
+    y = wrap(d, "Les petits mannequins d'entraînement du dojo. Un talisman cloué sur leur poitrine les a "
+                "réveillés : ils sautillent partout sur leur pieu et veulent jouer à la bagarre, sans trop savoir "
+                "comment. Plus gênants que dangereux. Une fois battus, le talisman s'envole et ils redeviennent "
+                "de simples mannequins.", (tx, y + 30), 400, f)
     y += 18
     d.text((tx, y), "Rôle en jeu", fill=INK, font=font(18))
     y = wrap(d, "L'ennemi le plus courant, en groupes de 2 ou 3 entre deux TATE. Il apprend le sabre et le bon "
                 "moment pour frapper.", (tx, y + 30), 400, f)
     y += 18
     d.text((tx, y), "L'inverse de TATE", fill=INK, font=font(18))
-    wrap(d, "TATE bloque tout de face : il faut passer dans son dos.\nWARA frappe tout autour de lui en "
-            "tournoyant : son dos n'est pas une faille. Il faut attendre la fin de son tour, quand il titube, "
-            "puis frapper.", (tx, y + 30), 400, f)
+    wrap(d, "TATE bloque tout de face : il faut passer dans son dos.\nWARA mouline des bras tout autour "
+            "de lui : son dos n'est pas une faille. Il faut attendre la fin de son moulinet, quand il a le "
+            "tournis, puis frapper.", (tx, y + 30), 400, f)
 
     # échelle : KAGE, WARA, TATE
     y0 = hy + hero.height * Z + 50
@@ -153,7 +154,7 @@ def design_board():
     # palette
     px0 = 1000
     d.text((px0, y0), "Palette", fill=INK, font=font(16))
-    groups = [("paille", "tTuU"), ("corde", "rR"), ("toile", "cC"), ("encre", "k"), ("bois", "wW"),
+    groups = [("paille", "tTuU"), ("corde", "rR"), ("toile", "cC"), ("bois", "wW"),
               ("fer", "nNI"), ("papier", "pPe"), ("effets", "fFgGxXsa")]
     yy = y0 + 30
     for name, keys in groups:
@@ -169,16 +170,16 @@ def design_board():
 # 2. poses
 # ---------------------------------------------------------------------------
 ROWS = [
-    ("REPOS", "balancement, 2 × 0,4 s", [("repos_1", "1"), ("repos_2", "2")]),
-    ("BOND", "déplacement, ~0,6 s par bond", [("bond_1_tasse", "1 · se tasse"), ("bond_2_envol", "2 · envol"),
-                                             ("bond_3_sommet", "3 · sommet"), ("bond_4_atterrit", "4 · atterrit")]),
-    ("TOURNOIEMENT", "attaque, touche des deux côtés", [("tour_1_elan", "1 · élan (signal)"),
-                                                        ("tour_2_dos", "2 · de dos"), ("tour_3_face", "3 · de face")]),
-    ("VERTIGE", "après le tour : fenêtre pour frapper", [("vertige_1", "1"), ("vertige_2", "2")]),
+    ("REPOS", "il se dandine, bras ballants, 2 × 0,35 s", [("repos_1", "1"), ("repos_2", "2")]),
+    ("BOND", "il sautille, ~0,6 s par bond", [("bond_1_tasse", "1 · se ratatine"), ("bond_2_envol", "2 · raide comme un crayon"),
+                                             ("bond_3_sommet", "3 · youpi !"), ("bond_4_atterrit", "4 · en accordéon")]),
+    ("MOULINET", "attaque, touche des deux côtés", [("moulinet_1_elan", "1 · chignon dressé (signal)"),
+                                                    ("moulinet_2", "2 · bras en hélice"), ("moulinet_3", "3 · de dos")]),
+    ("VERTIGE", "après le moulinet : fenêtre pour frapper", [("vertige_1", "1 · tête qui penche"), ("vertige_2", "2 · de l'autre côté")]),
     ("TOUCHÉ", "1er coup, puis état abîmé", [("touche", "touché"), ("abime_repos", "abîmé (1 PV)"),
                                              ("abime_touche", "abîmé touché")]),
-    ("MORT", "4 temps, puis fondu", [("mort_1_coupe", "1 · tranché"), ("mort_2_eclate", "2 · éclate"),
-                                    ("mort_3_effondre", "3 · s'effondre"), ("mort_4_braise", "4 · le talisman brûle")]),
+    ("MORT", "4 temps, puis fondu", [("mort_1_coupe", "1 · tranché"), ("mort_2_pouf", "2 · pouf !"),
+                                    ("mort_3_en_tas", "3 · la tête sur le tas"), ("mort_4_libere", "4 · le talisman s'envole")]),
 ]
 
 
@@ -239,26 +240,26 @@ def gameplay_board():
     HIT = (200, 60, 50, 90)
     OPEN = (90, 170, 90, 90)
     panels = [
-        ("1 · Il approche par bonds",
-         "Petits bonds sur son pieu vers KAGE dès qu'il le voit (120 px). Au sol entre deux bonds, il pivote "
-         "pour lui faire face.",
+        ("1 · Il arrive en sautillant",
+         "Petits bonds sur son pieu vers KAGE dès qu'il le voit (120 px), bras en l'air à chaque saut. Entre "
+         "deux bonds, il se dandine pour lui faire face.",
          scene([(wl("bond_1_tasse"), 112, 0, 90), (wl("bond_3_sommet"), 92, -12, 140),
                 (wl("bond_4_atterrit"), 72, 0, 255), (kr("idle"), 22, 0, 255)])),
-        ("2 · Le signal : l'œil s'allume",
-         "À moins de 30 px, il se tord et le centre de sa cible rougeoie pendant 0,45 s. C'est le moment de "
-         "reculer ou de sauter.",
-         scene([(wl("tour_1_elan"), 80, 0, 255), (kr("idle"), 46, 0, 255)])),
-        ("3 · Tournoiement : devant ET derrière",
-         "Deux tours de bras rapides (0,5 s) qui touchent des deux côtés à 22 px (1 dégât). Contrairement à "
-         "TATE, passer dans son dos ne protège pas.",
-         scene([(wr("tour_2_dos"), 75, 0, 255), (kl("hurt"), 88, 0, 255)], zones=[(53, 97, HIT)])),
+        ("2 · Le signal : le chignon se dresse",
+         "À moins de 30 px, son chignon se dresse tout droit et il lève un bras pendant 0,45 s, comme s'il "
+         "remontait ses manches. C'est le moment de reculer ou de sauter.",
+         scene([(wl("moulinet_1_elan"), 80, 0, 255), (kr("idle"), 46, 0, 255)])),
+        ("3 · Moulinet : devant ET derrière",
+         "Il mouline des bras en tous sens (0,5 s), des deux côtés à 22 px (1 dégât). Contrairement à TATE, "
+         "passer dans son dos ne protège pas.",
+         scene([(wr("moulinet_2"), 75, 0, 255), (kl("hurt"), 88, 0, 255)], zones=[(53, 97, HIT)])),
         ("4 · Vertige : frapper !",
-         "Après son tour, il titube 0,9 s, sans défense. Un coup de sabre (2) suffit à l'abattre ; s'il "
+         "Après son moulinet, il a le tournis 0,9 s : tête qui penche, chignon en vrille, sans défense. Un coup de sabre (2) suffit à l'abattre ; s'il "
          "survit, il passe à l'état abîmé.",
          scene([(wl("vertige_1"), 84, 0, 255), (kr("attack", 3), 58, 0, 255)], zones=[(66, 102, OPEN)])),
-        ("5 · Abîmé : enragé",
-         "Avec 1 point de vie, la paille déborde et son œil reste allumé : bonds plus rapides, signal raccourci "
-         "à 0,3 s. Un coup de plus et il tombe.",
+        ("5 · Abîmé : vexé",
+         "Avec 1 point de vie, la paille sort par les coutures et son chignon se défait. Vexé, il sautille plus "
+         "vite et son signal raccourcit à 0,3 s. Un coup de plus et il tombe.",
          scene([(wl("abime_repos"), 90, 0, 255), (kr("run", 2), 40, 0, 255)])),
         ("6 · Les autres réponses",
          "La glissade passe sous lui pendant un bond. Un shuriken (1) le fait vaciller et interrompt son "
@@ -288,7 +289,7 @@ def gameplay_board():
         ("Points de vie", "2  (sabre 2 → un seul coup suffit pendant le vertige ; shuriken 1)"),
         ("Bond", "hauteur 14 px, longueur ~20 px, un bond toutes les 0,7 s (0,45 s abîmé)"),
         ("Repère", "voit KAGE à 120 px ; signal à 30 px"),
-        ("Tournoiement", "signal 0,45 s (0,3 s abîmé), tour 0,5 s, portée 22 px des deux côtés, 1 dégât"),
+        ("Moulinet", "signal 0,45 s (0,3 s abîmé), moulinet 0,5 s, portée 22 px des deux côtés, 1 dégât"),
         ("Vertige", "0,9 s sans défense, puis repos 0,6 s avant de pouvoir rebondir"),
         ("Corps", "pas solide : KAGE le traverse (il ne bloque pas le passage comme TATE)"),
     ]
@@ -303,14 +304,14 @@ def gameplay_board():
 # 4. animations en GIF, côte à côte
 # ---------------------------------------------------------------------------
 ANIMS = [
-    ("repos", [("repos_1", 400), ("repos_2", 400)]),
+    ("repos", [("repos_1", 350), ("repos_2", 350)]),
     ("bond", [("repos_1", 240), ("bond_1_tasse", 120), ("bond_2_envol", 90), ("bond_3_sommet", 160),
               ("bond_2_envol", 90), ("bond_4_atterrit", 140), ("repos_1", 160)]),
-    ("tournoiement", [("repos_1", 300), ("tour_1_elan", 450), ("tour_2_dos", 80), ("tour_3_face", 80),
-                      ("tour_2_dos", 80), ("tour_3_face", 80), ("tour_2_dos", 80), ("tour_3_face", 80),
+    ("moulinet", [("repos_1", 300), ("moulinet_1_elan", 450), ("moulinet_2", 90), ("moulinet_3", 90),
+                  ("moulinet_2", 90), ("moulinet_3", 90), ("moulinet_2", 90), ("moulinet_3", 90),
                       ("vertige_1", 220), ("vertige_2", 220), ("vertige_1", 220), ("vertige_2", 220)]),
-    ("mort", [("abime_repos", 400), ("abime_touche", 160), ("mort_1_coupe", 260), ("mort_2_eclate", 180),
-              ("mort_3_effondre", 420), ("mort_4_braise", 900)]),
+    ("mort", [("abime_repos", 400), ("abime_touche", 160), ("mort_1_coupe", 260), ("mort_2_pouf", 200),
+              ("mort_3_en_tas", 500), ("mort_4_libere", 900)]),
 ]
 HOP_Y = {"bond_2_envol": -8, "bond_3_sommet": -14}      # hauteur du bond (gérée par le jeu)
 
