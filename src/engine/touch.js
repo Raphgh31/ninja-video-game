@@ -1,6 +1,6 @@
 // Commandes tactiles dessinées dans le jeu (pixel art) :
 // - joystick flottant sous le pouce gauche (gauche/droite = courir, bas = glissade,
-//   coup très rapide et court vers un côté = dash) ;
+//   coup très rapide et court vers un côté puis relâché = dash) ;
 // - boutons ronds sous le pouce droit : saut (le plus gros), sabre, shuriken,
 //   et un petit interrupteur de sprint.
 // Les positions sont en pixels du jeu ; les doigts sont convertis via l'échelle.
@@ -10,7 +10,7 @@ const STICK = {
   dead: 4,           // zone morte
   flickOut: 0.85,    // un dash demande d'atteindre 85 % de la course...
   flickFast: 0.08,   // ... en moins de 0,08 s depuis la zone morte...
-  flickBack: 0.15,   // ... puis de revenir (ou relâcher) en moins de 0,15 s,
+  flickBack: 0.15,   // ... puis de relâcher le joystick en moins de 0,15 s,
   flickFlat: 2,      // ... avec un geste franchement horizontal (|dx| > 2 × |dy|)
   down: 0.6,         // vers le bas au-delà de 60 % = glissade
 };
@@ -232,7 +232,7 @@ export class TouchControls {
 
     // détection du coup rapide : sortie de la zone morte -> bord en < 0,12 s
     if (inDead) {
-      this.checkFlick(false);
+      // revenir au centre sans lâcher annule le coup : seul le relâchement compte
       s.leftDeadAt = now;
       s.wasDead = true;
       s.outAt = -1;
@@ -255,15 +255,13 @@ export class TouchControls {
     }
   }
 
-  /** Le coup est validé s'il revient au centre (ou si on relâche) assez vite. */
+  /** Le coup est validé seulement si le pouce est relâché assez vite après. */
   checkFlick(released) {
     const s = this.stick;
     if (!s || s.outAt < 0 || s.outAt === Infinity) return;
     const now = performance.now() / 1000;
     if (now - s.outAt <= STICK.flickBack) {
       this.input.pressed.add(s.outDir > 0 ? 'dash_right' : 'dash_left');
-      // on garde un instant la direction pour que le dash parte du bon côté
-      if (!released) s.leftDeadAt = now;
     }
     s.outAt = -1;
   }
