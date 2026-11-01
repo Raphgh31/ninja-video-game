@@ -43,6 +43,7 @@ export class Player {
     this.timer = 0;
     this.airDash = true;
     this.level.resetTargets?.();
+    this.onRespawn?.();
     this.setState(instant ? 'idle' : 'respawn');
   }
 
@@ -144,7 +145,7 @@ export class Player {
           this.setState('attack');
           break;
         }
-        if (input.wasPressed('throw')) {
+        if (input.wasPressed('throw') && (this.canThrow?.() ?? true)) {
           this.thrown = false;
           this.setState('throw');
           break;

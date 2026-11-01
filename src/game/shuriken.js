@@ -1,10 +1,13 @@
-// Shurikens : projectiles en vol, puis plantés dans le décor.
+// Shurikens : stock de 3, projectiles en vol, plantés dans le décor puis
+// ramassés en passant dessus.
 import { TILE } from './level.js';
 
 export const SHURIKEN = {
   speed: 260,        // px/s, horizontal, constant
   range: 160,        // portée sur terrain plat, lancé à l'arrêt : 10 carreaux
-  maxStuck: 40,      // nombre de shurikens plantés conservés dans le décor
+  stock: 3,          // shurikens portés au maximum
+  pickupMargin: 4,   // px autour du personnage pour ramasser un shuriken planté
+  pickupDelay: 0.3,  // s avant de pouvoir ramasser un shuriken qui vient de se planter
   spinStep: 0.12,    // s par image de rotation (rotation lente et lisible)
 };
 
@@ -14,6 +17,32 @@ export class Shurikens {
     this.meta = meta.projectiles.shuriken;
     this.flying = [];
     this.stuck = [];
+    this.stock = SHURIKEN.stock;
+    this.emptyBlink = 0;   // clignotement du compteur quand on essaie de lancer sans stock
+  }
+
+  /** Réapparition : tout redevient disponible. */
+  reset() {
+    this.flying = [];
+    this.stuck = [];
+    this.stock = SHURIKEN.stock;
+  }
+
+  canThrow() {
+    if (this.stock > 0) return true;
+    this.emptyBlink = 0.45;
+    return false;
+  }
+
+  /** Ramasse les shurikens plantés touchés par la boîte du personnage. */
+  pickup(box) {
+    const m = SHURIKEN.pickupMargin;
+    this.stuck = this.stuck.filter((s) => {
+      if (this.stock >= SHURIKEN.stock || s.age < SHURIKEN.pickupDelay) return true;
+      const hit = s.x >= box.x - m && s.x <= box.x + box.w + m && s.y >= box.y - m && s.y <= box.y + box.h + m;
+      if (hit) this.stock++;
+      return !hit;
+    });
   }
 
   /**
@@ -22,6 +51,15 @@ export class Shurikens {
    * exactement à `range` px devant.
    */
   throw(x, y, dir, height) {
+    if (this.stock <= 0) return;
+    this.stock--;
+    // lancé collé à un mur : le point de lâcher est déjà dans le mur, il se
+    // plante directement dans sa face
+    const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
+    if (this.level.solid(tx, ty)) {
+      this.plant({ kind: 'stuck_wall', x: dir > 0 ? tx * TILE : (tx + 1) * TILE, y: Math.round(y), dir });
+      return;
+    }
     const t = SHURIKEN.range / SHURIKEN.speed;
     const gravity = (2 * height) / (t * t);
     this.flying.push({ x, y, vx: dir * SHURIKEN.speed, vy: 0, gravity, dir, t: 0 });
@@ -29,6 +67,8 @@ export class Shurikens {
 
   update(dt) {
     const lv = this.level;
+    this.emptyBlink = Math.max(0, this.emptyBlink - dt);
+    for (const s of this.stuck) s.age += dt;
     for (const s of this.flying) {
       s.t += dt;
       const px = s.x, py = s.y;
@@ -36,10 +76,11 @@ export class Shurikens {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       const tx = Math.floor(s.x / TILE), ty = Math.floor(s.y / TILE);
-      // cible d'entraînement
+      // cible d'entraînement : elle se brise, le shuriken est dévié et retombe
       if (lv.hitTargets({ x: s.x - 2, y: s.y - 2, w: 4, h: 4 }, s.dir)) {
-        s.dead = true;
-        continue;
+        s.vx *= -0.2;
+        s.vy = -40;
+        s.gravity = Math.max(s.gravity, 400);
       }
       if (lv.solid(tx, ty)) {
         const ptx = Math.floor(px / TILE);
@@ -57,14 +98,25 @@ export class Shurikens {
         s.dead = true;
       } else if (s.x < -32 || s.x > lv.width + 32 || s.y > lv.height + 32) {
         s.dead = true;
+        this.stock++;      // perdu hors du niveau : il revient dans le stock
       }
     }
     this.flying = this.flying.filter((s) => !s.dead);
   }
 
   plant(d) {
-    this.stuck.push(d);
-    if (this.stuck.length > SHURIKEN.maxStuck) this.stuck.shift();
+    this.stuck.push({ ...d, age: 0 });
+  }
+
+  /** Compteur en haut à gauche de l'écran (coordonnées écran). */
+  drawHud(ctx, sheet) {
+    const f = this.meta.frames[this.meta.spin[0]];
+    const blinkOn = this.emptyBlink > 0 && Math.floor(this.emptyBlink * 12) % 2 === 0;
+    for (let i = 0; i < SHURIKEN.stock; i++) {
+      ctx.globalAlpha = i < this.stock ? 1 : blinkOn ? 0.75 : 0.25;
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, 4 + i * 11, 4, f.w, f.h);
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** Les shurikens plantés font partie du décor : dessinés avant le personnage. */

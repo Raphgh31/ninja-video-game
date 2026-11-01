@@ -12,7 +12,7 @@ Ninja du vent, compact et agile. Tête volontairement grande (10 px sur ~24) pou
 - **Bande de visage et mains visibles** (yeux sombres sur la peau), demandées après la première version pour la lisibilité. Le bas du visage reste masqué.
 - Tunique courte, ceinture, protections d'avant-bras, chaussures compactes.
 - **Sabre** : visible uniquement pendant l'attaque (fourreau supposé caché derrière la hanche).
-- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor (40 au maximum). Ils prennent les couleurs de la lame du skin.
+- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor. KAGE en porte **3 au maximum** (compteur en haut à gauche) : un shuriken planté se ramasse en passant dessus (après 0,3 s), un shuriken qui brise une cible est dévié puis retombe au sol, un shuriken sorti du niveau revient dans le stock, et le stock est rempli à la réapparition. Ils prennent les couleurs de la lame du skin.
 
 Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau est la seule couleur chaude.
 

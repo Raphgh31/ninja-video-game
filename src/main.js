@@ -29,6 +29,8 @@ const level = new Level();
 const player = new Player(meta, level);
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => shurikens.throw(x, y, dir, height);
+player.canThrow = () => shurikens.canThrow();
+player.onRespawn = () => shurikens.reset();
 const input = new Input();
 input.bindTouch(document.querySelector('.touch'));
 const cam = { x: 0, y: 0 };
@@ -55,6 +57,7 @@ function update(dt) {
   player.update(dt, input);
   level.update(dt);
   shurikens.update(dt);
+  if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
   cam.x += (tx - cam.x) * Math.min(1, dt * 8);
@@ -68,6 +71,7 @@ function draw() {
   shurikens.drawStuck(ctx, skins[skinId].projectiles.shuriken, cam);
   player.draw(ctx, skins[skinId].sheet, cam);
   shurikens.drawFlying(ctx, skins[skinId].projectiles.shuriken, cam);
+  shurikens.drawHud(ctx, skins[skinId].projectiles.shuriken);
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';
