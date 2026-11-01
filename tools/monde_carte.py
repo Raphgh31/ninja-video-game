@@ -15,15 +15,15 @@ RED = (168, 67, 58)
 
 ZONES = [
     # nom, ennemi(s), amélioration, couleur du ciel, couleur du sol, hauteurs du relief (0..1)
-    ("1 · Le dojo et son potager", "WARA, TATE", "Kaginawa (grappin)", (196, 206, 214), (186, 160, 110),
+    ("1 · Le dojo et son potager", "WARA, TATE", "marchand : sortie du dojo", (196, 206, 214), (186, 160, 110),
      [0.18, 0.18, 0.22, 0.2, 0.26, 0.24]),
-    ("2 · La forêt de bambous", "Kage-mane", "Saut de l'ombre", (178, 196, 182), (92, 118, 84),
+    ("2 · La forêt de bambous", "Kage-mane", "marchand : clairière", (178, 196, 182), (92, 118, 84),
      [0.24, 0.34, 0.3, 0.42, 0.36, 0.4]),
-    ("3 · Le village la nuit", "Chōchin", "Shuriken de braise", (58, 66, 92), (82, 70, 78),
+    ("3 · Le village la nuit", "Chōchin", "marchand : marché de nuit", (58, 66, 92), (82, 70, 78),
      [0.4, 0.36, 0.44, 0.38, 0.46, 0.42]),
-    ("4 · La montagne", "Karasu", "Dash d'ombre", (204, 214, 226), (232, 236, 240),
+    ("4 · La montagne", "Karasu", "marchand : refuge", (204, 214, 226), (232, 236, 240),
      [0.42, 0.56, 0.66, 0.74, 0.84, 0.9]),
-    ("5 · Le temple de pierre", "Ishi (boss)", "fin du jeu", (150, 146, 136), (118, 120, 110),
+    ("5 · Le temple de pierre", "Ishi (boss)", "marchand : devant le temple", (150, 146, 136), (118, 120, 110),
      [0.9, 0.86, 0.86, 0.82, 0.8, 0.8]),
 ]
 
@@ -41,7 +41,7 @@ def main():
     d = ImageDraw.Draw(im)
     d.text((40, 26), "KAGE — le monde, vu de côté", fill=INK, font=font(30))
     d.text((40, 70), "Proposition · un seul monde continu, d'ouest en est · ● lanterne (sauvegarde)   "
-                     "┄ passage secret (amélioration requise)   ★ épreuve finale", fill=GREY, font=font(15))
+                     "┄ chemin de défi / secret (ryō)   ★ épreuve finale", fill=GREY, font=font(15))
     x0, top, bottom = 40, 120, 640
     zw = (W - 80) // len(ZONES)
     hmax = bottom - top - 120
@@ -85,8 +85,8 @@ def main():
         ty = bottom + 20
         d.text((zx + 8, ty), name, fill=INK, font=font(17))
         d.text((zx + 8, ty + 34), f"Ennemis : {foes}", fill=INK, font=font(15, bold=False))
-        d.text((zx + 8, ty + 60), "Gagné à la fin :", fill=GREY, font=font(14, bold=False))
-        d.text((zx + 8, ty + 80), upgrade, fill=RED, font=font(16))
+        d.text((zx + 8, ty + 60), "Marchand ambulant :", fill=GREY, font=font(14, bold=False))
+        d.text((zx + 8, ty + 80), upgrade.replace("marchand : ", ""), fill=RED, font=font(16))
     # KAGE au départ, flèche de progression
     d.text((x0 + 10, top + 12), "départ →", fill=INK, font=font(16))
     d.line([(x0 + 10, bottom + 150), (W - 60, bottom + 150)], fill=INK, width=3)
