@@ -4,9 +4,10 @@
 // instant en pâle puis se vide (on voit ce qu'on vient de perdre).
 
 const LOOK = {
-  perHp: 4,              // px de barre par point de vie
+  perHp: 3.5,            // px de barre par point de vie (arrondi au pixel)
   height: 1,             // jauge très fine (hors contour)
-  alpha: 0.75,           // discrète
+  alpha: 0.75,           // discrète (fond et contour)
+  greenAlpha: 0.92,      // le vert, un peu plus franc
   green: '#86d374',
   trail: '#f2ede6',      // portion qui vient d'être perdue
   empty: 'rgba(27, 30, 39, 0.7)',
@@ -51,7 +52,7 @@ export class HealthBar {
 
   /** Dessine la barre centrée sur cx, son bord haut en y (pixels du jeu). */
   draw(ctx, cx, y, alpha = 1) {
-    const w = this.max * LOOK.perHp;
+    const w = Math.round(this.max * LOOK.perHp);
     const x = Math.round(cx - w / 2);
     y = Math.round(y);
     const h = LOOK.height;
@@ -72,6 +73,7 @@ export class HealthBar {
       ctx.fillRect(x + gw, y, tw - gw, h);
     }
     if (gw > 0) {
+      ctx.globalAlpha = LOOK.greenAlpha * alpha;
       ctx.fillStyle = LOOK.green;
       ctx.fillRect(x, y, gw, h);
     }
