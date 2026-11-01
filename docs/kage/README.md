@@ -61,7 +61,7 @@ Anneau en haut à gauche de l'écran, à côté du stock de shurikens ; il se vi
 | Courir | −4 %/s (≈ 25 s de course pour vider la barre) |
 | Sprinter | −16 %/s (≈ 6 s de sprint) ; impossible quand KAGE est essoufflé |
 | Immobile au sol | +55 %/s après 0,35 s (vide → plein en moins de 2 s) |
-| Dash | −33 % (refusé s'il manque de l'énergie) |
+| Dash | −33 % (refusé s'il manque de l'énergie ; tolérance de 15 % du coût, pour pouvoir enchaîner 3 dashs avec une barre pleine) |
 | Saut | −10 % (toujours possible, même à vide) |
 | Coup de sabre | −12 % (refusé s'il manque de l'énergie) |
 | Shuriken | gratuit |

@@ -10,6 +10,8 @@ export const ENERGY = {
   jump: 0.1,
   attack: 0.12,        // coup de sabre (le shuriken est gratuit)
   recover: 0.4,        // essoufflé jusqu'à ce que l'énergie remonte à ce niveau
+  tolerance: 0.15,     // une action passe s'il manque au plus 15 % de son coût
+                       // (la course entre deux dashs ne doit pas empêcher le 3e)
   exhaustedSpeed: 0.65,// vitesse de course quand on est essoufflé
 };
 
@@ -44,7 +46,7 @@ export class Energy {
 
   /** Dépense soumise à condition (dash, sabre) : refusée s'il n'y a pas assez d'énergie. */
   trySpend(cost) {
-    if (this.exhausted || this.value + 1e-6 < cost) {
+    if (this.exhausted || this.value + 1e-6 < cost * (1 - ENERGY.tolerance)) {
       this.flash = 0.5;
       return false;
     }
