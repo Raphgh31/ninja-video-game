@@ -12,8 +12,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
-from art import ANIMS, VIEWS  # noqa: E402
-from core import CH, CW, render  # noqa: E402
+from art import ANIMS, SHURIKEN, VIEWS  # noqa: E402
+from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,7 +51,7 @@ def to_rgba(grid, colors, only=None):
 
 
 def to_index(grid):
-    a = np.zeros((CH, CW, 4), np.uint8)
+    a = np.zeros(grid.shape + (4,), np.uint8)
     for i, s in enumerate(SLOT_ORDER):
         m = grid == s
         a[m] = (i + 1, 0, 0, 255)
@@ -143,6 +143,27 @@ def main():
         im.save(OUT / "views" / f"kage_view_{k}.png")
     vs.save(OUT / "kage_views.png")
 
+    # projectile : shuriken (cellules 8x8, contour auto, partie enfoncée coupée)
+    SC = 8
+    proj = {}
+    sh_rgba = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))
+    sh_idx = Image.new("RGBA", (SC * len(SHURIKEN), SC), (0, 0, 0, 0))
+    for i, (name, (text, anchor)) in enumerate(SHURIKEN.items()):
+        g = np.full((SC, SC), ".", dtype="<U1")
+        art = parse(text)
+        g[1:1 + art.shape[0], 1:1 + art.shape[1]] = art
+        g = add_outline(g)
+        ax, ay = anchor
+        if name == "stuck_wall":
+            g[:, ax + 1:] = "."          # ce qui dépasse dans le mur n'est pas visible
+        if name == "stuck_ground":
+            g[ay + 1:, :] = "."          # idem dans le sol
+        sh_rgba.paste(to_rgba(g, ref), (i * SC, 0))
+        sh_idx.paste(to_index(g), (i * SC, 0))
+        proj[name] = {"x": i * SC, "y": 0, "w": SC, "h": SC, "anchor": {"x": ax, "y": ay}}
+    sh_rgba.save(OUT / "kage_shuriken.png")
+    sh_idx.save(OUT / "kage_shuriken_index.png")
+
     # métadonnées
     meta = {
         "name": "KAGE",
@@ -168,6 +189,15 @@ def main():
         "views": {k: {"x": i * sx, "y": 0, "w": CW, "h": CH, "image": "kage_views.png"}
                   for i, k in enumerate(vorder)},
         "skins": sorted(skins),
+        "projectiles": {
+            "shuriken": {
+                "image": "kage_shuriken.png",
+                "indexImage": "kage_shuriken_index.png",
+                "frames": proj,
+                "spin": ["spin0", "spin1"],
+                "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface",
+            }
+        },
     }
     for r, k in enumerate(order):
         a = ANIMS[k]
@@ -180,6 +210,7 @@ def main():
             "loopStart": a.get("loop_start", 0),
             "state": a["state"],
             "strip": f"anims/kage_{k}.png",
+            **({"release": a["release"]} if "release" in a else {}),
             "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],

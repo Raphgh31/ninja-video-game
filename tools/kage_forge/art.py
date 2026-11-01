@@ -416,6 +416,74 @@ ATTACK = [
 ]
 
 # ---------------------------------------------------------------------------
+# THROW — lancer de shuriken : armé derrière la tête, bascule, bras tendu au
+# lâcher, accompagnement, retour en garde
+# ---------------------------------------------------------------------------
+STAR_HAND = ".W.\nWgW\n.W."      # shuriken tenu entre les doigts
+
+
+def holding(x, y):
+    return A(STAR_HAND, x=x, top=y)
+
+
+THROW_RELEASE = {"frame": 2, "x": 28, "y": 20}   # point de lâcher dans la cellule
+
+THROW = [
+    # 1. armé : main proche ramenée haut derrière la tête, bras lointain pointé (visée)
+    Frame([G(pose(torso="up", tx=12, ty=19, near_leg=STANCE["near_leg"], far_leg=STANCE["far_leg"],
+                  near_arm=[(13, 18), (10, 16)], far_arm=[(17, 21), (21, 20)],
+                  tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)],
+                  tail_short=[(-2, 2), (-3, 4), (-3, 8)])),
+           holding(9, 14)]),
+    # 2. tension maximale : le buste recule, le bras armé va encore plus loin
+    Frame([G(pose(torso="up", tx=11, ty=20, near_leg=[(17, 27), (18, 28)], far_leg=[(10, 27), (8, 28)],
+                  near_arm=[(12, 19), (9, 18)], far_arm=[(16, 22), (21, 21)],
+                  tail_long=[(-2, 1), (-4, 3), (-6, 5), (-7, 9)],
+                  tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
+           holding(7, 16)]),
+    # 3. lâcher : bascule en fente, bras proche entièrement tendu vers l'avant
+    Frame([A("zz.zzz", x=33, top=20),
+           G(pose(**{**LUNGE, "far_arm": [(13, 22), (11, 23)]}, head="head_r_squint",
+                  near_arm=[(21, 20), (25, 20)]))]),
+    # 4. accompagnement : le bras reste tendu et descend un peu, le buste suit
+    F(pose(**{**LUNGE, "far_arm": [(13, 22), (11, 24)]}, near_arm=[(21, 21), (24, 23)])),
+    # 5. retour en garde
+    F(pose(torso="up", tx=12, ty=20, near_leg=STANCE_LOW["near_leg"], far_leg=STANCE_LOW["far_leg"],
+           near_arm=[(17, 23), (18, 24)], far_arm=STANCE_LOW["far_arm"],
+           tail_long=[(-2, 1), (-4, 3), (-6, 5), (-8, 9)],
+           tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
+]
+
+# Projectile : cellules 8x8. Rotation (2 images), puis planté dans un mur
+# (mur à droite) et planté dans le sol, en plus petit. L'ancre est le point
+# posé sur la surface touchée.
+SHURIKEN = {
+    "spin0": ("""
+..W..
+..W..
+WWgWW
+..W..
+..W..
+""", (3, 3)),
+    "spin1": ("""
+W...W
+.W.W.
+..g..
+.W.W.
+W...W
+""", (3, 3)),
+    "stuck_wall": ("""
+..W
+WWg
+..W
+""", (3, 2)),
+    "stuck_ground": ("""
+..W..
+.wgw.
+""", (3, 2)),
+}
+
+# ---------------------------------------------------------------------------
 # VUES — face, dos, profil gauche, profil droit
 # ---------------------------------------------------------------------------
 stamp("head_f", """
@@ -537,6 +605,8 @@ ANIMS = {
     "dash":          dict(frames=DASH,    fps=20, loop=False, state="dash"),
     "attack":        dict(frames=ATTACK,  fps=16, loop=False, state="attack",
                           durations=[60, 50, 40, 45, 70, 70, 70]),
+    "throw":         dict(frames=THROW,   fps=14, loop=False, state="throw",
+                          durations=[80, 60, 45, 90, 90], release=THROW_RELEASE),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),

@@ -12,6 +12,7 @@ Ninja du vent, compact et agile. Tête volontairement grande (10 px sur ~24) pou
 - **Bande de visage et mains visibles** (yeux sombres sur la peau), demandées après la première version pour la lisibilité. Le bas du visage reste masqué.
 - Tunique courte, ceinture, protections d'avant-bras, chaussures compactes.
 - **Sabre** : visible uniquement pendant l'attaque (fourreau supposé caché derrière la hanche).
+- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor (40 au maximum). Ils prennent les couleurs de la lame du skin.
 
 Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau est la seule couleur chaude.
 
@@ -21,6 +22,7 @@ Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau 
 |---|---|
 | `kage_sheet.png` | planche complète : une ligne par animation, cellules 48×32 (personnage dans les 32 premières colonnes, place devant pour le sabre), espacement 2 px, fond transparent |
 | `kage_sheet_index.png` | même planche en **carte d'index** : canal R = numéro du slot (voir `kage.json`) |
+| `kage_shuriken.png`, `kage_shuriken_index.png` | shuriken : 2 images de rotation, planté dans un mur, planté dans le sol (cellules 8×8, ancre = point sur la surface) |
 | `kage.json` | métadonnées : cellules, ancrage, hitbox, slots, animations (frames, durées, fps, boucle) |
 | `kage_views.png`, `views/` | face, dos, profil gauche, profil droit |
 | `anims/kage_<anim>.png` | chaque animation exportée seule (bande horizontale) |
@@ -41,6 +43,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | fall | 3 | 10 | oui | descente |
 | land | 3 | 18 | non | contact avec le sol |
 | dash | 5 | 20 | non | dash (double appui ← ← ou → →), 0,25 s |
+| throw | 5 | durées par frame (≈ 0,37 s) | non | lancer de shuriken : armé derrière la tête, bras tendu au lâcher (frame 3, point `release`), accompagnement |
 | attack | 7 | durées par frame (≈ 0,4 s) | non | coup de sabre : dégainé en fente, demi-cercle devant, rengainé. Zone de frappe active sur les frames 3 à 5 (`hitbox.attack`) |
 | slide | 3 | 12 | oui, à partir de la frame 2 | glissade |
 | death | 6 | 14 | non | destruction en blocs |

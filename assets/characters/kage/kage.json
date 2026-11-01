@@ -532,8 +532,59 @@
         }
       ]
     },
-    "slide": {
+    "throw": {
       "row": 7,
+      "frameCount": 5,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "throw",
+      "strip": "anims/kage_throw.png",
+      "release": {
+        "frame": 2,
+        "x": 28,
+        "y": 20
+      },
+      "frames": [
+        {
+          "x": 0,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 80
+        },
+        {
+          "x": 50,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 60
+        },
+        {
+          "x": 100,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 45
+        },
+        {
+          "x": 150,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        },
+        {
+          "x": 200,
+          "y": 238,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        }
+      ]
+    },
+    "slide": {
+      "row": 8,
       "frameCount": 3,
       "fps": 12,
       "loop": true,
@@ -543,21 +594,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 238,
+          "y": 272,
           "w": 48,
           "h": 32,
           "duration": 83
         },
         {
           "x": 50,
-          "y": 238,
+          "y": 272,
           "w": 48,
           "h": 32,
           "duration": 83
         },
         {
           "x": 100,
-          "y": 238,
+          "y": 272,
           "w": 48,
           "h": 32,
           "duration": 83
@@ -565,7 +616,7 @@
       ]
     },
     "death": {
-      "row": 8,
+      "row": 9,
       "frameCount": 6,
       "fps": 14,
       "loop": false,
@@ -575,42 +626,42 @@
       "frames": [
         {
           "x": 0,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 50,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 100,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 150,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 200,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 250,
-          "y": 272,
+          "y": 306,
           "w": 48,
           "h": 32,
           "duration": 71
@@ -618,7 +669,7 @@
       ]
     },
     "respawn": {
-      "row": 9,
+      "row": 10,
       "frameCount": 3,
       "fps": 10,
       "loop": false,
@@ -628,21 +679,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 306,
+          "y": 340,
           "w": 48,
           "h": 32,
           "duration": 100
         },
         {
           "x": 50,
-          "y": 306,
+          "y": 340,
           "w": 48,
           "h": 32,
           "duration": 100
         },
         {
           "x": 100,
-          "y": 306,
+          "y": 340,
           "w": 48,
           "h": 32,
           "duration": 100
@@ -684,5 +735,58 @@
     "cendre",
     "encre",
     "minuit"
-  ]
+  ],
+  "projectiles": {
+    "shuriken": {
+      "image": "kage_shuriken.png",
+      "indexImage": "kage_shuriken_index.png",
+      "frames": {
+        "spin0": {
+          "x": 0,
+          "y": 0,
+          "w": 8,
+          "h": 8,
+          "anchor": {
+            "x": 3,
+            "y": 3
+          }
+        },
+        "spin1": {
+          "x": 8,
+          "y": 0,
+          "w": 8,
+          "h": 8,
+          "anchor": {
+            "x": 3,
+            "y": 3
+          }
+        },
+        "stuck_wall": {
+          "x": 16,
+          "y": 0,
+          "w": 8,
+          "h": 8,
+          "anchor": {
+            "x": 3,
+            "y": 2
+          }
+        },
+        "stuck_ground": {
+          "x": 24,
+          "y": 0,
+          "w": 8,
+          "h": 8,
+          "anchor": {
+            "x": 3,
+            "y": 2
+          }
+        }
+      },
+      "spin": [
+        "spin0",
+        "spin1"
+      ],
+      "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface"
+    }
+  }
 }

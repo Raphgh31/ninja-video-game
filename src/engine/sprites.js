@@ -52,10 +52,16 @@ export function applySkin(indexImage, meta, skin) {
 export async function loadCharacter(baseUrl, metaFile, skinIds) {
   const meta = await loadJson(`${baseUrl}/${metaFile}`);
   const indexImage = await loadImage(`${baseUrl}/${meta.indexImage}`);
+  const projIndex = {};
+  for (const [name, p] of Object.entries(meta.projectiles ?? {})) {
+    projIndex[name] = await loadImage(`${baseUrl}/${p.indexImage}`);
+  }
   const skins = {};
   for (const id of skinIds ?? meta.skins) {
     const skin = await loadJson(`${baseUrl}/skins/${id}.json`);
-    skins[id] = { ...skin, sheet: applySkin(indexImage, meta, skin) };
+    const projectiles = {};
+    for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, skin);
+    skins[id] = { ...skin, sheet: applySkin(indexImage, meta, skin), projectiles };
   }
   return { meta, skins };
 }

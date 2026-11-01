@@ -10,6 +10,10 @@ const meta = JSON.parse(readFileSync(join(dist, base, 'kage.json'), 'utf8'));
 embed[`./${base}/kage.json`] = meta;
 embed[`./${base}/${meta.indexImage}`] =
   'data:image/png;base64,' + readFileSync(join(dist, base, meta.indexImage)).toString('base64');
+for (const p of Object.values(meta.projectiles ?? {})) {
+  embed[`./${base}/${p.indexImage}`] =
+    'data:image/png;base64,' + readFileSync(join(dist, base, p.indexImage)).toString('base64');
+}
 for (const id of meta.skins) {
   embed[`./${base}/skins/${id}.json`] = JSON.parse(readFileSync(join(dist, base, 'skins', `${id}.json`), 'utf8'));
 }

@@ -98,6 +98,18 @@ export class Player {
         if (this.anim.finished) this.endSpecial();
         break;
       }
+      case 'throw': {
+        // au sol on se plante sur ses appuis ; en l'air on garde son élan
+        if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
+        const r = this.anim.anim.release;
+        if (!this.thrown && this.anim.frame >= r.frame) {
+          this.thrown = true;
+          const { pivot } = this.meta;
+          this.onThrow?.(this.x + this.facing * (r.x - pivot.x), this.y - pivot.y + r.y, this.facing, pivot.y - r.y);
+        }
+        if (this.anim.finished) this.endSpecial();
+        break;
+      }
       case 'slide':
         this.vx = this.facing * P.slideSpeed * (1 - 0.45 * (this.timer / P.slideTime));
         if (this.timer >= P.slideTime && !this.ceilingAbove()) this.endSpecial();
@@ -130,6 +142,11 @@ export class Player {
         }
         if (input.wasPressed('attack')) {
           this.setState('attack');
+          break;
+        }
+        if (input.wasPressed('throw')) {
+          this.thrown = false;
+          this.setState('throw');
           break;
         }
         if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && Math.abs(this.vx) > 20) {
