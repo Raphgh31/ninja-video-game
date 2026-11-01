@@ -198,6 +198,11 @@ export class Player {
         if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
         const box = this.kickBox();
         if (box) this.level.hitTargets(box, this.facing);
+        // retrait de la jambe : KAGE souffle (le coup lui coûte)
+        if (this.anim.frame >= 3 && !this.breathed) {
+          this.breathed = true;
+          this.emit('kick_breath');
+        }
         if (this.anim.finished) {
           this.kickCd = P.kickCooldown;
           this.endSpecial();
@@ -331,6 +336,7 @@ export class Player {
         }
         if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
+          this.breathed = false;
           this.emit('kick');
           this.setState('kick');
           break;

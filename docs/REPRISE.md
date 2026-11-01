@@ -66,7 +66,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 
 ### Animations (20)
 idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 · kick 5 · throw 5 · hurt 2 · wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4 · skid 2 · slide 3 · death 6 · respawn 3.
-- **Coup de pied** : coup de pied de côté de karaté (yoko geri kekomi), d'après des images fournies par l'utilisateur : genou armé, hanche qui pivote, buste qui part en arrière, jambe tendue talon en avant à hauteur de poitrine, poings en garde. Buste `back` dans `rig.py`.
+- **Coup de pied** : coup de pied de côté de karaté (yoko geri kekomi), d'après des images fournies par l'utilisateur : genou armé, hanche qui pivote, buste qui part en arrière, jambe tendue talon en avant à hauteur de poitrine, poings en garde. **Pied fléchi, orteils vers le haut** (pied `flex` dans `rig.py`), jambe raccourcie à la demande de l'utilisateur. **L'effort se voit** : yeux plissés au retrait, retour en garde tassé, bouffée d'expiration, goutte de sueur et bruit de souffle. Buste `back` dans `rig.py`.
 - **Marche** (à bout de souffle) : tête basse, yeux plissés, bras ballants, petits pas, foulard qui pend.
 - **Sprint** : buste plongé, corps bas, **bras tendus à l'horizontale vers l'arrière** (façon Naruto ; à l'origine, les bras remontaient trop).
 - **Sabre au sol** : légère fente, demi-cercle devant (haut, avant, bas), lame longue et large (2 px), bras à demi tendu qui suit la lame.
