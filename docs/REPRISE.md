@@ -9,9 +9,9 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 
 ## 1. Où en est le projet
 
-- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, en greybox jouable)** sont dans `main`. Le plan du monde (`docs/MONDE.md`) est dans la PR #3 (brouillon).
+- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, en greybox jouable)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
-- **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand).
+- **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
 - **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 48 tests automatiques.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
@@ -156,7 +156,7 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 ## 9. Ce qui reste à faire (pistes discutées)
 
 - **Potager, phase 2** : planches de design du marchand (vieil homme coloré, grand chapeau, gros sac), du « petit nuisible » qui vole les légumes, et des décors et tuiles de chaque zone. **Phase 3** : pixel art définitif, animations d'ambiance, sons et musique.
-- Compléter `docs/MONDE.md` (PR #3) avec les réponses de l'utilisateur (liste des chapitres, téléportation, expérience par paliers), puis la fusionner.
+- Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
 - Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).
 - Valider les sons, ajuster si besoin ; rééquilibrer vie et dégâts en jouant.
