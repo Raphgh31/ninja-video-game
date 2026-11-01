@@ -34,6 +34,7 @@ export class Shurikens {
   canThrow() {
     if (this.stock > 0) return true;
     this.emptyBlink = 0.45;
+    this.onEvent?.('empty', {});
     return false;
   }
 
@@ -43,7 +44,10 @@ export class Shurikens {
     this.stuck = this.stuck.filter((s) => {
       if (this.stock >= SHURIKEN.stock || s.age < SHURIKEN.pickupDelay) return true;
       const hit = s.x >= box.x - m && s.x <= box.x + box.w + m && s.y >= box.y - m && s.y <= box.y + box.h + m;
-      if (hit) this.stock++;
+      if (hit) {
+        this.stock++;
+        this.onEvent?.('pickup', { x: s.x, y: s.y });
+      }
       return !hit;
     });
   }
@@ -86,6 +90,7 @@ export class Shurikens {
         for (const e of this.enemies) {
           if (e.takeHit(box, s.x - s.dir * 20, null, DAMAGE_DEALT.shuriken)) {
             s.deflected = true;
+            this.onEvent?.('deflect', { x: s.x, y: s.y, dir: -s.dir });
             s.vx *= -0.2;
             s.vy = -60;
             s.gravity = Math.max(s.gravity, 400);
@@ -123,6 +128,7 @@ export class Shurikens {
 
   plant(d) {
     this.stuck.push({ ...d, age: 0 });
+    this.onEvent?.('stick', d);
   }
 
   /** Compteur en haut à gauche de l'écran (coordonnées écran, coin haut-gauche en x, y). */

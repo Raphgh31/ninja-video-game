@@ -54,3 +54,16 @@ html, body { overflow-x: hidden; }
   .bar { padding: .6rem .8rem; }
   h1 span { display: none; }
 }
+
+/* bouton du son : coin bas-droit sur ordinateur, coin haut-droit sur mobile */
+.mute {
+  position: fixed; right: 1rem; bottom: .55rem; z-index: 2;
+  font: inherit; font-size: .75rem; color: var(--ink); background: transparent;
+  border: 1px solid var(--line); padding: .3rem .6rem; cursor: pointer;
+}
+.mute:hover { border-color: var(--muted); }
+.mute[aria-pressed="true"] { color: var(--muted); }
+body.mobile .mute {
+  top: .4rem; right: .4rem; bottom: auto; font-size: .65rem; padding: .2rem .45rem;
+  background: rgba(21, 23, 28, .55); border-color: rgba(233, 229, 218, .25);
+}

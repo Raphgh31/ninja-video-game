@@ -12,6 +12,7 @@ const KEYMAP = {
   KeyJ: 'attack', KeyX: 'attack', Enter: 'attack',
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyH: 'debug',
+  KeyM: 'mute',
 };
 
 export class Input {

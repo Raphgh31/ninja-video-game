@@ -21,7 +21,7 @@ OUT = ROOT / "assets/characters/kage"
 DOCS = ROOT / "docs/kage"
 SPACING = 2
 PIVOT = (16, 31)          # milieu bas de la cellule : point d'ancrage des pieds
-GROUNDED = {"idle", "run", "sprint", "land", "slide"}
+GROUNDED = {"idle", "run", "sprint", "land", "slide", "skid"}
 
 
 def hex2rgb(h):
@@ -183,6 +183,8 @@ def main():
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 10, "y": 17, "w": 13, "h": 14},
             "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
+            "air_attack": {"x": 19, "y": 0, "w": 20, "h": 29, "frames": [2, 3, 4],
+                           "note": "zone de frappe du sabre en l'air"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
         },

@@ -7,6 +7,8 @@ import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
+import { Fx } from './engine/fx.js';
+import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import './style.css';
 
 // Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
@@ -55,13 +57,95 @@ const look = skins.encre;   // palette du ninja noir (les skins viendront plus t
 const level = new Level();
 const player = new Player(meta, level);
 const shurikens = new Shurikens(level, meta);
-player.onThrow = (x, y, dir, height) => shurikens.throw(x, y, dir, height);
+player.onThrow = (x, y, dir, height) => {
+  sfx('throw');
+  shurikens.throw(x, y, dir, height);
+};
 player.canThrow = () => shurikens.canThrow();
 // ennemi : TATE, posté au milieu du terrain
 const tateMeta = await loadJson('./characters/tate/tate.json');
 const tate = new Tate(tateMeta, await loadImage(`./characters/tate/${tateMeta.image}`),
   await loadImage(`./characters/tate/${tateMeta.glowImage}`), 30 * 16, level.spawn.y);
 shurikens.enemies.push(tate);
+// ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
+const fx = new Fx();
+player.onEvent = (n, d) => {
+  switch (n) {
+    case 'jump': sfx('jump'); fx.dust(d.x, d.y, 5, { spread: 25, up: 15 }); break;
+    case 'land':
+      if (d.speed > 140) {
+        const k = Math.min(1, d.speed / 420);
+        sfx('land', { strength: 0.5 + 0.5 * k });
+        fx.dust(d.x - 3, d.y, 3 + Math.round(k * 4), { dir: -1 });
+        fx.dust(d.x + 3, d.y, 3 + Math.round(k * 4), { dir: 1 });
+        if (d.speed > 400) fx.shake(1, 0.12);
+      }
+      break;
+    case 'dash': sfx('dash'); fx.dust(d.x - d.dir * 4, d.y, 7, { dir: -d.dir, spread: 50, up: 12 }); break;
+    case 'step':
+      sfx('step', { sprint: d.sprint });
+      if (d.sprint) fx.dust(d.x - d.facing * 4, d.y, 2, { dir: -d.facing, up: 10, life: 0.3 });
+      break;
+    case 'skid': sfx('skid'); break;
+    case 'skid_dust': fx.dust(d.x + d.facing * 6, d.y, 2, { dir: d.facing, spread: 40, up: 10, life: 0.3 }); break;
+    case 'slide': sfx('slide'); break;
+    case 'slide_dust': fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 20, up: 12, life: 0.35 }); break;
+    case 'wall_grab': sfx('wallGrab'); break;
+    case 'wall_slide':
+      sfx('wallSlide');
+      fx.dust(d.x + d.side * 5, d.y - 14, 1, { dir: -d.side, spread: 10, up: -10, life: 0.35 });
+      break;
+    case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
+    case 'swing': sfx('swing'); break;
+    case 'hurt':
+      sfx('hurt');
+      fx.shake(2, 0.2);
+      fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
+      break;
+    case 'death': sfx('death'); fx.shake(2, 0.25); break;
+    case 'respawn': sfx('respawn'); break;
+    default:
+  }
+};
+shurikens.onEvent = (n, d) => {
+  switch (n) {
+    case 'empty': sfx('empty'); break;
+    case 'pickup': sfx('pickup'); break;
+    case 'deflect': sfx('deflect'); fx.sparks(d.x, d.y, 4, { dir: d.dir, speed: 70 }); break;
+    case 'stick': sfx('stick'); fx.dust(d.x, d.y, 2, { spread: 15, up: 10, life: 0.25 }); break;
+    default:
+  }
+};
+tate.onEvent = (n, d) => {
+  switch (n) {
+    case 'step': sfx('tateStep'); fx.dust(d.x - 6, d.y, 2, { dir: -1, up: 8 }); fx.dust(d.x + 6, d.y, 2, { dir: 1, up: 8 }); break;
+    case 'windup': sfx('tateWindup'); break;
+    case 'bash': sfx('tateBash'); fx.dust(d.x - d.facing * 8, d.y, 6, { dir: -d.facing, spread: 40 }); break;
+    case 'bash_hit': fx.shake(3, 0.3); break;
+    case 'block': sfx('block'); fx.sparks(d.x, d.y, 7, { dir: d.facing, speed: 100 }); break;
+    case 'hit': sfx('hit'); fx.sparks(d.x, d.y - 16, 8, { palette: 'hit' }); break;
+    case 'stunned': sfx('tateStun'); break;
+    case 'defeat_kneel': sfx('tateKneel'); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
+    case 'defeat_impact':
+      sfx('tateFall');
+      fx.shake(2, 0.25);
+      fx.dust(d.x - 4, d.y, 6, { dir: -1, spread: 45 });
+      fx.dust(d.x + 14 * d.facing, d.y, 6, { dir: 1, spread: 45 });
+      break;
+    default:
+  }
+};
+
+// son : débloqué au premier geste ; bouton et touche M pour le couper
+const muteBtn = document.querySelector('.mute');
+function refreshMute() {
+  muteBtn.textContent = isMuted() ? 'Son coupé' : 'Son';
+  muteBtn.setAttribute('aria-pressed', String(isMuted()));
+}
+muteBtn.addEventListener('click', () => { setMuted(!isMuted()); refreshMute(); muteBtn.blur(); });
+refreshMute();
+for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, unlockAudio, { capture: true, passive: true });
+
 // barres de vie fines au-dessus de chaque personnage
 const kageBar = new HealthBar(HEALTH.max);
 const tateBar = new HealthBar(TATE.hp);
@@ -79,13 +163,16 @@ if (MOBILE) {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   }, { once: true });
 }
-const cam = { x: 0, y: 0 };
+const camera = { x: 0, y: 0 };
 let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
 
 function update(dt) {
+  // micro-arrêt sur un coup : tout se fige un instant (les appuis sont gardés)
+  if (fx.frozen(dt)) return;
   if (input.wasPressed('debug')) debug = !debug;
+  if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); }
   player.update(dt, input);
   // le sprint tactile se coupe tout seul à l'arrêt ou quand on est essoufflé
   if (touch?.sprintOn) {
@@ -98,24 +185,33 @@ function update(dt) {
   tate.update(dt, player);
   tate.interact(player);
   const ab = player.attackBox();
-  if (ab) tate.takeHit(ab, player.x, player.attackId);
+  if (ab) {
+    const r = tate.takeHit(ab, player.x, player.attackId);
+    if (r === 'hit') fx.hitStop(0.07);
+    else if (r === 'blocked') fx.hitStop(0.04);
+  }
+  fx.update(dt);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
   tateBar.update(dt, Math.max(0, tate.hp));
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
-  cam.x += (tx - cam.x) * Math.min(1, dt * 8);
-  cam.y += (ty - cam.y) * Math.min(1, dt * 6);
+  camera.x += (tx - camera.x) * Math.min(1, dt * 8);
+  camera.y += (ty - camera.y) * Math.min(1, dt * 6);
   input.endFrame();
 }
 
 function draw() {
+  // secousse de l'écran : décalage temporaire de la caméra
+  const shake = fx.offset();
+  const cam = { x: camera.x + shake.x, y: camera.y + shake.y };
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   tate.draw(ctx, cam, player);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  fx.draw(ctx, cam);
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   if (!tate.gone) {
     const fade = tate.state === 'defeated' ? Math.max(0, 1 - tate.timer / 0.6) : 1;
@@ -166,4 +262,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate };
+window.__kage = { player, input, level, shurikens, touch, tate, fx };

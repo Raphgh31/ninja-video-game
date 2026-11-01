@@ -44,6 +44,12 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | land | 3 | 18 | non | contact avec le sol |
 | dash | 5 | 20 | non | dash (double appui ← ← ou → →), 0,25 s |
 | throw | 5 | durées par frame (≈ 0,37 s) | non | lancer de shuriken : armé derrière la tête, bras tendu au lâcher (frame 3, point `release`), accompagnement |
+| hurt | 2 | 8 | non | touché : recul, visage crispé |
+| wall_slide | 2 | 6 | oui | glissade le long d'un mur (dos au mur, foulard soufflé vers le haut) |
+| wall_jump | 2 | 10 | non | poussée sur le mur |
+| air_attack | 6 | durées par frame | non | sabre en l'air : même demi-cercle, sans fente, jambes repliées (`hitbox.air_attack`) |
+| air_throw | 4 | durées par frame | non | shuriken en l'air, bras tendu au lâcher |
+| skid | 2 | 12 | oui | dérapage au demi-tour en pleine course |
 | attack | 7 | durées par frame (≈ 0,4 s) | non | coup de sabre : dégainé en fente, demi-cercle devant, rengainé. Zone de frappe active sur les frames 3 à 5 (`hitbox.attack`) |
 | slide | 3 | 12 | oui, à partir de la frame 2 | glissade |
 | death | 6 | 14 | non | destruction en blocs |
@@ -51,6 +57,16 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 
 - **Ancrage** : `(16, 31)`, milieu bas de la cellule, sous les pieds. Toutes les frames au sol posent les pieds sur la ligne 31 (vérifié automatiquement).
 - **Orientation** : les animations regardent à droite. Pour la gauche, on retourne le sprite (`flipForLeft: true`). L'asymétrie (nœud derrière la tête, pans qui traînent derrière) est relative à l'orientation, donc le retournement reste juste. Seule la vue de référence « profil gauche » est dessinée à part : le pan long y passe du côté éloigné, plus sombre.
+
+## Saut mural
+
+En l'air contre un mur, en poussant vers lui : glissade (chute limitée à 50 px/s). Un saut propulse à l'opposé (150 px/s, impulsion 300 px/s, 0,16 s pendant lesquelles la poussée l'emporte sur les commandes). Coûte 10 % d'énergie comme un saut. On peut rebondir d'un mur à l'autre, mais pas enchaîner deux sauts sur le même mur sans toucher le sol ou un autre mur. Réglages dans `P` (`src/game/player.js`).
+
+## Effets et sons
+
+- **Poussière** (`src/engine/fx.js`) : saut, atterrissage (selon la hauteur), dash, foulées du sprint, dérapage, glissade, glissade murale, saut mural, shuriken qui se plante, pas lourds et chute de TATE.
+- **Étincelles** sur le bouclier, **micro-arrêt de l'image** sur un coup de sabre (0,07 s s'il touche, 0,04 s s'il est bloqué), **secousse de l'écran** à la charge de TATE, quand KAGE est touché et à la chute de TATE.
+- **Sons synthétisés** en direct (`src/engine/sfx.js`, Web Audio, aucun fichier) : pas, saut, atterrissage, dash, dérapage, glissade, mur, lame, impacts, bouclier, shuriken (lancer, planté, dévié, ramassé, stock vide), dégâts, mort, réapparition, et tous les sons de TATE. Bouton « Son » et touche M pour couper (choix mémorisé).
 
 ## Énergie
 

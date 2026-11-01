@@ -23,7 +23,18 @@ const P = {
   landTime: 0.12,
   deathPause: 0.35,
   lunge: 75,          // petite fente avant pendant le coup de sabre (px/s)
+  wallSlide: 50,      // vitesse de chute maximale en glissade murale (px/s)
+  wallJumpX: 150,     // saut mural : poussée horizontale (px/s)
+  wallJumpY: 300,     // saut mural : impulsion verticale (px/s)
+  wallJumpLock: 0.16, // s pendant lesquelles la poussée du mur l'emporte sur les commandes
+  wallCoyote: 0.1,    // s pendant lesquelles on peut encore sauter après avoir quitté le mur
+  skidSpeed: 70,      // vitesse minimale pour déraper en changeant de sens (px/s)
+  skidTime: 0.2,      // s de dérapage au plus
+  skidDecel: 650,     // freinage pendant le dérapage (px/s²) : assez doux pour qu'on le voie
+  throwCooldown: 0.35,// s minimum entre deux lancers de shuriken
+  airAttackFall: 160, // chute maximale pendant un coup de sabre en l'air (px/s)
 };
+const STEP_FRAMES = [0, 3];   // images de contact au sol dans les cycles de course et de sprint
 
 export class Player {
   constructor(meta, level) {
@@ -47,19 +58,69 @@ export class Player {
     this.jumpBuffer = 0;
     this.timer = 0;
     this.airDash = true;
+    this.wallLock = 0;
+    this.wallCoyote = 0;
+    this.lastWall = 0;        // côté du dernier mur touché
+    this.lastWallJump = null; // { side, tx } : pas deux sauts d'affilée sur le même mur
+    this.throwCd = 0;
+    this.fxTimer = 0;
     this.level.resetTargets?.();
     this.energy?.reset();
     this.hp = HEALTH.max;
     this.invuln = 0;
     this.safe = { x: this.x, y: this.y };
     this.onRespawn?.();
+    if (!instant) this.emit('respawn');
     this.setState(instant ? 'idle' : 'respawn');
   }
 
   setState(s) {
     this.state = s;
     this.timer = 0;
-    this.anim.play(s === 'hurt' ? 'fall' : s, { restart: true });
+    this.anim.play(s, { restart: true });
+  }
+
+  /** Signale un événement (sons, poussière, secousses) : géré dans main.js. */
+  emit(name, data = {}) {
+    this.onEvent?.(name, { x: this.x, y: this.y, facing: this.facing, ...data });
+  }
+
+  /** Côté d'un mur collé au personnage : -1 (gauche), 1 (droite) ou 0.
+   * Marge de 2 px : la boîte se décale d'1 px quand KAGE se retourne. */
+  wallSide() {
+    const b = this.box();
+    const y0 = Math.floor((b.y + 2) / TILE), y1 = Math.floor((b.y + b.h - 3) / TILE);
+    const lx = Math.floor((b.x - 2) / TILE), rx = Math.floor((b.x + b.w + 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) {
+      if (this.level.solid(rx, ty)) return 1;
+      if (this.level.solid(lx, ty)) return -1;
+    }
+    return 0;
+  }
+
+  /** Colonne de tuiles du mur situé du côté `side`. */
+  wallTile(side) {
+    const b = this.box();
+    return side > 0 ? Math.floor((b.x + b.w + 1) / TILE) : Math.floor((b.x - 2) / TILE);
+  }
+
+  canWallJump(side) {
+    const j = this.lastWallJump;
+    return !(j && j.side === side && j.tx === this.wallTile(side));
+  }
+
+  wallJump(side) {
+    this.lastWallJump = { side, tx: this.wallTile(side) };
+    this.vx = -side * P.wallJumpX;
+    this.vy = -P.wallJumpY;
+    this.facing = -side;
+    this.energy.spend(ENERGY.jump);
+    this.jumpBuffer = 0;
+    this.wallLock = P.wallJumpLock;
+    this.wallCoyote = 0;
+    this.airDash = true;
+    this.emit('wall_jump', { side });
+    this.setState('wall_jump');
   }
 
   /** Boîte de collision selon l'état (définie dans kage.json, relative à la cellule). */
@@ -74,6 +135,11 @@ export class Player {
   update(dt, input) {
     this.timer += dt;
     this.invuln = Math.max(0, this.invuln - dt);
+    this.wallLock = Math.max(0, this.wallLock - dt);
+    this.wallCoyote = Math.max(0, this.wallCoyote - dt);
+    this.throwCd = Math.max(0, this.throwCd - dt);
+    this.fxTimer += dt;
+    const prevFrame = this.anim.frame;
     const L = input.isHeld('left'), R = input.isHeld('right');
     const dir = (R ? 1 : 0) - (L ? 1 : 0);
     if (input.wasPressed('jump')) this.jumpBuffer = P.buffer;
@@ -103,29 +169,77 @@ export class Player {
         if (this.timer >= HEALTH.hurtLock && this.onGround) this.endSpecial();
         else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
-      case 'attack': {
-        // légère fente pendant le dégainé et le demi-cercle, puis on s'arrête
+      case 'attack':
+      case 'air_attack': {
+        // au sol : légère fente pendant le dégainé et le demi-cercle ; en l'air : on garde l'élan
         const f = this.anim.frame;
-        const want = this.onGround ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.vx;
+        const lunge = this.state === 'attack' && this.onGround;
+        const want = lunge ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.onGround ? 0 : this.vx;
         this.vx += Math.sign(want - this.vx) * Math.min(Math.abs(want - this.vx), P.friction * dt);
         const box = this.attackBox();
         if (box) this.level.hitTargets(box, this.facing);
         if (this.anim.finished) this.endSpecial();
         break;
       }
-      case 'throw': {
+      case 'throw':
+      case 'air_throw': {
         // au sol on se plante sur ses appuis ; en l'air on garde son élan
         if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
         const r = this.anim.anim.release;
         if (!this.thrown && this.anim.frame >= r.frame) {
           this.thrown = true;
+          this.throwCd = P.throwCooldown;
           const { pivot } = this.meta;
           this.onThrow?.(this.x + this.facing * (r.x - pivot.x), this.y - pivot.y + r.y, this.facing, pivot.y - r.y);
         }
         if (this.anim.finished) this.endSpecial();
         break;
       }
+      case 'wall_slide': {
+        const side = this.wallSide();
+        if (this.onGround) {
+          this.setState('idle');
+          break;
+        }
+        if (!side || dir !== side) {
+          // on lâche le mur : on peut encore sauter un court instant
+          this.lastWall = side || this.lastWall;
+          this.wallCoyote = P.wallCoyote;
+          this.facing = -this.lastWall;
+          this.setState('fall');
+          break;
+        }
+        this.lastWall = side;
+        this.facing = -side;
+        this.vx = 0;
+        if (this.jumpBuffer > 0 && this.canWallJump(side)) {
+          this.wallJump(side);
+          break;
+        }
+        if (this.fxTimer > 0.08) {
+          this.fxTimer = 0;
+          this.emit('wall_slide', { side });
+        }
+        break;
+      }
+      case 'skid': {
+        // dérapage : on freine fort en gardant l'orientation de l'élan
+        this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.skidDecel * dt);
+        if (this.fxTimer > 0.05) {
+          this.fxTimer = 0;
+          this.emit('skid_dust');
+        }
+        if (this.timer >= P.skidTime || Math.abs(this.vx) < 10) {
+          if (dir) this.facing = dir;
+          this.setState(dir ? 'run' : 'idle');
+        }
+        break;
+      }
       case 'slide':
+        if (this.fxTimer > 0.06) {
+          this.fxTimer = 0;
+          this.emit('slide_dust');
+        }
         this.vx = this.facing * P.slideSpeed * (1 - 0.45 * (this.timer / P.slideTime));
         if (this.timer >= P.slideTime && !this.ceilingAbove()) this.endSpecial();
         else if (!this.onGround) this.setState('fall');
@@ -134,11 +248,21 @@ export class Player {
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
         this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
+        // dérapage : demi-tour brusque en pleine course (y compris juste après avoir lâché la touche)
+        if (this.onGround && dir !== 0 && Math.sign(this.vx) === -dir && Math.abs(this.vx) > P.skidSpeed
+            && (this.state === 'run' || this.state === 'sprint' || this.state === 'idle')) {
+          this.facing = Math.sign(this.vx);
+          this.emit('skid');
+          this.setState('skid');
+          break;
+        }
         const target = dir * (this.sprinting ? P.sprint : P.run) * this.energy.speedFactor;
-        const a = dir !== 0 ? P.accel : P.friction;
-        if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
-        else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
-        if (dir !== 0) this.facing = dir;
+        if (this.wallLock <= 0) {
+          const a = dir !== 0 ? P.accel : P.friction;
+          if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
+          else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
+          if (dir !== 0) this.facing = dir;
+        }
 
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = -P.jump;
@@ -146,7 +270,15 @@ export class Player {
           this.onGround = false;
           this.coyote = 0;
           this.jumpBuffer = 0;
+          this.emit('jump');
           this.setState('jump');
+        } else if (this.jumpBuffer > 0 && !this.onGround) {
+          // saut mural : contre un mur, ou juste après l'avoir quitté
+          const side = this.wallSide() || (this.wallCoyote > 0 ? this.lastWall : 0);
+          if (side && this.canWallJump(side)) {
+            this.wallJump(side);
+            break;
+          }
         }
         if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump') {
           this.vy *= 1 - P.jumpCut * dt * 10;
@@ -155,20 +287,23 @@ export class Player {
         if (dashDir && (this.onGround || this.airDash) && this.energy.trySpend(ENERGY.dash)) {
           if (!this.onGround) this.airDash = false;
           this.facing = dashDir;
+          this.emit('dash', { dir: dashDir });
           this.setState('dash');
           break;
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
-          this.setState('attack');
+          this.emit('swing');
+          this.setState(this.onGround ? 'attack' : 'air_attack');
           break;
         }
-        if (input.wasPressed('throw') && (this.canThrow?.() ?? true)) {
+        if (input.wasPressed('throw') && this.throwCd <= 0 && (this.canThrow?.() ?? true)) {
           this.thrown = false;
-          this.setState('throw');
+          this.setState(this.onGround ? 'throw' : 'air_throw');
           break;
         }
         if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && Math.abs(this.vx) > 20) {
+          this.emit('slide');
           this.setState('slide');
           break;
         }
@@ -178,13 +313,17 @@ export class Player {
     // gravité (sauf pendant le dash)
     if (this.state !== 'dash') {
       this.vy = Math.min(P.maxFall, this.vy + P.gravity * dt);
+      if (this.state === 'wall_slide') this.vy = Math.min(this.vy, P.wallSlide);
+      if (this.state === 'air_attack') this.vy = Math.min(this.vy, P.airAttackFall);
     }
     const wasGround = this.onGround;
+    const fallSpeed = this.vy;
     this.move(dt);
 
     if (this.onGround) {
       this.coyote = P.coyote;
       this.airDash = true;
+      this.lastWallJump = null;
     } else {
       this.coyote = Math.max(0, this.coyote - dt);
     }
@@ -192,11 +331,19 @@ export class Player {
     // transitions d'animation
     const s = this.state;
     const moving = this.sprinting ? 'sprint' : 'run';
-    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'land' || s === 'jump' || s === 'fall') {
-      if (!this.onGround) {
+    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump') {
+      const side = this.wallSide();
+      if (!this.onGround && this.vy > 0 && side && dir === side && s !== 'wall_jump' || (s === 'wall_jump' && this.vy > 0 && side && dir === side)) {
+        // contre un mur en tombant, en poussant vers lui : glissade murale
+        this.lastWall = side;
+        this.facing = -side;
+        this.emit('wall_grab', { side });
+        this.setState('wall_slide');
+      } else if (!this.onGround) {
         if (this.vy > 30 && s !== 'fall') this.setState('fall');
-        else if (s !== 'jump' && s !== 'fall') this.setState('fall');
+        else if (s !== 'jump' && s !== 'fall' && s !== 'wall_jump') this.setState('fall');
       } else if (!wasGround) {
+        this.emit('land', { speed: fallSpeed });
         this.setState('land');
       } else if (s === 'land') {
         if (this.timer >= P.landTime && (dir !== 0 || this.anim.finished)) this.setState(dir ? moving : 'idle');
@@ -205,6 +352,11 @@ export class Player {
       } else if (s !== 'idle') {
         this.setState('idle');
       }
+    }
+
+    // bruit de pas : images de contact du cycle de course / sprint
+    if ((this.state === 'run' || this.state === 'sprint') && this.anim.frame !== prevFrame && STEP_FRAMES.includes(this.anim.frame)) {
+      this.emit('step', { sprint: this.state === 'sprint' });
     }
 
     if (this.y > this.level.height + 64) {
@@ -239,6 +391,7 @@ export class Player {
     if (this.invuln > 0 || this.state === 'death' || this.state === 'respawn') return false;
     this.hp = Math.max(0, this.hp - dmg);
     this.onHurt?.(dmg);
+    this.emit('hurt', { dmg, fromX });
     if (this.hp <= 0) {
       this.die();
       return true;
@@ -256,13 +409,15 @@ export class Player {
     if (this.state === 'death' || this.state === 'respawn') return;
     this.vx = 0;
     this.vy = 0;
+    this.emit('death');
     this.setState('death');
   }
 
   /** Zone de frappe du sabre, active seulement sur les frames du demi-cercle. */
   attackBox() {
-    const a = this.meta.hitbox.attack;
-    if (this.state !== 'attack' || !a.frames.includes(this.anim.frame)) return null;
+    if (this.state !== 'attack' && this.state !== 'air_attack') return null;
+    const a = this.meta.hitbox[this.state];
+    if (!a.frames.includes(this.anim.frame)) return null;
     const { pivot } = this.meta;
     const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
     return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };

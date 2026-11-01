@@ -47,6 +47,7 @@ export class Tate {
     this.flash = 0;
     this.bashHit = false;
     this.lastHit = -1;
+    this.lastFrame = null;
     this.gone = false;
   }
 
@@ -81,16 +82,12 @@ export class Tate {
     if (this.backExposedTo(attackerX)) {
       this.hp -= dmg;
       this.flash = 0.18;
-      if (this.hp <= 0) {
-        this.state = 'defeated';
-        this.timer = 0;
-      }
+      this.onEvent?.('hit', { x: this.x, y: this.y, dmg });
+      if (this.hp <= 0) this.setState('defeated');
       return 'hit';
     }
-    if (this.state === 'walk') {
-      this.state = 'guard';
-      this.timer = 0;
-    }
+    this.onEvent?.('block', { x: this.box('shield').x + this.box('shield').w / 2, y: box.y + box.h / 2, facing: this.facing });
+    if (this.state === 'walk') this.setState('guard');
     return 'blocked';
   }
 
@@ -101,8 +98,24 @@ export class Tate {
     this.flash = Math.max(0, this.flash - dt);
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.state === 'defeated') {
+      // temps forts de la chute : genou à terre, puis impact au sol
+      const f = this.frameName();
+      if (f !== this.lastFrame) {
+        this.lastFrame = f;
+        if (f === 'defeat_kneel' || f === 'defeat_impact') this.onEvent?.(f, { x: this.x, y: this.y, facing: this.facing });
+      }
       if (this.timer > TATE.defeatFade) this.gone = true;
       return;
+    }
+    // pas lourd : à chaque changement d'image de marche
+    if (this.state === 'walk') {
+      const f = this.frameName();
+      if (f !== this.lastFrame) {
+        this.lastFrame = f;
+        this.onEvent?.('step', { x: this.x, y: this.y, facing: this.facing });
+      }
+    } else {
+      this.lastFrame = null;
     }
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
@@ -171,6 +184,7 @@ export class Tate {
   setState(s) {
     this.state = s;
     this.timer = 0;
+    this.onEvent?.(s, { x: this.x, y: this.y, facing: this.facing });
   }
 
   /** Effets sur KAGE : charge mortelle, corps solide (sauf en glissade). */
@@ -180,7 +194,7 @@ export class Tate {
     const overlap = (b) => pb.x < b.x + b.w && pb.x + pb.w > b.x && pb.y < b.y + b.h && pb.y + pb.h > b.y;
     if (this.state === 'bash' && player.state !== 'slide' && overlap(this.box('bash'))) {
       this.bashHit = true;
-      player.hurt(DAMAGE_TAKEN.tateBash, this.x);
+      if (player.hurt(DAMAGE_TAKEN.tateBash, this.x)) this.onEvent?.('bash_hit', { x: player.x, y: player.y });
       return;
     }
     if (player.state === 'slide') return;   // glisse entre ses jambes

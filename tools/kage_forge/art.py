@@ -365,15 +365,16 @@ import math  # noqa: E402
 SLASH_C = (17, 20)   # centre du demi-cercle : l'épaule proche pendant la fente
 
 
-def slash(a0, a1, layers):
+def slash(a0, a1, layers, center=None):
     """Traînée de lame : arc de cercle (angles en degrés, 0 = devant, -90 = haut).
     layers = [(rayon, slot), ...] ; dessinée sous le personnage, sans contour."""
     g = np.full((CH, CW), ".", dtype="<U1")
     for r, c in layers:
         for k in range(0, 1 + int(abs(a1 - a0) * 2)):
             a = math.radians(a0 + (a1 - a0) * k / max(1, int(abs(a1 - a0) * 2)))
-            x = round(SLASH_C[0] + r * math.cos(a))
-            y = round(SLASH_C[1] + r * math.sin(a))
+            cx, cy = center or SLASH_C
+            x = round(cx + r * math.cos(a))
+            y = round(cy + r * math.sin(a))
             if 0 <= x < CW and 0 <= y < 31:
                 g[y, x] = c
     return G(g)
@@ -524,6 +525,116 @@ SPRINT = [
 ]
 
 # ---------------------------------------------------------------------------
+# HURT — touché : recul, bras projetés, visage crispé ; puis reprise d'appui
+# ---------------------------------------------------------------------------
+HURT = [
+    F(pose(torso="up", tx=11, ty=17, head="head_r_squint",
+           near_leg=[(17, 25), (19, 26)], near_foot="point",
+           far_leg=[(12, 25), (11, 27)], far_foot="down",
+           near_arm=[(17, 18), (20, 16)], far_arm=[(15, 18), (18, 16)],
+           tail_long=[(-2, -3), (-3, -6), (-4, -9)],
+           tail_short=[(-2, -2), (-4, -4), (-5, -6)]),
+      A("X.X\n.X.\nX.X", x=25, top=10)),
+    F(pose(torso="up", tx=12, ty=18, head="head_r_squint",
+           near_leg=[(18, 25), (18, 27)], near_foot="tuck",
+           far_leg=[(13, 25), (12, 27)], far_foot="down",
+           near_arm=[(17, 20), (19, 19)], far_arm=[(14, 20), (13, 21)],
+           tail_long=[(-2, -2), (-4, -5), (-5, -8)],
+           tail_short=[(-2, -1), (-4, -3), (-6, -4)])),
+]
+
+# ---------------------------------------------------------------------------
+# WALL SLIDE — dos contre le mur (mur à gauche de la cellule, col < 12),
+# main lointaine plaquée au mur, foulard soufflé vers le haut
+# ---------------------------------------------------------------------------
+WALL_SLIDE = [
+    F(pose(torso="up", tx=12, ty=18,
+           far_arm=[(12, 18), (12, 15)], near_arm=[(17, 21), (19, 20)],
+           far_leg=[(13, 25), (12, 27)], far_foot="down",
+           near_leg=[(18, 24), (17, 27)], near_foot="tuck",
+           tail_long=[(-1, -3), (-2, -6), (-2, -9)],
+           tail_short=[(-2, -2), (-3, -4), (-4, -6)])),
+    F(pose(torso="up", tx=12, ty=18,
+           far_arm=[(12, 18), (12, 15)], near_arm=[(17, 21), (19, 21)],
+           far_leg=[(13, 25), (12, 27)], far_foot="down",
+           near_leg=[(18, 24), (17, 27)], near_foot="tuck",
+           tail_long=[(-1, -3), (-1, -6), (-3, -9)],
+           tail_short=[(-2, -2), (-2, -4), (-4, -5)])),
+]
+
+# ---------------------------------------------------------------------------
+# WALL JUMP — poussée sur le mur : jambes tendues vers le mur, bras vers l'avant
+# ---------------------------------------------------------------------------
+WALL_JUMP = [
+    F(pose(torso="lean", tx=13, ty=16, head="head_r_up",
+           near_arm=[(18, 16), (20, 14)], far_arm=[(16, 17), (18, 15)],
+           near_leg=[(15, 24), (13, 26)], near_foot="back",
+           far_leg=[(13, 24), (11, 25)], far_foot="back",
+           tail_long=[(-2, 2), (-4, 5), (-5, 8)],
+           tail_short=[(-2, 2), (-3, 5), (-4, 7)])),
+    F(pose(torso="lean", tx=13, ty=16, head="head_r_up",
+           near_arm=[(18, 17), (20, 16)], far_arm=[(16, 18), (18, 17)],
+           near_leg=[(18, 23), (17, 25)], near_foot="tuck",
+           far_leg=[(15, 23), (14, 25)], far_foot="down",
+           tail_long=[(-3, 1), (-5, 4), (-7, 6)],
+           tail_short=[(-2, 2), (-4, 4), (-5, 6)])),
+]
+
+# ---------------------------------------------------------------------------
+# AIR ATTACK — sabre en l'air : même demi-cercle, sans fente, jambes repliées
+# ---------------------------------------------------------------------------
+AIR_C = (17, 18)
+AIR_LEGS = dict(near_leg=[(18, 24), (17, 26)], near_foot="tuck",
+                far_leg=[(15, 24), (13, 26)], far_foot="down")
+AIR_LEAN = dict(torso="lean", tx=13, ty=17, far_arm=[(14, 20), (13, 22)],
+                tail_long=[(-3, -1), (-6, -2), (-9, -3)],
+                tail_short=[(-3, 0), (-5, 1), (-7, 1)], **AIR_LEGS)
+AIR_ATTACK = [
+    F(pose(torso="up", tx=12, ty=16, near_arm=[(16, 19), (14, 20)], far_arm=[(13, 18), (12, 20)],
+           tail_long=[(-2, -1), (-4, -3), (-6, -5)], tail_short=[(-2, 0), (-4, -1), (-6, -2)], **AIR_LEGS)),
+    F(pose(**AIR_LEAN, head="head_r_squint", near_arm=[(19, 17), (21, 14)], blade=(26, 2))),
+    Frame([slash(-76, -6, [(20, "q"), (19, "X")], AIR_C),
+           G(pose(**AIR_LEAN, head="head_r_squint", near_arm=[(20, 18), (23, 17)], blade=(36, 15)))]),
+    Frame([slash(-76, -12, [(19, "X")], AIR_C), slash(-12, 52, [(20, "q"), (19, "X")], AIR_C),
+           G(pose(**AIR_LEAN, head="head_r_squint", near_arm=[(20, 20), (23, 21)], blade=(35, 28)))]),
+    Frame([slash(14, 50, [(19, "z")], AIR_C),
+           G(pose(**AIR_LEAN, near_arm=[(19, 21), (22, 23)], blade=(32, 28)))]),
+    F(pose(torso="up", tx=12, ty=16, near_arm=[(16, 19), (15, 20)], far_arm=[(13, 18), (12, 20)], blade=(9, 21),
+           tail_long=[(-2, -1), (-4, -3), (-6, -5)], tail_short=[(-2, 0), (-4, -1), (-6, -2)], **AIR_LEGS)),
+]
+
+# ---------------------------------------------------------------------------
+# AIR THROW — shuriken en l'air : armé, bras tendu au lâcher, accompagnement
+# ---------------------------------------------------------------------------
+AIR_THROW_RELEASE = {"frame": 1, "x": 28, "y": 18}
+AIR_THROW = [
+    Frame([G(pose(torso="up", tx=12, ty=16, near_arm=[(13, 15), (10, 13)], far_arm=[(17, 18), (21, 17)],
+                  tail_long=[(-2, -1), (-4, -3), (-6, -5)], tail_short=[(-2, 0), (-4, -1), (-6, -2)],
+                  **AIR_LEGS)),
+           holding(9, 11)]),
+    Frame([A("zz.zzz", x=33, top=18),
+           G(pose(**{**AIR_LEAN, "far_arm": [(13, 20), (11, 21)]}, head="head_r_squint",
+                  near_arm=[(21, 18), (25, 18)]))]),
+    F(pose(**{**AIR_LEAN, "far_arm": [(13, 20), (11, 22)]}, near_arm=[(21, 19), (24, 21)])),
+    F(pose(torso="up", tx=12, ty=16, near_arm=[(16, 20), (17, 22)], far_arm=[(13, 19), (12, 21)],
+           tail_long=[(-2, -1), (-4, -3), (-6, -5)], tail_short=[(-2, 0), (-4, -1), (-6, -2)], **AIR_LEGS)),
+]
+
+# ---------------------------------------------------------------------------
+# SKID — dérapage au demi-tour : buste en arrière, pied avant qui glisse
+# ---------------------------------------------------------------------------
+SKID = [
+    F(pose(torso="up", tx=11, ty=19, head="head_r_squint",
+           near_leg=[(19, 26), (22, 28)], far_leg=[(13, 26), (12, 28)],
+           near_arm=[(14, 21), (12, 19)], far_arm=[(16, 20), (19, 18)],
+           tail_long=[(-1, -2), (-2, -5), (-2, -8)], tail_short=[(-2, -1), (-3, -3), (-4, -5)])),
+    F(pose(torso="up", tx=11, ty=20, head="head_r_squint",
+           near_leg=[(19, 27), (22, 28)], far_leg=[(13, 27), (12, 28)],
+           near_arm=[(14, 22), (12, 20)], far_arm=[(16, 21), (19, 19)],
+           tail_long=[(-1, -2), (-3, -5), (-3, -8)], tail_short=[(-2, -1), (-4, -2), (-5, -4)])),
+]
+
+# ---------------------------------------------------------------------------
 # VUES — face, dos, profil gauche, profil droit
 # ---------------------------------------------------------------------------
 stamp("head_f", """
@@ -648,6 +759,14 @@ ANIMS = {
                           durations=[60, 50, 40, 45, 70, 70, 70]),
     "throw":         dict(frames=THROW,   fps=14, loop=False, state="throw",
                           durations=[80, 60, 45, 90, 90], release=THROW_RELEASE),
+    "hurt":          dict(frames=HURT,    fps=8,  loop=False, state="hurt"),
+    "wall_slide":    dict(frames=WALL_SLIDE, fps=6, loop=True, state="wall_slide"),
+    "wall_jump":     dict(frames=WALL_JUMP, fps=10, loop=False, state="wall_jump"),
+    "air_attack":    dict(frames=AIR_ATTACK, fps=16, loop=False, state="air_attack",
+                          durations=[50, 45, 40, 45, 60, 60]),
+    "air_throw":     dict(frames=AIR_THROW, fps=14, loop=False, state="air_throw",
+                          durations=[70, 45, 90, 90], release=AIR_THROW_RELEASE),
+    "skid":          dict(frames=SKID,    fps=12, loop=True,  state="skid"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),
