@@ -251,6 +251,96 @@ def defeated():
     return cv.outline()
 
 
+# ---------------------------------------------------------------------------
+# Mort, en 4 temps lourds : un genou à terre, bascule, impact, au sol
+# ---------------------------------------------------------------------------
+def fallen_shield(cv):
+    """Bouclier tombé à plat devant lui."""
+    cv.put(24, 28, "VvVwVvVwVvBRB")
+    cv.put(24, 29, "BRBBbBBRBVvVw")
+    cv.put(24, 30, "wwwwwwwwwwwww")
+
+
+def defeat_kneel(glow=False):
+    """Touché à mort : bouclier lâché, un genou à terre, tête basse."""
+    cv = Canvas()
+    fallen_shield(cv)
+    cv.block(6, 24, [
+        "....cCCcCCkCcC...",
+        "....cCCcCCCCCgG..",
+        "...cCCkcC.....gG.",
+        "..gGGg........gG.",
+        "gGGG..........sss",
+        "ss...............",
+    ])
+    cv.block(9, 18, [
+        "..aAAqAc....",
+        ".aAAAAAAc...",
+        "aAqAAqAAa...",
+        "aaAaaAaaa...",
+        "aAAqAAqAa...",
+        "yYyyYyyYy...",
+    ])
+    back_gear(cv, 9, 18, glow)
+    cv.block(8, 20, ["aA", "cC", "cC", "bB", "gG"])
+    cv.block(12, 14, [".cmMMMMn", ".cmMMeMe", ".cmnMnMn", "..cmmmm."])
+    cv.block(8, 9, ["........J......", "......jjJii....", "....jjjJJJii...",
+                    "..jjjjJJJJJJii.", ".rrrrrrrrrrrrrr"])
+    return cv.outline()
+
+
+def defeat_topple(glow=False):
+    """Il bascule en avant d'un bloc ; le chapeau s'envole."""
+    cv = Canvas()
+    fallen_shield(cv)
+    cv.block(8, 19, [
+        "...........cmMMMMn....",
+        "..........cmMMeMen....",
+        ".........aAAqAAcmmm...",
+        "........aAAqAAqAa.....",
+        ".......aAqAAqAAa......",
+        "......yYyyYyya........",
+        ".....cCCcCCkC.........",
+        "....cCCCcCCC.cC.......",
+        "...cCCkcCC....gG......",
+        "gGGGgG........gG......",
+        "sss...........sss.....",
+    ])
+    cv.block(9, 16, ["..y", ".pp", ".Ep", "pp.", "Ep.", "P.."])
+    cv.block(26, 9, ["..jJi...", "jjJJJii.", ".rrrrrrr"])
+    return cv.outline()
+
+
+def _lying(cv):
+    cv.block(4, 25, [
+        "..............pPpp...........",
+        "...gg.cCCcyAAqAAqAAa.cmMMn...",
+        "ssggGcCCCCyaAAqAAqAAacmMMMn..",
+        "ssgGGcCCCcyaaAaaAaaa.cmmmn...",
+    ])
+
+
+def defeat_impact(glow=False):
+    """Il s'écrase face contre terre : nuage de poussière."""
+    cv = Canvas()
+    fallen_shield(cv)
+    _lying(cv)
+    cv.block(35, 26, ["...J...", "..jJi..", "rrrrrrr"])
+    cv.block(1, 24, ["x.x", ".x.", "x.."])
+    cv.block(15, 22, ["x...x...x", ".x.....x."])
+    cv.block(31, 23, ["x.x", "..x"])
+    return cv.outline()
+
+
+def defeat_down(glow=False):
+    """Au sol, immobile (puis disparaît en fondu en jeu)."""
+    cv = Canvas()
+    fallen_shield(cv)
+    _lying(cv)
+    cv.block(35, 26, ["...J...", "..jJi..", "rrrrrrr"])
+    return cv.outline()
+
+
 POSES = {
     "marche_1": walk(0),
     "marche_2": walk(1),
@@ -258,7 +348,10 @@ POSES = {
     "garde": guard(),
     "coup_de_bouclier": bash(),
     "etourdi": stunned(),
-    "vaincu": defeated(),
+    "vaincu_1_genou": defeat_kneel(),
+    "vaincu_2_bascule": defeat_topple(),
+    "vaincu_3_impact": defeat_impact(),
+    "vaincu_4_au_sol": defeat_down(),
 }
 
 
@@ -272,5 +365,8 @@ GAME_FRAMES = [
     ("windup", lambda g=False: guard(g, sparks=False)),
     ("bash", bash),
     ("stunned", stunned),
-    ("defeated", lambda g=False: defeated()),
+    ("defeat_kneel", defeat_kneel),
+    ("defeat_topple", defeat_topple),
+    ("defeat_impact", defeat_impact),
+    ("defeat_down", defeat_down),
 ]

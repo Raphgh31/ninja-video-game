@@ -53,7 +53,7 @@ def main():
         glow.paste(to_img(halo), (x, 0))
         # contrôle : les pieds doivent toucher la ligne d'ancrage (sauf « vaincu »)
         rows = [y for y in range(H) if any(c not in (".",) and c not in NO_OUTLINE for c in plain[y])]
-        if name != "defeated" and max(rows) != 30:
+        if not name.startswith("defeat") and max(rows) != 30:
             raise SystemExit(f"{name} : pieds hors du sol (bas = {max(rows)})")
         frames[name] = {"x": x, "y": 0, "w": W, "h": H}
     sheet.save(OUT / "tate_sheet.png")
@@ -72,7 +72,9 @@ def main():
             "windup": {"frames": ["windup"], "fps": 1, "loop": False},
             "bash": {"frames": ["bash"], "fps": 1, "loop": False},
             "stunned": {"frames": ["stunned"], "fps": 1, "loop": False},
-            "defeated": {"frames": ["defeated"], "fps": 1, "loop": False},
+            "defeated": {"frames": ["defeat_kneel", "defeat_topple", "defeat_impact", "defeat_down"],
+                         "durations": [600, 120, 220, 0], "loop": False,
+                         "note": "un genou à terre (long), bascule (rapide), impact, au sol ; 0 = jusqu'à la fin"},
         },
         "boxes": {
             "body": {"x": 8, "y": 8, "w": 14, "h": 23, "note": "corps solide"},

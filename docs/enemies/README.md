@@ -22,4 +22,4 @@ Garde de temple trapu, retranché derrière un grand bouclier en bois cerclé de
 | Esquive | sauter par-dessus à la fin de l'élan, ou glisser sous lui |
 | Charge ratée | étourdi 1,4 s |
 | Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 2 coups (sabre ou shuriken) le battent |
-| Vaincu | tombe à genoux puis disparaît ; il revient quand KAGE réapparaît |
+| Vaincu | mort lourde en 4 temps : un genou à terre (0,6 s), bascule (0,12 s), impact avec poussière (0,22 s), au sol ; puis fondu. Il revient quand KAGE réapparaît |

@@ -49,8 +49,26 @@
       "w": 48,
       "h": 32
     },
-    "defeated": {
+    "defeat_kneel": {
       "x": 300,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "defeat_topple": {
+      "x": 350,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "defeat_impact": {
+      "x": 400,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "defeat_down": {
+      "x": 450,
       "y": 0,
       "w": 48,
       "h": 32
@@ -95,10 +113,19 @@
     },
     "defeated": {
       "frames": [
-        "defeated"
+        "defeat_kneel",
+        "defeat_topple",
+        "defeat_impact",
+        "defeat_down"
       ],
-      "fps": 1,
-      "loop": false
+      "durations": [
+        600,
+        120,
+        220,
+        0
+      ],
+      "loop": false,
+      "note": "un genou à terre (long), bascule (rapide), impact, au sol ; 0 = jusqu'à la fin"
     }
   },
   "boxes": {

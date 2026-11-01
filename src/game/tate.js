@@ -17,7 +17,8 @@ export const TATE = {
   cooldown: 0.9,       // s avant de pouvoir recharger
   guardFlash: 0.22,    // s de pose de garde quand un coup est bloqué
   hp: 2,
-  defeatFade: 1.6,     // s avant de disparaître une fois vaincu
+  defeatFade: 2.4,     // s avant de disparaître une fois vaincu (chute ≈ 0,94 s, puis au sol, puis fondu)
+  fadeTime: 0.6,       // s de fondu à la fin
 };
 
 export class Tate {
@@ -194,6 +195,17 @@ export class Tate {
 
   // ---- dessin ---------------------------------------------------------------
   frameName() {
+    if (this.state === 'defeated') {
+      // un genou à terre (long), bascule (rapide), impact, au sol
+      const a = this.meta.animations.defeated;
+      let t = this.timer * 1000;
+      for (let i = 0; i < a.frames.length; i++) {
+        const d = a.durations[i];
+        if (d === 0 || t < d) return a.frames[i];
+        t -= d;
+      }
+      return a.frames[a.frames.length - 1];
+    }
     if (this.state === 'walk') {
       const a = this.meta.animations.walk;
       return a.frames[Math.floor(this.anim * a.fps) % a.frames.length];
@@ -210,7 +222,7 @@ export class Tate {
     const sx = Math.round(this.x - cam.x) + shake;
     const sy = Math.round(this.y - cam.y) - pivot.y;
     let alpha = 1;
-    if (this.state === 'defeated') alpha = Math.max(0, 1 - Math.max(0, this.timer - 0.8) / (TATE.defeatFade - 0.8));
+    if (this.state === 'defeated') alpha = Math.min(1, Math.max(0, (TATE.defeatFade - this.timer) / TATE.fadeTime));
     if (this.flash > 0 && Math.floor(this.flash * 30) % 2 === 0) alpha *= 0.35;
     ctx.save();
     ctx.globalAlpha = alpha;

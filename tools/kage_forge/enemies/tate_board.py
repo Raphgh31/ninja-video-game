@@ -43,7 +43,9 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     Z = 6
     names = {"marche_1": "MARCHE 1", "marche_2": "MARCHE 2", "garde": "GARDE (coup bloqué)",
-             "coup_de_bouclier": "COUP DE BOUCLIER", "etourdi": "ÉTOURDI", "vaincu": "VAINCU", "point_faible": "POINT FAIBLE (halo, pulse en jeu)"}
+             "coup_de_bouclier": "COUP DE BOUCLIER", "etourdi": "ÉTOURDI", "point_faible": "POINT FAIBLE (halo, pulse en jeu)",
+             "vaincu_1_genou": "MORT 1 · UN GENOU À TERRE", "vaincu_2_bascule": "MORT 2 · BASCULE",
+             "vaincu_3_impact": "MORT 3 · IMPACT", "vaincu_4_au_sol": "MORT 4 · AU SOL"}
     cw, ch = W * Z, H * Z
     cols = 3
     rows = (len(POSES) + cols - 1) // cols
