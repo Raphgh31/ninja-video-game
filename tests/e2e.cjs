@@ -336,6 +336,22 @@ async function main() {
     expect(got.join(',') === 'jump,attack,throw', got.join(','));
   });
 
+  await test('tactile : joystick dans le cercle = course, poussé hors du cercle = sprint', async () => {
+    await mReset(); await m.waitForTimeout(250);
+    const st = () => m.evaluate(() => { const g = window.__kage; return { s: g.player.state, sprint: g.touch.sprintOn }; });
+    await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(30);
+    await T('touchMove', [[106, 300, 1]]); await m.waitForTimeout(400);    // 8 px de jeu : dans le cercle
+    const a = await st();
+    await T('touchMove', [[130, 300, 1]]); await T('touchMove', [[150, 300, 1]]); await m.waitForTimeout(400);  // poussé loin
+    const b = await st();
+    await T('touchMove', [[112, 300, 1]]); await m.waitForTimeout(400);    // revient dans le cercle
+    const c = await st();
+    await T('touchEnd', []); await m.waitForTimeout(300);
+    expect(a.s === 'run' && !a.sprint, `léger : ${a.s}`);
+    expect(b.s === 'sprint' && b.sprint, `poussé : ${b.s}`);
+    expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
+  });
+
   await test('tactile : dash au coup de joystick relâché, pas au retour au centre', async () => {
     await mReset(); await m.waitForTimeout(250);
     await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(20);

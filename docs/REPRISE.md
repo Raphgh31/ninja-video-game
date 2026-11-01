@@ -13,7 +13,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Le plan reste à écrire.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 36 tests automatiques.
+- **Contenu actuel** : le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 37 tests automatiques.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
@@ -24,7 +24,7 @@ npm run dev          # jeu en local (http://localhost:5173) ; ajouter #terrain p
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 36 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 37 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -80,7 +80,7 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 | Action | Clavier | Tactile |
 |---|---|---|
 | Courir | ← → | joystick flottant (moitié gauche de l'écran) |
-| Sprint | **Maj** + flèche (Ctrl abandonné à cause des raccourcis du navigateur) | petit **interrupteur** rond à droite, avec la silhouette du ninja en sprint ; se coupe à l'arrêt ou à vide |
+| Sprint | **Maj** + flèche (Ctrl abandonné à cause des raccourcis du navigateur) | **pousser le joystick au-delà de son cercle** : au bord, un « mur » invisible résiste (le pouce suit deux fois moins vite) ; dès que le pouce sort du cercle de 4 px, KAGE sprinte et le contour devient vert ; il revient à la course quand le pouce rentre (sous 2 px). Réglages `STICK.wall`, `maxOut`, `sprintOut`, `sprintBack` dans `touch.js`. Le bouton de sprint a été supprimé |
 | Dash | **double appui** rapide ← ← / → → | coup de joystick **très rapide, court, puis relâché** (le retour au centre sans lâcher ne compte pas) |
 | Saut / saut mural | Espace | bouton rond (le plus gros, flèche) |
 | Glissade | ↓ ou C | joystick vers le bas |
