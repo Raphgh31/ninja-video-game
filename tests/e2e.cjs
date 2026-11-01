@@ -292,14 +292,12 @@ async function main() {
     expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
   });
 
-  await test('WARA : le coup de pied le touche (-1) et le repousse', async () => {
+  await test('WARA : un coup de pied l\'abat (2 dégâts)', async () => {
     await reset(400); await wara(424);
     await ev(() => { window.__kage.player.facing = 1; });
     await k.press('KeyU');
-    const w = await until((x) => x.hp < 2);
-    await wait(250);
-    const w2 = await W();
-    expect(w.hp === 1 && w2.x > 430, `vie ${w.hp}, x ${w2.x.toFixed(1)} (départ 424)`);
+    const w = await until((x) => x.st === 'defeated');
+    expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
   });
 
   await test('WARA : il sautille vers KAGE', async () => {
@@ -378,6 +376,24 @@ async function main() {
   await test('niveau 1 : 5 TATE, 5 WARA, 3 lanternes, un gong, une arrivée', async () => {
     const i = await lv.evaluate(() => { const g = window.__kage; return [g.tates.length, g.waras.length, g.level.checkpoints.length, g.level.gongs.length, !!g.level.goal]; });
     expect(i.join() === '5,5,3,1,true', i.join());
+  });
+
+  await test('niveau 1 : un TATE poussé d\'un coup de pied au bord de la fosse tombe et est vaincu', async () => {
+    await at(21, 304);
+    await lv.evaluate(() => {
+      const g = window.__kage, t = g.tates[0];
+      t.reset(); t.x = 24 * 16 - 6; t.facing = -1; t.cooldown = 99;
+      g.player.x = t.x - 26; g.player.facing = 1;
+    });
+    await lw(50);
+    await L.press('KeyU');
+    let r;
+    for (let i = 0; i < 120; i++) {
+      r = await lv.evaluate(() => { const t = window.__kage.tates[0]; return { st: t.state, gone: t.gone, y: t.y, falling: t.falling }; });
+      if (r.gone) break;
+      await lw(15);
+    }
+    expect(r.st === 'defeated' && r.gone, `état ${r.st}, disparu ${r.gone}, y ${Math.round(r.y)}`);
   });
 
   await test('niveau 1 : le tunnel ne se passe qu\'en glissade', async () => {

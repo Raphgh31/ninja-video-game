@@ -22,5 +22,5 @@ export const DAMAGE_DEALT = {
   sword: 2,
   airSword: 3,         // coup aérien à deux mains, plus lourd
   shuriken: 1,
-  kick: 1,             // coup de pied : peu de dégâts, mais il repousse
+  kick: 2,             // coup de pied : comme le sabre, et il repousse (jusque dans le vide)
 };

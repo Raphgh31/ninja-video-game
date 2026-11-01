@@ -151,7 +151,14 @@ shurikens.onEvent = (n, d) => {
     default:
   }
 };
+// un ennemi poussé dans le vide : petit cri en tombant, nuage au fond
+function onFallEvent(n, d) {
+  if (n === 'fall_start') sfx('enemyFall');
+  else if (n === 'fall_land') { sfx('land', { strength: 0.8 }); fx.dust(d.x, d.y, 5, { spread: 30 }); }
+  else if (n === 'fell') { sfx('hit'); fx.shake(1, 0.15); fx.dust(d.x, d.y, 8, { spread: 45, up: 20 }); }
+}
 function onTateEvent(n, d) {
+  onFallEvent(n, d);
   switch (n) {
     case 'step': sfx('tateStep'); fx.dust(d.x - 6, d.y, 2, { dir: -1, up: 8 }); fx.dust(d.x + 6, d.y, 2, { dir: 1, up: 8 }); break;
     case 'windup': sfx('tateWindup'); break;
@@ -172,6 +179,7 @@ function onTateEvent(n, d) {
 }
 for (const t of tates) t.onEvent = onTateEvent;
 function onWaraEvent(n, d) {
+  onFallEvent(n, d);
   switch (n) {
     case 'crouch': sfx('waraHop'); break;
     case 'land': fx.dust(d.x, d.y, 3, { spread: 18, up: 8, life: 0.3 }); break;
