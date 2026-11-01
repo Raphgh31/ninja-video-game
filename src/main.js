@@ -1,12 +1,19 @@
 import { loadCharacter } from './engine/sprites.js';
 import { Input } from './engine/input.js';
+import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import './style.css';
 
-const VIEW_W = 320;
-const VIEW_H = 180;
+// Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
+// reste entière (pixels nets) et c'est la zone visible qui s'adapte à l'écran.
+const MOBILE = matchMedia('(pointer: coarse)').matches;
+document.body.classList.toggle('mobile', MOBILE);
+let VIEW_W = 320;
+let VIEW_H = 180;
+let SCALE = 1;
+let touch = null;   // commandes tactiles (créées une fois les sprites chargés)
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
@@ -16,12 +23,29 @@ ctx.imageSmoothingEnabled = false;
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 function fit() {
-  const stage = canvas.parentElement.getBoundingClientRect();
-  const scale = Math.max(1, Math.floor(Math.min(stage.width / VIEW_W, stage.height / VIEW_H)));
-  canvas.style.width = `${VIEW_W * scale}px`;
-  canvas.style.height = `${VIEW_H * scale}px`;
+  if (MOBILE) {
+    const W = window.innerWidth, H = window.innerHeight;
+    // au moins ~240×150 pixels de jeu visibles en paysage (180 de large en portrait)
+    SCALE = Math.max(1, Math.floor(Math.min(W / (W > H ? 240 : 180), H / 150)));
+    VIEW_W = Math.ceil(W / SCALE);
+    VIEW_H = Math.ceil(H / SCALE);
+  } else {
+    const stage = canvas.parentElement.getBoundingClientRect();
+    SCALE = Math.max(1, Math.floor(Math.min(stage.width / 320, stage.height / 180)));
+    VIEW_W = 320;
+    VIEW_H = 180;
+  }
+  if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
+    canvas.width = VIEW_W;
+    canvas.height = VIEW_H;
+    ctx.imageSmoothingEnabled = false;
+  }
+  canvas.style.width = `${VIEW_W * SCALE}px`;
+  canvas.style.height = `${VIEW_H * SCALE}px`;
+  touch?.layout(VIEW_W, VIEW_H, SCALE);
 }
 addEventListener('resize', fit);
+addEventListener('orientationchange', () => setTimeout(fit, 200));
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
@@ -32,7 +56,16 @@ player.onThrow = (x, y, dir, height) => shurikens.throw(x, y, dir, height);
 player.canThrow = () => shurikens.canThrow();
 player.onRespawn = () => shurikens.reset();
 const input = new Input();
-input.bindTouch(document.querySelector('.touch'));
+const shurikenMeta = meta.projectiles.shuriken;
+touch = MOBILE
+  ? new TouchControls(canvas, input, look.projectiles.shuriken, shurikenMeta.frames[shurikenMeta.spin[0]])
+  : null;
+if (MOBILE) {
+  // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
+  canvas.addEventListener('pointerdown', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  }, { once: true });
+}
 const cam = { x: 0, y: 0 };
 let debug = false;
 
@@ -60,6 +93,7 @@ function draw() {
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
   shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
+  touch?.draw(ctx);
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';
@@ -93,4 +127,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens };
+window.__kage = { player, input, level, shurikens, touch };

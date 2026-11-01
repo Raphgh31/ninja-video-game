@@ -1,4 +1,5 @@
-// Clavier + boutons tactiles. `pressed` = appui sur cette frame, `held` = maintenu.
+// Entrées : clavier, et commandes tactiles (src/engine/touch.js) qui passent
+// par press / release / setHeld. `pressed` = appui sur cette frame, `held` = maintenu.
 // Double appui rapide sur gauche ou droite = dash dans cette direction.
 const DOUBLE_TAP = 0.25; // s
 const KEYMAP = {
@@ -30,26 +31,6 @@ export class Input {
     addEventListener('blur', () => this.held.clear());
   }
 
-  bindTouch(root) {
-    for (const btn of root.querySelectorAll('[data-action]')) {
-      const actions = btn.dataset.action.split(' ');
-      const down = (e) => {
-        e.preventDefault();
-        for (const a of actions) this.press(a);
-        btn.classList.add('is-down');
-      };
-      const up = (e) => {
-        e.preventDefault();
-        for (const a of actions) this.held.delete(a);
-        btn.classList.remove('is-down');
-      };
-      btn.addEventListener('pointerdown', down);
-      btn.addEventListener('pointerup', up);
-      btn.addEventListener('pointercancel', up);
-      btn.addEventListener('pointerleave', up);
-    }
-  }
-
   press(a) {
     if (!this.held.has(a)) {
       this.pressed.add(a);
@@ -64,6 +45,21 @@ export class Input {
       }
     }
     this.held.add(a);
+  }
+
+  /** Relâchement (boutons tactiles). */
+  release(a) {
+    this.held.delete(a);
+  }
+
+  /** Maintien piloté par le joystick : sans détection de double appui. */
+  setHeld(a, on) {
+    if (on) {
+      if (!this.held.has(a)) this.pressed.add(a);
+      this.held.add(a);
+    } else {
+      this.held.delete(a);
+    }
   }
 
   isHeld(a) { return this.held.has(a); }
