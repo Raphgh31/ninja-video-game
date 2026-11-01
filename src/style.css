@@ -28,13 +28,10 @@ h1 span { color: var(--muted); letter-spacing: .04em; font-weight: 400; margin-l
 .keys dt { color: var(--ink); }
 .keys dd { margin: 0; color: var(--muted); }
 
-.skins { display: flex; gap: .4rem; }
-.skins button, .touch button {
+.touch button {
   font: inherit; font-size: .78rem; color: var(--ink); background: transparent;
   border: 1px solid var(--line); padding: .35rem .7rem; cursor: pointer;
 }
-.skins button:hover { border-color: var(--muted); }
-.skins button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .touch { display: none; }
@@ -58,8 +55,6 @@ html, body { overflow-x: hidden; }
 @media (max-width: 600px) {
   .bar { padding: .6rem .8rem; }
   h1 span { display: none; }
-  .skins { width: 100%; }
-  .skins button { flex: 1; }
   .touch { gap: .6rem; }
   .touch__pad { flex: 1; gap: .3rem; }
   .touch__pad:first-child { flex: 0 0 auto; }

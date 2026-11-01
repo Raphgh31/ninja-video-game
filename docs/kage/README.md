@@ -12,9 +12,9 @@ Ninja du vent, compact et agile. Tête volontairement grande (10 px sur ~24) pou
 - **Bande de visage et mains visibles** (yeux sombres sur la peau), demandées après la première version pour la lisibilité. Le bas du visage reste masqué.
 - Tunique courte, ceinture, protections d'avant-bras, chaussures compactes.
 - **Sabre** : visible uniquement pendant l'attaque (fourreau supposé caché derrière la hanche).
-- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor. KAGE en porte **3 au maximum** (compteur en haut à gauche) : un shuriken planté se ramasse en passant dessus (après 0,3 s), un shuriken qui brise une cible est dévié puis retombe au sol, un shuriken sorti du niveau revient dans le stock, et le stock est rempli à la réapparition. Ils prennent les couleurs de la lame du skin.
+- **Shurikens** : lancés droit devant, ils retombent et touchent un sol plat à 10 carreaux (160 px) ; ils se plantent dans les murs et le sol et restent dans le décor. KAGE en porte **3 au maximum** (compteur en haut à gauche) : un shuriken planté se ramasse en passant dessus (après 0,3 s), un shuriken qui brise une cible est dévié puis retombe au sol, un shuriken sorti du niveau revient dans le stock, et le stock est rempli à la réapparition. Ils utilisent les couleurs de la lame.
 
-Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau est la seule couleur chaude.
+La palette, **Encre**, est entièrement noire et anthracite. La peau est la seule couleur chaude.
 
 ## Fichiers (`assets/characters/kage/`)
 
@@ -28,8 +28,7 @@ Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau 
 | `anims/kage_<anim>.png` | chaque animation exportée seule (bande horizontale) |
 | `frames/` | chaque frame en PNG individuel |
 | `layers/` | un calque par partie (capuche, masque, peau, yeux, tenue, foulard…) + silhouette |
-| `skins/*.json` | palettes des skins |
-| `skinned/` | planches pré-rendues par skin (pour les moteurs sans recoloration) |
+| `skins/encre.json` | palette du personnage (couleur de chaque slot) |
 
 Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée : `docs/kage/kage_animations.png`.
 
@@ -52,12 +51,11 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 - **Ancrage** : `(16, 31)`, milieu bas de la cellule, sous les pieds. Toutes les frames au sol posent les pieds sur la ligne 31 (vérifié automatiquement).
 - **Orientation** : les animations regardent à droite. Pour la gauche, on retourne le sprite (`flipForLeft: true`). L'asymétrie (nœud derrière la tête, pans qui traînent derrière) est relative à l'orientation, donc le retournement reste juste. Seule la vue de référence « profil gauche » est dessinée à part : le pan long y passe du côté éloigné, plus sombre.
 
-## Créer un nouveau skin
+## Palette (et futurs skins)
 
-Chaque pixel est dessiné avec un **slot** (un rôle), jamais avec une couleur. Un skin est donc une simple table slot → couleur : les silhouettes et animations restent identiques.
+Les skins sont mis de côté pour l'instant. Le jeu n'utilise qu'une palette, `skins/encre.json`.
 
-1. Copier `assets/characters/kage/skins/encre.json` vers `skins/<id>.json`.
-2. Changer `id`, `name`, `description` et les couleurs voulues. Chaque partie a 1 à 3 tons (ombre, base, reflet) :
+Chaque pixel est dessiné avec un **slot** (un rôle), jamais avec une couleur, et la couleur de chaque slot vient de cette palette :
 
 | Partie | Slots | Partie | Slots |
 |---|---|---|---|
@@ -67,15 +65,9 @@ Chaque pixel est dessiné avec un **slot** (un rôle), jamais avec une couleur. 
 | peau (visage, mains) | `n N` | foulard / bandeau | `f F G` |
 | yeux | `E e` | nœud (cosmétique) | `k K` |
 | tenue | `t T U` | effets (dash, mort, traînée du sabre) | `x X z q` |
-| lame du sabre | `w W` | poignée et garde | `g` |
+| lame du sabre et shurikens | `w W` | poignée et garde | `g` |
 
-3. Lancer `npm run sprites` : le build vérifie que tous les slots sont présents et régénère `skinned/` et `docs/kage/kage_skins.png`.
-4. Dans le jeu, le skin est disponible automatiquement (liste `skins` de `kage.json`). La recoloration se fait au chargement depuis la carte d'index (`src/engine/sprites.js`, `applySkin`).
-
-Deux couleurs identiques dans un même skin sont autorisées (la carte d'index ne dépend pas des couleurs).
-**Ne pas modifier la silhouette entre les skins** : un skin ne change que des couleurs. Un accessoire qui ajoute des pixels (chapeau, cape…) doit passer par un nouveau calque dans la forge, appliqué à toutes les frames.
-
-Exemples fournis : **Cendre** (gris clair) et **Minuit** (bleu nuit, foulard vermillon), uniquement pour démontrer le système.
+Pour changer une couleur : modifier `encre.json` puis lancer `npm run sprites`. La recoloration se fait au chargement depuis la carte d'index (`src/engine/sprites.js`, `applySkin`). Le jour où l'on reprendra les skins, un skin sera simplement un autre fichier de ce type ; les animations n'auront pas à être redessinées.
 
 ## Modifier le personnage
 

@@ -24,7 +24,7 @@ function fit() {
 addEventListener('resize', fit);
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
-let skinId = 'encre';
+const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
 const level = new Level();
 const player = new Player(meta, level);
 const shurikens = new Shurikens(level, meta);
@@ -36,20 +36,6 @@ input.bindTouch(document.querySelector('.touch'));
 const cam = { x: 0, y: 0 };
 let debug = false;
 
-const skinBar = document.querySelector('.skins');
-for (const id of Object.keys(skins)) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.textContent = skins[id].name;
-  b.dataset.skin = id;
-  b.setAttribute('aria-pressed', String(id === skinId));
-  b.addEventListener('click', () => {
-    skinId = id;
-    for (const o of skinBar.children) o.setAttribute('aria-pressed', String(o.dataset.skin === id));
-    b.blur();
-  });
-  skinBar.append(b);
-}
 const stateEl = document.querySelector('[data-state]');
 
 function update(dt) {
@@ -68,10 +54,10 @@ function update(dt) {
 function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
-  shurikens.drawStuck(ctx, skins[skinId].projectiles.shuriken, cam);
-  player.draw(ctx, skins[skinId].sheet, cam);
-  shurikens.drawFlying(ctx, skins[skinId].projectiles.shuriken, cam);
-  shurikens.drawHud(ctx, skins[skinId].projectiles.shuriken);
+  shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
+  player.draw(ctx, look.sheet, cam);
+  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  shurikens.drawHud(ctx, look.projectiles.shuriken);
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';

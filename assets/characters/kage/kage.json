@@ -732,9 +732,7 @@
     }
   },
   "skins": [
-    "cendre",
-    "encre",
-    "minuit"
+    "encre"
   ],
   "projectiles": {
     "shuriken": {

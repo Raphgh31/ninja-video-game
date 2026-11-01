@@ -94,7 +94,7 @@ def main():
         print("\n".join(problems))
         raise SystemExit("Contrôle qualité : échec")
 
-    for d in ("anims", "frames", "layers", "views", "skinned"):
+    for d in ("anims", "frames", "layers", "views"):
         shutil.rmtree(OUT / d, ignore_errors=True)
         (OUT / d).mkdir(parents=True)
 
@@ -121,9 +121,6 @@ def main():
                    np.where((g != ".") & ~np.isin(g, list(NO_OUTLINE)), 255, 0).astype(np.uint8)]),
         "RGBA")).save(OUT / "layers" / "kage_silhouette.png")
 
-    # skins pré-rendus (aperçu et repli pour les moteurs sans shader)
-    for sid, sk in skins.items():
-        sheet(lambda g, c=sk["colors"]: to_rgba(g, c)).save(OUT / "skinned" / f"kage_sheet_{sid}.png")
 
     # animations individuelles
     for k in order:
@@ -226,7 +223,7 @@ def main():
 
     build_docs(rendered, views, skins, order, vorder)
     total = sum(len(v) for v in rendered.values())
-    print(f"OK — {len(order)} animations, {total} frames, {len(views)} vues, {len(skins)} skins")
+    print(f"OK — {len(order)} animations, {total} frames, {len(views)} vues")
 
 
 # ---------------------------------------------------------------------------
@@ -303,20 +300,6 @@ def build_docs(rendered, views, skins, order, vorder):
             big = to_rgba(g, ref).resize((cw2, ch2), Image.NEAREST)
             im.paste(big, (x, y), big)
     im.save(DOCS / "kage_animations.png")
-
-    # comparatif des skins
-    sk = list(skins.values())
-    W = 40 + len(sk) * (cw + 24)
-    im = Image.new("RGB", (W, cw + 120), (226, 222, 212))
-    d = ImageDraw.Draw(im)
-    for i, s in enumerate(sk):
-        x = 40 + i * (cw + 24)
-        d.rectangle([x, 30, x + cw - 1, 30 + cw - 1], fill=BG)
-        big = to_rgba(sq(views["right"]), s["colors"]).resize((cw, cw), Image.NEAREST)
-        im.paste(big, (x, 30), big)
-        d.text((x, 44 + cw), s["name"] + ("  (référence)" if s.get("reference") else "  (exemple)"),
-               fill=INK, font=font(18))
-    im.save(DOCS / "kage_skins.png")
 
     # GIF de contrôle par animation (x6, fond neutre, 2 boucles)
     Z3 = 6

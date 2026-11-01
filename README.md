@@ -21,12 +21,12 @@ Commandes : flèches pour courir, double appui rapide sur ← ou → pour le das
 npm run sprites    # régénère assets/characters/kage/ et docs/kage/ (Python 3 + Pillow + numpy)
 ```
 
-Documentation du personnage, des animations et des skins : [docs/kage/README.md](docs/kage/README.md).
+Documentation du personnage, des animations et de la palette : [docs/kage/README.md](docs/kage/README.md).
 
 ## Structure
 
 - `assets/` : ressources du jeu, servies telles quelles (`characters/kage/…`)
-- `src/engine/` : chargement des sprites, skins, animations, entrées
+- `src/engine/` : chargement des sprites, palette, animations, entrées
 - `src/game/` : joueur (machine d'états), niveau de test
 - `tools/kage_forge/` : sources des sprites et outil d'export
 - `docs/kage/` : planches de référence et aperçus animés
