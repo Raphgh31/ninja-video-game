@@ -3,19 +3,45 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>KAGE — prototype</title>
   </head>
   <body>
     <header class="bar">
       <h1>KAGE</h1>
       <nav class="levels" aria-label="Niveau">
+        <a href="#potager" data-level="potager">Chapitre 1 — Le Potager</a>
         <a href="#niveau-1" data-level="niveau-1">Niveau 1</a>
         <a href="#terrain" data-level="terrain">Terrain d'essai</a>
       </nav>
       <p class="state" data-state aria-live="off">idle</p>
     </header>
     <main class="stage">
-      <canvas id="game" aria-label="Terrain d'essai du personnage KAGE"></canvas>
+      <canvas id="game" aria-label="KAGE, jeu de plateforme"></canvas>
+      <div class="zone-banner" aria-live="polite"><span data-zone-num></span><strong data-zone-name></strong></div>
+      <p class="hint" aria-live="polite"></p>
+      <p class="saved" aria-live="polite">Sauvegardé</p>
+      <button type="button" class="talk" hidden><span class="talk__key">↑</span> Parler au marchand</button>
+      <section class="title-screen" hidden aria-label="Écran titre">
+        <h2 class="title-screen__name">KAGE</h2>
+        <p class="title-screen__chapter" data-chapter></p>
+        <div class="title-screen__actions">
+          <button type="button" data-continue hidden>Continuer</button>
+          <button type="button" data-new>Nouvelle partie</button>
+        </div>
+      </section>
+      <section class="shop" hidden aria-label="Le comptoir du voyageur">
+        <header class="shop__head">
+          <h2>Le comptoir du voyageur</h2>
+          <p class="shop__purse" data-purse></p>
+        </header>
+        <p class="shop__line" data-line></p>
+        <nav class="shop__tabs" data-tabs aria-label="Rayons"></nav>
+        <div class="shop__items" data-items></div>
+        <button type="button" class="shop__close" data-close>Reprendre la route</button>
+      </section>
     </main>
     <footer class="bar bar--bottom">
       <dl class="keys">
@@ -26,20 +52,23 @@
         <div><dt>↓ / C</dt><dd>glissade</dd></div>
         <div><dt>J / X</dt><dd>sabre</dd></div>
         <div><dt>K / V</dt><dd>shuriken</dd></div>
+        <div><dt>U / Z</dt><dd>coup de pied</dd></div>
         <div><dt>H</dt><dd>hitbox</dd></div>
+        <div><dt>↑ / E</dt><dd>parler</dd></div>
         <div><dt>M</dt><dd>son</dd></div>
       </dl>
     </footer>
     <div class="win" hidden>
       <p class="win__title">Niveau terminé</p>
+      <p class="win__next" data-next></p>
       <dl>
         <div><dt>Temps</dt><dd data-time>0:00</dd></div>
         <div><dt>Chutes</dt><dd data-falls>0</dd></div>
+        <div data-ryo-row hidden><dt>Ryō</dt><dd data-ryo>0</dd></div>
       </dl>
       <button type="button" data-again>Rejouer</button>
     </div>
     <button type="button" class="mute" aria-pressed="false">Son</button>
-    <p class="rotate-hint">Tourne ton téléphone : le jeu se joue en paysage.</p>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

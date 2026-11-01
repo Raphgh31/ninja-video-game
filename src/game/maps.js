@@ -1,7 +1,11 @@
+import { POTAGER } from './chapters/potager.js';
+
 // Cartes des niveaux. Légende :
 //   # bloc   ^ pics   S départ   E TATE   W WARA   P lanterne (point de sauvegarde)
 //   C gong (au shuriken ou au sabre : ouvre les portes)   D porte   G torii (arrivée)
 //   T cible d'entraînement
+//   Chapitres (monde continu, voir chapters/) : = bois   | bambou   ~ eau   B caisse
+//   o ryō   M marchand
 
 // Terrain d'essai : long sol plat fermé par deux murs, puits et mur isolé.
 export const TERRAIN = [
@@ -52,6 +56,7 @@ export const NIVEAU_1 = [
 ];
 
 export const LEVELS = {
+  potager: POTAGER,
   'niveau-1': { name: 'Niveau 1', map: NIVEAU_1 },
   terrain: { name: "Terrain d'essai", map: TERRAIN },
 };

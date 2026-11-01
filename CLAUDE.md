@@ -17,7 +17,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
 - Résolution interne 320×180 sur ordinateur, mise à l'échelle **entière** uniquement (pixels nets, `imageSmoothingEnabled = false`).
-- Mobile (`pointer: coarse`) : plein écran, échelle toujours entière ; c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'adapte à l'écran. Commandes tactiles dessinées dans le canvas (`src/engine/touch.js`).
+- Mobile (`pointer: coarse`) : plein écran, même cadrage que sur ordinateur (~180 px de jeu en hauteur) ; l'échelle est entière **en pixels réels de l'écran** (`devicePixelRatio`) et c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'ajuste. En portrait, tout le bloc de jeu pivote d'un quart de tour (classe `rotated`) : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Commandes tactiles dessinées dans le canvas (`src/engine/touch.js`, `setRotation`).
 - `assets/` est le `publicDir` de Vite : les chemins des ressources commencent à `./characters/...`.
 - Boucle à pas fixe de 120 Hz (`src/main.js`).
 
@@ -29,8 +29,10 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Chaque animation est liée à un état de `src/game/player.js` (même nom que dans `kage.json`).
 
 ## Niveaux
-- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G). `#terrain` dans l'adresse ouvre le terrain d'essai, sinon le niveau 1.
-- Toute modification d'un passage du niveau 1 doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
+- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G), et pour les chapitres ryō (o), caisses (B), marchand (M), bois (=), bambou (|), eau (~).
+- L'adresse sans `#` ouvre le **chapitre 1, le Potager** (écran titre, sauvegarde) ; `#niveau-1` l'ancien niveau 1, `#terrain` le terrain d'essai.
+- Le Potager est construit zone par zone dans `src/game/chapters/potager.js` ; son dessin (provisoire) est dans `src/game/potager_art.js`. Trous : 6 cases pour le dash, 5 pour le sprint ; passages bas d'une case pour la glissade.
+- Toute modification d'un passage du niveau 1 ou du Potager doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
 
 ## Ennemis
 - TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.

@@ -14,17 +14,21 @@ GREY = (90, 90, 96)
 RED = (168, 67, 58)
 
 ZONES = [
-    # nom, ennemi(s), amélioration, couleur du ciel, couleur du sol, hauteurs du relief (0..1)
-    ("1 · Le dojo et son potager", "WARA, TATE", "marchand : sortie du dojo", (196, 206, 214), (186, 160, 110),
-     [0.18, 0.18, 0.22, 0.2, 0.26, 0.24]),
-    ("2 · La forêt de bambous", "Kage-mane", "marchand : clairière", (178, 196, 182), (92, 118, 84),
-     [0.24, 0.34, 0.3, 0.42, 0.36, 0.4]),
-    ("3 · Le village la nuit", "Chōchin", "marchand : marché de nuit", (58, 66, 92), (82, 70, 78),
-     [0.4, 0.36, 0.44, 0.38, 0.46, 0.42]),
-    ("4 · La montagne", "Karasu", "marchand : refuge", (204, 214, 226), (232, 236, 240),
-     [0.42, 0.56, 0.66, 0.74, 0.84, 0.9]),
-    ("5 · Le temple de pierre", "Ishi (boss)", "marchand : devant le temple", (150, 146, 136), (118, 120, 110),
-     [0.9, 0.86, 0.86, 0.82, 0.8, 0.8]),
+    # nom, ennemi(s), cabane du marchand (téléportation), couleur du ciel, couleur du sol, hauteurs du relief (0..1)
+    ("1 · Le potager", "WARA, TATE, petit nuisible", "comptoir du voyageur", (200, 212, 220), (150, 120, 80),
+     [0.16, 0.16, 0.2, 0.18, 0.24, 0.22]),
+    ("2 · Le champ des bambous", "à concevoir", "au bord des rizières", (196, 214, 196), (120, 150, 92),
+     [0.22, 0.26, 0.24, 0.3, 0.28, 0.32]),
+    ("3 · La forêt des grands arbres", "Kage-mane (piste)", "dans une clairière", (160, 184, 164), (78, 104, 72),
+     [0.32, 0.42, 0.36, 0.48, 0.42, 0.46]),
+    ("4 · Le village des basses montagnes", "Chōchin (piste)", "au marché", (178, 176, 196), (110, 92, 84),
+     [0.46, 0.44, 0.5, 0.48, 0.54, 0.52]),
+    ("5 · Les hautes montagnes", "Karasu (piste)", "dans un refuge", (210, 218, 228), (232, 236, 240),
+     [0.52, 0.62, 0.7, 0.78, 0.86, 0.9]),
+    ("6 · Le temple de pierre", "Ishi (piste)", "devant le temple", (150, 146, 136), (118, 120, 110),
+     [0.9, 0.86, 0.88, 0.84, 0.84, 0.82]),
+    ("7 · Le dojo final", "l'épreuve ultime", "à la porte du dojo", (120, 96, 92), (90, 70, 58),
+     [0.82, 0.82, 0.86, 0.86, 0.9, 0.9]),
 ]
 
 
@@ -36,11 +40,11 @@ def font(size, bold=True):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    W, H = 1700, 860
+    W, H = 2560, 860
     im = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(im)
     d.text((40, 26), "KAGE — le monde, vu de côté", fill=INK, font=font(30))
-    d.text((40, 70), "Proposition · un seul monde continu, d'ouest en est · ● lanterne (sauvegarde)   "
+    d.text((40, 70), "Un seul monde continu, d'ouest en est · ● lanterne (sauvegarde)   "
                      "┄ chemin de défi / secret (ryō)   ★ épreuve finale", fill=GREY, font=font(15))
     x0, top, bottom = 40, 120, 640
     zw = (W - 80) // len(ZONES)
@@ -83,15 +87,15 @@ def main():
         if i:
             d.line([(zx, top), (zx, bottom)], fill=PAPER, width=4)
         ty = bottom + 20
-        d.text((zx + 8, ty), name, fill=INK, font=font(17))
+        d.text((zx + 8, ty), name, fill=INK, font=font(16))
         d.text((zx + 8, ty + 34), f"Ennemis : {foes}", fill=INK, font=font(15, bold=False))
-        d.text((zx + 8, ty + 60), "Marchand ambulant :", fill=GREY, font=font(14, bold=False))
-        d.text((zx + 8, ty + 80), upgrade.replace("marchand : ", ""), fill=RED, font=font(16))
+        d.text((zx + 8, ty + 60), "Cabane du marchand (téléportation) :", fill=GREY, font=font(13, bold=False))
+        d.text((zx + 8, ty + 80), upgrade, fill=RED, font=font(16))
     # KAGE au départ, flèche de progression
     d.text((x0 + 10, top + 12), "départ →", fill=INK, font=font(16))
     d.line([(x0 + 10, bottom + 150), (W - 60, bottom + 150)], fill=INK, width=3)
     d.polygon([(W - 60, bottom + 142), (W - 44, bottom + 150), (W - 60, bottom + 158)], fill=INK)
-    d.text((x0 + 10, bottom + 160), "la difficulté monte d'une zone à l'autre · environ 15 à 25 min par zone",
+    d.text((x0 + 10, bottom + 160), "la difficulté monte d'un chapitre à l'autre · environ 20 min par chapitre · retour en arrière libre",
            fill=GREY, font=font(14, bold=False))
     im.save(OUT / "carte_du_monde.png")
     print(OUT / "carte_du_monde.png")

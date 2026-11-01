@@ -51,7 +51,9 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | air_throw | 4 | durées par frame | non | shuriken en l'air, bras tendu au lâcher |
 | skid | 2 | 12 | oui | dérapage au demi-tour en pleine course |
 | attack | 7 | durées par frame (≈ 0,4 s) | non | coup de sabre : dégainé en fente, demi-cercle devant, rengainé. Zone de frappe active sur les frames 3 à 5 (`hitbox.attack`) |
-| slide | 3 | 12 | oui, à partir de la frame 2 | glissade |
+| slide | 3 | 12 | oui, à partir de la frame 2 | glissade sur la hanche |
+| kick | 5 | durées par frame (≈ 0,39 s) | non | coup de pied de côté (yoko geri kekomi) : genou armé, détente, impact talon en avant à hauteur de poitrine, retrait, garde. Zone de frappe sur les frames 2 et 3 (`hitbox.kick`) |
+| walk | 4 | 5 | oui | marche à bout de souffle : tête basse, yeux plissés, bras ballants, foulard qui pend |
 | death | 6 | 14 | non | destruction en blocs |
 | respawn | 3 | 10 | non | recomposition |
 

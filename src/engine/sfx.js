@@ -73,7 +73,7 @@ function noise({ dur = 0.1, vol = 0.1, type = 'bandpass', f = 1000, to = null, q
 
 // ---- recettes ---------------------------------------------------------------
 const SOUNDS = {
-  step: ({ sprint } = {}) => noise({ dur: 0.04, vol: sprint ? 0.07 : 0.045, f: 1700, to: 1100, q: 2 }),
+  step: ({ sprint, walk } = {}) => noise({ dur: 0.04, vol: sprint ? 0.07 : walk ? 0.028 : 0.045, f: 1700, to: 1100, q: 2 }),
   jump: () => { tone({ f: 260, to: 520, dur: 0.09, vol: 0.06 }); noise({ dur: 0.05, vol: 0.04, f: 2000 }); },
   land: ({ strength = 1 } = {}) => {
     noise({ dur: 0.09, vol: 0.12 * strength, type: 'lowpass', f: 500 });
@@ -100,6 +100,13 @@ const SOUNDS = {
     tone({ f: 2130, dur: 0.18, type: 'triangle', vol: 0.05 });
     noise({ dur: 0.05, vol: 0.08, type: 'highpass', f: 3000 });
   },
+  kick: () => noise({ dur: 0.1, vol: 0.08, f: 1800, to: 700, q: 1.3, attack: 0.01 }),
+  breath: () => noise({ dur: 0.22, vol: 0.05, type: 'bandpass', f: 1300, to: 600, q: 0.7, attack: 0.03 }),
+  enemyFall: () => tone({ f: 520, to: 160, dur: 0.45, type: 'triangle', vol: 0.05, attack: 0.02 }),
+  coin: () => { tone({ f: 1568, dur: 0.05, type: 'square', vol: 0.035 }); tone({ f: 2093, dur: 0.09, type: 'square', vol: 0.03, delay: 0.05 }); },
+  crate: () => { noise({ dur: 0.14, vol: 0.14, type: 'lowpass', f: 900, to: 300 }); tone({ f: 180, to: 90, dur: 0.1, type: 'triangle', vol: 0.06 }); },
+  bell: () => { tone({ f: 1760, dur: 0.5, type: 'sine', vol: 0.05, attack: 0.002 }); tone({ f: 2637, dur: 0.35, type: 'sine', vol: 0.025, attack: 0.002 }); },
+  kickHit: () => { noise({ dur: 0.08, vol: 0.16, type: 'lowpass', f: 700 }); tone({ f: 120, to: 70, dur: 0.09, type: 'sine', vol: 0.12 }); },
   throw: () => noise({ dur: 0.09, vol: 0.07, f: 4200, to: 1800, q: 2 }),
   stick: () => { tone({ f: 1900, dur: 0.03, vol: 0.05 }); noise({ dur: 0.035, vol: 0.06, type: 'highpass', f: 2500 }); },
   deflect: () => tone({ f: 2500, to: 1800, dur: 0.09, type: 'triangle', vol: 0.06 }),

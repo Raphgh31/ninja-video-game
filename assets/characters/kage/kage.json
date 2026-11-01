@@ -47,6 +47,17 @@
       ],
       "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"
     },
+    "kick": {
+      "x": 18,
+      "y": 11,
+      "w": 21,
+      "h": 13,
+      "frames": [
+        1,
+        2
+      ],
+      "note": "coup de pied de côté (détente et impact)"
+    },
     "attack": {
       "x": 19,
       "y": 0,
@@ -845,8 +856,93 @@
         }
       ]
     },
-    "slide": {
+    "kick": {
       "row": 15,
+      "frameCount": 5,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "kick",
+      "strip": "anims/kage_kick.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 50,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 100,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 120
+        },
+        {
+          "x": 150,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 90
+        },
+        {
+          "x": 200,
+          "y": 510,
+          "w": 48,
+          "h": 32,
+          "duration": 130
+        }
+      ]
+    },
+    "walk": {
+      "row": 16,
+      "frameCount": 4,
+      "fps": 5,
+      "loop": true,
+      "loopStart": 0,
+      "state": "walk",
+      "strip": "anims/kage_walk.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 200
+        },
+        {
+          "x": 50,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 200
+        },
+        {
+          "x": 100,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 200
+        },
+        {
+          "x": 150,
+          "y": 544,
+          "w": 48,
+          "h": 32,
+          "duration": 200
+        }
+      ]
+    },
+    "slide": {
+      "row": 17,
       "frameCount": 3,
       "fps": 12,
       "loop": true,
@@ -856,21 +952,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 510,
+          "y": 578,
           "w": 48,
           "h": 32,
           "duration": 83
         },
         {
           "x": 50,
-          "y": 510,
+          "y": 578,
           "w": 48,
           "h": 32,
           "duration": 83
         },
         {
           "x": 100,
-          "y": 510,
+          "y": 578,
           "w": 48,
           "h": 32,
           "duration": 83
@@ -878,7 +974,7 @@
       ]
     },
     "death": {
-      "row": 16,
+      "row": 18,
       "frameCount": 6,
       "fps": 14,
       "loop": false,
@@ -888,42 +984,42 @@
       "frames": [
         {
           "x": 0,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 50,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 100,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 150,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 200,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
         },
         {
           "x": 250,
-          "y": 544,
+          "y": 612,
           "w": 48,
           "h": 32,
           "duration": 71
@@ -931,7 +1027,7 @@
       ]
     },
     "respawn": {
-      "row": 17,
+      "row": 19,
       "frameCount": 3,
       "fps": 10,
       "loop": false,
@@ -941,21 +1037,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 578,
+          "y": 646,
           "w": 48,
           "h": 32,
           "duration": 100
         },
         {
           "x": 50,
-          "y": 578,
+          "y": 646,
           "w": 48,
           "h": 32,
           "duration": 100
         },
         {
           "x": 100,
-          "y": 578,
+          "y": 646,
           "w": 48,
           "h": 32,
           "duration": 100

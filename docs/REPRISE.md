@@ -2,29 +2,29 @@
 
 Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, ennemi, niveau, outils) avec les décisions prises et leurs raisons. Il sert à reprendre le projet dans une nouvelle discussion sans rien perdre.
 
-> **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `claude/kage-ninja-character`, ou `main` une fois la PR fusionnée) et écrire :
+> **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et écrire :
 > « Lis `docs/REPRISE.md` et `CLAUDE.md`, puis on continue le jeu KAGE. »
 
 ---
 
 ## 1. Où en est le projet
 
-- **Dépôt** : `raphgh31/ninja-video-game`. La PR #1 (KAGE, TATE, niveau 1) est **fusionnée** dans `main`. L'ennemi WARA est sur la branche **`claude/wara-design`**, dans la **PR #2** (brouillon) : <https://github.com/Raphgh31/ninja-video-game/pull/2>.
+- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, en greybox jouable)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
-- **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Plan proposé dans **`docs/MONDE.md`** (5 zones, améliorations, sauvegarde, technique, ordre de construction, questions ouvertes), à valider.
+- **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le personnage KAGE complet (18 animations), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran, des sons synthétisés, des effets visuels et 31 tests automatiques.
+- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 48 tests automatiques.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
 
 ```bash
 npm install
-npm run dev          # jeu en local (http://localhost:5173) ; ajouter #terrain pour le terrain d'essai
+npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #niveau-1 = ancien niveau 1, #terrain = terrain d'essai
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 31 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 48 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -33,7 +33,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 
 | Chemin | Rôle |
 |---|---|
-| `src/main.js` | boucle à pas fixe 120 Hz, mise à l'échelle, caméra, branchement des événements (sons, poussière), HUD, arrivée |
+| `src/main.js` | boucle à pas fixe 120 Hz, mise à l'échelle, caméra, branchement des événements (sons, poussière), HUD, arrivée ; pour un chapitre : écran titre, sauvegarde, bannières de zone, aides contextuelles, ryō, caisses, marchand |
 | `src/game/player.js` | KAGE : physique et machine d'états (constantes `P` en tête) |
 | `src/game/energy.js` | énergie (constantes `ENERGY`), anneau en haut à gauche |
 | `src/game/combat.js` | vie de KAGE et dégâts (`HEALTH`, `DAMAGE_TAKEN`, `DAMAGE_DEALT`) |
@@ -41,8 +41,12 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `src/game/shuriken.js` | shurikens : stock, vol, plantés, ramassage (constantes `SHURIKEN`) |
 | `src/game/tate.js` | ennemi TATE (constantes `TATE`) |
 | `src/game/wara.js` | ennemi WARA (constantes `WARA`) |
-| `src/game/level.js` | niveau : tuiles, gong, porte, lanternes, torii, décor |
-| `src/game/maps.js` | cartes ASCII (terrain d'essai, niveau 1), légende en tête |
+| `src/game/level.js` | niveau : tuiles, gong, porte, lanternes, torii, décor ; ryō, caisses, zones, marchand (chapitres) |
+| `src/game/maps.js` | cartes ASCII (terrain d'essai, niveau 1), légende en tête ; branche les chapitres |
+| `src/game/chapters/potager.js` | **chapitre 1** : carte construite zone par zone (petit constructeur `Builder`), décors, aides, zones |
+| `src/game/potager_art.js` | dessin provisoire du Potager : ciel et montagnes en parallaxe, tuiles, décors, cascade |
+| `src/game/save.js` | sauvegarde automatique (`localStorage`, clé `kage.save.v1`) |
+| `src/game/shop.js` | boutique du marchand : coquille d'interface (catégories vides, répliques) |
 | `src/engine/input.js` | clavier |
 | `src/engine/touch.js` | commandes tactiles dessinées dans le canvas (constantes `STICK`) |
 | `src/engine/sprites.js` | chargement, recoloration par palette, lecteur d'animation |
@@ -64,8 +68,10 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 - **Garde basse** : jambe avant fléchie (genou devant la cheville), jambe arrière presque tendue, poing lointain levé. La version d'avant donnait des jambes tendues et cambrées.
 - Palette unique « Encre » (`skins/encre.json`). Le système de palette par « slots » reste en place, mais **les skins sont mis de côté** (les exemples Cendre et Minuit ont été supprimés).
 
-### Animations (18)
-idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 · throw 5 · hurt 2 · wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4 · skid 2 · slide 3 · death 6 · respawn 3.
+### Animations (20)
+idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 · kick 5 · throw 5 · hurt 2 · wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4 · skid 2 · slide 3 · death 6 · respawn 3.
+- **Coup de pied** : coup de pied de côté de karaté (yoko geri kekomi), d'après des images fournies par l'utilisateur : genou armé, hanche qui pivote, buste qui part en arrière, jambe tendue talon en avant à hauteur de poitrine, poings en garde. **Pied fléchi, orteils vers le haut** (pied `flex` dans `rig.py`), jambe raccourcie à la demande de l'utilisateur. **L'effort se voit** : yeux plissés au retrait, retour en garde tassé, bouffée d'expiration, goutte de sueur et bruit de souffle. Buste `back` dans `rig.py`.
+- **Marche** (à bout de souffle) : tête basse, yeux plissés, bras ballants, petits pas, foulard qui pend.
 - **Sprint** : buste plongé, corps bas, **bras tendus à l'horizontale vers l'arrière** (façon Naruto ; à l'origine, les bras remontaient trop).
 - **Sabre au sol** : légère fente, demi-cercle devant (haut, avant, bas), lame longue et large (2 px), bras à demi tendu qui suit la lame.
 - **Sabre en l'air** : **à deux mains**, lame levée au-dessus de la tête (bras derrière la tête pour garder le visage visible), temps d'arrêt, puis abattue devant en plongeant. Plus spectaculaire et plus de dégâts.
@@ -78,12 +84,13 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 | Action | Clavier | Tactile |
 |---|---|---|
 | Courir | ← → | joystick flottant (moitié gauche de l'écran) |
-| Sprint | **Maj** + flèche (Ctrl abandonné à cause des raccourcis du navigateur) | petit **interrupteur** rond à droite, avec la silhouette du ninja en sprint ; se coupe à l'arrêt ou à vide |
+| Sprint | **Maj** + flèche (Ctrl abandonné à cause des raccourcis du navigateur) | **pousser le joystick au-delà de son cercle** : au bord, un « mur » invisible résiste (le pouce suit deux fois moins vite) ; dès que le pouce sort du cercle de 4 px, KAGE sprinte et le contour devient vert ; il revient à la course quand le pouce rentre (sous 2 px). Réglages `STICK.wall`, `maxOut`, `sprintOut`, `sprintBack` dans `touch.js`. Le bouton de sprint a été supprimé |
 | Dash | **double appui** rapide ← ← / → → | coup de joystick **très rapide, court, puis relâché** (le retour au centre sans lâcher ne compte pas) |
 | Saut / saut mural | Espace | bouton rond (le plus gros, flèche) |
 | Glissade | ↓ ou C | joystick vers le bas |
 | Sabre | J ou X | bouton rond, icône de sabre |
 | Shuriken | K ou V | bouton rond, icône du shuriken (même dessin que le sprite, sans contour, grisée) |
+| Coup de pied | U ou Z | bouton rond à gauche du sabre, icône d'un ninja en coup de pied |
 | Zones de collision / son | H / M | bouton « Son » en haut à droite |
 
 ### Valeurs de réglage (actuelles)
@@ -92,9 +99,10 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 - **Glissade** : 190 px/s, 0,36 s, vitesse minimale sous un plafond bas ; possible à l'arrêt en poussant une direction.
 - **Saut mural** : glissade à 50 px/s maximum, poussée de 150 px/s, impulsion de 300 ; on peut rebondir d'un mur à l'autre mais **pas deux fois de suite sur le même mur**. Coûte 10 % d'énergie.
 - **Dérapage** au demi-tour en pleine course (ou dans les 0,12 s qui suivent).
-- **Énergie** (anneau en haut à gauche) : course −4 %/s, sprint −16 %/s, recharge +55 %/s à l'arrêt (après 0,35 s), dash −1/3, saut −10 %, sabre −12 %, shuriken gratuit. Tolérance de 15 % du coût, pour pouvoir **enchaîner exactement 3 dashs**. À zéro : essoufflé (course à 65 %) jusqu'à 40 %. Le saut reste toujours possible.
+- **Énergie** (anneau en haut à gauche) : toutes les dépenses ont été réduites à 85 % (mêmes proportions) : course −3,4 %/s, sprint −13,6 %/s, dash −28 %, saut −8,5 %, sabre −10,2 %, **coup de pied −12,75 %** (un peu plus que le sabre), shuriken gratuit. Recharge +55 %/s à l'arrêt (après 0,35 s). Tolérance de 15 % du coût, pour pouvoir **enchaîner exactement 3 dashs**. À zéro : **à bout de souffle, KAGE ne peut plus que marcher** (34 px/s, nouvelle animation) et l'énergie remonte en marchant à 60 % de la vitesse à l'arrêt, jusqu'à 40 % ; sprint, dash, sabre et coup de pied sont refusés pendant ce temps. Le saut reste toujours possible.
+- **Coup de pied** : **2 dégâts**, repousse l'ennemi (170 px/s, même TATE qui pare de face, même WARA pendant son moulinet). **Le recul peut l'envoyer dans le vide** : il tombe et, sur des pics ou hors du niveau, il est vaincu ; s'il retombe sur un sol plus bas, il reprend le combat. En marchant, les ennemis évitent toujours le vide d'eux-mêmes (`src/game/fall.js`) ; 0,35 s d'attente après le coup avant de pouvoir en relancer un ; portée équivalente au sabre.
 - **Vie** : 5 points ; barre **fine (1 px), verte, continue, au-dessus de la tête**, de longueur 3 px par point de vie ; le vert descend en douceur et la portion perdue s'efface. Touché : recul, 0,3 s sans contrôle, 1 s d'invincibilité.
-- **Dégâts subis** : charge de TATE 2, moulinet de WARA 1, pics 1 (puis retour au dernier sol sûr), chute hors du niveau = mort. **Dégâts infligés** : sabre 2, **sabre en l'air 3**, shuriken 1. Ces valeurs sont **provisoires**, l'utilisateur pourra les changer.
+- **Dégâts subis** : charge de TATE 2, moulinet de WARA 1, pics 1 (puis retour au dernier sol sûr), chute hors du niveau = mort. **Dégâts infligés** : sabre 2, **sabre en l'air 3**, shuriken 1, coup de pied 2 (avec recul, jusque dans le vide). Ces valeurs sont **provisoires**, l'utilisateur pourra les changer.
 - **Shuriken** : stock de **3** (affiché à côté de l'énergie), vitesse 260 px/s, touche un sol plat à **10 carreaux**, 0,35 s entre deux lancers. Il se **plante** dans les murs et le sol (au sol : deux inclinaisons tirées au hasard), puis se **ramasse** en passant dessus (après 0,3 s). Sorti du niveau, il revient dans le stock.
 - **Joystick (dash)** : 85 % de la course en moins de 0,08 s, puis relâcher en moins de 0,15 s, geste horizontal.
 
@@ -121,6 +129,17 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 - **Terrain d'essai** (`#terrain`) : long sol plat à la demande de l'utilisateur, plus un puits et un mur isolé pour le saut mural, un TATE et un WARA.
 - Les tests vérifient que chaque passage du niveau 1 est faisable et demande la bonne mécanique.
 
+## 6 bis. Chapitre 1 — Le Potager (greybox jouable)
+
+- **Ouvert par défaut** (adresse sans `#`), avec un **écran titre** : « Nouvelle partie » ou « Continuer ». Une seule carte continue de 522×22 carreaux, en **8 zones** : chemin des premières pousses (avancer, sauter, sprinter ; épouvantail au grand chapeau), cultures en terrasse (premier dash ; cache derrière la cascade d'irrigation), canaux d'irrigation (roue à eau ; saut, dash, sprint), vieux verger (premiers WARA, coup de pied), serre de bambou (trois passages en glissade, puis un enchaînement de sortie), grange abandonnée (caisses à briser au sabre), jardin des sentinelles (bassin aux carpes, pont rouge rompu, bosquet en glissade, un TATE, grande porte), comptoir du voyageur (marchand, puis la route vers les collines et la sortie).
+- **Mesures de saut** (sol plat) : course 3,8 cases, sprint 5,5, course + dash 7,0 ; hauteur 3,1 cases. D'où des trous de **6 cases** pour le dash (5 s'il faut monter), **5** pour le sprint, et des passages bas d'**une case** (KAGE debout fait 22 px, en glissade 14 px).
+- **Aides contextuelles** : une seule commande affichée à la fois, au moment où elle sert ; elle disparaît dès qu'elle est utilisée (ou après 9 s). Textes ordinateur et tactile dans `HINTS` (`main.js`).
+- **Sauvegarde** : 3 lanternes (entrée du verger, sortie de la grange, jardin des sentinelles) enregistrent le point de reprise et affichent « Sauvegardé ». Les ryō ramassés et les caisses brisées sont enregistrés aussitôt.
+- **Ryō** : pièces à ramasser (51 dans la carte, plus une par caisse), compteur sous les shurikens.
+- **Marchand** : « ↑ / E : parler » devant son comptoir ouvre la boutique (le jeu se met en pause) ; catégories Apparences, Ressources, Objets, encore vides. Dessin **provisoire** en attendant sa planche de design.
+- **Tout le décor est provisoire** (formes simples dessinées en code dans `potager_art.js`) : les planches de design (marchand, petit nuisible, décors et tuiles par zone) puis le pixel art définitif viendront ensuite.
+- Les tests vérifient : chaque trou franchissable, le premier dash et le sprint réellement nécessaires, chaque passage bas uniquement en glissade, les caisses, les ryō, la sauvegarde et « Continuer », la boutique et la sortie.
+
 ## 7. Effets et sons
 
 - **Poussière** : saut, atterrissage, dash, sprint, dérapage, glissade, murs, shuriken planté, pas et chute de TATE. **Étincelles**, **micro-arrêt de l'image** sur les coups, **secousses** de l'écran.
@@ -136,7 +155,9 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 
 ## 9. Ce qui reste à faire (pistes discutées)
 
-- **Relire et fusionner la PR #2 (WARA).** Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
+- **Potager, phase 2** : planches de design du marchand (vieil homme coloré, grand chapeau, gros sac), du « petit nuisible » qui vole les légumes, et des décors et tuiles de chaque zone. **Phase 3** : pixel art définitif, animations d'ambiance, sons et musique.
+- Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
+- Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).
 - Valider les sons, ajuster si besoin ; rééquilibrer vie et dégâts en jouant.
 - Plus tard : skins, manette (écartée pour l'instant), vues de face et de dos dans la garde basse, musique.

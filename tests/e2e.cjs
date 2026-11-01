@@ -3,8 +3,10 @@
 const path = require('node:path');
 const { chromium } = require('playwright');
 
-const BASE = 'file://' + path.resolve(__dirname, '../dist/kage-standalone.html');
-const FILE = BASE + '#terrain';
+const PAGE = 'file://' + path.resolve(__dirname, '../dist/kage-standalone.html');
+const BASE = PAGE + '#niveau-1';   // le niveau d'essai d'origine
+const FILE = PAGE + '#terrain';
+// sans ancre : le chapitre 1, le Potager (écran titre, sauvegarde)
 const results = [];
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
@@ -62,14 +64,28 @@ async function main() {
     const a = await S(); await wait(1000); const b = await S();
     await k.up('ShiftLeft'); await k.up('ArrowRight');
     expect(a.state === 'sprint' && near(a.vx, 140, 1), `état ${a.state}, vx ${a.vx}`);
-    expect(near(a.energy - b.energy, 0.16, 0.03), `conso ${(a.energy - b.energy).toFixed(3)}/s`);
+    expect(near(a.energy - b.energy, 0.136, 0.03), `conso ${(a.energy - b.energy).toFixed(3)}/s`);
   });
 
-  await test('saut : 10 % d\'énergie', async () => {
+  await test('saut : 8,5 % d\'énergie (toutes les dépenses à 85 %)', async () => {
     await reset();
     await k.press('Space'); await wait(80);
     const s = await S();
-    expect(near(s.energy, 0.9, 0.01), `énergie ${s.energy}`);
+    expect(near(s.energy, 0.915, 0.01), `énergie ${s.energy}`);
+  });
+
+  await test('à bout de souffle : KAGE marche lentement et l\'énergie remonte (moins vite qu\'à l\'arrêt)', async () => {
+    await reset();
+    await ev(() => { const e = window.__kage.player.energy; e.value = 0.05; e.exhausted = true; });
+    await k.down('ArrowRight'); await wait(500);
+    const a = await S(); await wait(1000); const b = await S();
+    await k.up('ArrowRight');
+    const walkGain = b.energy - a.energy;
+    await ev(() => { const e = window.__kage.player.energy; e.value = 0.05; e.exhausted = true; });
+    await wait(500); const c = await S(); await wait(1000); const d = await S();
+    const idleGain = d.energy - c.energy;
+    expect(a.state === 'walk' && near(a.vx, 34, 1), `état ${a.state}, vx ${a.vx}`);
+    expect(walkGain > 0.2 && walkGain < idleGain, `marche +${walkGain.toFixed(2)}/s, arrêt +${idleGain.toFixed(2)}/s`);
   });
 
   await test('3 dashs enchaînés, le 4e refusé', async () => {
@@ -190,6 +206,33 @@ async function main() {
     expect(hp === 2, `vie TATE ${hp} (attendu 5 - 3 = 2)`);
   });
 
+  // ---- coup de pied ----------------------------------------------------------
+  await test('coup de pied : TATE pare de face mais recule', async () => {
+    await reset(440, 192, 470);
+    await ev(() => { const g = window.__kage; g.tate.facing = -1; g.player.facing = 1; });
+    const x0 = await ev(() => window.__kage.tate.x);
+    await k.press('KeyU');
+    let s, x1 = x0;
+    for (let i = 0; i < 60; i++) { x1 = await ev(() => window.__kage.tate.x); if (x1 > x0 + 4) break; await wait(15); }
+    s = await S();
+    expect(s.tateHp === 5 && x1 > x0 + 4, `vie TATE ${s.tateHp}, recul ${(x1 - x0).toFixed(1)} px`);
+  });
+
+  await test('coup de pied : plus cher que le sabre, et pas deux d\'affilée trop vite', async () => {
+    await reset();
+    await k.press('KeyU'); await wait(40);
+    const a = await S();
+    await wait(60); await k.press('KeyU'); await wait(40);
+    const b = await S();
+    expect(near(1 - a.energy, 0.1275, 0.01) && a.state === 'kick', `coût ${(1 - a.energy).toFixed(3)}, état ${a.state}`);
+    expect(near(b.energy, a.energy, 0.005), `second coup accepté trop tôt (énergie ${a.energy.toFixed(3)} -> ${b.energy.toFixed(3)})`);
+    for (let i = 0; i < 80; i++) { if ((await S()).state !== 'kick') break; await wait(15); }
+    await wait(450);   // délai de 0,35 s après la fin du coup
+    await k.press('KeyU'); await wait(40);
+    const c = await S();
+    expect(c.state === 'kick', `après le délai : état ${c.state}`);
+  });
+
   // ---- WARA ------------------------------------------------------------------
   // place le premier WARA en x, au repos (ni bond ni moulinet sauf si demandé)
   const wara = (x, o = {}) => ev(([x, o]) => {
@@ -251,6 +294,14 @@ async function main() {
     expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
   });
 
+  await test('WARA : un coup de pied l\'abat (2 dégâts)', async () => {
+    await reset(400); await wara(424);
+    await ev(() => { window.__kage.player.facing = 1; });
+    await k.press('KeyU');
+    const w = await until((x) => x.st === 'defeated');
+    expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
+  });
+
   await test('WARA : il sautille vers KAGE', async () => {
     await reset(400); await wara(500, { rest: 0 });
     const seen = new Set();
@@ -285,6 +336,22 @@ async function main() {
       got.push(await mState()); await T('touchEnd', []); await m.waitForTimeout(500);
     }
     expect(got.join(',') === 'jump,attack,throw', got.join(','));
+  });
+
+  await test('tactile : joystick dans le cercle = course, poussé hors du cercle = sprint', async () => {
+    await mReset(); await m.waitForTimeout(250);
+    const st = () => m.evaluate(() => { const g = window.__kage; return { s: g.player.state, sprint: g.touch.sprintOn }; });
+    await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(30);
+    await T('touchMove', [[106, 300, 1]]); await m.waitForTimeout(400);    // 8 px de jeu : dans le cercle
+    const a = await st();
+    await T('touchMove', [[130, 300, 1]]); await T('touchMove', [[150, 300, 1]]); await m.waitForTimeout(400);  // poussé loin
+    const b = await st();
+    await T('touchMove', [[112, 300, 1]]); await m.waitForTimeout(400);    // revient dans le cercle
+    const c = await st();
+    await T('touchEnd', []); await m.waitForTimeout(300);
+    expect(a.s === 'run' && !a.sprint, `léger : ${a.s}`);
+    expect(b.s === 'sprint' && b.sprint, `poussé : ${b.s}`);
+    expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
   });
 
   await test('tactile : dash au coup de joystick relâché, pas au retour au centre', async () => {
@@ -327,6 +394,24 @@ async function main() {
   await test('niveau 1 : 5 TATE, 5 WARA, 3 lanternes, un gong, une arrivée', async () => {
     const i = await lv.evaluate(() => { const g = window.__kage; return [g.tates.length, g.waras.length, g.level.checkpoints.length, g.level.gongs.length, !!g.level.goal]; });
     expect(i.join() === '5,5,3,1,true', i.join());
+  });
+
+  await test('niveau 1 : un TATE poussé d\'un coup de pied au bord de la fosse tombe et est vaincu', async () => {
+    await at(21, 304);
+    await lv.evaluate(() => {
+      const g = window.__kage, t = g.tates[0];
+      t.reset(); t.x = 24 * 16 - 6; t.facing = -1; t.cooldown = 99;
+      g.player.x = t.x - 26; g.player.facing = 1;
+    });
+    await lw(50);
+    await L.press('KeyU');
+    let r;
+    for (let i = 0; i < 120; i++) {
+      r = await lv.evaluate(() => { const t = window.__kage.tates[0]; return { st: t.state, gone: t.gone, y: t.y, falling: t.falling }; });
+      if (r.gone) break;
+      await lw(15);
+    }
+    expect(r.st === 'defeated' && r.gone, `état ${r.st}, disparu ${r.gone}, y ${Math.round(r.y)}`);
   });
 
   await test('niveau 1 : le tunnel ne se passe qu\'en glissade', async () => {
@@ -380,6 +465,163 @@ async function main() {
     await at(162, 304); await L.down('ArrowRight'); await lw(1200); await L.up('ArrowRight'); await lw(200);
     const shown = await lv.evaluate(() => !document.querySelector('.win').hidden);
     expect(shown, 'écran de fin absent');
+  });
+
+  // ---- chapitre 1 : le Potager ----
+  const pg = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  pg.setDefaultTimeout(8000);
+  pg.on('pageerror', (e) => errors.push('[potager] ' + e.message));
+  await pg.goto(PAGE); await pg.waitForFunction(() => window.__kage); await pg.waitForTimeout(300);
+  await pg.evaluate(() => localStorage.clear());
+  await pg.reload(); await pg.waitForFunction(() => window.__kage); await pg.waitForTimeout(300);
+  const PK = pg.keyboard, pw = (ms) => pg.waitForTimeout(ms);
+  const PS = () => pg.evaluate(() => { const pl = window.__kage.player; return { st: pl.state, x: pl.x, y: pl.y, tx: Math.floor(pl.x / 16), hp: pl.hp, ground: pl.onGround }; });
+  const SAVE = () => pg.evaluate(() => JSON.parse(localStorage.getItem('kage.save.v1') || 'null'));
+  // KAGE posé sur le sol (le plus bas : sous les toits et mezzanines) de la colonne tx, ennemis écartés
+  const pat = (tx) => pg.evaluate((tx) => {
+    const g = window.__kage, pl = g.player, l = g.level;
+    let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;
+    if (!l.solid(tx, l.h - 1)) { ty = 0; while (ty < l.h && !l.solid(tx, ty)) ty++; }   // passerelle au-dessus de l'eau
+    pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.invuln = 0; pl.hp = 5;
+    pl.energy.value = 1; pl.energy.exhausted = false; pl.onGround = true; pl.setState('idle');
+    for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; }
+    for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; w.cooldown = 99; }
+  }, tx);
+  // trous du chapitre (colonnes sans aucun sol : eau ou vide) : [début, largeur, haut à gauche, haut à droite]
+  const holes = await pg.evaluate(() => {
+    const l = window.__kage.level, top = (x) => { let y = 0; while (y < l.h && !l.solid(x, y)) y++; return y; };
+    const out = []; let x = 0;
+    while (x < l.w) { if (top(x) >= l.h) { const s = x; while (x < l.w && top(x) >= l.h) x++; out.push([s, x - s, top(s - 1), top(x)]); } else x++; }
+    return out;
+  });
+  // élan jusqu'au bord du trou, saut, dash éventuel ; renvoie l'état à l'arrivée
+  const leap = async ([gs, w, lt], { sprint = false, dash = false } = {}) => {
+    let c = gs - 1; while (c > gs - 5 && w > 3 && (await pg.evaluate(([c, lt]) => { const l = window.__kage.level; return l.solid(c, lt) && !l.solid(c, lt - 1); }, [c - 1, lt]))) c--;
+    await pat(c);
+    if (w <= 3) {   // petit canal : un saut court, sans élan, et on s'arrête à l'atterrissage
+      await PK.down('ArrowRight'); await PK.down('Space'); await pw(420);
+      await PK.up('ArrowRight'); await PK.up('Space'); await pw(400);
+      return PS();
+    }
+    const run = Math.max(60, Math.round(((gs * 16 - 3) - (c * 16 + 8)) / (sprint ? 140 : 96) * 1000));
+    await PK.down('ArrowRight'); if (sprint) await PK.down('ShiftLeft');
+    await pw(run); await PK.down('Space'); await pw(250);
+    if (dash) { await PK.up('ArrowRight'); await PK.press('ArrowRight'); await pw(40); await PK.press('ArrowRight'); await PK.down('ArrowRight'); }
+    await pw(200); await PK.up('Space'); await pw(450);
+    await PK.up('ShiftLeft'); await PK.up('ArrowRight'); await pw(250);
+    return PS();
+  };
+  const landed = (s, [gs, w, , rt]) => s.tx >= gs + w && s.y === rt * 16 && s.hp === 5 && s.st !== 'death' && s.st !== 'respawn';
+
+  await test('potager : écran titre, puis 8 zones, 3 lanternes, un marchand et une sortie', async () => {
+    const shown = await pg.evaluate(() => !document.querySelector('.title-screen').hidden);
+    await pg.click('[data-new]'); await pw(200);
+    const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused]; });
+    expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
+  });
+
+  await test('potager : chaque trou se franchit (saut, ou saut + dash pour les grands)', async () => {
+    const bad = [];
+    for (const h of holes) {
+      const s = await leap(h, { dash: h[1] > 3 });
+      if (!landed(s, h)) bad.push(`trou ${h[0]}+${h[1]} → colonne ${s.tx}, y ${s.y}, ${s.st}`);
+    }
+    expect(holes.length >= 8 && bad.length === 0, `${holes.length} trous ; ${bad.join(' ; ')}`);
+  });
+
+  await test('potager : le premier trou du dash (zone 2) demande vraiment le dash', async () => {
+    const h = holes.find((h) => h[0] > 79 && h[1] === 6);
+    const a = await leap(h), b = await leap(h, { dash: true });
+    expect(!landed(a, h) && landed(b, h), `sans dash : colonne ${a.tx} ; avec dash : colonne ${b.tx}`);
+  });
+
+  await test('potager : le trou du sprint (zone 3) demande le sprint', async () => {
+    const h = holes.find((h) => h[0] > 141 && h[1] === 5 && h[2] === h[3]);
+    const a = await leap(h), b = await leap(h, { sprint: true });
+    expect(!landed(a, h) && landed(b, h), `course : colonne ${a.tx} ; sprint : colonne ${b.tx}`);
+  });
+
+  await test('potager : les passages bas de la serre et du jardin ne se passent qu\'en glissade', async () => {
+    // passages bas : une seule case libre au-dessus du sol
+    const lows = await pg.evaluate(() => {
+      const l = window.__kage.level, out = []; let x = 0;
+      const low = (x) => { let y = l.h - 1; while (y > 0 && l.solid(x, y - 1)) y--; return y > 1 && l.solid(x, y - 2) && !l.solid(x, y - 1) && l.solid(x, y); };
+      while (x < l.w) { if (low(x)) { const s = x; while (x < l.w && low(x)) x++; out.push([s, x - s]); } else x++; }
+      return out;
+    });
+    const bad = [];
+    for (const [s0, w] of lows) {
+      await pat(s0 - 3); await PK.down('ArrowRight'); await pw(700); await PK.up('ArrowRight'); await pw(100);
+      const standing = (await PS()).tx;
+      await pat(s0 - 3); await PK.down('ArrowRight'); await pw(150); await PK.press('ArrowDown'); await pw(1300); await PK.up('ArrowRight'); await pw(100);
+      const slid = (await PS()).tx;
+      if (!(standing < s0 && slid >= s0 + w)) bad.push(`passage ${s0}+${w} : debout ${standing}, glissade ${slid}`);
+    }
+    expect(lows.length >= 5 && bad.length === 0, `${lows.length} passages ; ${bad.join(' ; ')}`);
+  });
+
+  // les tests suivants repartent d'une partie neuve
+  await pg.evaluate(() => localStorage.clear());
+  await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
+  await pg.click('[data-new]'); await pw(200);
+
+  await test('potager : une caisse de la grange se brise au sabre et lâche un ryō', async () => {
+    const before = await pg.evaluate(() => { const l = window.__kage.level; const [k, c] = [...l.crates.entries()].find(([, c]) => c.ty === l.h - 4); return { k, tx: c.tx, n: l.crates.size, coins: l.coins.length }; });
+    await pat(before.tx - 2); await pg.evaluate(() => { window.__kage.player.facing = 1; });
+    await pw(80); await PK.press('KeyJ'); await pw(400);
+    const after = await pg.evaluate(() => { const l = window.__kage.level; return { n: l.crates.size, coins: l.coins.length }; });
+    // un coup peut briser deux caisses d'une même pile : un ryō par caisse
+    expect(after.n < before.n && after.coins - before.coins === before.n - after.n, `caisses ${before.n} → ${after.n}, ryō ${before.coins} → ${after.coins}`);
+  });
+
+  await test('potager : un ryō ramassé est compté et enregistré', async () => {
+    // un ryō à hauteur de hanche, au-dessus du sol
+    const c = await pg.evaluate(() => {
+      const l = window.__kage.level;
+      const ground = (tx) => { let y = l.h - 1; while (y > 0 && l.solid(tx, y - 1)) y--; return y; };
+      const c = l.coins.find((c) => !c.taken && c.y === ground(Math.floor(c.x / 16)) * 16 - 24);
+      return { id: c.id, tx: Math.floor(c.x / 16) };
+    });
+    const before = (await SAVE())?.ryo ?? 0;
+    await pat(c.tx); await pw(300);
+    const s = await SAVE();
+    expect(s && s.ryo === before + 1 && s.coins.includes(c.id), `ryō ${before} → ${s && s.ryo}`);
+  });
+
+  await test('potager : une lanterne enregistre la partie (icône « enregistré »)', async () => {
+    const c = await pg.evaluate(() => Math.floor(window.__kage.level.checkpoints[1].x / 16));
+    await pat(c - 2); await PK.down('ArrowRight'); await pw(500); await PK.up('ArrowRight'); await pw(150);
+    const icon = await pg.evaluate(() => document.querySelector('.saved').classList.contains('on'));
+    const s = await SAVE();
+    expect(s && s.checkpoint === 1 && icon, `point de reprise ${s && s.checkpoint}, icône ${icon}`);
+  });
+
+  await test('potager : « Continuer » reprend à la dernière lanterne, avec les ryō', async () => {
+    const before = await SAVE();
+    await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
+    const cont = await pg.evaluate(() => !document.querySelector('[data-continue]').hidden);
+    await pg.click('[data-continue]'); await pw(300);
+    const r = await pg.evaluate(() => { const g = window.__kage, l = g.level; return { px: g.player.x, lx: l.checkpoints[1].x, taken: l.coins.filter((c) => c.taken).map((c) => c.id) }; });
+    expect(cont && Math.abs(r.px - r.lx) < 24 && before.coins.every((id) => r.taken.includes(id)), `continuer ${cont}, KAGE ${Math.round(r.px)} / lanterne ${r.lx}`);
+  });
+
+  await test('potager : le marchand ouvre la boutique (↑) et Échap la referme', async () => {
+    const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
+    await pat(mx - 1); await pw(200);
+    const talk = await pg.evaluate(() => !document.querySelector('.talk').hidden);
+    await PK.press('ArrowUp'); await pw(200);
+    const open = await pg.evaluate(() => [!document.querySelector('.shop').hidden, window.__kage.run.paused, document.querySelectorAll('[data-tabs] button').length]);
+    await PK.press('Escape'); await pw(200);
+    const closed = await pg.evaluate(() => [document.querySelector('.shop').hidden, window.__kage.run.paused]);
+    expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
+  });
+
+  await test('potager : la sortie termine le chapitre', async () => {
+    const gx = await pg.evaluate(() => Math.floor(window.__kage.level.goal.x / 16));
+    await pat(gx - 4); await PK.down('ArrowRight'); await pw(900); await PK.up('ArrowRight'); await pw(300);
+    const r = await pg.evaluate(() => [!document.querySelector('.win').hidden, document.querySelector('.win__title').textContent]);
+    const s = await SAVE();
+    expect(r[0] && /Potager/.test(r[1]) && s.done, `fin ${r.join(' / ')}, sauvegarde terminée ${s && s.done}`);
   });
 
   await test('aucune erreur dans la console', async () => {

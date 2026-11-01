@@ -1,6 +1,7 @@
 // Niveau : grille de tuiles + éléments (TATE, WARA, gong, porte, lanternes, torii).
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
+import * as potagerArt from './potager_art.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
@@ -11,6 +12,18 @@ export class Level {
     this.id = LEVELS[id] ? id : 'niveau-1';
     this.name = def.name;
     const MAP = def.map;
+    // chapitre (monde continu) : zones, décors, aides contextuelles, thème graphique
+    this.theme = def.theme ?? 'ville';
+    this.chapter = def.chapter ?? null;
+    this.next = def.next ?? null;
+    this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
+    this.props = def.props ?? [];
+    this.hints = def.hints ?? [];
+    this.backdrops = def.backdrops ?? [];
+    this.coins = [];         // ryō : { id, x, y, taken }
+    this.crates = new Map(); // caisses : 'tx,ty' -> { tx, ty } (tant qu'elles ne sont pas brisées)
+    this.merchant = null;
+    this.time = 0;
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
     this.targets = [];
     this.enemies = [];       // positions de départ des TATE
@@ -39,8 +52,11 @@ export class Level {
         else if (c === 'C') this.gongs.push({ x: px, y: py, hit: false, t: 0 });
         else if (c === 'P') this.checkpoints.push({ x: px, y: py, lit: false, t: 0 });
         else if (c === 'G') this.goal = { x: px, y: py };
+        else if (c === 'o') this.coins.push({ id: `o${x}_${y}`, x: px, y: py - TILE / 2, taken: false });
+        else if (c === 'M') this.merchant = { x: px, y: py };
+        else if (c === 'B') this.crates.set(`${x},${y}`, { tx: x, ty: y });
       }
-      this.rows[y] = this.rows[y].replace(/[TEWCPG]/g, '.');
+      this.rows[y] = this.rows[y].replace(/[TEWCPGoM]/g, '.');
     }
   }
 
@@ -68,6 +84,7 @@ export class Level {
   }
 
   update(dt) {
+    this.time += dt;
     for (const t of this.targets) if (t.broken) t.t += dt;
     for (const g of this.gongs) g.t += dt;
     for (const c of this.checkpoints) c.t += dt;
@@ -77,6 +94,20 @@ export class Level {
   /** Gongs, lanternes, porte et torii (dessinés avec le décor). */
   drawProps(ctx, cam) {
     const R = (v) => Math.round(v);
+    if (this.theme === 'potager') potagerArt.drawProps(ctx, cam, this, this.time);
+    // ryō : petite pièce d'or percée d'un trou carré, qui tourne
+    for (const c of this.coins) {
+      if (c.taken) continue;
+      const sx = R(c.x - cam.x), sy = R(c.y - cam.y + Math.sin(this.time * 3 + c.x) * 1.2);
+      const w = [3, 2, 1, 2][Math.floor(this.time * 6 + c.x / 16) % 4];
+      ctx.fillStyle = '#7a5a1c';
+      ctx.fillRect(sx - w - 1, sy - 4, w * 2 + 2, 8);
+      ctx.fillStyle = '#e8b93c';
+      ctx.fillRect(sx - w, sy - 3, w * 2, 6);
+      ctx.fillStyle = '#f7dc84';
+      ctx.fillRect(sx - w, sy - 3, 1, 3);
+      if (w > 1) { ctx.fillStyle = '#7a5a1c'; ctx.fillRect(sx - 1, sy - 1, 2, 2); }
+    }
     for (const g of this.gongs) {
       const sx = R(g.x - cam.x), sy = R(g.y - cam.y);
       // portique en bois
@@ -142,6 +173,11 @@ export class Level {
     }
   }
 
+  /** Devant les personnages (cascade). */
+  drawForeground(ctx, cam) {
+    if (this.theme === 'potager') potagerArt.drawForeground(ctx, cam, this, this.time);
+  }
+
   drawTargets(ctx, cam) {
     for (const t of this.targets) {
       const sx = Math.round(t.x - cam.x), sy = Math.round(t.y - cam.y);
@@ -183,7 +219,54 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+  }
+
+  // --- ryō et caisses --------------------------------------------------------
+  /** Ramasse les ryō touchés ; renvoie la liste des pièces prises. */
+  takeCoins(box) {
+    const got = [];
+    for (const c of this.coins) {
+      if (c.taken) continue;
+      if (box.x < c.x + 4 && box.x + box.w > c.x - 4 && box.y < c.y + 5 && box.y + box.h > c.y - 5) {
+        c.taken = true;
+        got.push(c);
+      }
+    }
+    return got;
+  }
+
+  /** Brise les caisses touchées (sabre, coup de pied) : chacune lâche un ryō. */
+  breakCrates(box) {
+    const broken = [];
+    for (const [key, cr] of this.crates) {
+      const x = cr.tx * TILE, y = cr.ty * TILE;
+      if (box.x < x + TILE && box.x + box.w > x && box.y < y + TILE && box.y + box.h > y) {
+        this.crates.delete(key);
+        this.rows[cr.ty] = this.rows[cr.ty].slice(0, cr.tx) + '.' + this.rows[cr.ty].slice(cr.tx + 1);
+        this.coins.push({ id: `c${cr.tx}_${cr.ty}`, x: x + TILE / 2, y: y + TILE / 2, taken: false });
+        broken.push({ key, x: x + TILE / 2, y: y + TILE / 2 });
+      }
+    }
+    return broken;
+  }
+
+  /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées. */
+  applySave(save) {
+    const taken = new Set(save.coins ?? []);
+    for (const key of save.crates ?? []) {
+      const cr = this.crates.get(key);
+      if (!cr) continue;
+      this.crates.delete(key);
+      this.rows[cr.ty] = this.rows[cr.ty].slice(0, cr.tx) + '.' + this.rows[cr.ty].slice(cr.tx + 1);
+      this.coins.push({ id: `c${cr.tx}_${cr.ty}`, x: cr.tx * TILE + TILE / 2, y: cr.ty * TILE + TILE / 2, taken: false });
+    }
+    for (const c of this.coins) if (taken.has(c.id)) c.taken = true;
+  }
+
+  /** Zone où se trouve x (en pixels), ou null. */
+  zoneAt(x) {
+    return this.zones.find((z) => x >= z.px0 && x < z.px1) ?? null;
   }
 
   // --- gong et porte ----------------------------------------------------------
@@ -226,7 +309,14 @@ export class Level {
     const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
-        if (this.at(tx, ty) !== '^') continue;
+        const c = this.at(tx, ty);
+        if (c === '~') {
+          // eau : on y tombe dès qu'on y met les pieds
+          const wy = ty * TILE + 4;
+          if (box.y + box.h > wy) return true;
+          continue;
+        }
+        if (c !== '^') continue;
         const sx = tx * TILE + 3, sy = ty * TILE + 8;
         if (box.x < sx + TILE - 6 && box.x + box.w > sx && box.y < sy + 8 && box.y + box.h > sy) return true;
       }
@@ -235,6 +325,20 @@ export class Level {
   }
 
   draw(ctx, cam, viewW, viewH) {
+    if (this.theme === 'potager') {
+      potagerArt.drawBackground(ctx, cam, viewW, viewH, this, this.time);
+      potagerArt.drawBackdrops(ctx, cam, this, this.time);
+      const x0 = Math.floor(cam.x / TILE), x1 = Math.ceil((cam.x + viewW) / TILE);
+      const y0 = Math.max(0, Math.floor(cam.y / TILE)), y1 = Math.min(this.h - 1, Math.ceil((cam.y + viewH) / TILE));
+      for (let ty = y0; ty <= y1; ty++) {
+        for (let tx = x0; tx <= x1; tx++) {
+          const t = this.at(tx, ty);
+          if (t === '.') continue;
+          potagerArt.drawTile(ctx, t, tx * TILE - Math.round(cam.x), ty * TILE - Math.round(cam.y), this, tx, ty, this.time);
+        }
+      }
+      return;
+    }
     // fond : aplats désaturés, plus clairs que le personnage pour qu'il reste lisible
     ctx.fillStyle = '#8d99a8';
     ctx.fillRect(0, 0, viewW, viewH);

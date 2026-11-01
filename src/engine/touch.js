@@ -1,8 +1,9 @@
 // Commandes tactiles dessinées dans le jeu (pixel art) :
-// - joystick flottant sous le pouce gauche (gauche/droite = courir, bas = glissade,
-//   coup très rapide et court vers un côté puis relâché = dash) ;
-// - boutons ronds sous le pouce droit : saut (le plus gros), sabre, shuriken,
-//   et un petit interrupteur de sprint.
+// - joystick flottant sous le pouce gauche : gauche/droite = courir ; pousser
+//   au-delà du cercle (contre un « mur » qui résiste) = sprinter ; bas = glissade ;
+//   coup très rapide et court vers un côté puis relâché = dash ;
+// - boutons ronds sous le pouce droit : saut (le plus gros), sabre, coup de pied,
+//   shuriken.
 // Les positions sont en pixels du jeu ; les doigts sont convertis via l'échelle.
 
 const STICK = {
@@ -13,6 +14,11 @@ const STICK = {
   flickBack: 0.15,   // ... puis de relâcher le joystick en moins de 0,15 s,
   flickFlat: 2,      // ... avec un geste franchement horizontal (|dx| > 2 × |dy|)
   down: 0.6,         // vers le bas au-delà de 60 % = glissade
+  // sprint : le pouce peut sortir du cercle, mais il résiste (« mur » invisible)
+  wall: 0.5,         // au-delà du cercle, le pouce suit le doigt deux fois moins vite
+  maxOut: 10,        // il sort au plus de 10 px du cercle
+  sprintOut: 4,      // sprint dès qu'il dépasse le cercle de 4 px...
+  sprintBack: 2,     // ... et retour à la course sous 2 px (évite le clignotement)
 };
 
 // Icônes en pixel art (# = pixel allumé), lisibles d'un coup d'œil sous le pouce.
@@ -44,20 +50,19 @@ const ICONS = {
     '.....##.....',
     '.....##.....',
   ],
-  // KAGE en sprint, simplifié : tête ronde encapuchonnée, pan du foulard
-  // derrière, buste plongé, bras tendus vers l'arrière
-  sprint: [
-    '.......####..',
-    '......######.',
-    '.##...######.',
-    '..###..####..',
-    '....######...',
-    '#########....',
-    '.....####....',
-    '.....######..',
-    '....###..###.',
-    '...##.....##.',
-    '..##.......#.',
+  // KAGE en coup de pied de côté : tête, buste en arrière, jambe tendue, jambe d'appui
+  kick: [
+    '.##..........',
+    '####.........',
+    '####.........',
+    '.###.........',
+    '.####.....###',
+    '..#########..',
+    '..######.....',
+    '..###........',
+    '..##.........',
+    '..##.........',
+    '.###.........',
   ],
   attack: [
     '...........##',
@@ -80,6 +85,7 @@ const COLORS = {
   fill: 'rgba(10, 12, 16, 0.38)',
   fillDown: 'rgba(233, 229, 218, 0.42)',
   edge: 'rgba(233, 229, 218, 0.6)',
+  edgeSprint: 'rgba(159, 217, 139, 0.95)',   // vert de l'anneau d'énergie : on sprinte
   icon: '#e9e5da',
   iconDown: '#15171c',
   knob: 'rgba(233, 229, 218, 0.7)',
@@ -117,10 +123,11 @@ export class TouchControls {
     this.canvas = canvas;
     this.input = input;
     this.scale = 1;
+    this.rotW = 0;                  // portrait : largeur de l'écran (jeu pivoté d'un quart de tour)
     this.buttons = [];
     this.pointers = new Map();      // pointerId -> { type: 'stick' | 'button', ... }
     this.stick = null;              // { id, ox, oy, x, y, outAt, outDir }
-    this.sprintOn = false;
+    this.sprintOn = false;          // sprint en cours (pouce sorti du cercle)
     this.layout(320, 180, 1);
 
     const opts = { passive: false };
@@ -138,13 +145,18 @@ export class TouchControls {
     this.buttons = [
       { action: 'jump', x: w - 28, y: h - 30, r: 17 },
       { action: 'attack', x: w - 68, y: h - 22, r: 14 },
+      { action: 'kick', x: w - 97, y: h - 44, r: 12 },
       { action: 'throw', x: w - 56, y: h - 61, r: 12 },
-      // petit interrupteur : un appui active le sprint, un autre le coupe
-      { action: 'sprint', x: w - 20, y: h - 64, r: 10, toggle: true, down: !!this.sprintOn },
     ];
   }
 
+  /** Portrait : le jeu est pivoté de 90° (son haut est à droite de l'écran). */
+  setRotation(screenW) {
+    this.rotW = screenW;
+  }
+
   toGame(e) {
+    if (this.rotW) return { x: e.clientY / this.scale, y: (this.rotW - e.clientX) / this.scale };
     const rect = this.canvas.getBoundingClientRect();
     return { x: (e.clientX - rect.left) / this.scale, y: (e.clientY - rect.top) / this.scale };
   }
@@ -158,10 +170,7 @@ export class TouchControls {
     this.canvas.setPointerCapture?.(e.pointerId);
     const p = this.toGame(e);
     const b = this.hitButton(p);
-    if (b && b.toggle) {
-      this.pointers.set(e.pointerId, { type: 'toggle' });
-      this.setSprint(!this.sprintOn);
-    } else if (b) {
+    if (b) {
       this.pointers.set(e.pointerId, { type: 'button', button: b });
       b.down = true;
       this.input.press(b.action);
@@ -196,27 +205,28 @@ export class TouchControls {
       this.input.setHeld('left', false);
       this.input.setHeld('right', false);
       this.input.setHeld('down', false);
+      this.setSprint(false);
     }
   }
 
-  /** Active / coupe le sprint (le bouton reste allumé tant qu'il est actif). */
+  /** Sprint par le joystick : actif tant que le pouce est sorti du cercle. */
   setSprint(on) {
+    if (on === this.sprintOn) return;
     this.sprintOn = on;
     this.input.setHeld('sprint', on);
-    const b = this.buttons.find((x) => x.toggle);
-    if (b) b.down = on;
   }
 
-  /** Décalage du pouce, limité à la course du joystick. */
+  /**
+   * Décalage du pouce. Dans le cercle, il suit le doigt ; au-delà, il résiste
+   * (deux fois moins vite) et sort au plus de STICK.maxOut. out = dépassement du cercle.
+   */
   offset() {
     const s = this.stick;
-    let dx = s.x - s.ox, dy = s.y - s.oy;
-    const d = Math.hypot(dx, dy);
-    if (d > STICK.radius) {
-      dx *= STICK.radius / d;
-      dy *= STICK.radius / d;
-    }
-    return { dx, dy };
+    const fx = s.x - s.ox, fy = s.y - s.oy;
+    const d = Math.hypot(fx, fy);
+    if (d <= STICK.radius) return { dx: fx, dy: fy, out: 0 };
+    const k = STICK.radius + Math.min((d - STICK.radius) * STICK.wall, STICK.maxOut);
+    return { dx: (fx * k) / d, dy: (fy * k) / d, out: k - STICK.radius };
   }
 
   updateStick() {
@@ -227,6 +237,11 @@ export class TouchControls {
     this.input.setHeld('left', dx < -STICK.dead);
     this.input.setHeld('right', dx > STICK.dead);
     const wantDown = dy > STICK.radius * STICK.down && Math.abs(dy) > Math.abs(dx);
+    // sprint : pouce poussé hors du cercle, vers un côté
+    const { out } = this.offset();
+    const sideways = Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > STICK.dead;
+    if (!this.sprintOn && sideways && out >= STICK.sprintOut) this.setSprint(true);
+    else if (this.sprintOn && (!sideways || out < STICK.sprintBack)) this.setSprint(false);
     if (wantDown && !this.input.isHeld('down')) this.input.press('down');
     if (!wantDown) this.input.setHeld('down', false);
 
@@ -271,7 +286,8 @@ export class TouchControls {
     const s = this.stick;
     const base = s ? { x: Math.round(s.ox), y: Math.round(s.oy) } : this.home;
     disc(ctx, base.x, base.y, STICK.radius + 4, COLORS.fill);
-    circle(ctx, base.x, base.y, STICK.radius + 4, COLORS.edge);
+    // contour plus vif pendant le sprint (le pouce est sorti du cercle)
+    circle(ctx, base.x, base.y, STICK.radius + 4, this.sprintOn ? COLORS.edgeSprint : COLORS.edge);
     const { dx, dy } = s ? this.offset() : { dx: 0, dy: 0 };
     disc(ctx, Math.round(base.x + dx), Math.round(base.y + dy), 7, COLORS.knob);
 

@@ -777,6 +777,70 @@ VIEWS = {"front": VIEW_FRONT, "back": VIEW_BACK, "left": VIEW_LEFT, "right": VIE
 # ---------------------------------------------------------------------------
 # Métadonnées de lecture
 # ---------------------------------------------------------------------------
+# KICK — yoko geri kekomi : coup de pied de côté, talon en avant, hanche qui
+# pivote, buste qui part en arrière, poings en garde. Jambe d'appui = jambe
+# lointaine (pied à plat au sol) ; jambe qui frappe = jambe proche.
+# ---------------------------------------------------------------------------
+KICK_FAR_LEG = dict(far_leg=[(12, 27), (12, 28)], far_foot="flat")
+KICK = [
+    # 1. armé : le genou monte devant, la hanche commence à tourner
+    F(pose(torso="up", tx=11, ty=19, **KICK_FAR_LEG,
+           near_leg=[(19, 21), (16, 24)], near_foot="down",
+           near_arm=[(17, 21), (19, 19)], far_arm=[(13, 21), (15, 20)],
+           tail_long=[(-2, 1), (-3, 3), (-4, 6), (-5, 9)], tail_short=[(-2, 2), (-3, 4), (-3, 7)])),
+    # 2. détente : la jambe file vers l'avant, le buste bascule en arrière
+    F(pose(torso="back", tx=9, ty=19, head="head_r_squint", **KICK_FAR_LEG,
+           near_leg=[(19, 20), (23, 19)], near_foot="flex",
+           near_arm=[(14, 21), (16, 19)], far_arm=[(9, 22), (7, 24)],
+           tail_long=[(-2, -1), (-4, -3), (-5, -6), (-6, -8)], tail_short=[(-2, 1), (-4, 0), (-5, -2)])),
+    # 3. impact : jambe tendue à l'horizontale, talon en avant
+    Frame([G(pose(torso="back", tx=8, ty=19, head="head_r_squint", **KICK_FAR_LEG,
+                  near_leg=[(20, 19), (26, 17)], near_foot="flex",
+                  near_arm=[(13, 21), (15, 19)], far_arm=[(8, 22), (6, 25)],
+                  tail_long=[(-2, -2), (-3, -4), (-4, -7), (-5, -9)], tail_short=[(-2, 0), (-4, -1), (-5, -3)])),
+           A("X.\n.X\nX.", x=31, bottom=18)], outline=True),
+    # 4. retrait : la jambe se replie, genou haut ; l'effort se lit sur le visage
+    F(pose(torso="up", tx=10, ty=19, head="head_r_squint", **KICK_FAR_LEG,
+           near_leg=[(19, 21), (17, 24)], near_foot="down",
+           near_arm=[(16, 21), (18, 19)], far_arm=[(12, 21), (14, 20)],
+           tail_long=[(-2, 1), (-3, 3), (-4, 6), (-5, 9)], tail_short=[(-2, 2), (-3, 4), (-3, 7)]),
+      A("qq\n.q", x=20, bottom=16)),
+    # 5. retour en garde, tassé : KAGE souffle (le coup lui a coûté)
+    F(pose(torso="up", tx=12, ty=20, head="head_r_squint", **STANCE_LOW,
+           tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)], tail_short=[(-2, 2), (-3, 4), (-3, 8)]),
+      A(".qq.\nqqqq\n.q.q", x=22, bottom=17),     # grande expiration devant la bouche
+      A("q\nq", x=8, bottom=12)),                 # goutte de sueur derrière la tête
+]
+
+# ---------------------------------------------------------------------------
+# WALK — à bout de souffle : épaules tombantes, bras ballants, petits pas,
+# foulard qui pend. Cycle de 4 temps.
+# ---------------------------------------------------------------------------
+WALK_TAILS = ([(-1, 2), (-2, 4), (-2, 7), (-3, 10)], [(-1, 2), (-2, 4), (-2, 7)])
+WALK = [
+    # 1. pas : jambe proche devant
+    F(pose(torso="lean", tx=12, ty=20, head="head_r_squint",
+           near_leg=[(17, 26), (18, 28)], far_leg=[(12, 26), (11, 28)],
+           near_arm=[(15, 24), (15, 26)], far_arm=[(13, 24), (12, 26)],
+           tail_long=WALK_TAILS[0], tail_short=WALK_TAILS[1])),
+    # 2. passage : les jambes se croisent, le corps remonte à peine
+    F(pose(torso="lean", tx=12, ty=19, head="head_r_squint",
+           near_leg=[(15, 26), (15, 28)], far_leg=[(14, 26), (14, 28)],
+           near_arm=[(15, 23), (16, 25)], far_arm=[(13, 23), (13, 25)],
+           tail_long=[(-1, 2), (-2, 4), (-3, 7), (-3, 10)], tail_short=WALK_TAILS[1])),
+    # 3. pas : jambe lointaine devant
+    F(pose(torso="lean", tx=12, ty=20, head="head_r_squint",
+           near_leg=[(13, 26), (12, 28)], far_leg=[(17, 26), (18, 28)],
+           near_arm=[(15, 24), (14, 26)], far_arm=[(13, 24), (14, 26)],
+           tail_long=WALK_TAILS[0], tail_short=WALK_TAILS[1])),
+    # 4. passage
+    F(pose(torso="lean", tx=12, ty=19, head="head_r_squint",
+           near_leg=[(14, 26), (14, 28)], far_leg=[(15, 26), (15, 28)],
+           near_arm=[(15, 23), (15, 25)], far_arm=[(13, 23), (12, 25)],
+           tail_long=[(-1, 2), (-2, 4), (-2, 7), (-2, 10)], tail_short=WALK_TAILS[1])),
+]
+
+# ---------------------------------------------------------------------------
 ANIMS = {
     "idle":          dict(frames=IDLE,    fps=6,  loop=True,  state="idle"),
     "run":           dict(frames=RUN,     fps=12, loop=True,  state="run"),
@@ -797,6 +861,9 @@ ANIMS = {
     "air_throw":     dict(frames=AIR_THROW, fps=14, loop=False, state="air_throw",
                           durations=[70, 45, 90, 90], release=AIR_THROW_RELEASE),
     "skid":          dict(frames=SKID,    fps=12, loop=True,  state="skid"),
+    "kick":          dict(frames=KICK,    fps=14, loop=False, state="kick",
+                          durations=[70, 50, 120, 90, 130]),
+    "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),
