@@ -125,6 +125,14 @@ const SOUNDS = {
   tateBash: () => { noise({ dur: 0.22, vol: 0.18, type: 'lowpass', f: 600, to: 300 }); tone({ f: 85, to: 40, dur: 0.25, type: 'sine', vol: 0.16 }); },
   tateStun: () => { tone({ f: 1250, to: 950, dur: 0.12, type: 'sine', vol: 0.05 }); tone({ f: 1500, to: 1100, dur: 0.12, type: 'sine', vol: 0.05, delay: 0.14 }); },
   tateKneel: () => noise({ dur: 0.15, vol: 0.12, type: 'lowpass', f: 400 }),
+  // WARA : paille, bois léger, petits bruits comiques
+  waraHop: () => { tone({ f: 330, to: 620, dur: 0.12, type: 'sine', vol: 0.045 }); noise({ dur: 0.05, vol: 0.035, f: 3000, q: 2 }); },
+  waraWindup: () => { tone({ f: 600, to: 1300, dur: 0.16, type: 'triangle', vol: 0.05 }); tone({ f: 1300, to: 1100, dur: 0.08, type: 'triangle', vol: 0.035, delay: 0.16 }); },
+  waraSpin: () => [0, 0.12, 0.24, 0.36].forEach((d) => noise({ dur: 0.1, vol: 0.06, f: 900, to: 2400, q: 1.2, attack: 0.02, delay: d })),
+  waraDizzy: () => [0, 0.16, 0.32].forEach((d, i) => tone({ f: 1500 - i * 150, to: 1200 - i * 150, dur: 0.1, type: 'sine', vol: 0.035, delay: d })),
+  waraBlock: () => { tone({ f: 420, dur: 0.06, type: 'triangle', vol: 0.06 }); noise({ dur: 0.05, vol: 0.06, type: 'lowpass', f: 1200 }); },
+  waraHit: () => { noise({ dur: 0.12, vol: 0.14, f: 2200, to: 900, q: 0.8 }); tone({ f: 260, to: 140, dur: 0.1, type: 'triangle', vol: 0.05 }); },
+  waraPoof: () => { noise({ dur: 0.3, vol: 0.14, type: 'lowpass', f: 2600, to: 400 }); tone({ f: 500, to: 180, dur: 0.22, type: 'sine', vol: 0.05 }); },
   tateFall: () => { noise({ dur: 0.32, vol: 0.28, type: 'lowpass', f: 320 }); tone({ f: 62, to: 30, dur: 0.36, type: 'sine', vol: 0.26 }); },
 };
 

@@ -29,6 +29,7 @@ async function main() {
       const g = window.__kage;
       g.player.respawn(true); g.player.x = x; g.player.y = y;
       g.tate.reset(); g.tate.x = tx; g.tate.cooldown = 99;
+      for (const w of g.waras) { w.reset(); w.x = w.home + 4000; w.rest = 99; }
       g.shurikens.reset();
     }, [x, y, tateX]);
     for (const key of ['ArrowLeft', 'ArrowRight', 'ShiftLeft', 'Space']) await k.up(key);
@@ -96,7 +97,7 @@ async function main() {
     await ev(() => { window.__kage.tate.facing = -1; window.__kage.player.facing = 1; });
     await k.press('KeyJ'); await wait(200);
     const s = await S();
-    expect(s.tateHp === 4, `vie TATE ${s.tateHp}`);
+    expect(s.tateHp === 5, `vie TATE ${s.tateHp}`);
   });
 
   await test('sabre dans le dos : -2 ; shuriken dans le dos : -1', async () => {
@@ -107,7 +108,7 @@ async function main() {
     await ev(() => { const g = window.__kage; g.player.x = 560; g.player.facing = -1; });
     await wait(50); await k.press('KeyK'); await wait(500);
     const b = await S();
-    expect(a.tateHp === 2 && b.tateHp === 1, `vie TATE ${a.tateHp} puis ${b.tateHp}`);
+    expect(a.tateHp === 3 && b.tateHp === 2, `vie TATE ${a.tateHp} puis ${b.tateHp}`);
   });
 
   await test('charge de TATE : -2 vies, état « hurt », invincibilité', async () => {
@@ -184,9 +185,78 @@ async function main() {
     await reset(500, 192, 480);
     await ev(() => { const g = window.__kage; g.tate.facing = -1; g.tate.setState('stunned'); g.tate.timer = -5; g.player.facing = -1; });
     await k.press('Space'); await wait(110); await k.press('KeyJ');
-    let hp = 4;
-    for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 4) break; await wait(10); }
-    expect(hp === 1, `vie TATE ${hp} (attendu 4 - 3 = 1)`);
+    let hp = 5;
+    for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 5) break; await wait(10); }
+    expect(hp === 2, `vie TATE ${hp} (attendu 5 - 3 = 2)`);
+  });
+
+  // ---- WARA ------------------------------------------------------------------
+  // place le premier WARA en x, au repos (ni bond ni moulinet sauf si demandé)
+  const wara = (x, o = {}) => ev(([x, o]) => {
+    const w = window.__kage.wara;
+    w.reset(); w.x = x; w.facing = o.facing ?? -1; w.rest = o.rest ?? 99; w.cooldown = o.cooldown ?? 99;
+    if (o.state) { w.setState(o.state); w.timer = -5; }
+  }, [x, o]);
+  const W = () => ev(() => { const w = window.__kage.wara; return { st: w.state, hp: w.hp, x: w.x, f: w.frameName() }; });
+  // attend qu'une condition sur WARA soit vraie (en temps de jeu, pas en millisecondes fixes)
+  const until = async (cond, tries = 100) => {
+    let w;
+    for (let i = 0; i < tries; i++) { w = await W(); if (cond(w)) return w; await wait(15); }
+    return w;
+  };
+  // attend la fin du coup de sabre de KAGE
+  const swingDone = async () => {
+    for (let i = 0; i < 100; i++) { if ((await S()).state === 'attack') break; await wait(10); }
+    for (let i = 0; i < 100; i++) { if ((await S()).state !== 'attack') return; await wait(15); }
+  };
+
+  await test('WARA : un coup de sabre l\'abat (2 PV)', async () => {
+    await reset(400); await wara(424);
+    await ev(() => { window.__kage.player.facing = 1; });
+    await k.press('KeyJ');
+    const w = await until((x) => x.st === 'defeated');
+    expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
+  });
+
+  await test('WARA : un shuriken -1, il passe abîmé', async () => {
+    await reset(400); await wara(470);
+    await ev(() => { window.__kage.player.facing = 1; });
+    await k.press('KeyK');
+    const w = await until((x) => x.hp < 2);
+    expect(w.hp === 1 && w.f.endsWith('_torn'), `vie ${w.hp}, image ${w.f}`);
+  });
+
+  await test('WARA : son moulinet touche KAGE même dans son dos (-1)', async () => {
+    await reset(400); await wara(388, { facing: -1, cooldown: 0 });
+    await ev(() => { window.__kage.player.facing = 1; });
+    let s, w;
+    for (let i = 0; i < 120; i++) { s = await S(); if (s.hp < 5) break; await wait(15); }
+    w = await W();
+    expect(s.hp === 4 && w.st === 'spin', `vie ${s.hp}, WARA ${w.st}`);
+  });
+
+  await test('WARA : la traverse pare le sabre pendant le moulinet, pas pendant le tournis', async () => {
+    await reset(400);
+    // KAGE invincible AVANT le moulinet : sinon le moulinet peut le repousser hors de portée
+    await ev(() => { const g = window.__kage; g.player.facing = 1; g.player.invuln = 99; });
+    await wara(424, { state: 'spin' });
+    await k.press('KeyJ'); await swingDone();
+    const a = await W();
+    await wait(200);
+    await ev(() => { const pl = window.__kage.player; pl.x = 400; pl.vx = 0; pl.facing = 1; });
+    await wara(424, { state: 'dizzy' });
+    await k.press('KeyJ');
+    const b = await until((x) => x.st === 'defeated');
+    await ev(() => { window.__kage.player.invuln = 0; });
+    expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
+  });
+
+  await test('WARA : il sautille vers KAGE', async () => {
+    await reset(400); await wara(500, { rest: 0 });
+    const seen = new Set();
+    for (let i = 0; i < 80; i++) { seen.add((await W()).st); await wait(15); }
+    const w = await W();
+    expect(w.x < 490 && seen.has('air'), `x ${w.x}, états ${[...seen].join(', ')}`);
   });
 
   await test('touche M : coupe le son', async () => {
@@ -205,7 +275,7 @@ async function main() {
   const cdp = await ctx.newCDPSession(m);
   const T = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id]) => ({ x, y, id })) });
   const mState = () => m.evaluate(() => window.__kage.player.state);
-  const mReset = () => m.evaluate(() => { const g = window.__kage; g.player.respawn(true); g.player.x = 300; g.tate.x = 1700; g.shurikens.reset(); });
+  const mReset = () => m.evaluate(() => { const g = window.__kage; g.player.respawn(true); g.player.x = 300; g.tate.x = 1700; for (const w of g.waras) w.x = w.home + 4000; g.shurikens.reset(); });
 
   await test('tactile : boutons saut, sabre, shuriken', async () => {
     const got = [];
@@ -244,6 +314,7 @@ async function main() {
     pl.x = tx * 16 + 8; pl.y = y; pl.vx = 0; pl.vy = 0; pl.invuln = 0; pl.hp = 5;
     pl.energy.value = 1; pl.energy.exhausted = false; pl.onGround = true; pl.setState('idle');
     for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; }
+    for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; w.cooldown = 99; }
   }, [tx, y]);
   const runJump = async (sprint, dash) => {
     await L.down('ArrowRight'); if (sprint) await L.down('ShiftLeft');
@@ -253,9 +324,9 @@ async function main() {
     await L.up('ShiftLeft'); await L.up('ArrowRight');
   };
 
-  await test('niveau 1 : 5 TATE, 3 lanternes, un gong, une arrivée', async () => {
-    const i = await lv.evaluate(() => { const g = window.__kage; return [g.tates.length, g.level.checkpoints.length, g.level.gongs.length, !!g.level.goal]; });
-    expect(i.join() === '5,3,1,true', i.join());
+  await test('niveau 1 : 5 TATE, 5 WARA, 3 lanternes, un gong, une arrivée', async () => {
+    const i = await lv.evaluate(() => { const g = window.__kage; return [g.tates.length, g.waras.length, g.level.checkpoints.length, g.level.gongs.length, !!g.level.goal]; });
+    expect(i.join() === '5,5,3,1,true', i.join());
   });
 
   await test('niveau 1 : le tunnel ne se passe qu\'en glissade', async () => {

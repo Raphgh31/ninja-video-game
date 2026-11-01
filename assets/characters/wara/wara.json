@@ -1,0 +1,265 @@
+{
+  "name": "WARA",
+  "image": "wara_sheet.png",
+  "cell": {
+    "w": 48,
+    "h": 32
+  },
+  "pivot": {
+    "x": 16,
+    "y": 31,
+    "note": "sous le pieu, comme KAGE"
+  },
+  "facing": "right",
+  "frames": {
+    "idle_1": {
+      "x": 0,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "idle_2": {
+      "x": 50,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "crouch": {
+      "x": 100,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "rise": {
+      "x": 150,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "apex": {
+      "x": 200,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "land": {
+      "x": 250,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "windup": {
+      "x": 300,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "spin_1": {
+      "x": 350,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "spin_2": {
+      "x": 400,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "dizzy_1": {
+      "x": 450,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "dizzy_2": {
+      "x": 500,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "hurt": {
+      "x": 550,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "idle_1_torn": {
+      "x": 600,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "idle_2_torn": {
+      "x": 650,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "crouch_torn": {
+      "x": 700,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "rise_torn": {
+      "x": 750,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "apex_torn": {
+      "x": 800,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "land_torn": {
+      "x": 850,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "windup_torn": {
+      "x": 900,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "spin_1_torn": {
+      "x": 950,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "spin_2_torn": {
+      "x": 1000,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "dizzy_1_torn": {
+      "x": 1050,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "dizzy_2_torn": {
+      "x": 1100,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "hurt_torn": {
+      "x": 1150,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "death_cut": {
+      "x": 1200,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "death_poof": {
+      "x": 1250,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "death_pile": {
+      "x": 1300,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    },
+    "death_free": {
+      "x": 1350,
+      "y": 0,
+      "w": 48,
+      "h": 32
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle_1",
+        "idle_2"
+      ],
+      "fps": 3,
+      "loop": true
+    },
+    "hop": {
+      "frames": [
+        "crouch",
+        "rise",
+        "apex",
+        "land"
+      ],
+      "loop": false,
+      "note": "choisies par le jeu selon la phase du bond"
+    },
+    "windup": {
+      "frames": [
+        "windup"
+      ],
+      "loop": false
+    },
+    "spin": {
+      "frames": [
+        "spin_1",
+        "spin_2"
+      ],
+      "fps": 11,
+      "loop": true
+    },
+    "dizzy": {
+      "frames": [
+        "dizzy_1",
+        "dizzy_2"
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "hurt": {
+      "frames": [
+        "hurt"
+      ],
+      "loop": false
+    },
+    "defeated": {
+      "frames": [
+        "death_cut",
+        "death_poof",
+        "death_pile",
+        "death_free"
+      ],
+      "durations": [
+        260,
+        200,
+        500,
+        0
+      ],
+      "loop": false,
+      "note": "tranché, pouf, en tas, le talisman s'envole ; 0 = jusqu'à la fin"
+    }
+  },
+  "tornSuffix": "_torn",
+  "boxes": {
+    "body": {
+      "x": 10,
+      "y": 10,
+      "w": 12,
+      "h": 21,
+      "note": "corps (touché par le sabre et les shurikens)"
+    },
+    "spin": {
+      "x": -5,
+      "y": 12,
+      "w": 42,
+      "h": 16,
+      "note": "traverse en hélice : touche des deux côtés"
+    }
+  }
+}

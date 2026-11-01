@@ -31,6 +31,20 @@ PAL = {
 NO_OUTLINE = set("XxZhl")
 
 
+# Agrandissement de TATE : on double quelques lignes et une colonne du dessin
+# (avant le contour), là où les formes sont verticales. Indices = dessin d'origine.
+GROW_ROWS = (17, 21, 22, 25, 26)   # armure, hakama, jambes : +5 px de haut
+GROW_COLS = (12, 15)               # corps : +2 px de large
+
+
+def grow(g):
+    for r in GROW_ROWS:                     # le sol (ligne 30) ne bouge pas
+        g = np.vstack([g[1:r + 1], g[r:r + 1], g[r + 1:]])
+    for c in sorted(GROW_COLS, reverse=True):
+        g = np.hstack([g[:, :c + 1], g[:, c:c + 1], g[:, c + 1:-1]])
+    return g
+
+
 class Canvas:
     def __init__(self):
         self.g = np.full((H, W), ".", dtype="<U1")
@@ -45,6 +59,9 @@ class Canvas:
             self.put(x, y + j, r)
 
     def outline(self):
+        if (self.g[:len(GROW_ROWS)] != ".").any() or (self.g[:, -len(GROW_COLS):] != ".").any():
+            raise ValueError("pas assez de marge pour agrandir TATE")
+        self.g = grow(self.g)
         solid = (self.g != ".") & ~np.isin(self.g, list(NO_OUTLINE)) & (self.g != "O")
         near = np.zeros_like(solid)
         near[1:, :] |= solid[:-1, :]
@@ -226,8 +243,8 @@ def stunned(glow=False):
     cv.block(10, 12, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
     cv.block(6, 8, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
     shield(cv, 21, 14, h=16)
-    cv.block(9, 3, ["Z...Z", ".Z.Z.", "..Z.."])
-    cv.block(19, 5, ["Z", ".", "Z"])
+    cv.block(9, 5, ["Z...Z", ".Z.Z.", "..Z.."])     # étoiles assez basses pour laisser
+    cv.block(19, 7, ["Z", ".", "Z"])                # la marge de l'agrandissement
     return cv.outline()
 
 

@@ -117,6 +117,15 @@ lLtTTTTU.
 tTl......
 """, neck=(4, 0), sh_near=(6, 1), sh_far=(4, 1), hip_near=(2, 4), hip_far=(0, 4)),
 }
+# glissade : assis sur la hanche, buste incliné en arrière (~45°), fesses au sol
+TORSOS["recline"] = dict(text="""
+tTTUU...
+.tTTTUU.
+..tTTTTU
+..lLLLLl
+..tTTTTU
+.ttTTTTU
+""", neck=(1, 0), sh_near=(3, 1), sh_far=(2, 1), hip_near=(6, 4), hip_far=(4, 4))
 for k, v in TORSOS.items():
     stamp("torso_" + k, v["text"])
 

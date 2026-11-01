@@ -1,4 +1,4 @@
-// Niveau : grille de tuiles + éléments (TATE, gong, porte, lanternes, torii).
+// Niveau : grille de tuiles + éléments (TATE, WARA, gong, porte, lanternes, torii).
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
 
@@ -14,6 +14,7 @@ export class Level {
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
     this.targets = [];
     this.enemies = [];       // positions de départ des TATE
+    this.waras = [];         // positions de départ des WARA
     this.gongs = [];
     this.checkpoints = [];
     this.goal = null;
@@ -34,11 +35,12 @@ export class Level {
         const px = x * TILE + TILE / 2, py = (y + 1) * TILE;
         if (c === 'T') this.targets.push({ x: px, y: py, broken: false, t: 0, dir: 1 });
         else if (c === 'E') this.enemies.push({ x: px, y: py });
+        else if (c === 'W') this.waras.push({ x: px, y: py });
         else if (c === 'C') this.gongs.push({ x: px, y: py, hit: false, t: 0 });
         else if (c === 'P') this.checkpoints.push({ x: px, y: py, lit: false, t: 0 });
         else if (c === 'G') this.goal = { x: px, y: py };
       }
-      this.rows[y] = this.rows[y].replace(/[TECPG]/g, '.');
+      this.rows[y] = this.rows[y].replace(/[TEWCPG]/g, '.');
     }
   }
 

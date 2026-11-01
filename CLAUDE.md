@@ -4,7 +4,9 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 
 ## Reprise
 - **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
-- Branche de travail : `claude/kage-ninja-character` (PR #1, à fusionner). Version jouable : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html` après chaque changement.
+- **Site du jeu** : https://raphgh31.github.io/ninja-video-game/ — mis en ligne automatiquement par `.github/workflows/deploy.yml` à chaque push sur `main` (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Après une fusion, vérifier que le workflow a réussi et tester le site.
+- Version de test hors `main` : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html`.
+- Direction choisie par l'utilisateur : un **monde unique** très long (zones, chapitres, sauvegarde, améliorations de KAGE), pas des niveaux séparés.
 
 ## Façon de travailler (préférences de l'utilisateur)
 - Retouches visuelles précises et petites : appliquer exactement ce qui est demandé, montrer le résultat (capture ou GIF), republier l'artefact, résumer clairement.
@@ -27,11 +29,13 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Chaque animation est liée à un état de `src/game/player.js` (même nom que dans `kage.json`).
 
 ## Niveaux
-- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), gong (C), porte (D), lanternes (P), arrivée (G). `#terrain` dans l'adresse ouvre le terrain d'essai, sinon le niveau 1.
+- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G). `#terrain` dans l'adresse ouvre le terrain d'essai, sinon le niveau 1.
 - Toute modification d'un passage du niveau 1 doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
 
 ## Ennemis
 - TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.
+- WARA (épouvantail) : dessin dans `tools/kage_forge/enemies/wara.py`, export `build_wara.py` (inclus dans `npm run sprites`, avec contrôles qualité), planches `wara_board.py`, comportement `src/game/wara.js` (constantes `WARA`). Les PNG de `assets/characters/wara/` sont générés.
+- Un nouvel ennemi doit aussi être embarqué dans `tools/standalone.mjs` (sinon la version autonome ne démarre pas).
 
 ## Vérifications avant de pousser
 - `npm run sprites` puis `npm test` (build + version autonome + tests de bout en bout) sans échec.

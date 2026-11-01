@@ -5,6 +5,7 @@ import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
+import { Wara, WARA } from './game/wara.js';
 import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
@@ -71,6 +72,12 @@ const tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
 const tateGlow = await loadImage(`./characters/tate/${tateMeta.glowImage}`);
 const tates = level.enemies.map((e) => new Tate(tateMeta, tateSheet, tateGlow, e.x, e.y, level));
 shurikens.enemies.push(...tates);
+// WARA : un épouvantail à chaque repère « W » de la carte
+const waraMeta = await loadJson('./characters/wara/wara.json');
+const waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
+const waras = level.waras.map((w) => new Wara(waraMeta, waraSheet, w.x, w.y, level));
+shurikens.enemies.push(...waras);
+const enemies = [...tates, ...waras];
 // partie : chronomètre, chutes, arrivée
 const run = { time: 0, falls: 0, won: false };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
@@ -143,6 +150,22 @@ function onTateEvent(n, d) {
   }
 }
 for (const t of tates) t.onEvent = onTateEvent;
+function onWaraEvent(n, d) {
+  switch (n) {
+    case 'crouch': sfx('waraHop'); break;
+    case 'land': fx.dust(d.x, d.y, 3, { spread: 18, up: 8, life: 0.3 }); break;
+    case 'windup': sfx('waraWindup'); break;
+    case 'spin': sfx('waraSpin'); break;
+    case 'spin_hit': fx.shake(2, 0.2); break;
+    case 'dizzy': sfx('waraDizzy'); break;
+    case 'block': sfx('waraBlock'); fx.sparks(d.x + d.facing * 10, d.y, 5, { dir: d.facing, speed: 80, palette: 'straw' }); break;
+    case 'hit': sfx('waraHit'); fx.sparks(d.x, d.y - 16, 9, { palette: 'straw', speed: 100 }); break;
+    case 'death_poof': sfx('waraPoof'); fx.sparks(d.x, d.y - 14, 14, { palette: 'straw', speed: 120 }); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
+    case 'death_pile': fx.dust(d.x - 4, d.y, 4, { dir: -1, spread: 25 }); fx.dust(d.x + 4, d.y, 4, { dir: 1, spread: 25 }); break;
+    default:
+  }
+}
+for (const w of waras) w.onEvent = onWaraEvent;
 level.onEvent = (n, d) => {
   switch (n) {
     case 'gong': sfx('gong'); sfx('door'); fx.shake(1, 0.25); fx.sparks(d.x, d.y, 8, { speed: 70 }); break;
@@ -164,10 +187,11 @@ for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, un
 // barres de vie fines au-dessus de chaque personnage
 const kageBar = new HealthBar(HEALTH.max);
 for (const t of tates) t.bar = new HealthBar(TATE.hp);
+for (const w of waras) w.bar = new HealthBar(WARA.hp);
 player.onRespawn = () => {
   shurikens.reset();
-  // les TATE encore debout reprennent leur poste ; les vaincus le restent
-  for (const t of tates) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
+  // les ennemis encore debout reprennent leur poste ; les vaincus le restent
+  for (const t of enemies) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
   kageBar.reset();
 };
 const input = new Input();
@@ -200,7 +224,7 @@ function update(dt) {
   }
   level.update(dt);
   shurikens.update(dt);
-  for (const t of tates) {
+  for (const t of enemies) {
     t.update(dt, player);
     t.interact(player);
   }
@@ -208,7 +232,7 @@ function update(dt) {
   if (ab) {
     const heavy = player.state === 'air_attack';
     level.hitGongs(ab);
-    for (const t of tates) {
+    for (const t of enemies) {
       const r = t.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
       if (r === 'hit') {
         fx.hitStop(heavy ? 0.11 : 0.07);
@@ -224,7 +248,7 @@ function update(dt) {
   fx.update(dt);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
-  for (const t of tates) t.bar.update(dt, Math.max(0, t.hp));
+  for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
   camera.x += (tx - camera.x) * Math.min(1, dt * 8);
@@ -241,14 +265,16 @@ function draw() {
   level.drawProps(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   for (const t of tates) t.draw(ctx, cam, player);
+  for (const w of waras) w.draw(ctx, cam);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
-  for (const t of tates) {
+  for (const t of enemies) {
     if (t.gone) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
-    t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - 27, fade);
+    const top = t instanceof Wara ? 29 + Math.round(t.lift) : 32;   // au-dessus du chapeau
+    t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {
     kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 27);
@@ -268,7 +294,9 @@ function draw() {
       ctx.strokeStyle = '#ffd400';
       ctx.strokeRect(Math.round(ab.x - cam.x) + 0.5, Math.round(ab.y - cam.y) + 0.5, ab.w - 1, ab.h - 1);
     }
-    for (const [name, color] of tates.flatMap((t) => [[t, 'body', '#ff3b3b'], [t, 'shield', '#3bb3ff']]).map(([t, n, c]) => [[t, n], c])) {
+    const boxes = [...tates.flatMap((t) => [[t, 'body', '#ff3b3b'], [t, 'shield', '#3bb3ff']]),
+      ...waras.flatMap((w) => (w.state === 'spin' ? [[w, 'spin', '#ff9a3b']] : [])).concat(waras.map((w) => [w, 'body', '#ff3b3b']))];
+    for (const [name, color] of boxes.map(([t, n, c]) => [[t, n], c])) {
       const tb = name[0].box(name[1]);
       ctx.strokeStyle = color;
       ctx.strokeRect(Math.round(tb.x - cam.x) + 0.5, Math.round(tb.y - cam.y) + 0.5, tb.w - 1, tb.h - 1);
@@ -331,4 +359,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, fx, run };
+window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run };

@@ -5,6 +5,7 @@ const COLORS = {
   dust: ['#d9d2c2', '#c4bba6', '#ece6d8'],
   spark: ['#fff6d8', '#f4e7b8', '#f0c25a'],
   hit: ['#f2ede6', '#e6e0d4'],
+  straw: ['#e2d29d', '#c2ae78', '#8c7f57', '#e4d9b2'],   // brins de paille (WARA)
 };
 
 export class Fx {
