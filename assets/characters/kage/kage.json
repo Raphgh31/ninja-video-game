@@ -34,6 +34,18 @@
       "y": 14,
       "w": 13,
       "h": 16
+    },
+    "attack": {
+      "x": 19,
+      "y": 6,
+      "w": 13,
+      "h": 25,
+      "frames": [
+        2,
+        3,
+        4
+      ],
+      "note": "zone de frappe du sabre, active sur les frames listées"
     }
   },
   "slots": [
@@ -165,36 +177,54 @@
     },
     {
       "index": 22,
+      "slot": "W",
+      "part": "blade",
+      "role": "light"
+    },
+    {
+      "index": 23,
+      "slot": "w",
+      "part": "blade",
+      "role": "shadow"
+    },
+    {
+      "index": 24,
+      "slot": "g",
+      "part": "hilt",
+      "role": "base"
+    },
+    {
+      "index": 25,
       "slot": "k",
       "part": "accessory",
       "role": "shadow"
     },
     {
-      "index": 23,
+      "index": 26,
       "slot": "K",
       "part": "accessory",
       "role": "base"
     },
     {
-      "index": 24,
+      "index": 27,
       "slot": "x",
       "part": "fx",
       "role": "dark"
     },
     {
-      "index": 25,
+      "index": 28,
       "slot": "X",
       "part": "fx",
       "role": "light"
     },
     {
-      "index": 26,
+      "index": 29,
       "slot": "z",
       "part": "fx",
       "role": "streak"
     },
     {
-      "index": 27,
+      "index": 30,
       "slot": "q",
       "part": "fx",
       "role": "spark"
@@ -442,8 +472,68 @@
         }
       ]
     },
-    "slide": {
+    "attack": {
       "row": 6,
+      "frameCount": 7,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "attack",
+      "strip": "anims/kage_attack.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 60
+        },
+        {
+          "x": 34,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 50
+        },
+        {
+          "x": 68,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 40
+        },
+        {
+          "x": 102,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 45
+        },
+        {
+          "x": 136,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 170,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 70
+        },
+        {
+          "x": 204,
+          "y": 204,
+          "w": 32,
+          "h": 32,
+          "duration": 70
+        }
+      ]
+    },
+    "slide": {
+      "row": 7,
       "frameCount": 3,
       "fps": 12,
       "loop": true,
@@ -453,21 +543,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 204,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 83
         },
         {
           "x": 34,
-          "y": 204,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 83
         },
         {
           "x": 68,
-          "y": 204,
+          "y": 238,
           "w": 32,
           "h": 32,
           "duration": 83
@@ -475,7 +565,7 @@
       ]
     },
     "death": {
-      "row": 7,
+      "row": 8,
       "frameCount": 6,
       "fps": 14,
       "loop": false,
@@ -485,42 +575,42 @@
       "frames": [
         {
           "x": 0,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 34,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 68,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 102,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 136,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
         },
         {
           "x": 170,
-          "y": 238,
+          "y": 272,
           "w": 32,
           "h": 32,
           "duration": 71
@@ -528,7 +618,7 @@
       ]
     },
     "respawn": {
-      "row": 8,
+      "row": 9,
       "frameCount": 3,
       "fps": 10,
       "loop": false,
@@ -538,21 +628,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 272,
+          "y": 306,
           "w": 32,
           "h": 32,
           "duration": 100
         },
         {
           "x": 34,
-          "y": 272,
+          "y": 306,
           "w": 32,
           "h": 32,
           "duration": 100
         },
         {
           "x": 68,
-          "y": 272,
+          "y": 306,
           "w": 32,
           "h": 32,
           "duration": 100

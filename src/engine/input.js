@@ -7,6 +7,7 @@ const KEYMAP = {
   ArrowDown: 'down', KeyS: 'down',
   Space: 'jump', KeyL: 'jump',
   KeyK: 'slide', KeyC: 'slide',
+  KeyJ: 'attack', KeyX: 'attack', Enter: 'attack',
   KeyH: 'debug',
 };
 

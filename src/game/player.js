@@ -19,6 +19,7 @@ const P = {
   slideTime: 0.36,
   landTime: 0.12,
   deathPause: 0.35,
+  lunge: 75,          // petite fente avant pendant le coup de sabre (px/s)
 };
 
 export class Player {
@@ -41,6 +42,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.timer = 0;
     this.airDash = true;
+    this.level.resetTargets?.();
     this.setState(instant ? 'idle' : 'respawn');
   }
 
@@ -86,6 +88,16 @@ export class Player {
           if (this.anim.finished) this.endSpecial();
         }
         break;
+      case 'attack': {
+        // légère fente pendant le dégainé et le demi-cercle, puis on s'arrête
+        const f = this.anim.frame;
+        const want = this.onGround ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.vx;
+        this.vx += Math.sign(want - this.vx) * Math.min(Math.abs(want - this.vx), P.friction * dt);
+        const box = this.attackBox();
+        if (box) this.level.hitTargets(box, this.facing);
+        if (this.anim.finished) this.endSpecial();
+        break;
+      }
       case 'slide':
         this.vx = this.facing * P.slideSpeed * (1 - 0.45 * (this.timer / P.slideTime));
         if (this.timer >= P.slideTime && !this.ceilingAbove()) this.endSpecial();
@@ -114,6 +126,10 @@ export class Player {
           if (!this.onGround) this.airDash = false;
           this.facing = dashDir;
           this.setState('dash');
+          break;
+        }
+        if (input.wasPressed('attack')) {
+          this.setState('attack');
           break;
         }
         if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && Math.abs(this.vx) > 20) {
@@ -167,6 +183,15 @@ export class Player {
     this.vx = 0;
     this.vy = 0;
     this.setState('death');
+  }
+
+  /** Zone de frappe du sabre, active seulement sur les frames du demi-cercle. */
+  attackBox() {
+    const a = this.meta.hitbox.attack;
+    if (this.state !== 'attack' || !a.frames.includes(this.anim.frame)) return null;
+    const { pivot } = this.meta;
+    const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
+    return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };
   }
 
   ceilingAbove() {

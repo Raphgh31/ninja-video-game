@@ -159,6 +159,8 @@ def main():
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 10, "y": 17, "w": 13, "h": 14},
             "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
+            "attack": {"x": 19, "y": 6, "w": 13, "h": 25, "frames": [2, 3, 4],
+                       "note": "zone de frappe du sabre, active sur les frames listées"},
         },
         "slots": [{"index": i + 1, "slot": s, "part": SLOTS[s][0], "role": SLOTS[s][1]}
                   for i, s in enumerate(SLOT_ORDER)],
@@ -178,7 +180,8 @@ def main():
             "loopStart": a.get("loop_start", 0),
             "state": a["state"],
             "strip": f"anims/kage_{k}.png",
-            "frames": [{"x": c * step, "y": r * step, "w": CELL, "h": CELL, "duration": ms}
+            "frames": [{"x": c * step, "y": r * step, "w": CELL, "h": CELL,
+                        "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],
         }
     (OUT / "kage.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
@@ -287,7 +290,7 @@ def build_docs(rendered, views, skins, order, vorder):
             f.paste(big, (0, 0), big)
             frames.append(f.convert("RGB"))
         dur = round(1000 / a["fps"])
-        durs = [dur] * len(frames)
+        durs = list(a.get("durations", [dur] * len(frames)))
         if not a["loop"]:
             durs[-1] = 600
         frames[0].save(DOCS / "previews" / f"kage_{k}.gif", save_all=True,

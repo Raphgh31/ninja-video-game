@@ -50,6 +50,7 @@ const stateEl = document.querySelector('[data-state]');
 function update(dt) {
   if (input.wasPressed('debug')) debug = !debug;
   player.update(dt, input);
+  level.update(dt);
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
   cam.x += (tx - cam.x) * Math.min(1, dt * 8);
@@ -59,11 +60,17 @@ function update(dt) {
 
 function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
+  level.drawTargets(ctx, cam);
   player.draw(ctx, skins[skinId].sheet, cam);
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';
     ctx.strokeRect(Math.round(b.x - cam.x) + 0.5, Math.round(b.y - cam.y) + 0.5, b.w - 1, b.h - 1);
+    const ab = player.attackBox();
+    if (ab) {
+      ctx.strokeStyle = '#ffd400';
+      ctx.strokeRect(Math.round(ab.x - cam.x) + 0.5, Math.round(ab.y - cam.y) + 0.5, ab.w - 1, ab.h - 1);
+    }
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }

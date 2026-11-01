@@ -355,6 +355,66 @@ RESPAWN = [
     Frame([G(_rim)], outline=False),
 ]
 
+
+# ---------------------------------------------------------------------------
+# ATTACK — sabre : saisie, dégainé en légère fente, demi-cercle devant lui
+# (haut -> avant -> bas), suivi, rengainé, retour en garde
+# ---------------------------------------------------------------------------
+import math  # noqa: E402
+
+SLASH_C = (17, 20)   # centre du demi-cercle : l'épaule proche pendant la fente
+
+
+def slash(a0, a1, layers):
+    """Traînée de lame : arc de cercle (angles en degrés, 0 = devant, -90 = haut).
+    layers = [(rayon, slot), ...] ; dessinée sous le personnage, sans contour."""
+    g = np.full((CELL, CELL), ".", dtype="<U1")
+    for r, c in layers:
+        for k in range(0, 1 + int(abs(a1 - a0) * 2)):
+            a = math.radians(a0 + (a1 - a0) * k / max(1, int(abs(a1 - a0) * 2)))
+            x = round(SLASH_C[0] + r * math.cos(a))
+            y = round(SLASH_C[1] + r * math.sin(a))
+            if 0 <= x < CELL and 0 <= y < 31:
+                g[y, x] = c
+    return G(g)
+
+
+LUNGE = dict(torso="lean", tx=13, ty=19,
+             near_leg=[(19, 26), (21, 28)], far_leg=[(12, 26), (10, 28)],
+             far_arm=[(14, 22), (13, 24)],
+             tail_long=[(-3, 0), (-6, 1), (-9, 2), (-11, 4)],
+             tail_short=[(-3, 1), (-5, 3), (-7, 4)])
+
+ATTACK = [
+    # 1. saisie : main proche sur la poignée, à la hanche ; on se tasse
+    F(pose(torso="up", tx=12, ty=20, near_leg=STANCE_LOW["near_leg"], far_leg=STANCE_LOW["far_leg"],
+           near_arm=[(16, 23), (14, 24)], far_arm=[(13, 22), (12, 24)],
+           tail_long=[(-2, 1), (-4, 3), (-6, 5), (-8, 9)],
+           tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
+    # 2. dégainé : fente avant, la lame monte devant le visage
+    F(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 19), (21, 17)], blade=(27, 7))),
+    # 3. demi-cercle : la lame passe à l'horizontale devant
+    Frame([slash(-72, -8, [(13, "q"), (12, "X")]),
+           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 20), (22, 19)], blade=(31, 18)))]),
+    # 4. demi-cercle : la lame descend devant les pieds
+    Frame([slash(-72, -12, [(12, "X")]), slash(-12, 62, [(13, "q"), (12, "X")]),
+           G(pose(**LUNGE, head="head_r_squint", near_arm=[(20, 22), (21, 22)], blade=(28, 29)))]),
+    # 5. suivi : la lame finit basse, la traînée s'éteint
+    Frame([slash(15, 70, [(12, "z")]),
+           G(pose(**{**LUNGE, "ty": 20, "near_leg": [(20, 27), (21, 28)], "far_leg": [(12, 27), (10, 28)]},
+                  near_arm=[(19, 23), (20, 24)], blade=(26, 30)))]),
+    # 6. rengainé : la lame revient à la hanche et glisse vers l'arrière
+    F(pose(torso="up", tx=12, ty=20, near_leg=STANCE_LOW["near_leg"], far_leg=STANCE_LOW["far_leg"],
+           near_arm=[(16, 22), (15, 23)], far_arm=[(13, 22), (12, 24)], blade=(10, 25),
+           tail_long=[(-3, 0), (-5, 2), (-7, 4), (-9, 7)],
+           tail_short=[(-2, 1), (-4, 3), (-5, 6)])),
+    # 7. retour en garde, main encore sur la poignée
+    F(pose(torso="up", tx=12, ty=19, near_leg=STANCE["near_leg"], far_leg=STANCE["far_leg"],
+           near_arm=[(16, 22), (15, 23)], far_arm=STANCE["far_arm"],
+           tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)],
+           tail_short=[(-2, 2), (-3, 4), (-3, 8)])),
+]
+
 # ---------------------------------------------------------------------------
 # VUES — face, dos, profil gauche, profil droit
 # ---------------------------------------------------------------------------
@@ -475,6 +535,8 @@ ANIMS = {
     "fall":          dict(frames=FALL,    fps=10, loop=True,  state="fall"),
     "land":          dict(frames=LAND,    fps=18, loop=False, state="land"),
     "dash":          dict(frames=DASH,    fps=20, loop=False, state="dash"),
+    "attack":        dict(frames=ATTACK,  fps=16, loop=False, state="attack",
+                          durations=[60, 50, 40, 45, 70, 70, 70]),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),

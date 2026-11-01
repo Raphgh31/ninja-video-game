@@ -10,7 +10,8 @@ Ninja du vent, compact et agile. Tête volontairement grande (10 px sur ~24) pou
 - **Bandeau de foulard** au niveau du front, **noué en papillon derrière la tête**. Les deux pans partent de ce nœud : c'est l'élément distinctif, celui qui « dessine » le mouvement (il traîne en course, s'étire en dash, remonte en chute).
 - **Pans asymétriques** : un long (10 px) et un court (6 px). Leur longueur ne change jamais : seul leur tracé varie d'une frame à l'autre.
 - **Bande de visage et mains visibles** (yeux sombres sur la peau), demandées après la première version pour la lisibilité. Le bas du visage reste masqué.
-- Tunique courte, ceinture, protections d'avant-bras, chaussures compactes. Pas d'arme.
+- Tunique courte, ceinture, protections d'avant-bras, chaussures compactes.
+- **Sabre** : visible uniquement pendant l'attaque (fourreau supposé caché derrière la hanche).
 
 Le skin de référence, **Encre**, est entièrement noir et anthracite. La peau est la seule couleur chaude.
 
@@ -40,6 +41,7 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | fall | 3 | 10 | oui | descente |
 | land | 3 | 18 | non | contact avec le sol |
 | dash | 5 | 20 | non | dash (double appui ← ← ou → →), 0,25 s |
+| attack | 7 | durées par frame (≈ 0,4 s) | non | coup de sabre : dégainé en fente, demi-cercle devant, rengainé. Zone de frappe active sur les frames 3 à 5 (`hitbox.attack`) |
 | slide | 3 | 12 | oui, à partir de la frame 2 | glissade |
 | death | 6 | 14 | non | destruction en blocs |
 | respawn | 3 | 10 | non | recomposition |
@@ -61,7 +63,8 @@ Chaque pixel est dessiné avec un **slot** (un rôle), jamais avec une couleur. 
 | masque (bas du visage) | `M` | chaussures | `d D` |
 | peau (visage, mains) | `n N` | foulard / bandeau | `f F G` |
 | yeux | `E e` | nœud (cosmétique) | `k K` |
-| tenue | `t T U` | effets (dash, mort) | `x X z q` |
+| tenue | `t T U` | effets (dash, mort, traînée du sabre) | `x X z q` |
+| lame du sabre | `w W` | poignée et garde | `g` |
 
 3. Lancer `npm run sprites` : le build vérifie que tous les slots sont présents et régénère `skinned/` et `docs/kage/kage_skins.png`.
 4. Dans le jeu, le skin est disponible automatiquement (liste `skins` de `kage.json`). La recoloration se fait au chargement depuis la carte d'index (`src/engine/sprites.js`, `applySkin`).

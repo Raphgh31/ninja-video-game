@@ -1,5 +1,5 @@
 // Niveau de test : sol, plateformes, tunnel bas (glissade), pics, point de départ.
-// # = bloc   ^ = pics   S = départ
+// # = bloc   ^ = pics   S = départ   T = cible d'entraînement (se brise au sabre)
 export const TILE = 16;
 
 const MAP = [
@@ -14,7 +14,7 @@ const MAP = [
   '.........####...........######..........................................####..',
   '...................................################...........................',
   '........................................................######.................',
-  '..S...............##..............^^..........................................',
+  '..S...T........T..##..........T...^^........T.............T...................',
   '#########...##########.....###########...########...##############....########',
   '#########...##########.....###########^^^########...##############^^^^########',
   '#########^^^##########^^^^^###########################################^^^#######',
@@ -23,6 +23,7 @@ const MAP = [
 export class Level {
   constructor() {
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
+    this.targets = [];
     this.h = this.rows.length;
     this.w = this.rows[0].length;
     this.width = this.w * TILE;
@@ -32,6 +33,70 @@ export class Level {
       if (x >= 0) {
         this.spawn = { x: x * TILE + TILE / 2, y: (y + 1) * TILE };
         this.rows[y] = this.rows[y].replace('S', '.');
+      }
+      for (let x = 0; x < this.w; x++) {
+        if (this.rows[y][x] !== 'T') continue;
+        this.targets.push({ x: x * TILE + TILE / 2, y: (y + 1) * TILE, broken: false, t: 0, dir: 1 });
+      }
+      this.rows[y] = this.rows[y].replaceAll('T', '.');
+    }
+  }
+
+  // --- cibles d'entraînement -------------------------------------------------
+  targetBox(t) { return { x: t.x - 5, y: t.y - 18, w: 10, h: 18 }; }
+
+  resetTargets() {
+    for (const t of this.targets) { t.broken = false; t.t = 0; }
+  }
+
+  /** Brise les cibles touchées par la zone d'attaque ; renvoie le nombre de cibles brisées. */
+  hitTargets(box, dir) {
+    let n = 0;
+    for (const t of this.targets) {
+      if (t.broken) continue;
+      const b = this.targetBox(t);
+      if (box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y) {
+        t.broken = true;
+        t.t = 0;
+        t.dir = dir;
+        n++;
+      }
+    }
+    return n;
+  }
+
+  update(dt) {
+    for (const t of this.targets) if (t.broken) t.t += dt;
+  }
+
+  drawTargets(ctx, cam) {
+    for (const t of this.targets) {
+      const sx = Math.round(t.x - cam.x), sy = Math.round(t.y - cam.y);
+      if (!t.broken) {
+        ctx.fillStyle = '#6b5236';                 // poteau
+        ctx.fillRect(sx - 1, sy - 6, 2, 6);
+        ctx.fillStyle = '#b89a62';                 // botte de paille
+        ctx.fillRect(sx - 4, sy - 18, 8, 13);
+        ctx.fillStyle = '#9c8050';
+        ctx.fillRect(sx - 4, sy - 14, 8, 1);       // liens
+        ctx.fillRect(sx - 4, sy - 9, 8, 1);
+        ctx.fillRect(sx + 3, sy - 18, 1, 13);
+      } else if (t.t < 0.6) {
+        // la partie haute est tranchée, glisse et tombe ; la base reste
+        const k = t.t / 0.6;
+        ctx.globalAlpha = 1 - k;
+        ctx.fillStyle = '#b89a62';
+        const dx = Math.round(t.dir * (3 + 14 * k)), dy = Math.round(40 * k * k);
+        ctx.fillRect(sx - 4 + dx, sy - 18 + dy, 8, 6);
+        ctx.globalAlpha = 1;
+      }
+      if (t.broken) {
+        ctx.fillStyle = '#6b5236';
+        ctx.fillRect(sx - 1, sy - 6, 2, 6);
+        ctx.fillStyle = '#b89a62';
+        ctx.fillRect(sx - 4, sy - 11, 8, 6);
+        ctx.fillStyle = '#9c8050';
+        ctx.fillRect(sx - 4, sy - 9, 8, 1);
       }
     }
   }

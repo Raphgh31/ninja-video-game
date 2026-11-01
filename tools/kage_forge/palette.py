@@ -15,6 +15,8 @@ Slots regroupés par partie (= calque exportable) :
     belt      l L                ceinture : ombre / base
     shoes     d D                chaussures : ombre / base
     scarf     f F G              foulard : ombre / base / reflet
+    blade     W w                lame du sabre : acier / ombre
+    hilt      g                  poignée et garde du sabre
     accessory k K                nœud du foulard (emplacement cosmétique)
     fx        x X z q            effets : bloc sombre / bloc clair / traînée / éclat
 """
@@ -42,6 +44,9 @@ SLOTS = {
     "f": ("scarf", "shadow"),
     "F": ("scarf", "base"),
     "G": ("scarf", "light"),
+    "W": ("blade", "light"),
+    "w": ("blade", "shadow"),
+    "g": ("hilt", "base"),
     "k": ("accessory", "shadow"),
     "K": ("accessory", "base"),
     "x": ("fx", "dark"),
@@ -52,7 +57,7 @@ SLOTS = {
 
 PARTS = [
     "outline", "hood", "mask", "skin", "eyes", "outfit", "bracers",
-    "belt", "shoes", "scarf", "accessory", "fx",
+    "belt", "shoes", "scarf", "blade", "hilt", "accessory", "fx",
 ]
 
 # Ordre stable des slots : sert d'index dans la carte d'index (R = index).

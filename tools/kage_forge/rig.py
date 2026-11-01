@@ -161,6 +161,7 @@ def _line(p0, p1):
 
 
 class Canvas:
+    """Toile de pose (voir aussi sword() pour le sabre tenu en main)."""
     def __init__(self):
         self.g = np.full((CELL, CELL), ".", dtype="<U1")
 
@@ -201,6 +202,21 @@ class Canvas:
             self.put(x, y, c)
         return mask
 
+    def sword(self, hand, tip):
+        """Sabre tenu dans la main (coin haut-gauche du tampon 2x2) : pommeau et
+        garde en g, lame d'1 px en acier W avec le dernier pixel en ombre w."""
+        cx, cy = hand[0] + 1, hand[1] + 1
+        path = _line((cx, cy), tip)
+        dx, dy = tip[0] - cx, tip[1] - cy
+        n = max(abs(dx), abs(dy)) or 1
+        pommel = (round(cx - dx / n * 2), round(cy - dy / n * 2))
+        self.put(*pommel, "g")
+        for i, p in enumerate(path):
+            if i <= 1:
+                self.put(*p, "g")          # poignée + garde
+            else:
+                self.put(*p, "w" if i == len(path) - 1 else "W")
+
     def ribbon(self, pts, colors, length):
         """Pan de foulard d'1 px suivant une polyligne, tronqué à `length` pixels :
         le tissu garde toujours la même longueur, seule sa forme change."""
@@ -228,7 +244,7 @@ SHORT_TAIL = 6   # longueur constante du pan court (px)
 def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
          near_arm=None, far_arm=None, near_leg=None, far_leg=None,
          near_foot="flat", far_foot="flat", tail_long=None, tail_short=None,
-         collar=True, hands=True, long_colors="GGFG", short_colors="ffF"):
+         collar=True, hands=True, long_colors="GGFG", short_colors="ffF", blade=None):
     """Construit une frame.
 
     near_arm/far_arm : [coude, main] (points absolus, coin haut-gauche 2x2)
@@ -272,6 +288,8 @@ def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
         c.stamp("collar_r", *collar_at)
     if near_arm:
         c.limb([sn] + near_arm, ["T", "A"], sep=True)
+        if blade:
+            c.sword(near_arm[-1], blade)
         if hands:
             c.stamp("hand", *near_arm[-1])
     return c.g
