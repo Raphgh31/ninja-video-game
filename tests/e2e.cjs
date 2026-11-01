@@ -62,14 +62,28 @@ async function main() {
     const a = await S(); await wait(1000); const b = await S();
     await k.up('ShiftLeft'); await k.up('ArrowRight');
     expect(a.state === 'sprint' && near(a.vx, 140, 1), `état ${a.state}, vx ${a.vx}`);
-    expect(near(a.energy - b.energy, 0.16, 0.03), `conso ${(a.energy - b.energy).toFixed(3)}/s`);
+    expect(near(a.energy - b.energy, 0.136, 0.03), `conso ${(a.energy - b.energy).toFixed(3)}/s`);
   });
 
-  await test('saut : 10 % d\'énergie', async () => {
+  await test('saut : 8,5 % d\'énergie (toutes les dépenses à 85 %)', async () => {
     await reset();
     await k.press('Space'); await wait(80);
     const s = await S();
-    expect(near(s.energy, 0.9, 0.01), `énergie ${s.energy}`);
+    expect(near(s.energy, 0.915, 0.01), `énergie ${s.energy}`);
+  });
+
+  await test('à bout de souffle : KAGE marche lentement et l\'énergie remonte (moins vite qu\'à l\'arrêt)', async () => {
+    await reset();
+    await ev(() => { const e = window.__kage.player.energy; e.value = 0.05; e.exhausted = true; });
+    await k.down('ArrowRight'); await wait(500);
+    const a = await S(); await wait(1000); const b = await S();
+    await k.up('ArrowRight');
+    const walkGain = b.energy - a.energy;
+    await ev(() => { const e = window.__kage.player.energy; e.value = 0.05; e.exhausted = true; });
+    await wait(500); const c = await S(); await wait(1000); const d = await S();
+    const idleGain = d.energy - c.energy;
+    expect(a.state === 'walk' && near(a.vx, 34, 1), `état ${a.state}, vx ${a.vx}`);
+    expect(walkGain > 0.2 && walkGain < idleGain, `marche +${walkGain.toFixed(2)}/s, arrêt +${idleGain.toFixed(2)}/s`);
   });
 
   await test('3 dashs enchaînés, le 4e refusé', async () => {
@@ -190,6 +204,33 @@ async function main() {
     expect(hp === 2, `vie TATE ${hp} (attendu 5 - 3 = 2)`);
   });
 
+  // ---- coup de pied ----------------------------------------------------------
+  await test('coup de pied : TATE pare de face mais recule', async () => {
+    await reset(440, 192, 470);
+    await ev(() => { const g = window.__kage; g.tate.facing = -1; g.player.facing = 1; });
+    const x0 = await ev(() => window.__kage.tate.x);
+    await k.press('KeyU');
+    let s, x1 = x0;
+    for (let i = 0; i < 60; i++) { x1 = await ev(() => window.__kage.tate.x); if (x1 > x0 + 4) break; await wait(15); }
+    s = await S();
+    expect(s.tateHp === 5 && x1 > x0 + 4, `vie TATE ${s.tateHp}, recul ${(x1 - x0).toFixed(1)} px`);
+  });
+
+  await test('coup de pied : plus cher que le sabre, et pas deux d\'affilée trop vite', async () => {
+    await reset();
+    await k.press('KeyU'); await wait(40);
+    const a = await S();
+    await wait(60); await k.press('KeyU'); await wait(40);
+    const b = await S();
+    expect(near(1 - a.energy, 0.1275, 0.01) && a.state === 'kick', `coût ${(1 - a.energy).toFixed(3)}, état ${a.state}`);
+    expect(near(b.energy, a.energy, 0.005), `second coup accepté trop tôt (énergie ${a.energy.toFixed(3)} -> ${b.energy.toFixed(3)})`);
+    for (let i = 0; i < 80; i++) { if ((await S()).state !== 'kick') break; await wait(15); }
+    await wait(450);   // délai de 0,35 s après la fin du coup
+    await k.press('KeyU'); await wait(40);
+    const c = await S();
+    expect(c.state === 'kick', `après le délai : état ${c.state}`);
+  });
+
   // ---- WARA ------------------------------------------------------------------
   // place le premier WARA en x, au repos (ni bond ni moulinet sauf si demandé)
   const wara = (x, o = {}) => ev(([x, o]) => {
@@ -249,6 +290,16 @@ async function main() {
     const b = await until((x) => x.st === 'defeated');
     await ev(() => { window.__kage.player.invuln = 0; });
     expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
+  });
+
+  await test('WARA : le coup de pied le touche (-1) et le repousse', async () => {
+    await reset(400); await wara(424);
+    await ev(() => { window.__kage.player.facing = 1; });
+    await k.press('KeyU');
+    const w = await until((x) => x.hp < 2);
+    await wait(250);
+    const w2 = await W();
+    expect(w.hp === 1 && w2.x > 430, `vie ${w.hp}, x ${w2.x.toFixed(1)} (départ 424)`);
   });
 
   await test('WARA : il sautille vers KAGE', async () => {

@@ -30,6 +30,7 @@ export const WARA = {
   knockback: 70,       // px/s de recul
   defeatFade: 2.4,     // s avant de disparaître une fois vaincu
   fadeTime: 0.6,       // s de fondu à la fin
+  pushDecel: 700,      // px/s² : freinage du recul donné par un coup de pied
 };
 
 export class Wara {
@@ -61,6 +62,21 @@ export class Wara {
     this.lastHit = -1;
     this.lastFrame = null;
     this.gone = false;
+    this.shove = 0;             // recul en cours (px/s), donné par un coup de pied
+  }
+
+  /** Coup de pied : WARA est repoussé (même pendant son moulinet). */
+  push(dir, speed) {
+    if (this.alive) this.shove = dir * speed;
+  }
+
+  applyShove(dt) {
+    if (!this.shove || this.state === 'air') return;
+    const dir = Math.sign(this.shove);
+    if (this.canStep(dir)) this.x += this.shove * dt;
+    else this.shove = 0;
+    const v = Math.max(0, Math.abs(this.shove) - WARA.pushDecel * dt);
+    this.shove = dir * v;
   }
 
   get alive() { return this.state !== 'defeated'; }
@@ -132,6 +148,7 @@ export class Wara {
       if (this.timer > WARA.defeatFade) this.gone = true;
       return;
     }
+    this.applyShove(dt);
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     const playerAlive = player.state !== 'death' && player.state !== 'respawn';

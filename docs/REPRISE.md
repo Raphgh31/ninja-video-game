@@ -13,7 +13,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Le plan reste à écrire.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le personnage KAGE complet (18 animations), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 31 tests automatiques.
+- **Contenu actuel** : le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 35 tests automatiques.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
@@ -24,7 +24,7 @@ npm run dev          # jeu en local (http://localhost:5173) ; ajouter #terrain p
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 31 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 35 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -64,8 +64,10 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 - **Garde basse** : jambe avant fléchie (genou devant la cheville), jambe arrière presque tendue, poing lointain levé. La version d'avant donnait des jambes tendues et cambrées.
 - Palette unique « Encre » (`skins/encre.json`). Le système de palette par « slots » reste en place, mais **les skins sont mis de côté** (les exemples Cendre et Minuit ont été supprimés).
 
-### Animations (18)
-idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 · throw 5 · hurt 2 · wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4 · skid 2 · slide 3 · death 6 · respawn 3.
+### Animations (20)
+idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 · kick 5 · throw 5 · hurt 2 · wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4 · skid 2 · slide 3 · death 6 · respawn 3.
+- **Coup de pied** : coup de pied de côté de karaté (yoko geri kekomi), d'après des images fournies par l'utilisateur : genou armé, hanche qui pivote, buste qui part en arrière, jambe tendue talon en avant à hauteur de poitrine, poings en garde. Buste `back` dans `rig.py`.
+- **Marche** (à bout de souffle) : tête basse, yeux plissés, bras ballants, petits pas, foulard qui pend.
 - **Sprint** : buste plongé, corps bas, **bras tendus à l'horizontale vers l'arrière** (façon Naruto ; à l'origine, les bras remontaient trop).
 - **Sabre au sol** : légère fente, demi-cercle devant (haut, avant, bas), lame longue et large (2 px), bras à demi tendu qui suit la lame.
 - **Sabre en l'air** : **à deux mains**, lame levée au-dessus de la tête (bras derrière la tête pour garder le visage visible), temps d'arrêt, puis abattue devant en plongeant. Plus spectaculaire et plus de dégâts.
@@ -84,6 +86,7 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 | Glissade | ↓ ou C | joystick vers le bas |
 | Sabre | J ou X | bouton rond, icône de sabre |
 | Shuriken | K ou V | bouton rond, icône du shuriken (même dessin que le sprite, sans contour, grisée) |
+| Coup de pied | U ou Z | bouton rond à gauche du sabre, icône d'un ninja en coup de pied |
 | Zones de collision / son | H / M | bouton « Son » en haut à droite |
 
 ### Valeurs de réglage (actuelles)
@@ -92,9 +95,10 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 - **Glissade** : 190 px/s, 0,36 s, vitesse minimale sous un plafond bas ; possible à l'arrêt en poussant une direction.
 - **Saut mural** : glissade à 50 px/s maximum, poussée de 150 px/s, impulsion de 300 ; on peut rebondir d'un mur à l'autre mais **pas deux fois de suite sur le même mur**. Coûte 10 % d'énergie.
 - **Dérapage** au demi-tour en pleine course (ou dans les 0,12 s qui suivent).
-- **Énergie** (anneau en haut à gauche) : course −4 %/s, sprint −16 %/s, recharge +55 %/s à l'arrêt (après 0,35 s), dash −1/3, saut −10 %, sabre −12 %, shuriken gratuit. Tolérance de 15 % du coût, pour pouvoir **enchaîner exactement 3 dashs**. À zéro : essoufflé (course à 65 %) jusqu'à 40 %. Le saut reste toujours possible.
+- **Énergie** (anneau en haut à gauche) : toutes les dépenses ont été réduites à 85 % (mêmes proportions) : course −3,4 %/s, sprint −13,6 %/s, dash −28 %, saut −8,5 %, sabre −10,2 %, **coup de pied −12,75 %** (un peu plus que le sabre), shuriken gratuit. Recharge +55 %/s à l'arrêt (après 0,35 s). Tolérance de 15 % du coût, pour pouvoir **enchaîner exactement 3 dashs**. À zéro : **à bout de souffle, KAGE ne peut plus que marcher** (34 px/s, nouvelle animation) et l'énergie remonte en marchant à 60 % de la vitesse à l'arrêt, jusqu'à 40 % ; sprint, dash, sabre et coup de pied sont refusés pendant ce temps. Le saut reste toujours possible.
+- **Coup de pied** : 1 dégât, repousse l'ennemi (170 px/s, même TATE qui pare de face, même WARA pendant son moulinet) ; 0,35 s d'attente après le coup avant de pouvoir en relancer un ; portée équivalente au sabre.
 - **Vie** : 5 points ; barre **fine (1 px), verte, continue, au-dessus de la tête**, de longueur 3 px par point de vie ; le vert descend en douceur et la portion perdue s'efface. Touché : recul, 0,3 s sans contrôle, 1 s d'invincibilité.
-- **Dégâts subis** : charge de TATE 2, moulinet de WARA 1, pics 1 (puis retour au dernier sol sûr), chute hors du niveau = mort. **Dégâts infligés** : sabre 2, **sabre en l'air 3**, shuriken 1. Ces valeurs sont **provisoires**, l'utilisateur pourra les changer.
+- **Dégâts subis** : charge de TATE 2, moulinet de WARA 1, pics 1 (puis retour au dernier sol sûr), chute hors du niveau = mort. **Dégâts infligés** : sabre 2, **sabre en l'air 3**, shuriken 1, coup de pied 1 (avec recul). Ces valeurs sont **provisoires**, l'utilisateur pourra les changer.
 - **Shuriken** : stock de **3** (affiché à côté de l'énergie), vitesse 260 px/s, touche un sol plat à **10 carreaux**, 0,35 s entre deux lancers. Il se **plante** dans les murs et le sol (au sol : deux inclinaisons tirées au hasard), puis se **ramasse** en passant dessus (après 0,3 s). Sorti du niveau, il revient dans le stock.
 - **Joystick (dash)** : 85 % de la course en moins de 0,08 s, puis relâcher en moins de 0,15 s, geste horizontal.
 
