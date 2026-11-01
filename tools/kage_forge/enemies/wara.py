@@ -14,16 +14,16 @@ GROUND = 30      # dernière ligne pleine ; la ligne 31 reçoit le contour
 
 PAL = {
     "O": "#17120c",                                   # contour
-    "t": "#5e4a22", "T": "#8c7234", "u": "#bd9f52",   # paille : ombre, médium, clair
-    "U": "#e2c97c",                                   # paille : reflet
+    "t": "#5c5134", "T": "#8c7f57", "u": "#c2ae78",   # paille : ombre, médium, clair
+    "U": "#e2d29d",                                   # paille : reflet
     "r": "#3e2c1a", "R": "#6e5133",                   # corde torsadée
-    "c": "#b9a684", "C": "#8b7b5f",                   # toile du masque
+    "c": "#cdc7b8", "C": "#9d978a",                   # toile du masque
     "w": "#2f2217", "W": "#5a4129",                   # bois : pieu, traverse
     "n": "#383c45", "N": "#727985", "I": "#b7bdc6",   # fer du clou et de la virole
     "p": "#e8e0c4", "P": "#c4b994",                   # papier du talisman
     "e": "#a8433a",                                   # encre rouge du talisman
     # sans contour
-    "f": "#c9ab5c", "F": "#ead48c",                   # brins de paille qui volent
+    "f": "#c2b384", "F": "#e4d9b2",                   # brins de paille qui volent
     "g": "#ff6a3d", "G": "#ffc06e",                   # lueur du clou / braise
     "x": "#c9bd90", "X": "#f4e7b8",                   # poussière, trait de coupe
     "s": "#e6dcc0",                                   # traînée du tournoiement
