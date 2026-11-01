@@ -6,6 +6,8 @@ const KEYMAP = {
   ArrowLeft: 'left', KeyA: 'left', KeyQ: 'left',
   ArrowRight: 'right', KeyD: 'right',
   ArrowDown: 'down', KeyS: 'down',
+  ArrowUp: 'up', KeyW: 'up', KeyE: 'up',
+  Escape: 'escape',
   Space: 'jump', KeyL: 'jump',
   KeyC: 'slide',
   KeyK: 'throw', KeyV: 'throw',
