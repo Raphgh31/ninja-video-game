@@ -3,6 +3,7 @@
 
 export const ENERGY = {
   runDrain: 0.04,      // par seconde de course (≈ 25 s pour vider la barre)
+  sprintDrain: 0.16,   // par seconde de sprint (≈ 6 s pour vider la barre)
   regen: 0.55,         // par seconde à l'arrêt (vide -> plein en < 2 s)
   regenDelay: 0.35,    // s d'immobilité avant que la recharge démarre
   dash: 1 / 3,
@@ -51,11 +52,11 @@ export class Energy {
     return true;
   }
 
-  /** running : en train de courir au sol ; resting : immobile au sol. */
-  update(dt, { running, resting }) {
+  /** running : en train de courir au sol (sprinting : en sprint) ; resting : immobile au sol. */
+  update(dt, { running, sprinting, resting }) {
     this.flash = Math.max(0, this.flash - dt);
     if (running) {
-      this.spend(ENERGY.runDrain * dt);
+      this.spend((sprinting ? ENERGY.sprintDrain : ENERGY.runDrain) * dt);
     } else if (resting) {
       this.idle += dt;
       if (this.idle >= ENERGY.regenDelay) this.value = Math.min(1, this.value + ENERGY.regen * dt);

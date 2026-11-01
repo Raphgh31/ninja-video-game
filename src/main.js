@@ -71,6 +71,12 @@ const stateEl = document.querySelector('[data-state]');
 function update(dt) {
   if (input.wasPressed('debug')) debug = !debug;
   player.update(dt, input);
+  // le sprint tactile se coupe tout seul à l'arrêt ou quand on est essoufflé
+  if (touch?.sprintOn) {
+    const moving = input.isHeld('left') || input.isHeld('right');
+    touch.idleSprint = moving ? 0 : (touch.idleSprint ?? 0) + dt;
+    if (player.energy.exhausted || touch.idleSprint > 0.5) touch.setSprint(false);
+  }
   level.update(dt);
   shurikens.update(dt);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());

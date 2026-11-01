@@ -37,7 +37,8 @@ Aperçus animés de contrôle : `docs/kage/previews/*.gif` · planche annotée :
 | Animation | Frames | i/s | Boucle | État de jeu |
 |---|---|---|---|---|
 | idle | 4 | 6 | oui | immobile au sol |
-| run | 6 | 14 | oui | déplacement au sol |
+| run | 6 | 12 | oui | course normale (96 px/s) |
+| sprint | 6 | 16 | oui | sprint (165 px/s) : buste plongé, corps plus bas, bras tendus vers l'arrière, foulard à l'horizontale |
 | jump | 4 | 14 | non (reste sur la dernière) | montée |
 | fall | 3 | 10 | oui | descente |
 | land | 3 | 18 | non | contact avec le sol |
@@ -58,6 +59,7 @@ Anneau en haut à gauche de l'écran, à côté du stock de shurikens ; il se vi
 | Action | Effet |
 |---|---|
 | Courir | −4 %/s (≈ 25 s de course pour vider la barre) |
+| Sprinter | −16 %/s (≈ 6 s de sprint) ; impossible quand KAGE est essoufflé |
 | Immobile au sol | +55 %/s après 0,35 s (vide → plein en moins de 2 s) |
 | Dash | −33 % (refusé s'il manque de l'énergie) |
 | Saut | −10 % (toujours possible, même à vide) |

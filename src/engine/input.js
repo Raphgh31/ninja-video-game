@@ -10,6 +10,7 @@ const KEYMAP = {
   KeyC: 'slide',
   KeyK: 'throw', KeyV: 'throw',
   KeyJ: 'attack', KeyX: 'attack', Enter: 'attack',
+  ControlLeft: 'sprint', ControlRight: 'sprint',
   KeyH: 'debug',
 };
 

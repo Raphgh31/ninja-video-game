@@ -491,6 +491,39 @@ W......
 }
 
 # ---------------------------------------------------------------------------
+# SPRINT — course « ninja » : buste plongé, corps plus bas, bras tendus vers
+# l'arrière, grandes foulées, foulard tendu à l'horizontale
+# ---------------------------------------------------------------------------
+def _sprint(ty, near_leg, far_leg, near_foot="flat", far_foot="flat", tails=0, streak=False):
+    long_t = [[(-4, 0), (-8, 0), (-12, 1)], [(-4, 0), (-8, -1), (-12, 0)]][tails]
+    short_t = [[(-4, 1), (-7, 2), (-9, 2)], [(-4, 2), (-7, 2), (-9, 3)]][tails]
+    g = pose(torso="dive", tx=14, ty=ty,
+             near_leg=near_leg, far_leg=far_leg, near_foot=near_foot, far_foot=far_foot,
+             # bras tendus vers l'arrière, légèrement relevés (le proche passe devant le buste)
+             near_arm=[(14, ty + 1), (9, ty - 1)], far_arm=[(12, ty), (7, ty - 2)],
+             tail_long=long_t, tail_short=short_t)
+    ops = [G(g)]
+    if streak:
+        ops.append(A("zzz..zz", x=0, top=27))
+    return Frame(ops)
+
+
+SPRINT = [
+    # contact : jambe proche lancée loin devant
+    _sprint(20, near_leg=[(20, 26), (23, 28)], far_leg=[(12, 26), (9, 27)], far_foot="down", streak=True),
+    # appui : le corps descend sur la jambe avant
+    _sprint(21, near_leg=[(20, 27), (19, 28)], far_leg=[(13, 27), (10, 27)], far_foot="down", tails=1),
+    # passage : jambe lointaine ramenée sous le corps
+    _sprint(19, near_leg=[(17, 26), (16, 28)], far_leg=[(19, 25), (19, 26)], far_foot="tuck"),
+    # contact : jambe lointaine lancée devant
+    _sprint(20, far_leg=[(19, 26), (22, 28)], near_leg=[(13, 26), (10, 27)], near_foot="down", streak=True, tails=1),
+    # appui
+    _sprint(21, far_leg=[(19, 27), (18, 28)], near_leg=[(14, 27), (11, 27)], near_foot="down"),
+    # passage : jambe proche ramenée
+    _sprint(19, far_leg=[(15, 26), (14, 28)], near_leg=[(20, 25), (20, 26)], near_foot="tuck", tails=1),
+]
+
+# ---------------------------------------------------------------------------
 # VUES — face, dos, profil gauche, profil droit
 # ---------------------------------------------------------------------------
 stamp("head_f", """
@@ -605,7 +638,8 @@ VIEWS = {"front": VIEW_FRONT, "back": VIEW_BACK, "left": VIEW_LEFT, "right": VIE
 # ---------------------------------------------------------------------------
 ANIMS = {
     "idle":          dict(frames=IDLE,    fps=6,  loop=True,  state="idle"),
-    "run":           dict(frames=RUN,     fps=14, loop=True,  state="run"),
+    "run":           dict(frames=RUN,     fps=12, loop=True,  state="run"),
+    "sprint":        dict(frames=SPRINT,  fps=16, loop=True,  state="sprint"),
     "jump":          dict(frames=JUMP,    fps=14, loop=False, state="jump"),
     "fall":          dict(frames=FALL,    fps=10, loop=True,  state="fall"),
     "land":          dict(frames=LAND,    fps=18, loop=False, state="land"),

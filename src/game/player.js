@@ -4,7 +4,8 @@ import { TILE } from './level.js';
 import { ENERGY, Energy } from './energy.js';
 
 const P = {
-  run: 120,          // px/s
+  run: 96,           // px/s (course normale)
+  sprint: 165,       // px/s (sprint : Ctrl / bouton tactile)
   accel: 1400,
   friction: 1800,
   gravity: 980,
@@ -29,6 +30,7 @@ export class Player {
     this.level = level;
     this.anim = new Animator(meta);
     this.energy = new Energy();
+    this.sprinting = false;
     this.respawn(true);
   }
 
@@ -121,7 +123,9 @@ export class Player {
         break;
       default: {
         // contrôle horizontal
-        const target = dir * P.run * this.energy.speedFactor;
+        // sprint : touche maintenue, en mouvement, et pas essoufflé
+        this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
+        const target = dir * (this.sprinting ? P.sprint : P.run) * this.energy.speedFactor;
         const a = dir !== 0 ? P.accel : P.friction;
         if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
         else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
@@ -177,16 +181,17 @@ export class Player {
 
     // transitions d'animation
     const s = this.state;
-    if (s === 'idle' || s === 'run' || s === 'land' || s === 'jump' || s === 'fall') {
+    const moving = this.sprinting ? 'sprint' : 'run';
+    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'land' || s === 'jump' || s === 'fall') {
       if (!this.onGround) {
         if (this.vy > 30 && s !== 'fall') this.setState('fall');
         else if (s !== 'jump' && s !== 'fall') this.setState('fall');
       } else if (!wasGround) {
         this.setState('land');
       } else if (s === 'land') {
-        if (this.timer >= P.landTime && (dir !== 0 || this.anim.finished)) this.setState(dir ? 'run' : 'idle');
+        if (this.timer >= P.landTime && (dir !== 0 || this.anim.finished)) this.setState(dir ? moving : 'idle');
       } else if (Math.abs(this.vx) > 10 && dir !== 0) {
-        if (s !== 'run') this.setState('run');
+        if (s !== moving) this.setState(moving);
       } else if (s !== 'idle') {
         this.setState('idle');
       }
@@ -194,7 +199,8 @@ export class Player {
 
     if (this.level.hitsSpike(this.box()) || this.y > this.level.height + 64) this.die();
     this.energy.update(dt, {
-      running: this.onGround && this.state === 'run' && Math.abs(this.vx) > 10,
+      running: this.onGround && (this.state === 'run' || this.state === 'sprint') && Math.abs(this.vx) > 10,
+      sprinting: this.onGround && this.state === 'sprint',
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
     });
     this.anim.update(dt);
