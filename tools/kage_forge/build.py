@@ -181,7 +181,7 @@ def main():
         "flipForLeft": True,
         "hitbox": {
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
-            "slide": {"x": 10, "y": 17, "w": 13, "h": 14},
+            "slide": {"x": 13, "y": 17, "w": 15, "h": 14},
             "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
             "air_attack": {"x": 18, "y": 0, "w": 22, "h": 32, "frames": [2, 3, 4],
                            "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"},

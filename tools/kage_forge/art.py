@@ -214,29 +214,29 @@ DASH = [
 ]
 
 # ---------------------------------------------------------------------------
-# SLIDE — plongée au ras du sol, glissade (x2)
+# SLIDE — glissade sur la hanche : buste couché en arrière, jambe avant pliée
+# (genou relevé, main posée dessus), jambe arrière tendue au ras du sol, main
+# en appui derrière. La tête reste au ras du tunnel (lignes 15 à 30 libres).
 # ---------------------------------------------------------------------------
+TX = 14   # buste ; tout le reste est placé par rapport à lui
+SLIDE_BODY = dict(near_leg=[(TX + 12, 24), (TX + 10, 28)], near_foot="flat",        # genou relevé
+                  far_leg=[(TX + 11, 28), (TX + 19, 28)], far_foot="point",        # jambe tendue devant
+                  far_arm=[(TX, 28), (TX - 2, 29)],                                # main en appui au sol
+                  near_arm=[(TX + 7, 25), (TX + 11, 23)])                          # main posée sur le genou
 SLIDE = [
-    F(pose(torso="dive", tx=12, ty=22,
-           near_leg=[(17, 27), (19, 28)], near_foot="flat",
-           far_leg=[(12, 28), (10, 28)], far_foot="back",
-           near_arm=[(19, 25), (21, 26)], far_arm=[(16, 24), (18, 24)],
-           tail_long=[(-3, -1), (-6, -2), (-9, -2), (-12, -1)],
-           tail_short=[(-3, 1), (-6, 1), (-8, 1)])),
-    F(pose(torso="flat", tx=11, ty=24,
-           near_leg=[(16, 28), (19, 28)], near_foot="point",
-           far_leg=[(9, 28), (7, 28)], far_foot="back",
-           near_arm=[(19, 26), (21, 27)], far_arm=[(16, 25), (18, 25)],
-           tail_long=[(-4, -1), (-8, -1), (-12, 0)],
-           tail_short=[(-4, 1), (-7, 1), (-9, 2)]),
-      A("x.x\n.x.", x=22, bottom=30)),
-    F(pose(torso="flat", tx=11, ty=24,
-           near_leg=[(16, 28), (19, 28)], near_foot="point",
-           far_leg=[(9, 28), (7, 28)], far_foot="back",
-           near_arm=[(19, 26), (21, 27)], far_arm=[(16, 25), (18, 25)],
-           tail_long=[(-4, 0), (-8, -1), (-12, -1)],
-           tail_short=[(-4, 1), (-7, 2), (-9, 1)]),
-      A("..x\nx..", x=23, bottom=30)),
+    # 1. il se laisse tomber sur la hanche
+    F(pose(torso="recline", tx=TX, ty=24, hx=TX - 3, hy=15,
+           near_leg=[(TX + 11, 23), (TX + 10, 27)], near_foot="flat",
+           far_leg=[(TX + 11, 27), (TX + 16, 28)], far_foot="point",
+           far_arm=[(TX, 27), (TX - 2, 28)], near_arm=[(TX + 7, 24), (TX + 10, 22)],
+           tail_long=[(-3, 0), (-6, -1), (-9, -1)], tail_short=[(-3, 1), (-5, 1)])),
+    # 2-3. glissade : fesses et hanche au sol, le foulard file à l'horizontale
+    F(pose(torso="recline", tx=TX, ty=25, hx=TX - 3, hy=16, **SLIDE_BODY,
+           tail_long=[(-3, 0), (-6, 0), (-9, 1)], tail_short=[(-3, 1), (-5, 2)]),
+      A("x.x\n.x.", x=TX - 6, bottom=30)),
+    F(pose(torso="recline", tx=TX, ty=25, hx=TX - 3, hy=16, **SLIDE_BODY,
+           tail_long=[(-3, 0), (-6, 1), (-9, 0)], tail_short=[(-3, 1), (-5, 1)]),
+      A("..x\nx..", x=TX - 7, bottom=30)),
 ]
 
 ANIMS_POSED = {

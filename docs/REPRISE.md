@@ -67,6 +67,7 @@ idle 4 · run 6 · sprint 6 · jump 4 · fall 3 · land 3 · dash 5 · attack 7 
 - **Sprint** : buste plongé, corps bas, **bras tendus à l'horizontale vers l'arrière** (façon Naruto ; à l'origine, les bras remontaient trop).
 - **Sabre au sol** : légère fente, demi-cercle devant (haut, avant, bas), lame longue et large (2 px), bras à demi tendu qui suit la lame.
 - **Sabre en l'air** : **à deux mains**, lame levée au-dessus de la tête (bras derrière la tête pour garder le visage visible), temps d'arrêt, puis abattue devant en plongeant. Plus spectaculaire et plus de dégâts.
+- **Glissade** : sur la hanche, façon ninja (refaite à la demande de l'utilisateur ; l'ancienne pose ressemblait à un grand écart). Buste incliné en arrière, fesses et hanche au sol, jambe avant pliée (genou relevé, main posée dessus), jambe arrière tendue devant, main d'appui au sol derrière, foulard à l'horizontale. Corps d'environ 26 px de long (ni trop allongé, ni trop ramassé). Tête sous la ligne 16 pour passer le tunnel. Buste `recline` dans `rig.py`.
 - **Shuriken** : armé derrière la tête, **bras entièrement tendu au lâcher**.
 - Le **dash vertical a été supprimé** à la demande de l'utilisateur.
 - Méthode : chaque frame est posée à la main via le rig (articulations placées image par image). Mort et réapparition sont calculées à partir du sprite (découpe en blocs).
