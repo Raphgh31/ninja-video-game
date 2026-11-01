@@ -54,7 +54,10 @@ addEventListener('orientationchange', () => setTimeout(fit, 200));
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
-const level = new Level();
+// niveau : #terrain = terrain d'essai, sinon niveau 1
+const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : 'niveau-1';
+const level = new Level(LEVEL_ID);
+addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
@@ -62,11 +65,14 @@ player.onThrow = (x, y, dir, height) => {
   shurikens.throw(x, y, dir, height);
 };
 player.canThrow = () => shurikens.canThrow();
-// ennemi : TATE, posté au milieu du terrain
+// ennemis : un TATE à chaque repère « E » de la carte
 const tateMeta = await loadJson('./characters/tate/tate.json');
-const tate = new Tate(tateMeta, await loadImage(`./characters/tate/${tateMeta.image}`),
-  await loadImage(`./characters/tate/${tateMeta.glowImage}`), 30 * 16, level.spawn.y);
-shurikens.enemies.push(tate);
+const tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
+const tateGlow = await loadImage(`./characters/tate/${tateMeta.glowImage}`);
+const tates = level.enemies.map((e) => new Tate(tateMeta, tateSheet, tateGlow, e.x, e.y, level));
+shurikens.enemies.push(...tates);
+// partie : chronomètre, chutes, arrivée
+const run = { time: 0, falls: 0, won: false };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
 player.onEvent = (n, d) => {
@@ -103,7 +109,7 @@ player.onEvent = (n, d) => {
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
-    case 'death': sfx('death'); fx.shake(2, 0.25); break;
+    case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; break;
     case 'respawn': sfx('respawn'); break;
     default:
   }
@@ -117,7 +123,7 @@ shurikens.onEvent = (n, d) => {
     default:
   }
 };
-tate.onEvent = (n, d) => {
+function onTateEvent(n, d) {
   switch (n) {
     case 'step': sfx('tateStep'); fx.dust(d.x - 6, d.y, 2, { dir: -1, up: 8 }); fx.dust(d.x + 6, d.y, 2, { dir: 1, up: 8 }); break;
     case 'windup': sfx('tateWindup'); break;
@@ -135,6 +141,14 @@ tate.onEvent = (n, d) => {
       break;
     default:
   }
+}
+for (const t of tates) t.onEvent = onTateEvent;
+level.onEvent = (n, d) => {
+  switch (n) {
+    case 'gong': sfx('gong'); sfx('door'); fx.shake(1, 0.25); fx.sparks(d.x, d.y, 8, { speed: 70 }); break;
+    case 'checkpoint': sfx('checkpoint'); fx.sparks(d.x, d.y - 16, 5, { speed: 40 }); break;
+    default:
+  }
 };
 
 // son : débloqué au premier geste ; bouton et touche M pour le couper
@@ -149,12 +163,12 @@ for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, un
 
 // barres de vie fines au-dessus de chaque personnage
 const kageBar = new HealthBar(HEALTH.max);
-const tateBar = new HealthBar(TATE.hp);
+for (const t of tates) t.bar = new HealthBar(TATE.hp);
 player.onRespawn = () => {
   shurikens.reset();
-  tate.reset();
+  // les TATE encore debout reprennent leur poste ; les vaincus le restent
+  for (const t of tates) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
   kageBar.reset();
-  tateBar.reset();
 };
 const input = new Input();
 touch = MOBILE ? new TouchControls(canvas, input) : null;
@@ -165,9 +179,11 @@ if (MOBILE) {
   }, { once: true });
 }
 const camera = { x: 0, y: 0 };
+const IDLE_INPUT = { isHeld: () => false, wasPressed: () => false };
 let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
+for (const a of document.querySelectorAll('.levels a')) if (a.dataset.level === LEVEL_ID) a.setAttribute('aria-current', 'page');
 
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
@@ -175,7 +191,7 @@ function update(dt) {
   if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
-  player.update(dt, input);
+  player.update(dt, run.won ? IDLE_INPUT : input);
   // le sprint tactile se coupe tout seul à l'arrêt ou quand on est essoufflé
   if (touch?.sprintOn) {
     const moving = input.isHeld('left') || input.isHeld('right');
@@ -184,23 +200,31 @@ function update(dt) {
   }
   level.update(dt);
   shurikens.update(dt);
-  tate.update(dt, player);
-  tate.interact(player);
+  for (const t of tates) {
+    t.update(dt, player);
+    t.interact(player);
+  }
   const ab = player.attackBox();
   if (ab) {
     const heavy = player.state === 'air_attack';
-    const r = tate.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
-    if (r === 'hit') {
-      fx.hitStop(heavy ? 0.11 : 0.07);
-      if (heavy) fx.shake(2, 0.18);
-    } else if (r === 'blocked') {
-      fx.hitStop(0.04);
+    level.hitGongs(ab);
+    for (const t of tates) {
+      const r = t.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
+      if (r === 'hit') {
+        fx.hitStop(heavy ? 0.11 : 0.07);
+        if (heavy) fx.shake(2, 0.18);
+      } else if (r === 'blocked') {
+        fx.hitStop(0.04);
+      }
     }
   }
+  // progression : lanternes et arrivée
+  if (!run.won && level.checkProgress(player.x, player.y) && level.goal) win();
+  if (!run.won && level.goal) run.time += dt;
   fx.update(dt);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
-  tateBar.update(dt, Math.max(0, tate.hp));
+  for (const t of tates) t.bar.update(dt, Math.max(0, t.hp));
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
   camera.x += (tx - camera.x) * Math.min(1, dt * 8);
@@ -214,15 +238,17 @@ function draw() {
   const cam = { x: camera.x + shake.x, y: camera.y + shake.y };
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
+  level.drawProps(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
-  tate.draw(ctx, cam, player);
+  for (const t of tates) t.draw(ctx, cam, player);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
-  if (!tate.gone) {
-    const fade = tate.state === 'defeated' ? Math.max(0, 1 - tate.timer / 0.6) : 1;
-    tateBar.draw(ctx, tate.x - cam.x, tate.y - cam.y - 27, fade);
+  for (const t of tates) {
+    if (t.gone) continue;
+    const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
+    t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - 27, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {
     kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 27);
@@ -230,6 +256,8 @@ function draw() {
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
   shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
+  // chronomètre centré en haut (le coin haut-droit accueille le bouton du son sur mobile)
+  if (level.goal) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
   touch?.draw(ctx);
   if (debug) {
     const b = player.box();
@@ -240,8 +268,8 @@ function draw() {
       ctx.strokeStyle = '#ffd400';
       ctx.strokeRect(Math.round(ab.x - cam.x) + 0.5, Math.round(ab.y - cam.y) + 0.5, ab.w - 1, ab.h - 1);
     }
-    for (const [name, color] of [['body', '#ff3b3b'], ['shield', '#3bb3ff']]) {
-      const tb = tate.box(name);
+    for (const [name, color] of tates.flatMap((t) => [[t, 'body', '#ff3b3b'], [t, 'shield', '#3bb3ff']]).map(([t, n, c]) => [[t, n], c])) {
+      const tb = name[0].box(name[1]);
       ctx.strokeStyle = color;
       ctx.strokeRect(Math.round(tb.x - cam.x) + 0.5, Math.round(tb.y - cam.y) + 0.5, tb.w - 1, tb.h - 1);
     }
@@ -249,6 +277,40 @@ function draw() {
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }
   stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`;
+}
+
+// ---- arrivée ------------------------------------------------------------------
+const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+function win() {
+  run.won = true;
+  sfx('win');
+  const el = document.querySelector('.win');
+  el.querySelector('[data-time]').textContent = fmt(run.time);
+  el.querySelector('[data-falls]').textContent = String(run.falls);
+  el.hidden = false;
+}
+document.querySelector('.win [data-again]').addEventListener('click', () => location.reload());
+
+// chiffres en pixel art (3×5) pour le chronomètre, alignés à droite sur x
+const DIGITS = {
+  0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001',
+  5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111',
+  ':': '000010000010000',
+};
+function drawTime(c, right, y, t) {
+  const text = fmt(t);
+  let x = right - text.length * 4 + 1;
+  for (const ch of text) {
+    const bits = DIGITS[ch];
+    for (let i = 0; i < 15; i++) {
+      if (bits[i] !== '1') continue;
+      c.fillStyle = '#06070a';
+      c.fillRect(x + (i % 3) + 1, y + Math.floor(i / 3) + 1, 1, 1);
+      c.fillStyle = '#e9e5da';
+      c.fillRect(x + (i % 3), y + Math.floor(i / 3), 1, 1);
+    }
+    x += 4;
+  }
 }
 
 // Boucle à pas fixe (120 Hz) pour une physique stable quel que soit l'écran.
@@ -269,4 +331,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate, fx };
+window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, fx, run };

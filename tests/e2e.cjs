@@ -3,7 +3,8 @@
 const path = require('node:path');
 const { chromium } = require('playwright');
 
-const FILE = 'file://' + path.resolve(__dirname, '../dist/kage-standalone.html');
+const BASE = 'file://' + path.resolve(__dirname, '../dist/kage-standalone.html');
+const FILE = BASE + '#terrain';
 const results = [];
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
@@ -228,6 +229,86 @@ async function main() {
     await T('touchMove', [[107, 300, 1]]); await T('touchMove', [[90, 300, 1]]); await m.waitForTimeout(30);
     const b = await mState(); await T('touchEnd', []);
     expect(a === 'dash' && b !== 'dash', `relâché : ${a} ; retour au centre : ${b}`);
+  });
+
+
+  // ---- niveau 1 : chaque passage est faisable, et demande la bonne mécanique ----
+  const lv = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  lv.on('pageerror', (e) => errors.push('[niveau 1] ' + e.message));
+  await lv.goto(BASE); await lv.waitForFunction(() => window.__kage); await lv.waitForTimeout(300);
+  const L = lv.keyboard, lw = (ms) => lv.waitForTimeout(ms);
+  const LS = () => lv.evaluate(() => { const pl = window.__kage.player; return { st: pl.state, x: pl.x, y: pl.y, tx: Math.floor(pl.x / 16) }; });
+  // place KAGE (TATE écartés pour isoler chaque passage)
+  const at = (tx, y) => lv.evaluate(([tx, y]) => {
+    const g = window.__kage, pl = g.player;
+    pl.x = tx * 16 + 8; pl.y = y; pl.vx = 0; pl.vy = 0; pl.invuln = 0; pl.hp = 5;
+    pl.energy.value = 1; pl.energy.exhausted = false; pl.onGround = true; pl.setState('idle');
+    for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; }
+  }, [tx, y]);
+  const runJump = async (sprint, dash) => {
+    await L.down('ArrowRight'); if (sprint) await L.down('ShiftLeft');
+    await lw(560); await L.down('Space'); await lw(250);
+    if (dash) { await L.up('ArrowRight'); await L.press('ArrowRight'); await lw(40); await L.press('ArrowRight'); await L.down('ArrowRight'); }
+    await lw(200); await L.up('Space'); await lw(500);
+    await L.up('ShiftLeft'); await L.up('ArrowRight');
+  };
+
+  await test('niveau 1 : 5 TATE, 3 lanternes, un gong, une arrivée', async () => {
+    const i = await lv.evaluate(() => { const g = window.__kage; return [g.tates.length, g.level.checkpoints.length, g.level.gongs.length, !!g.level.goal]; });
+    expect(i.join() === '5,3,1,true', i.join());
+  });
+
+  await test('niveau 1 : le tunnel ne se passe qu\'en glissade', async () => {
+    await at(29, 304); await L.down('ArrowRight'); await lw(800);
+    const standing = (await LS()).tx;
+    await L.press('ArrowDown'); await lw(1300); await L.up('ArrowRight');
+    const slid = (await LS()).tx;
+    expect(standing < 32 && slid >= 39, `debout : colonne ${standing} ; en glissade : colonne ${slid}`);
+  });
+
+  await test('niveau 1 : fossé de 5 = sprint (une course simple ne suffit pas)', async () => {
+    await at(45, 304); await runJump(false, false); const a = (await LS()).tx;
+    await at(45, 304); await runJump(true, false); const b = (await LS()).tx;
+    expect(a < 55 && b >= 55, `course : ${a} ; sprint : ${b}`);
+  });
+
+  await test('niveau 1 : fossé de 8 = sprint + saut + dash', async () => {
+    await at(75, 304); await runJump(true, false); const a = (await LS()).tx;
+    await at(75, 304); await runJump(true, true); const b = (await LS()).tx;
+    expect(a < 88 && b >= 88, `sans dash : ${a} ; avec dash : ${b}`);
+  });
+
+  await test('niveau 1 : le puits se remonte en sauts muraux jusqu\'à la passerelle', async () => {
+    await at(97, 304); await lw(150);
+    let side = -1;
+    await L.down('Space'); await lw(60); await L.up('Space');
+    for (let i = 0; i < 14; i++) {
+      const key = side < 0 ? 'ArrowLeft' : 'ArrowRight';
+      await L.down(key);
+      for (let j = 0; j < 50; j++) { if ((await LS()).st === 'wall_slide') break; await lw(10); }
+      await L.down('Space'); await lw(40); await L.up(key); await lw(60); await L.up('Space');
+      side = -side;
+      if ((await LS()).y < 150) break;
+    }
+    await L.down('ArrowRight'); await lw(600); await L.up('ArrowRight');
+    const s = await LS();
+    expect(s.y <= 144 && s.tx >= 101, `y ${s.y}, colonne ${s.tx}`);
+  });
+
+  await test('niveau 1 : le gong au shuriken ouvre la porte', async () => {
+    await at(112, 144); await lv.evaluate(() => { window.__kage.player.facing = 1; window.__kage.player.x += 2; });
+    await lw(150); await L.press('KeyK'); await lw(900);
+    await at(132, 304); await lw(700);
+    await L.down('ArrowRight'); await lw(700); await L.up('ArrowRight');
+    const s = await LS();
+    const open = await lv.evaluate(() => window.__kage.level.doorOpen);
+    expect(open && s.tx > 135, `porte ouverte : ${open}, colonne ${s.tx}`);
+  });
+
+  await test('niveau 1 : le torii affiche l\'écran de fin', async () => {
+    await at(162, 304); await L.down('ArrowRight'); await lw(1200); await L.up('ArrowRight'); await lw(200);
+    const shown = await lv.evaluate(() => !document.querySelector('.win').hidden);
+    expect(shown, 'écran de fin absent');
   });
 
   await test('aucune erreur dans la console', async () => {

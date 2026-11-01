@@ -9,6 +9,7 @@ const P = {
   sprint: 140,       // px/s (sprint : Maj / bouton tactile)
   accel: 1400,
   friction: 1800,
+  airFriction: 450,  // freinage en l'air quand on lâche la direction (garde l'élan, utile pour le dash au double appui)
   gravity: 980,
   maxFall: 420,
   jump: 315,
@@ -247,7 +248,8 @@ export class Player {
           this.fxTimer = 0;
           this.emit('slide_dust');
         }
-        this.vx = this.facing * P.slideSpeed * (1 - 0.45 * (this.timer / P.slideTime));
+        // ralentit puis garde une vitesse minimale (on peut rester sous un plafond bas)
+        this.vx = this.facing * P.slideSpeed * Math.max(0.55, 1 - 0.45 * (this.timer / P.slideTime));
         if (this.timer >= P.slideTime && !this.ceilingAbove()) this.endSpecial();
         else if (!this.onGround) this.setState('fall');
         break;
@@ -271,7 +273,7 @@ export class Player {
         }
         const target = dir * (this.sprinting ? P.sprint : P.run) * this.energy.speedFactor;
         if (this.wallLock <= 0) {
-          const a = dir !== 0 ? P.accel : P.friction;
+          const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
           else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
           if (dir !== 0) this.facing = dir;
@@ -315,7 +317,9 @@ export class Player {
           this.setState(this.onGround ? 'throw' : 'air_throw');
           break;
         }
-        if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && Math.abs(this.vx) > 20) {
+        // glissade : en mouvement, ou à l'arrêt en poussant une direction (ex. collé à l'entrée d'un tunnel)
+        if ((input.wasPressed('slide') || input.wasPressed('down')) && this.onGround && (Math.abs(this.vx) > 20 || dir !== 0)) {
+          if (dir !== 0) this.facing = dir;
           this.emit('slide');
           this.setState('slide');
           break;

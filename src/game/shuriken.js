@@ -98,6 +98,13 @@ export class Shurikens {
           }
         }
       }
+      // gong : il sonne et ouvre les portes ; le shuriken retombe
+      if (!s.deflected && lv.hitGongs?.({ x: s.x - 2, y: s.y - 2, w: 4, h: 4 })) {
+        s.deflected = true;
+        s.vx *= -0.2;
+        s.vy = -60;
+        s.gravity = Math.max(s.gravity, 400);
+      }
       // cible d'entraînement : elle se brise, le shuriken est dévié et retombe
       if (lv.hitTargets({ x: s.x - 2, y: s.y - 2, w: 4, h: 4 }, s.dir)) {
         s.vx *= -0.2;

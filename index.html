@@ -3,11 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <title>KAGE — terrain d'essai</title>
+    <title>KAGE — prototype</title>
   </head>
   <body>
     <header class="bar">
-      <h1>KAGE <span>terrain d'essai</span></h1>
+      <h1>KAGE</h1>
+      <nav class="levels" aria-label="Niveau">
+        <a href="#niveau-1" data-level="niveau-1">Niveau 1</a>
+        <a href="#terrain" data-level="terrain">Terrain d'essai</a>
+      </nav>
       <p class="state" data-state aria-live="off">idle</p>
     </header>
     <main class="stage">
@@ -26,6 +30,14 @@
         <div><dt>M</dt><dd>son</dd></div>
       </dl>
     </footer>
+    <div class="win" hidden>
+      <p class="win__title">Niveau terminé</p>
+      <dl>
+        <div><dt>Temps</dt><dd data-time>0:00</dd></div>
+        <div><dt>Chutes</dt><dd data-falls>0</dd></div>
+      </dl>
+      <button type="button" data-again>Rejouer</button>
+    </div>
     <button type="button" class="mute" aria-pressed="false">Son</button>
     <p class="rotate-hint">Tourne ton téléphone : le jeu se joue en paysage.</p>
     <script type="module" src="/src/main.js"></script>

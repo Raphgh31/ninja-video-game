@@ -5,6 +5,7 @@
 // est le talisman dans son dos (4 points de vie : 2 coups de sabre, 4 shurikens).
 
 import { DAMAGE_DEALT, DAMAGE_TAKEN } from './combat.js';
+import { TILE } from './level.js';
 
 export const TATE = {
   walk: 18,            // px/s : lent et lourd
@@ -24,8 +25,9 @@ export const TATE = {
 };
 
 export class Tate {
-  constructor(meta, sheet, glow, x, groundY) {
+  constructor(meta, sheet, glow, x, groundY, level = null) {
     this.meta = meta;
+    this.level = level;
     this.sheet = sheet;
     this.glow = glow;
     this.home = x;
@@ -91,6 +93,16 @@ export class Tate {
     return 'blocked';
   }
 
+  /** Peut-il avancer d'un pas dans sa direction ? (pas de mur devant, du sol sous le pied avant) */
+  canStep(dir) {
+    const lv = this.level;
+    if (!lv) return true;
+    const front = Math.floor((this.x + dir * 12) / TILE);
+    const wall = lv.solid(front, Math.floor((this.y - 8) / TILE)) || lv.solid(front, Math.floor((this.y - 20) / TILE));
+    const ground = lv.solid(Math.floor((this.x + dir * 9) / TILE), Math.floor((this.y + 2) / TILE));
+    return !wall && ground;
+  }
+
   // ---- comportement ---------------------------------------------------------
   update(dt, player) {
     this.timer += dt;
@@ -120,7 +132,7 @@ export class Tate {
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     const playerAlive = player.state !== 'death' && player.state !== 'respawn';
-    const seen = playerAlive && dist < TATE.aggro;
+    const seen = playerAlive && dist < TATE.aggro && Math.abs(player.y - this.y) < 40;
 
     switch (this.state) {
       case 'guard':
@@ -133,7 +145,7 @@ export class Tate {
         }
         break;
       case 'bash': {
-        this.x += this.facing * TATE.bashSpeed * dt;
+        if (this.canStep(this.facing)) this.x += this.facing * TATE.bashSpeed * dt;
         if (this.timer >= TATE.bashTime) {
           // charge ratée : étourdi ; réussie : il reprend sa marche
           if (this.bashHit) {
@@ -168,14 +180,14 @@ export class Tate {
               this.setState('windup');
               break;
             }
-            if (gap > 6) this.x += this.facing * TATE.walk * dt;
+            if (gap > 6 && this.canStep(this.facing)) this.x += this.facing * TATE.walk * dt;
           }
         } else {
           // ronde autour de son poste
           this.turnTimer = 0;
-          if (Math.abs(this.x + this.patrolDir * 1 - this.home) > TATE.patrol) this.patrolDir *= -1;
+          if (Math.abs(this.x + this.patrolDir * 1 - this.home) > TATE.patrol || !this.canStep(this.patrolDir)) this.patrolDir *= -1;
           this.facing = this.patrolDir;
-          this.x += this.patrolDir * TATE.walk * 0.6 * dt;
+          if (this.canStep(this.patrolDir)) this.x += this.patrolDir * TATE.walk * 0.6 * dt;
         }
       }
     }

@@ -111,6 +111,15 @@ const SOUNDS = {
     tone({ f: 220, to: 55, dur: 0.42, vol: 0.09 });
   },
   respawn: () => [440, 660, 880].forEach((f, i) => tone({ f, dur: 0.07, type: 'sine', vol: 0.06, delay: i * 0.06 })),
+  gong: () => {
+    tone({ f: 330, dur: 1.4, type: 'sine', vol: 0.12, attack: 0.003 });
+    tone({ f: 497, dur: 1.1, type: 'sine', vol: 0.06, attack: 0.003 });
+    tone({ f: 822, dur: 0.7, type: 'triangle', vol: 0.03, attack: 0.003 });
+    noise({ dur: 0.05, vol: 0.08, f: 1800 });
+  },
+  door: () => noise({ dur: 0.7, vol: 0.09, type: 'lowpass', f: 260, to: 120, attack: 0.1, delay: 0.25 }),
+  checkpoint: () => { tone({ f: 1047, dur: 0.18, type: 'sine', vol: 0.05 }); tone({ f: 1319, dur: 0.25, type: 'sine', vol: 0.05, delay: 0.09 }); },
+  win: () => [523, 659, 784, 1047].forEach((f, i) => tone({ f, dur: i === 3 ? 0.5 : 0.12, type: 'triangle', vol: 0.07, delay: i * 0.11 })),
   tateStep: () => { tone({ f: 75, to: 45, dur: 0.1, type: 'sine', vol: 0.11 }); noise({ dur: 0.06, vol: 0.05, type: 'lowpass', f: 300 }); },
   tateWindup: () => tone({ f: 70, to: 90, dur: 0.4, type: 'triangle', vol: 0.06, attack: 0.08 }),
   tateBash: () => { noise({ dur: 0.22, vol: 0.18, type: 'lowpass', f: 600, to: 300 }); tone({ f: 85, to: 40, dur: 0.25, type: 'sine', vol: 0.16 }); },
