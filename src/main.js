@@ -10,6 +10,8 @@ import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
+import { Shop } from './game/shop.js';
 import './style.css';
 
 // Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran, même cadrage
@@ -67,6 +69,9 @@ function fit() {
   }
   canvas.style.width = `${VIEW_W * SCALE}px`;
   canvas.style.height = `${VIEW_H * SCALE}px`;
+  // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
+  stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
+  stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
   touch?.layout(VIEW_W, VIEW_H, SCALE);
 }
 addEventListener('resize', fit);
@@ -74,8 +79,8 @@ addEventListener('orientationchange', () => setTimeout(fit, 200));
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
-// niveau : #terrain = terrain d'essai, sinon niveau 1
-const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : 'niveau-1';
+// niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
+const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
 addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
@@ -97,8 +102,18 @@ const waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
 const waras = level.waras.map((w) => new Wara(waraMeta, waraSheet, w.x, w.y, level));
 shurikens.enemies.push(...waras);
 const enemies = [...tates, ...waras];
-// partie : chronomètre, chutes, arrivée
-const run = { time: 0, falls: 0, won: false };
+// partie : chronomètre, chutes, arrivée ; dans un chapitre, la partie s'ouvre sur l'écran titre
+const CHAPTER = level.chapter != null;
+const run = { time: 0, falls: 0, won: false, paused: CHAPTER };
+let save = CHAPTER ? emptySave(LEVEL_ID) : null;
+const ui = {
+  zone: document.querySelector('.zone-banner'),
+  hint: document.querySelector('.hint'),
+  saved: document.querySelector('.saved'),
+  talk: document.querySelector('.talk'),
+};
+const shop = new Shop(document.querySelector('.shop'));
+shop.onClose = () => { run.paused = false; };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
 player.onEvent = (n, d) => {
@@ -137,7 +152,7 @@ player.onEvent = (n, d) => {
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
-    case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; break;
+    case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls; break;
     case 'respawn': sfx('respawn'); break;
     default:
   }
@@ -198,7 +213,14 @@ for (const w of waras) w.onEvent = onWaraEvent;
 level.onEvent = (n, d) => {
   switch (n) {
     case 'gong': sfx('gong'); sfx('door'); fx.shake(1, 0.25); fx.sparks(d.x, d.y, 8, { speed: 70 }); break;
-    case 'checkpoint': sfx('checkpoint'); fx.sparks(d.x, d.y - 16, 5, { speed: 40 }); break;
+    case 'checkpoint':
+      sfx('checkpoint');
+      fx.sparks(d.x, d.y - 16, 5, { speed: 40 });
+      if (save) {
+        save.checkpoint = level.checkpoints.findIndex((c) => c.x === d.x && c.y === d.y);
+        persist(true);
+      }
+      break;
     default:
   }
 };
@@ -242,6 +264,12 @@ function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
   if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }
+  // écran titre ou boutique ouverte : le monde attend
+  if (run.paused) {
+    if (shop.isOpen && input.wasPressed('escape')) shop.close();
+    input.endFrame();
+    return;
+  }
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
@@ -279,6 +307,27 @@ function update(dt) {
       }
     }
   }
+  // caisses : le sabre et le coup de pied les brisent
+  for (const box of [ab, player.kickBox()]) {
+    if (!box) continue;
+    for (const c of level.breakCrates(box)) {
+      sfx('crate');
+      fx.dust(c.x, c.y + 6, 6, { spread: 35, up: 18 });
+      fx.sparks(c.x, c.y, 4, { palette: 'straw', speed: 70 });
+      if (save) { save.crates.push(c.key); persist(); }
+    }
+  }
+  // ryō
+  if (player.state !== 'death' && player.state !== 'respawn') {
+    for (const c of level.takeCoins(player.box())) {
+      sfx('coin');
+      fx.sparks(c.x, c.y, 3, { speed: 35 });
+      ryoShown = 2.5;
+      if (save) { save.ryo++; save.coins.push(c.id); persist(); }
+    }
+  }
+  ryoShown = Math.max(0, ryoShown - dt);
+  if (CHAPTER) updateChapterUi(dt);
   // progression : lanternes et arrivée
   if (!run.won && level.checkProgress(player.x, player.y) && level.goal) win();
   if (!run.won && level.goal) run.time += dt;
@@ -286,11 +335,23 @@ function update(dt) {
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
-  const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
-  const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
-  camera.x += (tx - camera.x) * Math.min(1, dt * 8);
-  camera.y += (ty - camera.y) * Math.min(1, dt * 6);
+  const t = cameraTarget();
+  camera.x += (t.x - camera.x) * Math.min(1, dt * 8);
+  camera.y += (t.y - camera.y) * Math.min(1, dt * 6);
   input.endFrame();
+}
+
+/** Position visée par la caméra : KAGE un peu à gauche et en bas du cadre. */
+function cameraTarget() {
+  return {
+    x: Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W),
+    y: Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H),
+  };
+}
+
+/** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
+function snapCamera() {
+  Object.assign(camera, cameraTarget());
 }
 
 function draw() {
@@ -303,9 +364,12 @@ function draw() {
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
+  drawScarecrows(cam);
   player.draw(ctx, look.sheet, cam);
+  level.drawForeground(ctx, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);
+  if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
     if (t.gone) continue;
@@ -319,8 +383,10 @@ function draw() {
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
   shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
-  // chronomètre centré en haut (le coin haut-droit accueille le bouton du son sur mobile)
-  if (level.goal) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
+  // ryō : sous les shurikens (dans un chapitre)
+  if (save) drawRyo(ctx, 27, 19, save.ryo);
+  // chronomètre centré en haut, hors chapitre (le coin haut-droit accueille le bouton du son sur mobile)
+  if (level.goal && !CHAPTER) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
   touch?.draw(ctx);
   if (debug) {
     const b = player.box();
@@ -344,17 +410,182 @@ function draw() {
   stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`;
 }
 
+// ---- chapitre : sauvegarde, écran titre, zones, aides, marchand ---------------
+let ryoShown = 0;
+let savedFlash = 0;
+let zoneId = null;
+let zoneTimer = 0;
+let hint = null;            // { kind, t }
+const hintsDone = new Set();
+let startX = player.x;
+
+/** Enregistre la partie ; show = afficher l'indicateur « Sauvegardé ». */
+function persist(show = false) {
+  if (!save) return;
+  save.time = run.time;
+  save.falls = run.falls;
+  const ok = writeSave(save);
+  if (show) {
+    savedFlash = 1.8;
+    ui.saved.textContent = ok ? 'Sauvegardé' : 'Sauvegarde impossible sur ce navigateur';
+  }
+}
+
+const HINTS = {
+  move: ['← → : avancer', 'Joystick : avancer'],
+  jump: ['Espace : sauter', 'Bouton flèche : sauter'],
+  sprint: ['Maj + → : sprinter', 'Joystick poussé hors du cercle : sprinter'],
+  dash: ['→ → (double appui) : dash', 'Coup de joystick rapide, relâché : dash'],
+  kick: ['U : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
+  attack: ['J : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
+  slide: ['↓ en courant : glissade', 'Joystick vers le bas en courant : glissade'],
+};
+const HINT_USED = {
+  move: () => Math.abs(player.x - startX) > 48,
+  jump: () => player.state === 'jump',
+  sprint: () => player.state === 'sprint',
+  dash: () => player.state === 'dash',
+  kick: () => player.state === 'kick',
+  attack: () => player.state === 'attack' || player.state === 'air_attack',
+  slide: () => player.state === 'slide',
+};
+
+function updateChapterUi(dt) {
+  if (run.won) { hideChapterUi(); return; }
+  // bannière de zone : à chaque nouvelle zone traversée
+  const z = level.zoneAt(player.x);
+  if (z && z.id !== zoneId) {
+    zoneId = z.id;
+    zoneTimer = 3.2;
+    ui.zone.querySelector('[data-zone-num]').textContent = `Zone ${z.id}`;
+    ui.zone.querySelector('[data-zone-name]').textContent = z.name;
+  }
+  zoneTimer = Math.max(0, zoneTimer - dt);
+  ui.zone.classList.toggle('on', zoneTimer > 0);
+  // aides : une seule commande à la fois, au moment où elle sert
+  for (const h of level.hints) {
+    if (hintsDone.has(h.kind) || player.x < h.x * 16) continue;
+    if (!hint || hint.kind !== h.kind) hint = { kind: h.kind, t: 0 };
+  }
+  if (hint) {
+    hint.t += dt;
+    if (HINT_USED[hint.kind]() || hint.t > 9) {
+      hintsDone.add(hint.kind);
+      hint = null;
+    }
+  }
+  ui.hint.textContent = hint ? HINTS[hint.kind][MOBILE ? 1 : 0] : '';
+  ui.hint.classList.toggle('on', !!hint);
+  // sauvegarde
+  savedFlash = Math.max(0, savedFlash - dt);
+  ui.saved.classList.toggle('on', savedFlash > 0);
+  // marchand : « Parler » quand on est devant le comptoir
+  const m = level.merchant;
+  const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && player.state !== 'death';
+  ui.talk.hidden = !near;
+  if (near && input.wasPressed('up')) openShop();
+}
+
+/** Masque les aides posées sur le jeu (boutique ouverte, fin du chapitre). */
+function hideChapterUi() {
+  ui.hint.classList.remove('on');
+  ui.zone.classList.remove('on');
+  ui.talk.hidden = true;
+}
+
+function openShop() {
+  if (shop.isOpen) return;
+  run.paused = true;
+  hideChapterUi();
+  sfx('bell');
+  shop.open({ firstVisit: !save.merchantMet, ryo: save.ryo });
+  if (!save.merchantMet) { save.merchantMet = true; persist(); }
+}
+ui.talk.addEventListener('click', openShop);
+
+/** Écran titre : continuer la partie enregistrée, ou en commencer une nouvelle. */
+function startChapter(resume) {
+  const s = resume ? loadSave() : null;
+  if (!resume) clearSave();
+  save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
+  level.applySave(save);
+  run.time = save.time;
+  run.falls = save.falls;
+  if (save.checkpoint >= 0) {
+    level.checkpoints.forEach((c, i) => { c.lit = i <= save.checkpoint; });
+    const c = level.checkpoints[save.checkpoint];
+    if (c) level.spawn = { x: c.x, y: c.y };
+  }
+  player.respawn(true);
+  startX = player.x;
+  // reprise : les aides des commandes déjà passées ne reviennent pas
+  for (const h of level.hints) if (h.x * 16 < player.x - 48) hintsDone.add(h.kind);
+  snapCamera();
+  document.querySelector('.title-screen').hidden = true;
+  run.title = false;
+  run.paused = false;
+  persist();
+}
+if (CHAPTER) {
+  const title = document.querySelector('.title-screen');
+  title.hidden = false;
+  run.title = true;
+  snapCamera();
+  title.querySelector('[data-chapter]').textContent = level.name;
+  const existing = loadSave();
+  const cont = title.querySelector('[data-continue]');
+  cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
+  cont.addEventListener('click', () => startChapter(true));
+  title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
+  (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
+}
+
+// épouvantails du décor : des WARA immobiles qui se balancent au vent
+function drawScarecrows(cam) {
+  for (const p of level.props) {
+    if (p.type !== 'scarecrow') continue;
+    const f = waraMeta.frames[Math.floor(level.time * 1.5) % 2 ? 'idle_1' : 'idle_2'];
+    const sx = Math.round(p.x * 16 + 8 - cam.x), sy = Math.round(p.y * 16 - cam.y) - waraMeta.pivot.y;
+    if (sx < -60 || sx > VIEW_W + 60) continue;
+    ctx.drawImage(waraSheet, f.x, f.y, f.w, f.h, sx - waraMeta.pivot.x, sy, f.w, f.h);
+  }
+}
+
+// compteur de ryō : petite pièce + chiffres en pixel art
+function drawRyo(c, x, y, n) {
+  c.globalAlpha = ryoShown > 0 ? 1 : 0.7;
+  c.fillStyle = '#06070a';
+  c.fillRect(x - 1, y - 1, 7, 7);
+  c.fillStyle = '#e8b93c';
+  c.fillRect(x, y, 5, 5);
+  c.fillStyle = '#7a5a1c';
+  c.fillRect(x + 2, y + 2, 1, 1);
+  drawTime(c, x + 9 + String(n).length * 4, y, n, String(n));
+  c.globalAlpha = 1;
+}
+
 // ---- arrivée ------------------------------------------------------------------
 const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function win() {
   run.won = true;
   sfx('win');
   const el = document.querySelector('.win');
+  if (CHAPTER) {
+    el.querySelector('.win__title').textContent = `${level.name} — terminé`;
+    el.querySelector('[data-next]').textContent = level.next ? `Au loin s'étendent ${level.next.toLowerCase()}… la suite de l'aventure arrive bientôt.` : '';
+    el.querySelector('[data-ryo-row]').hidden = false;
+    el.querySelector('[data-ryo]').textContent = String(save.ryo);
+    save.done = true;
+    persist();
+  }
   el.querySelector('[data-time]').textContent = fmt(run.time);
   el.querySelector('[data-falls]').textContent = String(run.falls);
   el.hidden = false;
 }
-document.querySelector('.win [data-again]').addEventListener('click', () => location.reload());
+document.querySelector('.win [data-again]').addEventListener('click', () => {
+  if (CHAPTER) clearSave();
+  location.reload();
+});
 
 // chiffres en pixel art (3×5) pour le chronomètre, alignés à droite sur x
 const DIGITS = {
@@ -362,8 +593,8 @@ const DIGITS = {
   5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111',
   ':': '000010000010000',
 };
-function drawTime(c, right, y, t) {
-  const text = fmt(t);
+function drawTime(c, right, y, t, label = null) {
+  const text = label ?? fmt(t);
   let x = right - text.length * 4 + 1;
   for (const ch of text) {
     const bits = DIGITS[ch];

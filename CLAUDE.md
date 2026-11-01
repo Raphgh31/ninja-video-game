@@ -29,8 +29,10 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Chaque animation est liée à un état de `src/game/player.js` (même nom que dans `kage.json`).
 
 ## Niveaux
-- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G). `#terrain` dans l'adresse ouvre le terrain d'essai, sinon le niveau 1.
-- Toute modification d'un passage du niveau 1 doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
+- Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G), et pour les chapitres ryō (o), caisses (B), marchand (M), bois (=), bambou (|), eau (~).
+- L'adresse sans `#` ouvre le **chapitre 1, le Potager** (écran titre, sauvegarde) ; `#niveau-1` l'ancien niveau 1, `#terrain` le terrain d'essai.
+- Le Potager est construit zone par zone dans `src/game/chapters/potager.js` ; son dessin (provisoire) est dans `src/game/potager_art.js`. Trous : 6 cases pour le dash, 5 pour le sprint ; passages bas d'une case pour la glissade.
+- Toute modification d'un passage du niveau 1 ou du Potager doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
 
 ## Ennemis
 - TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.
