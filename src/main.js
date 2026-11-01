@@ -119,10 +119,10 @@ function draw() {
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   if (!tate.gone) {
     const fade = tate.state === 'defeated' ? Math.max(0, 1 - tate.timer / 0.6) : 1;
-    tateBar.draw(ctx, tate.x - cam.x, tate.y - cam.y - 28, fade);
+    tateBar.draw(ctx, tate.x - cam.x, tate.y - cam.y - 27, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 28);
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 27);
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });

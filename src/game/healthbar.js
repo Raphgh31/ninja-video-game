@@ -1,17 +1,16 @@
 // Barre de vie fine, au-dessus d'un personnage (KAGE comme ennemis).
-// Longueur proportionnelle au nombre de vies (une encoche par vie). Quand des
+// Jauge continue d'1 px, longueur proportionnelle au nombre de vies. Quand des
 // dégâts arrivent, le vert descend en douceur ; la portion perdue reste un
 // instant en pâle puis se vide (on voit ce qu'on vient de perdre).
 
 const LOOK = {
   perHp: 4,              // px de barre par point de vie
-  height: 2,             // épaisseur de la jauge (hors contour)
-  alpha: 0.85,           // discrète
-  green: '#7fd06c',
-  greenLight: '#a8e494', // reflet sur la ligne du haut
+  height: 1,             // jauge très fine (hors contour)
+  alpha: 0.75,           // discrète
+  green: '#86d374',
   trail: '#f2ede6',      // portion qui vient d'être perdue
-  empty: '#1b1e27',
-  edge: '#06070a',
+  empty: 'rgba(27, 30, 39, 0.7)',
+  edge: 'rgba(6, 7, 10, 0.55)',   // contour léger
 };
 const SPEED = {
   follow: 12,            // vitesse à laquelle le vert rejoint la vraie valeur
@@ -52,14 +51,18 @@ export class HealthBar {
 
   /** Dessine la barre centrée sur cx, son bord haut en y (pixels du jeu). */
   draw(ctx, cx, y, alpha = 1) {
-    const w = this.max * LOOK.perHp - 1;
+    const w = this.max * LOOK.perHp;
     const x = Math.round(cx - w / 2);
     y = Math.round(y);
     const h = LOOK.height;
     ctx.save();
     ctx.globalAlpha = LOOK.alpha * alpha;
+    // contour léger (sans les coins, plus doux)
     ctx.fillStyle = LOOK.edge;
-    ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+    ctx.fillRect(x, y - 1, w, 1);
+    ctx.fillRect(x, y + h, w, 1);
+    ctx.fillRect(x - 1, y, 1, h);
+    ctx.fillRect(x + w, y, 1, h);
     ctx.fillStyle = LOOK.empty;
     ctx.fillRect(x, y, w, h);
     const tw = Math.round(this.trail * w);
@@ -71,12 +74,7 @@ export class HealthBar {
     if (gw > 0) {
       ctx.fillStyle = LOOK.green;
       ctx.fillRect(x, y, gw, h);
-      ctx.fillStyle = LOOK.greenLight;
-      ctx.fillRect(x, y, gw, 1);
     }
-    // une encoche entre chaque point de vie
-    ctx.fillStyle = LOOK.edge;
-    for (let i = 1; i < this.max; i++) ctx.fillRect(x + i * LOOK.perHp - 1, y, 1, h);
     ctx.restore();
   }
 }
