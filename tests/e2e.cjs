@@ -198,20 +198,31 @@ async function main() {
     if (o.state) { w.setState(o.state); w.timer = -5; }
   }, [x, o]);
   const W = () => ev(() => { const w = window.__kage.wara; return { st: w.state, hp: w.hp, x: w.x, f: w.frameName() }; });
+  // attend qu'une condition sur WARA soit vraie (en temps de jeu, pas en millisecondes fixes)
+  const until = async (cond, tries = 100) => {
+    let w;
+    for (let i = 0; i < tries; i++) { w = await W(); if (cond(w)) return w; await wait(15); }
+    return w;
+  };
+  // attend la fin du coup de sabre de KAGE
+  const swingDone = async () => {
+    for (let i = 0; i < 100; i++) { if ((await S()).state === 'attack') break; await wait(10); }
+    for (let i = 0; i < 100; i++) { if ((await S()).state !== 'attack') return; await wait(15); }
+  };
 
   await test('WARA : un coup de sabre l\'abat (2 PV)', async () => {
     await reset(400); await wara(424);
     await ev(() => { window.__kage.player.facing = 1; });
-    await k.press('KeyJ'); await wait(300);
-    const w = await W();
+    await k.press('KeyJ');
+    const w = await until((x) => x.st === 'defeated');
     expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
   });
 
   await test('WARA : un shuriken -1, il passe abîmé', async () => {
     await reset(400); await wara(470);
     await ev(() => { window.__kage.player.facing = 1; });
-    await k.press('KeyK'); await wait(400);
-    const w = await W();
+    await k.press('KeyK');
+    const w = await until((x) => x.hp < 2);
     expect(w.hp === 1 && w.f.endsWith('_torn'), `vie ${w.hp}, image ${w.f}`);
   });
 
@@ -225,13 +236,17 @@ async function main() {
   });
 
   await test('WARA : la traverse pare le sabre pendant le moulinet, pas pendant le tournis', async () => {
-    await reset(400); await wara(424, { state: 'spin' });
+    await reset(400);
+    // KAGE invincible AVANT le moulinet : sinon le moulinet peut le repousser hors de portée
     await ev(() => { const g = window.__kage; g.player.facing = 1; g.player.invuln = 99; });
-    await k.press('KeyJ'); await wait(300);
+    await wara(424, { state: 'spin' });
+    await k.press('KeyJ'); await swingDone();
     const a = await W();
-    await wait(400); await wara(424, { state: 'dizzy' });
-    await k.press('KeyJ'); await wait(300);
-    const b = await W();
+    await wait(200);
+    await ev(() => { const pl = window.__kage.player; pl.x = 400; pl.vx = 0; pl.facing = 1; });
+    await wara(424, { state: 'dizzy' });
+    await k.press('KeyJ');
+    const b = await until((x) => x.st === 'defeated');
     await ev(() => { window.__kage.player.invuln = 0; });
     expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
   });
