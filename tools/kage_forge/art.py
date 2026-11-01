@@ -15,25 +15,24 @@ def F(grid, *retouches, **meta):
 # ---------------------------------------------------------------------------
 # IDLE — respiration : le buste descend d'1 px, le foulard ondule doucement
 # ---------------------------------------------------------------------------
+# Garde basse : jambe avant fléchie (genou en avant de la cheville), jambe
+# arrière presque tendue vers l'arrière, poing lointain levé devant.
+STANCE = dict(near_leg=[(19, 26), (18, 28)], far_leg=[(11, 26), (9, 28)],
+              near_arm=[(17, 22), (18, 23)], far_arm=[(16, 21), (19, 20)])
+STANCE_LOW = dict(near_leg=[(19, 27), (18, 28)], far_leg=[(11, 27), (9, 28)],
+                  near_arm=[(17, 23), (18, 24)], far_arm=[(16, 22), (19, 21)])
+
 IDLE = [
-    F(pose(torso="up", tx=12, ty=18,
-           near_leg=[(16, 26), (17, 28)], far_leg=[(13, 26), (12, 28)],
-           near_arm=[(16, 21), (17, 23)], far_arm=[(12, 21), (11, 23)],
+    F(pose(torso="up", tx=12, ty=19, **STANCE,
            tail_long=[(-2, 1), (-4, 3), (-5, 6), (-6, 10)],
            tail_short=[(-2, 2), (-3, 4), (-3, 8)])),
-    F(pose(torso="up", tx=12, ty=18,
-           near_leg=[(16, 26), (17, 28)], far_leg=[(13, 26), (12, 28)],
-           near_arm=[(16, 21), (17, 23)], far_arm=[(12, 21), (11, 23)],
+    F(pose(torso="up", tx=12, ty=19, **STANCE,
            tail_long=[(-2, 1), (-4, 3), (-6, 6), (-7, 10)],
            tail_short=[(-2, 2), (-3, 4), (-4, 8)])),
-    F(pose(torso="up", tx=12, ty=19,
-           near_leg=[(17, 26), (17, 28)], far_leg=[(12, 27), (12, 28)],
-           near_arm=[(16, 22), (17, 24)], far_arm=[(12, 22), (11, 24)],
+    F(pose(torso="up", tx=12, ty=20, **STANCE_LOW,
            tail_long=[(-2, 1), (-4, 3), (-6, 5), (-8, 9)],
            tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
-    F(pose(torso="up", tx=12, ty=19,
-           near_leg=[(17, 26), (17, 28)], far_leg=[(12, 27), (12, 28)],
-           near_arm=[(16, 22), (17, 24)], far_arm=[(12, 22), (11, 24)],
+    F(pose(torso="up", tx=12, ty=20, **STANCE_LOW,
            tail_long=[(-2, 1), (-4, 3), (-5, 6), (-5, 10)],
            tail_short=[(-2, 2), (-3, 5), (-3, 8)])),
 ]
@@ -153,9 +152,7 @@ LAND = [
            near_arm=[(17, 24), (19, 25)], far_arm=[(12, 24), (10, 24)],
            tail_long=[(-3, 0), (-6, 0), (-8, 1), (-11, 2)],
            tail_short=[(-3, 1), (-5, 2), (-7, 3)])),
-    F(pose(torso="up", tx=12, ty=19,
-           near_leg=[(17, 26), (17, 28)], far_leg=[(12, 27), (12, 28)],
-           near_arm=[(16, 22), (18, 24)], far_arm=[(12, 22), (11, 24)],
+    F(pose(torso="up", tx=12, ty=20, **STANCE_LOW,
            tail_long=[(-2, 1), (-5, 3), (-7, 5), (-9, 8)],
            tail_short=[(-2, 2), (-4, 4), (-5, 7)])),
 ]
@@ -460,9 +457,7 @@ G.....
 VIEW_RIGHT = IDLE[0]
 # Profil gauche : vrai dessin (pan long côté éloigné, sombre ; pan court côté
 # proche, clair ; pointe de capuche éloignée), puis orienté vers la gauche.
-_left = render(F(pose(torso="up", tx=12, ty=18, head="head_r_fartip",
-                      near_leg=[(16, 26), (17, 28)], far_leg=[(13, 26), (12, 28)],
-                      near_arm=[(16, 21), (17, 23)], far_arm=[(12, 21), (11, 23)],
+_left = render(F(pose(torso="up", tx=12, ty=19, head="head_r_fartip", **STANCE,
                       tail_long=[(-3, 2), (-4, 4), (-5, 7), (-6, 11)],
                       tail_short=[(-2, 1), (-4, 3), (-5, 6)],
                       long_colors="ffF", short_colors="GGFG")))
