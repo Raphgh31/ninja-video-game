@@ -36,6 +36,31 @@ PAL = {
 NO_OUTLINE = set("fFgGxXsa")
 
 
+# Réduction de WARA (à la demande de l'utilisateur) : on retire quelques lignes
+# et colonnes du dessin, avant le contour. Indices = dessin d'origine.
+SHRINK_ROWS = (5, 12, 22, 28)   # cône du chapeau, visage, robe, pieu : -4 px de haut
+SHRINK_COLS = (10, 18)          # de part et d'autre du pieu (qui reste en x = 15-16)
+
+
+def shrink(g):
+    for r in sorted(SHRINK_ROWS, reverse=True):     # le sol (ligne 30) ne bouge pas
+        g = np.vstack([np.full((1, g.shape[1]), ".", dtype=g.dtype), g[:r], g[r + 1:]])
+    empty = np.full((g.shape[0], 1), ".", dtype=g.dtype)
+    for c in sorted(SHRINK_COLS, reverse=True):
+        if c < CX - 1:      # à gauche du pieu : la partie gauche se rapproche
+            g = np.hstack([empty, g[:, :c], g[:, c + 1:]])
+        else:               # à droite : la partie droite se rapproche
+            g = np.hstack([g[:, :c], g[:, c + 1:], empty])
+    return g
+
+
+def remap(x, y):
+    """Position d'un pixel du dessin d'origine après la réduction."""
+    y += sum(1 for r in SHRINK_ROWS if r > y)
+    x += sum(1 for c in SHRINK_COLS if c < CX - 1 and c > x) - sum(1 for c in SHRINK_COLS if c >= CX - 1 and c < x)
+    return x, y
+
+
 class Canvas:
     def __init__(self):
         self.g = np.full((H, W), ".", dtype="<U1")
@@ -54,6 +79,7 @@ class Canvas:
             self.put(x, y, c)
 
     def outline(self):
+        self.g = shrink(self.g)
         solid = (self.g != ".") & ~np.isin(self.g, list(NO_OUTLINE)) & (self.g != "O")
         near = np.zeros_like(solid)
         near[1:, :] |= solid[:-1, :]

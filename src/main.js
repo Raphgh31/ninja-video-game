@@ -273,7 +273,7 @@ function draw() {
   for (const t of enemies) {
     if (t.gone) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
-    const top = t instanceof Wara ? 33 + Math.round(t.lift) : 30;   // au-dessus du chapeau
+    const top = t instanceof Wara ? 29 + Math.round(t.lift) : 32;   // au-dessus du chapeau
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {

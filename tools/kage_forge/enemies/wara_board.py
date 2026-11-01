@@ -97,7 +97,7 @@ def design_board():
 
     # annotations : (point visé en pixels de la cellule, libellé)
     notes = [
-        ((7, 3), "Grand chapeau de paille : il saute de la tête avant une attaque, tombe sur les yeux au tournis"),
+        ((12, 6), "Grand chapeau de paille : il saute de la tête avant une attaque, tombe sur les yeux au tournis"),
         ((15, 13), "Tête en toile de sac : deux points, un sourire. Fâché, sa bouche se coud en zigzag"),
         ((14, 16), "Col noué d'une corde"),
         ((26, 16), "Bras : une traverse de bois, touffes de paille aux bouts. Elle tourne en hélice"),
@@ -109,6 +109,7 @@ def design_board():
     ly = hy + 6
     f = font(15, bold=False)
     for i, ((px, py), label) in enumerate(notes):
+        px, py = wara.remap(px, py)          # dessin réduit : positions recalées
         ax = hx + px * Z + Z // 2
         ay = hy + py * Z + Z // 2
         ty = ly + i * 56

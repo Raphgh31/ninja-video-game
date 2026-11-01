@@ -2,7 +2,7 @@
 // De face, il bloque tout (sabre : étincelles ; shuriken : rebond). Il avance
 // lentement, se retourne lentement, et charge d'un coup de bouclier quand KAGE
 // est proche devant lui. Une charge ratée le laisse étourdi. Son point faible
-// est le talisman dans son dos (4 points de vie : 2 coups de sabre, 4 shurikens).
+// est le talisman dans son dos (5 points de vie : 3 coups de sabre, 5 shurikens).
 
 import { DAMAGE_DEALT, DAMAGE_TAKEN } from './combat.js';
 import { TILE } from './level.js';
@@ -19,7 +19,7 @@ export const TATE = {
   stun: 1.4,           // s étourdi après une charge ratée
   cooldown: 0.9,       // s avant de pouvoir recharger
   guardFlash: 0.22,    // s de pose de garde quand un coup est bloqué
-  hp: 4,              // 2 coups de sabre (2 dégâts) ou 4 shurikens (1 dégât)
+  hp: 5,              // 3 coups de sabre (2 dégâts) ou 5 shurikens (1 dégât)
   defeatFade: 2.4,     // s avant de disparaître une fois vaincu (chute ≈ 0,94 s, puis au sol, puis fondu)
   fadeTime: 0.6,       // s de fondu à la fin
 };

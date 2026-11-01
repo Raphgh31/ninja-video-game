@@ -97,7 +97,7 @@ async function main() {
     await ev(() => { window.__kage.tate.facing = -1; window.__kage.player.facing = 1; });
     await k.press('KeyJ'); await wait(200);
     const s = await S();
-    expect(s.tateHp === 4, `vie TATE ${s.tateHp}`);
+    expect(s.tateHp === 5, `vie TATE ${s.tateHp}`);
   });
 
   await test('sabre dans le dos : -2 ; shuriken dans le dos : -1', async () => {
@@ -108,7 +108,7 @@ async function main() {
     await ev(() => { const g = window.__kage; g.player.x = 560; g.player.facing = -1; });
     await wait(50); await k.press('KeyK'); await wait(500);
     const b = await S();
-    expect(a.tateHp === 2 && b.tateHp === 1, `vie TATE ${a.tateHp} puis ${b.tateHp}`);
+    expect(a.tateHp === 3 && b.tateHp === 2, `vie TATE ${a.tateHp} puis ${b.tateHp}`);
   });
 
   await test('charge de TATE : -2 vies, état « hurt », invincibilité', async () => {
@@ -185,9 +185,9 @@ async function main() {
     await reset(500, 192, 480);
     await ev(() => { const g = window.__kage; g.tate.facing = -1; g.tate.setState('stunned'); g.tate.timer = -5; g.player.facing = -1; });
     await k.press('Space'); await wait(110); await k.press('KeyJ');
-    let hp = 4;
-    for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 4) break; await wait(10); }
-    expect(hp === 1, `vie TATE ${hp} (attendu 4 - 3 = 1)`);
+    let hp = 5;
+    for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 5) break; await wait(10); }
+    expect(hp === 2, `vie TATE ${hp} (attendu 5 - 3 = 2)`);
   });
 
   // ---- WARA ------------------------------------------------------------------

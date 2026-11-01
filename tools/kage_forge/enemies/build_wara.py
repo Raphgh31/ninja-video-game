@@ -86,8 +86,8 @@ def main():
         },
         "tornSuffix": "_torn",
         "boxes": {
-            "body": {"x": 10, "y": 8, "w": 12, "h": 23, "note": "corps (touché par le sabre et les shurikens)"},
-            "spin": {"x": -6, "y": 10, "w": 44, "h": 18, "note": "traverse en hélice : touche des deux côtés"},
+            "body": {"x": 10, "y": 10, "w": 12, "h": 21, "note": "corps (touché par le sabre et les shurikens)"},
+            "spin": {"x": -5, "y": 12, "w": 42, "h": 16, "note": "traverse en hélice : touche des deux côtés"},
         },
     }
     (OUT / "wara.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))

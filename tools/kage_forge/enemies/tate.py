@@ -33,8 +33,8 @@ NO_OUTLINE = set("XxZhl")
 
 # Agrandissement de TATE : on double quelques lignes et une colonne du dessin
 # (avant le contour), là où les formes sont verticales. Indices = dessin d'origine.
-GROW_ROWS = (17, 22, 26)   # armure, hakama, jambes : +3 px de haut
-GROW_COLS = (15,)          # milieu du corps : +1 px de large
+GROW_ROWS = (17, 21, 22, 25, 26)   # armure, hakama, jambes : +5 px de haut
+GROW_COLS = (12, 15)               # corps : +2 px de large
 
 
 def grow(g):
@@ -243,8 +243,8 @@ def stunned(glow=False):
     cv.block(10, 12, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
     cv.block(6, 8, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
     shield(cv, 21, 14, h=16)
-    cv.block(9, 3, ["Z...Z", ".Z.Z.", "..Z.."])
-    cv.block(19, 5, ["Z", ".", "Z"])
+    cv.block(9, 5, ["Z...Z", ".Z.Z.", "..Z.."])     # étoiles assez basses pour laisser
+    cv.block(19, 7, ["Z", ".", "Z"])                # la marge de l'agrandissement
     return cv.outline()
 
 
