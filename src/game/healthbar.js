@@ -4,7 +4,7 @@
 // instant en pâle puis se vide (on voit ce qu'on vient de perdre).
 
 const LOOK = {
-  perHp: 3.5,            // px de barre par point de vie (arrondi au pixel)
+  perHp: 3,              // px de barre par point de vie
   height: 1,             // jauge très fine (hors contour)
   alpha: 0.75,           // discrète (fond et contour)
   greenAlpha: 0.92,      // le vert, un peu plus franc
