@@ -6,6 +6,7 @@
 
 import { DAMAGE_DEALT, DAMAGE_TAKEN } from './combat.js';
 import { TILE } from './level.js';
+import { applyShove, updateFall } from './fall.js';
 
 export const TATE = {
   walk: 18,            // px/s : lent et lourd
@@ -53,6 +54,8 @@ export class Tate {
     this.lastFrame = null;
     this.gone = false;
     this.shove = 0;            // recul en cours (px/s), donné par un coup de pied
+    this.falling = false;      // poussé dans le vide
+    this.vy = 0;
   }
 
   /** Coup de pied : TATE recule un peu (même s'il a paré de face). */
@@ -60,14 +63,7 @@ export class Tate {
     if (this.alive) this.shove = dir * speed;
   }
 
-  applyShove(dt) {
-    if (!this.shove) return;
-    const dir = Math.sign(this.shove);
-    if (this.canStep(dir)) this.x += this.shove * dt;
-    else this.shove = 0;
-    const v = Math.max(0, Math.abs(this.shove) - TATE.pushDecel * dt);
-    this.shove = dir * v;
-  }
+
 
   // ---- boîtes (en coordonnées du monde) ------------------------------------
   box(name) {
@@ -145,7 +141,9 @@ export class Tate {
     } else {
       this.lastFrame = null;
     }
-    this.applyShove(dt);
+    // recul (jusque dans le vide), puis chute éventuelle
+    applyShove(this, dt, TATE.pushDecel);
+    if (updateFall(this, dt)) return;
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     const playerAlive = player.state !== 'death' && player.state !== 'respawn';
@@ -218,7 +216,7 @@ export class Tate {
 
   /** Effets sur KAGE : charge mortelle, corps solide (sauf en glissade). */
   interact(player) {
-    if (!this.alive || player.state === 'death' || player.state === 'respawn') return;
+    if (!this.alive || this.falling || player.state === 'death' || player.state === 'respawn') return;
     const pb = player.box();
     const overlap = (b) => pb.x < b.x + b.w && pb.x + pb.w > b.x && pb.y < b.y + b.h && pb.y + pb.h > b.y;
     if (this.state === 'bash' && player.state !== 'slide' && overlap(this.box('bash'))) {

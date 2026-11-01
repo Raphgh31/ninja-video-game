@@ -7,6 +7,7 @@
 
 import { DAMAGE_DEALT, DAMAGE_TAKEN } from './combat.js';
 import { TILE } from './level.js';
+import { applyShove, updateFall } from './fall.js';
 
 export const WARA = {
   hp: 2,               // sabre 2 → un coup suffit ; shuriken 1
@@ -63,6 +64,8 @@ export class Wara {
     this.lastFrame = null;
     this.gone = false;
     this.shove = 0;             // recul en cours (px/s), donné par un coup de pied
+    this.falling = false;       // poussé dans le vide
+    this.vy = 0;
   }
 
   /** Coup de pied : WARA est repoussé (même pendant son moulinet). */
@@ -70,14 +73,7 @@ export class Wara {
     if (this.alive) this.shove = dir * speed;
   }
 
-  applyShove(dt) {
-    if (!this.shove || this.state === 'air') return;
-    const dir = Math.sign(this.shove);
-    if (this.canStep(dir)) this.x += this.shove * dt;
-    else this.shove = 0;
-    const v = Math.max(0, Math.abs(this.shove) - WARA.pushDecel * dt);
-    this.shove = dir * v;
-  }
+
 
   get alive() { return this.state !== 'defeated'; }
   get torn() { return this.hp <= 1; }
@@ -148,7 +144,11 @@ export class Wara {
       if (this.timer > WARA.defeatFade) this.gone = true;
       return;
     }
-    this.applyShove(dt);
+    // recul (jusque dans le vide), puis chute éventuelle (pas pendant un bond)
+    if (this.state !== 'air') {
+      applyShove(this, dt, WARA.pushDecel);
+      if (updateFall(this, dt)) return;
+    }
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     const playerAlive = player.state !== 'death' && player.state !== 'respawn';
@@ -243,7 +243,7 @@ export class Wara {
 
   /** Effets sur KAGE : le moulinet touche des deux côtés. Le corps n'est pas solide. */
   interact(player) {
-    if (this.state !== 'spin' || this.spinHit || player.state === 'death' || player.state === 'respawn') return;
+    if (this.falling || this.state !== 'spin' || this.spinHit || player.state === 'death' || player.state === 'respawn') return;
     const pb = player.box();
     const b = this.box('spin');
     if (pb.x < b.x + b.w && pb.x + pb.w > b.x && pb.y < b.y + b.h && pb.y + pb.h > b.y) {
