@@ -43,7 +43,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     Z = 6
     names = {"marche_1": "MARCHE 1", "marche_2": "MARCHE 2", "garde": "GARDE (coup bloqué)",
-             "coup_de_bouclier": "COUP DE BOUCLIER", "etourdi": "ÉTOURDI", "vaincu": "VAINCU"}
+             "coup_de_bouclier": "COUP DE BOUCLIER", "etourdi": "ÉTOURDI", "vaincu": "VAINCU", "point_faible": "POINT FAIBLE (halo, pulse en jeu)"}
     cw, ch = W * Z, H * Z
     cols = 3
     rows = (len(POSES) + cols - 1) // cols
@@ -81,7 +81,7 @@ def main():
     # palette
     px0 = 40 + 96 * 4 + 260
     d.text((px0, y0), "Palette", fill=INK, font=font(16))
-    keys = [k for k in PAL if k not in "XxZ"]
+    keys = [k for k in PAL if k not in "XxZhl"]
     for j, k in enumerate(keys):
         x = px0 + (j % 8) * 34
         y = y0 + 30 + (j // 8) * 34

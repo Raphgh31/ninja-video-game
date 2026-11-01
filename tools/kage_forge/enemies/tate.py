@@ -26,8 +26,9 @@ PAL = {
     "p": "#e8e0c4", "P": "#c9bf9e",                   # talisman de papier
     "X": "#f4e7b8", "x": "#c9bd90",                   # étincelles / poussière (sans contour)
     "Z": "#f0c25a",                                   # étoiles d'étourdissement (sans contour)
+    "h": "#f6dd8a", "l": "#d8b866",                   # halo du talisman (sans contour)
 }
-NO_OUTLINE = set("XxZ")
+NO_OUTLINE = set("XxZhl")
 
 
 class Canvas:
@@ -70,15 +71,42 @@ HEAD = [                      # masque de fer, yeux ambrés vers l'avant
     ".cmnMnMn",
     "..cmmmm.",
 ]
-TALISMAN = [                  # ofuda : bande de papier nouée dans le dos (point faible)
-    "yy",
-    "pp",
-    "Ep",
-    "pp",
-    "Ep",
-    "pp",
-    "P.",
+TALISMAN = [                  # ofuda : bande de papier fine et longue, qui ondule vers
+    "..y",                    # l'arrière, coin du bas replié (point faible)
+    ".pp",
+    ".Ep",
+    "pp.",
+    "Ep.",
+    "pp.",
+    "pE.",
+    "Pp.",
+    "P..",
 ]
+HALO = [                      # halo doux autour du talisman (pulse lentement en jeu)
+    "..lhl..",
+    ".h...h.",
+    "l.....l",
+    "h......",
+    "l......",
+    "h......",
+    "l......",
+    "h.....l",
+    ".h...h.",
+    "..lhl..",
+]
+
+
+def back_gear(cv, bx, by, glow=False):
+    """Talisman dans le dos + cordon de paille en bandoulière sur l'armure.
+    (bx, by) = origine du buste."""
+    if glow:
+        cv.block(bx - 9, by - 3, HALO)
+    cv.block(bx - 7, by - 2, TALISMAN)
+    # cordon d'1 px : de l'attache du talisman, par-dessus l'épaule, puis en
+    # diagonale sur le buste jusqu'à la hanche avant
+    for x, y in [(bx - 4, by - 2), (bx - 3, by - 2), (bx - 2, by - 1), (bx - 1, by - 1),
+                 (bx, by), (bx + 2, by + 1), (bx + 4, by + 2), (bx + 6, by + 3), (bx + 8, by + 4)]:
+        cv.put(x, y, "y")
 
 
 def shield(cv, x, y, h=23, tilt=0):
@@ -138,13 +166,13 @@ def back_arm(cv, x, y, raised=False):
 # ---------------------------------------------------------------------------
 # poses
 # ---------------------------------------------------------------------------
-def walk(phase):
+def walk(phase, glow=False):
     cv = Canvas()
     bob = 1 if phase else 0
     legs(cv, 9, 25, phase)
     back_arm(cv, 8, 16 + bob)
     body(cv, 10, 15 + bob)
-    cv.block(6, 15 + bob, TALISMAN)
+    back_gear(cv, 10, 15 + bob, glow)
     cv.block(11, 11 + bob, HEAD)          # tête dans l'axe du cou
     cv.block(8, 6 + bob, HAT)
     shield(cv, 21, 9 + bob, h=21)
@@ -157,7 +185,7 @@ def guard():
     legs(cv, 8, 25, 0)
     back_arm(cv, 7, 17)
     body(cv, 10, 16, lean=1)
-    cv.block(6, 16, TALISMAN)
+    back_gear(cv, 10, 16)
     cv.block(12, 12, HEAD)
     cv.block(9, 7, HAT)
     shield(cv, 22, 9, h=21, tilt=-1)
@@ -178,7 +206,7 @@ def bash():
     ])
     back_arm(cv, 12, 16)
     body(cv, 13, 15, lean=2)
-    cv.block(9, 15, TALISMAN)
+    back_gear(cv, 13, 15)
     cv.block(15, 11, HEAD)
     cv.block(12, 6, HAT)
     shield(cv, 27, 8, h=22)
@@ -192,7 +220,7 @@ def stunned():
     legs(cv, 9, 25, 1)
     back_arm(cv, 8, 17)
     body(cv, 10, 16)
-    cv.block(6, 16, TALISMAN)
+    back_gear(cv, 10, 16)
     cv.block(10, 12, ["..cmMMMMn", ".cmMMMnMn", ".cmnMnMn.", "..cmmmm.."])
     cv.block(6, 8, ["......jJ........", "....jjJJii......", "..jjjJJJJii.....", "rrrrrrrrrrrrr..."])
     shield(cv, 21, 14, h=16)
@@ -210,7 +238,7 @@ def defeated():
         "sssss.....",
     ])
     body(cv, 10, 17, lean=1)
-    cv.block(6, 17, TALISMAN)
+    back_gear(cv, 10, 17)
     cv.block(12, 13, ["..cmMMMMn", ".cmMMXMXn", ".cmnMnMn.", "..cmmmm.."])
     # bouclier tombé à plat, fendu
     cv.put(22, 28, "VvVw.VvVwVvBRB")
@@ -224,6 +252,7 @@ def defeated():
 POSES = {
     "marche_1": walk(0),
     "marche_2": walk(1),
+    "point_faible": walk(0, glow=True),
     "garde": guard(),
     "coup_de_bouclier": bash(),
     "etourdi": stunned(),
