@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sprites": "python3 tools/kage_forge/build.py && python3 tools/kage_forge/enemies/build_tate.py",
+    "sprites": "python3 tools/kage_forge/build.py && python3 tools/kage_forge/enemies/build_tate.py && python3 tools/kage_forge/enemies/build_wara.py",
     "standalone": "vite build && node tools/standalone.mjs",
     "test": "npm run standalone && node tests/e2e.cjs"
   },

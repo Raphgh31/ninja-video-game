@@ -24,7 +24,7 @@ Garde de temple trapu, retranché derrière un grand bouclier en bois cerclé de
 | Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 4 points de vie : 2 coups de sabre ou 4 shurikens |
 | Vaincu | mort lourde en 4 temps : un genou à terre (0,6 s), bascule (0,12 s), impact avec poussière (0,22 s), au sol ; puis fondu. Il revient quand KAGE réapparaît |
 
-## WARA — l'épouvantail du dojo (proposition, pas encore en jeu)
+## WARA — l'épouvantail du dojo
 
 ![Concept](wara_design.png)
 
@@ -37,5 +37,19 @@ Petit épouvantail réveillé par un talisman cloué sur sa poitrine, mignon et 
 - [En situation](wara_en_jeu.png) : captures réelles du niveau 1 avec WARA ajouté à taille réelle
 - [Animations](wara_animations.gif)
 
+![En jeu](wara_en_jeu.gif)
+
 **Fichiers**
-- Dessin : `tools/kage_forge/enemies/wara.py` (pose maîtresse découpée en parties, les autres poses en dérivent), planches : `wara_board.py`
+- Dessin : `tools/kage_forge/enemies/wara.py` (pièces assemblées par `figure`, traverse tracée à n'importe quel angle), planches : `wara_board.py`
+- Export jeu : `tools/kage_forge/enemies/build_wara.py` → `assets/characters/wara/` (`wara_sheet.png`, `wara.json` ; variantes `_torn` pour l'état abîmé). Lancé par `npm run sprites`, avec contrôles qualité (pieu au sol, couleurs connues, aucun pixel isolé).
+- Comportement : `src/game/wara.js` (réglages dans `WARA`), repère `W` dans les cartes.
+
+**Comportement**
+| | |
+|---|---|
+| Déplacement | bonds de 20 px (14 px de haut) vers KAGE dès 120 px ; en ronde de ±40 px sinon |
+| Signal | à 30 px : le chapeau saute, bouche cousue en zigzag, il tremblote (0,45 s ; 0,3 s abîmé) |
+| Moulinet | 0,5 s, touche des deux côtés à 22 px (1 dégât) ; la traverse pare le sabre et les shurikens |
+| Tournis | 0,9 s sans défense, puis 0,6 s avant de pouvoir recommencer |
+| Vie | 2 : sabre 2 (un coup), shuriken 1 (il passe abîmé : plus vif) ; un coup interrompt bond et signal |
+| Corps | pas solide : KAGE le traverse |

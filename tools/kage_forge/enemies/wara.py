@@ -209,7 +209,7 @@ PONCHO_OPEN = [               # en corolle au sommet du bond
 ]
 PONCHO_TORN = [
     "....tuUuTut....",
-    "...tuTUutTuUt.U",
+    "...tuTUutTuUtU.",
     "...tuTuU.TuUt..",
     "..tuTu..tTuUut.",
     "..tuTuU..tTuUT.",
@@ -263,9 +263,12 @@ def talisman(cv, dx=0, dy=0):
 def glow_nail(cv, dx=0, dy=0, strong=False):
     """Lueur sur le clou du talisman (il se réveille)."""
     x, y = 21 + dx, 18 + dy
-    cv.pixels([(x, y), (x, y - 1)], "g")
+    pts = [((x, y), "g"), ((x, y - 1), "g")]
     if strong:
-        cv.pixels([(x + 1, y), (x, y - 2)], "G")
+        pts += [((x + 1, y), "G"), ((x, y - 2), "G")]
+    for (px, py), c in pts:                     # la lueur ne recouvre rien
+        if 0 <= px < W and 0 <= py < H and cv.g[py, px] == ".":
+            cv.g[py, px] = c
 
 
 def figure(cv, *, face=FACE, hat=HAT, hat_d=(0, 0), face_d=(0, 0), poncho=PONCHO, poncho_d=(0, 0),
@@ -343,20 +346,20 @@ def hop_land(torn=False):
     return cv.outline()
 
 
-def spin_windup():
+def spin_windup(torn=False):
     """Moulinet 1 (signal) : le chapeau saute, pointe dressée ; il fronce sa bouche cousue."""
     cv = Canvas()
     figure(cv, face=FACE_GRR, hat=HAT_UP, hat_d=(0, -1), arm=-20, poncho=PONCHO_SQUASH,
-           poncho_d=(0, 2), face_d=(0, 1), arm_d=(0, 1))
+           poncho_d=(0, 2), face_d=(0, 1), arm_d=(0, 1), torn=torn)
     glow_nail(cv, 0, 2, strong=True)
     cv.pixels([(9, 2), (8, 4), (21, 1), (22, 3)], "X")          # traits de surprise
     return cv.outline()
 
 
-def spin_a():
+def spin_a(torn=False):
     """Moulinet 2 : la traverse tourne en hélice (penchée vers l'avant)."""
     cv = Canvas()
-    figure(cv, face=FACE_GRR, arm=32, arm_front=True)
+    figure(cv, face=FACE_GRR, arm=32, arm_front=True, torn=torn)
     cv.put(1, 8, "ss")
     cv.put(3, 6, "s")
     cv.put(28, 25, "ss")
@@ -366,10 +369,10 @@ def spin_a():
     return cv.outline()
 
 
-def spin_b():
+def spin_b(torn=False):
     """Moulinet 3 : la traverse continue son tour (penchée vers l'arrière)."""
     cv = Canvas()
-    figure(cv, face=FACE_GRR, arm=-32, hat_d=(1, 0), arm_front=True)
+    figure(cv, face=FACE_GRR, arm=-32, hat_d=(1, 0), arm_front=True, torn=torn)
     cv.put(28, 8, "ss")
     cv.put(27, 6, "s")
     cv.put(2, 25, "ss")
@@ -378,11 +381,11 @@ def spin_b():
     return cv.outline()
 
 
-def dizzy(phase=0):
+def dizzy(phase=0, torn=False):
     """Vertige : chapeau tombé sur les yeux, traverse de travers, étoiles."""
     cv = Canvas()
     side = 1 if phase == 0 else -1
-    figure(cv, face=FACE_WOOZY, hat_d=(side, 3), arm=12 * side)
+    figure(cv, face=FACE_WOOZY, hat_d=(side, 3), arm=12 * side, torn=torn)
     if phase == 0:
         star(cv, 9, 4)
         star(cv, 24, 2)
@@ -504,3 +507,25 @@ POSES = {
     "mort_3_en_tas": death_pile(),
     "mort_4_libere": death_free(),
 }
+
+
+# ---------------------------------------------------------------------------
+# Jeu : images exportées (nom -> fonction), dans l'ordre de la planche
+# ---------------------------------------------------------------------------
+GAME_FRAMES = [
+    ("idle_1", lambda: idle(0)), ("idle_2", lambda: idle(1)),
+    ("crouch", hop_crouch), ("rise", hop_rise), ("apex", hop_air), ("land", hop_land),
+    ("windup", spin_windup), ("spin_1", spin_a), ("spin_2", spin_b),
+    ("dizzy_1", lambda: dizzy(0)), ("dizzy_2", lambda: dizzy(1)),
+    ("hurt", hurt),
+    # abîmé (1 point de vie) : mêmes poses, paille qui sort, chapeau déchiré
+    ("idle_1_torn", lambda: idle(0, True)), ("idle_2_torn", lambda: idle(1, True)),
+    ("crouch_torn", lambda: hop_crouch(True)), ("rise_torn", lambda: hop_rise(True)),
+    ("apex_torn", lambda: hop_air(True)), ("land_torn", lambda: hop_land(True)),
+    ("windup_torn", lambda: spin_windup(True)), ("spin_1_torn", lambda: spin_a(True)),
+    ("spin_2_torn", lambda: spin_b(True)),
+    ("dizzy_1_torn", lambda: dizzy(0, True)), ("dizzy_2_torn", lambda: dizzy(1, True)),
+    ("hurt_torn", lambda: hurt(True)),
+    ("death_cut", death_cut), ("death_poof", death_poof), ("death_pile", death_pile),
+    ("death_free", death_free),
+]

@@ -25,6 +25,10 @@ embed[`./${tbase}/tate.json`] = tmeta;
 for (const f of [tmeta.image, tmeta.glowImage]) {
   embed[`./${tbase}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, tbase, f)).toString('base64');
 }
+const wbase = 'characters/wara';
+const wmeta = JSON.parse(readFileSync(join(dist, wbase, 'wara.json'), 'utf8'));
+embed[`./${wbase}/wara.json`] = wmeta;
+embed[`./${wbase}/${wmeta.image}`] = 'data:image/png;base64,' + readFileSync(join(dist, wbase, wmeta.image)).toString('base64');
 
 let html = readFileSync(join(dist, 'index.html'), 'utf8');
 const js = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.js'));
