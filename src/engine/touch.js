@@ -8,9 +8,10 @@
 const STICK = {
   radius: 16,        // course maximale du pouce
   dead: 4,           // zone morte
-  flickOut: 0.7,     // un dash demande d'atteindre 70 % de la course...
-  flickFast: 0.12,   // ... en moins de 0,12 s depuis la zone morte...
-  flickBack: 0.22,   // ... puis de revenir (ou relâcher) en moins de 0,22 s
+  flickOut: 0.85,    // un dash demande d'atteindre 85 % de la course...
+  flickFast: 0.08,   // ... en moins de 0,08 s depuis la zone morte...
+  flickBack: 0.15,   // ... puis de revenir (ou relâcher) en moins de 0,15 s,
+  flickFlat: 2,      // ... avec un geste franchement horizontal (|dx| > 2 × |dy|)
   down: 0.6,         // vers le bas au-delà de 60 % = glissade
 };
 
@@ -166,7 +167,7 @@ export class TouchControls {
       this.input.press(b.action);
     } else if (p.x < this.w * 0.5 && !this.stick) {
       // le pouce se pose au centre du joystick : point de départ d'un éventuel coup rapide
-      this.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, outAt: -1, outDir: 0, leftDeadAt: performance.now() / 1000 };
+      this.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, outAt: -1, outDir: 0, leftDeadAt: performance.now() / 1000, wasDead: true };
       this.pointers.set(e.pointerId, { type: 'stick' });
     }
   }
@@ -233,9 +234,19 @@ export class TouchControls {
     if (inDead) {
       this.checkFlick(false);
       s.leftDeadAt = now;
+      s.wasDead = true;
       s.outAt = -1;
+    } else if (s.wasDead) {
+      // le pouce vient de quitter le centre : si le doigt était posé immobile,
+      // on considère que le mouvement a commencé une image avant (≈ 16 ms)
+      s.wasDead = false;
+      s.leftDeadAt = Math.max(s.leftDeadAt, now - 0.016);
+    }
+    if (inDead) {
+      // rien d'autre à vérifier
     } else if (s.outAt < 0 && Math.abs(dx) >= STICK.radius * STICK.flickOut) {
-      if (s.leftDeadAt >= 0 && now - s.leftDeadAt <= STICK.flickFast) {
+      const flat = Math.abs(dx) > STICK.flickFlat * Math.abs(dy);
+      if (flat && s.leftDeadAt >= 0 && now - s.leftDeadAt <= STICK.flickFast) {
         s.outAt = now;
         s.outDir = Math.sign(dx);
       } else {
