@@ -2,6 +2,16 @@
 
 Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en français.
 
+## Reprise
+- **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
+- Branche de travail : `claude/kage-ninja-character` (PR #1, à fusionner). Version jouable : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html` après chaque changement.
+
+## Façon de travailler (préférences de l'utilisateur)
+- Retouches visuelles précises et petites : appliquer exactement ce qui est demandé, montrer le résultat (capture ou GIF), republier l'artefact, résumer clairement.
+- Interface discrète et lisible ; rendu « jeu indé soigné », jamais générique.
+- Nouveau personnage ou ennemi : présenter une planche de design avant de l'intégrer en jeu.
+- Commits et documentation en français.
+
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
 - Résolution interne 320×180 sur ordinateur, mise à l'échelle **entière** uniquement (pixels nets, `imageSmoothingEnabled = false`).
