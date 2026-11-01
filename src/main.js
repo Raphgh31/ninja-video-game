@@ -56,10 +56,7 @@ player.onThrow = (x, y, dir, height) => shurikens.throw(x, y, dir, height);
 player.canThrow = () => shurikens.canThrow();
 player.onRespawn = () => shurikens.reset();
 const input = new Input();
-const shurikenMeta = meta.projectiles.shuriken;
-touch = MOBILE
-  ? new TouchControls(canvas, input, look.projectiles.shuriken, shurikenMeta.frames[shurikenMeta.spin[0]])
-  : null;
+touch = MOBILE ? new TouchControls(canvas, input) : null;
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
   canvas.addEventListener('pointerdown', () => {

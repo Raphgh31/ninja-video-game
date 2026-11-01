@@ -26,6 +26,19 @@ const ICONS = {
     '....###....',
     '....###....',
   ],
+  throw: [
+    '.....#.....',
+    '.....#.....',
+    '....###....',
+    '...#####...',
+    '..###.###..',
+    '####...####',
+    '..###.###..',
+    '...#####...',
+    '....###....',
+    '.....#.....',
+    '.....#.....',
+  ],
   attack: [
     '...........##',
     '..........###',
@@ -79,11 +92,9 @@ function icon(ctx, rows, cx, cy, color) {
 }
 
 export class TouchControls {
-  constructor(canvas, input, shurikenSheet, shurikenFrame) {
+  constructor(canvas, input) {
     this.canvas = canvas;
     this.input = input;
-    this.sheet = shurikenSheet;
-    this.frame = shurikenFrame;
     this.scale = 1;
     this.buttons = [];
     this.pointers = new Map();      // pointerId -> { type: 'stick' | 'button', ... }
@@ -226,13 +237,7 @@ export class TouchControls {
       disc(ctx, b.x, b.y, b.r, b.down ? COLORS.fillDown : COLORS.fill);
       circle(ctx, b.x, b.y, b.r, COLORS.edge);
       const c = b.down ? COLORS.iconDown : COLORS.icon;
-      if (b.action === 'throw') {
-        // le sprite du shuriken, agrandi x2 pour remplir le bouton
-        const f = this.frame;
-        ctx.drawImage(this.sheet, f.x, f.y, f.w, f.h, b.x - f.w, b.y - f.h, f.w * 2, f.h * 2);
-      } else {
-        icon(ctx, ICONS[b.action], b.x, b.y, c);
-      }
+      icon(ctx, ICONS[b.action], b.x, b.y, c);
     }
   }
 }
