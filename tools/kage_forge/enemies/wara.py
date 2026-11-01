@@ -110,7 +110,7 @@ HAT_TORN = [                  # bord déchiré, paille qui pend, pointe cassée
     "...u.....u.....tT.Tu",
     ".................t",
 ]
-HAT_XY = (3, 1)
+HAT_XY = (6, 1)
 
 FACE = [                      # toile de sac : deux points pour les yeux, un sourire
     "..CcccccC.",
@@ -437,7 +437,7 @@ def death_poof():
     stake(cv, 22)
     cv.block(PONCHO_X, 25, PONCHO[-2:])
     cv.block(24, 4, FACE_OUCH)
-    cv.block(27, 0, HAT[5:9])
+    cv.block(21, 0, HAT[5:9])
     bar(cv, 9, 12, half=6, angle=35, tufts=False)
     cv.block(15, 13, ["pp", "ep", "pe"])
     for (px, py, c) in [(4, 9, "F"), (7, 15, "f"), (2, 18, "F"), (9, 6, "f"), (19, 9, "F"),
@@ -461,7 +461,7 @@ def _pile(cv):
         ".tuTuUuTuTuUuTuTuTuTuTt",
     ])
     cv.block(10, 19, FACE[:6])
-    cv.block(4, 12, HAT[3:9])
+    cv.block(7, 12, HAT[3:9])
 
 
 def death_pile():
