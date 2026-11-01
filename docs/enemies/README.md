@@ -23,3 +23,19 @@ Garde de temple trapu, retranché derrière un grand bouclier en bois cerclé de
 | Charge ratée | étourdi 1,4 s |
 | Point faible | le talisman dans son dos : son halo pulse quand le dos est exposé (KAGE derrière, ou TATE étourdi). 4 points de vie : 2 coups de sabre ou 4 shurikens |
 | Vaincu | mort lourde en 4 temps : un genou à terre (0,6 s), bascule (0,12 s), impact avec poussière (0,22 s), au sol ; puis fondu. Il revient quand KAGE réapparaît |
+
+## WARA — pantin du dojo maudit (proposition, pas encore en jeu)
+
+![Concept](wara_design.png)
+
+Mannequin d'entraînement en paille, cloué par un grand clou de fer qui retient un talisman de malédiction. Il bondit sur son pieu, et son œil unique est une cible de tir à l'arc (mato) peinte à l'encre. Ennemi de base, l'inverse de TATE : il frappe tout autour de lui en tournoyant, donc on ne le prend pas à revers ; on le frappe pendant son vertige, après son tour.
+
+**Planches**
+- [Concept](wara_design.png) : anatomie annotée, histoire, échelle avec KAGE et TATE, palette
+- [Toutes les poses](wara_poses.png) : repos, bond, tournoiement, vertige, touché, abîmé, mort en 4 temps (18 images)
+- [Comportement et parades](wara_gameplay.png) : mise en scène avec KAGE et réglages proposés
+- [En situation](wara_en_jeu.png) : captures réelles du niveau 1 avec WARA ajouté à taille réelle
+- [Animations](wara_animations.gif)
+
+**Fichiers**
+- Dessin : `tools/kage_forge/enemies/wara.py` (pose maîtresse découpée en parties, les autres poses en dérivent), planches : `wara_board.py`
