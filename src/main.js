@@ -4,8 +4,9 @@ import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
-import { Tate } from './game/tate.js';
+import { Tate, TATE } from './game/tate.js';
 import { HEALTH } from './game/combat.js';
+import { HealthBar } from './game/healthbar.js';
 import './style.css';
 
 // Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran ; l'échelle
@@ -61,28 +62,14 @@ const tateMeta = await loadJson('./characters/tate/tate.json');
 const tate = new Tate(tateMeta, await loadImage(`./characters/tate/${tateMeta.image}`),
   await loadImage(`./characters/tate/${tateMeta.glowImage}`), 30 * 16, level.spawn.y);
 shurikens.enemies.push(tate);
-// barre de vie : le segment perdu clignote un instant
-let lostFlash = 0;
-player.onHurt = () => { lostFlash = 0.5; };
-function drawHealth(x, y) {
-  const seg = 7, gap = 2, h = 4;
-  for (let i = 0; i < HEALTH.max; i++) {
-    const sx = x + i * (seg + gap);
-    ctx.fillStyle = '#06070a';                       // contour
-    ctx.fillRect(sx - 1, y - 1, seg + 2, h + 2);
-    const full = i < player.hp;
-    const justLost = !full && i < player.hp + 2 && lostFlash > 0 && Math.floor(lostFlash * 14) % 2 === 0;
-    ctx.fillStyle = full ? '#d4574a' : justLost ? '#f2ede6' : '#1b1e27';
-    ctx.fillRect(sx, y, seg, h);
-    if (full) {                                       // reflet en haut du segment
-      ctx.fillStyle = '#e88a78';
-      ctx.fillRect(sx, y, seg, 1);
-    }
-  }
-}
+// barres de vie fines au-dessus de chaque personnage
+const kageBar = new HealthBar(HEALTH.max);
+const tateBar = new HealthBar(TATE.hp);
 player.onRespawn = () => {
   shurikens.reset();
   tate.reset();
+  kageBar.reset();
+  tateBar.reset();
 };
 const input = new Input();
 touch = MOBILE ? new TouchControls(canvas, input) : null;
@@ -108,12 +95,13 @@ function update(dt) {
   }
   level.update(dt);
   shurikens.update(dt);
-  lostFlash = Math.max(0, lostFlash - dt);
   tate.update(dt, player);
   tate.interact(player);
   const ab = player.attackBox();
   if (ab) tate.takeHit(ab, player.x, player.attackId);
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
+  kageBar.update(dt, player.hp);
+  tateBar.update(dt, Math.max(0, tate.hp));
   const tx = Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W);
   const ty = Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H);
   cam.x += (tx - cam.x) * Math.min(1, dt * 8);
@@ -128,10 +116,17 @@ function draw() {
   tate.draw(ctx, cam, player);
   player.draw(ctx, look.sheet, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  // barres de vie : au-dessus de la tête, elles suivent chaque personnage
+  if (!tate.gone) {
+    const fade = tate.state === 'defeated' ? Math.max(0, 1 - tate.timer / 0.6) : 1;
+    tateBar.draw(ctx, tate.x - cam.x, tate.y - cam.y - 28, fade);
+  }
+  if (player.state !== 'death' && player.state !== 'respawn') {
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 28);
+  }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
   shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
-  drawHealth(5, 27);
   touch?.draw(ctx);
   if (debug) {
     const b = player.box();

@@ -72,7 +72,7 @@ Anneau en haut à gauche de l'écran, à côté du stock de shurikens ; il se vi
 
 Réglages dans `src/game/combat.js` (valeurs provisoires, à rééquilibrer).
 
-- **5 points de vie**, barre de 5 segments en haut à gauche (sous l'énergie et les shurikens) ; le segment perdu clignote.
+- **5 points de vie**. Chaque personnage (KAGE et les ennemis) a une **barre de vie fine et verte au-dessus de la tête**, qui le suit ; sa longueur dépend du nombre de vies (4 px par vie, une encoche entre chaque). À chaque dégât, le vert descend en douceur et la portion perdue reste un instant en pâle avant de se vider (`src/game/healthbar.js`).
 - Touché : recul, 0,3 s sans contrôle, puis **1 s d'invincibilité** (KAGE clignote).
 - À 0 : mort puis réapparition avec la vie pleine. Pas de régénération automatique.
 
