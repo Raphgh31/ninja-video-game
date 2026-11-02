@@ -3,7 +3,9 @@
 Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, ennemi, niveau, outils) avec les décisions prises et leurs raisons. Il sert à reprendre le projet dans une nouvelle discussion sans rien perdre.
 
 > **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et écrire :
-> « Lis `docs/REPRISE.md` et `CLAUDE.md`, puis on continue le jeu KAGE. »
+> « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE : prochaine étape, les planches de design du Potager (le marchand d'abord). »
+>
+> Tout est dans `main` (aucune PR ouverte, aucune tâche planifiée en cours). Dernière mise à jour : 2 novembre 2026.
 
 ---
 
@@ -41,6 +43,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `src/game/shuriken.js` | shurikens : stock, vol, plantés, ramassage (constantes `SHURIKEN`) |
 | `src/game/tate.js` | ennemi TATE (constantes `TATE`) |
 | `src/game/wara.js` | ennemi WARA (constantes `WARA`) |
+| `src/game/fall.js` | chute des ennemis poussés dans le vide (coup de pied) ; en marchant, ils évitent le vide |
 | `src/game/level.js` | niveau : tuiles, gong, porte, lanternes, torii, décor ; ryō, caisses, zones, marchand (chapitres) |
 | `src/game/maps.js` | cartes ASCII (terrain d'essai, niveau 1), légende en tête ; branche les chapitres |
 | `src/game/chapters/potager.js` | **chapitre 1** : carte construite zone par zone (petit constructeur `Builder`), décors, aides, zones |
@@ -55,9 +58,11 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tools/kage_forge/` | **forge des sprites** : `palette.py`, `core.py`, `rig.py`, `art.py` (toutes les poses), `build.py` (export + contrôles), `preview.py` |
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
-| `tests/e2e.cjs` | tests de bout en bout (Playwright) |
-| `assets/characters/kage/`, `assets/characters/tate/` | sprites **générés** (ne jamais éditer à la main) |
-| `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et de l'ennemi, planches et GIF |
+| `tests/e2e.cjs` | 48 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
+| `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
+| `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
+| `.github/workflows/deploy.yml` | mise en ligne sur GitHub Pages à chaque push sur `main` |
 
 ## 4. Le personnage KAGE
 
@@ -125,7 +130,7 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 
 ## 6. Le Niveau 1 et le terrain d'essai
 
-- **Niveau 1** (ouvert par défaut ; 170×22 carreaux, carte dans `maps.js`) : TATE, fosse, **tunnel bas** (glissade obligatoire), **fossé de 5** (sprint ou dash), deux TATE, **fossé de 8** (sprint + saut + dash obligatoires), **puits** (sauts muraux jusqu'à une passerelle), **gong** à atteindre au shuriken (ouvre la porte), arène (coup aérien en se laissant tomber derrière TATE), bande de pics, dernier TATE, **torii** d'arrivée. **5 WARA** : un groupe de deux au début, deux après la première lanterne, un avant le fossé de 8. 3 lanternes de sauvegarde, chronomètre en chiffres pixel (en haut au centre), écran de fin (temps, chutes, « Rejouer »).
+- **Niveau 1** (`#niveau-1` ; il était ouvert par défaut avant le Potager ; 170×22 carreaux, carte dans `maps.js`) : TATE, fosse, **tunnel bas** (glissade obligatoire), **fossé de 5** (sprint ou dash), deux TATE, **fossé de 8** (sprint + saut + dash obligatoires), **puits** (sauts muraux jusqu'à une passerelle), **gong** à atteindre au shuriken (ouvre la porte), arène (coup aérien en se laissant tomber derrière TATE), bande de pics, dernier TATE, **torii** d'arrivée. **5 WARA** : un groupe de deux au début, deux après la première lanterne, un avant le fossé de 8. 3 lanternes de sauvegarde, chronomètre en chiffres pixel (en haut au centre), écran de fin (temps, chutes, « Rejouer »).
 - **Terrain d'essai** (`#terrain`) : long sol plat à la demande de l'utilisateur, plus un puits et un mur isolé pour le saut mural, un TATE et un WARA.
 - Les tests vérifient que chaque passage du niveau 1 est faisable et demande la bonne mécanique.
 
@@ -139,6 +144,23 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 - **Marchand** : « ↑ / E : parler » devant son comptoir ouvre la boutique (le jeu se met en pause) ; catégories Apparences, Ressources, Objets, encore vides. Dessin **provisoire** en attendant sa planche de design.
 - **Tout le décor est provisoire** (formes simples dessinées en code dans `potager_art.js`) : les planches de design (marchand, petit nuisible, décors et tuiles par zone) puis le pixel art définitif viendront ensuite.
 - Les tests vérifient : chaque trou franchissable, le premier dash et le sprint réellement nécessaires, chaque passage bas uniquement en glissade, les caisses, les ryō, la sauvegarde et « Continuer », la boutique et la sortie.
+- **Provisoires en jeu** : le « petit nuisible » voleur de légumes du verger est pour l'instant joué par des **WARA** ; l'épouvantail de la zone 1 est un WARA immobile qui se balance (décor) ; le marchand est un petit dessin codé (tenue indigo, ceinture orange, barbe blanche, grand chapeau, il compte ses pièces).
+
+### Ce que le script de l'utilisateur (LDD du Potager) demande encore
+L'utilisateur a fourni un script détaillé du chapitre (8 zones continues, environ 20 minutes). Ce qui est fait : les 8 zones et leur enchaînement de mécaniques, les aides contextuelles, les 3 sauvegardes automatiques avec icône, le marchand avec interaction et boutique vide (sans économie, comme demandé), la parallaxe de montagnes « début d'une grande aventure », les collines et rizières visibles à la fin. Ce qui reste :
+- **Planches de design** (avant toute intégration) : le **marchand** (vieux, coloré, grand chapeau, gros sac), le **petit nuisible** (petites créatures qui volent les légumes, zone 4), les **décors et tuiles** de chaque zone (épouvantail au grand chapeau, cascade d'irrigation, roue à eau, verger, serre de bambou sous la pluie, grange sombre, jardin des sentinelles avec bassin aux carpes, pont rouge rompu et grande porte en bois, comptoir du voyageur).
+- **Ambiance** : animations d'ambiance (oiseaux, feuilles, eau, pluie dans la serre, lucioles…), **sons d'ambiance et musique** par zone.
+- **Intérieur sombre de la grange** (éclairage), **pluie** plus marquée dans la serre.
+
+## 6 ter. Historique des grandes étapes (toutes fusionnées dans `main`)
+
+1. **PR #1** : KAGE (forge des sprites, 18 animations d'origine), TATE, niveau 1, terrain d'essai, tactile.
+2. **PR #2** : WARA (planches, plusieurs itérations de design : plus mignon, sans œil, couleur paille, moins large, chapeau recentré), TATE agrandi à 5 PV, WARA réduit, glissade refaite sur la hanche.
+3. Mise en ligne GitHub Pages (workflow) et version mobile plein écran (même cadrage que l'ordinateur, rotation en portrait).
+4. **Coup de pied** (yoko geri, 2 dégâts, recul jusque dans le vide), **marche à bout de souffle**, énergie à 85 %.
+5. **Sprint tactile au joystick** (PR #8), bouton de sprint supprimé.
+6. **Chapitre 1, le Potager**, en greybox jouable (PR #9).
+7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
 
 ## 7. Effets et sons
 
@@ -152,10 +174,12 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 - Pour les nouveaux personnages ou ennemis : **présenter une planche de design avant toute intégration en jeu**.
 - Après chaque modification : `npm test`, commit en français, push sur la branche, republication de `dist/kage-standalone.html` sur l'artefact, puis un résumé clair.
 - Il teste lui-même sur téléphone (le tactile est validé).
+- **Il autorise Claude à fusionner les PR et à mettre en ligne lui-même** via GitHub (« dis-moi si quelque chose bloque »). Après une fusion : vérifier que le workflow « Mise en ligne (GitHub Pages) » a réussi. Le réseau de l'environnement Claude bloque `raphgh31.github.io` : on ne peut pas ouvrir le site en ligne d'ici, mais `dist/kage-standalone.html` est le même jeu (le tester avec Playwright).
+- Il préfère qu'on lui présente les choix importants (ordre des chapitres, mécaniques) avant de coder, et qu'on avance par phases : greybox jouable, puis planches de design, puis art définitif.
 
 ## 9. Ce qui reste à faire (pistes discutées)
 
-- **Potager, phase 2** : planches de design du marchand (vieil homme coloré, grand chapeau, gros sac), du « petit nuisible » qui vole les légumes, et des décors et tuiles de chaque zone. **Phase 3** : pixel art définitif, animations d'ambiance, sons et musique.
+- **Prochaine étape conseillée — Potager, phase 2** : planches de design du marchand (vieil homme coloré, grand chapeau, gros sac), du « petit nuisible » qui vole les légumes, et des décors et tuiles de chaque zone. **Phase 3** : pixel art définitif, animations d'ambiance, sons et musique.
 - Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
 - Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).
