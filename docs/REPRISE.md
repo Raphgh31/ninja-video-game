@@ -15,7 +15,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 51 tests automatiques. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 480×270, caméra posée, grande chaîne de montagnes, décors riches et vivants.
+- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 52 tests automatiques. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
@@ -26,7 +26,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 51 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 52 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -58,7 +58,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tools/kage_forge/` | **forge des sprites** : `palette.py`, `core.py`, `rig.py`, `art.py` (toutes les poses), `build.py` (export + contrôles), `preview.py` |
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
-| `tests/e2e.cjs` | 51 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tests/e2e.cjs` | 52 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
@@ -155,15 +155,15 @@ L'utilisateur a fourni un script détaillé du chapitre (8 zones continues, envi
 ## 6 quater. Refonte visuelle du Potager (novembre 2026)
 
 Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeux de référence en pixel art (Owlboy), avec des initiatives pour enrichir le décor. Ce qui a été fait :
-- **Cadrage** : 480×270 au lieu de 320×180 (dézoom ×1,5, KAGE plus petit à l'écran). Le sol est bas dans l'image (86 %), le paysage occupe le haut. Sur téléphone, même cadrage (~270 px de haut) ; les commandes tactiles restent à leur taille validée (calque séparé).
-- **Caméra posée** : zone morte large ; elle ne suit pas les sauts, seulement les changements de sol, en douceur. Réglages `CAM` dans `main.js`.
+- **Cadrage** : 448×252 (d'abord 480×270, puis très léger rezoom demandé : KAGE paraissait un poil trop petit). Le sol est bas dans l'image (86 %), le paysage occupe le haut. Sur téléphone, même cadrage (~252 px de haut) ; les commandes tactiles restent à leur taille validée (calque séparé).
+- **Caméra posée, stable** (retour de l'utilisateur : le décor bougeait tout le temps, de façon désordonnée, quand KAGE montait ou descendait — « pas pro ») : en hauteur, des **paliers** (rien ne bouge pour une marche, un saut ou un petit relief ; au-delà de 3,5 cases de différence de sol, un seul recadrage franc et fluide de ~0,6 s) ; en largeur, zone morte et rattrapage amorti ; position **arrondie au pixel une seule fois** pour tout le dessin (avant, chaque plan et chaque sprite arrondissait de son côté : décalages d'un pixel en désordre). Réglages `CAM` dans `main.js`. Mesure : course avec sauts dans la zone 1, 0 recadrage vertical ; dans les terrasses de la zone 2, 2. GIF : `docs/potager/camera_paliers.gif`.
 - **Fond en parallaxe** (`potager/backdrop.js`), du plus loin au plus proche : ciel tramé et grands cumulus en relief ; la **grande chaîne enneigée** (trois rangs de sommets qui se chevauchent, arêtes, ravines, neige qui descend dans les couloirs, brume au pied), dominée par le **Mont Kagero**, sur l'épaule duquel on devine le **dojo final** et son sentier en lacets (« le début d'une grande aventure ») ; vols d'oiseaux ; mer de nuages ; **montagnes moyennes** boisées avec **aiguilles à falaises**, pins accrochés et cascades ; contreforts boisés, champs, temple et torii ; **village** (maisons au toit de chaume, pagode à cinq étages, cerisiers, fumées qui montent) ; lisière (grands arbres, cerisiers, bambous) ; **rizières en terrasses** qui apparaissent à l'approche de la sortie ; **premier plan sombre** (herbes, fougères, grandes feuilles) qui défile plus vite que le jeu.
 - **Terrain** (`potager/tiles.js`) : terre en mottes avec cailloux et radicelles, tapis d'herbe irrégulier, coins arrondis ; murets de pierre sèche moussus pour les terrasses ; pierre taillée pour les marches du jardin ; racines enchevêtrées sous la serre ; poutres de la grange ; étagère de bocaux ; grosse branche dans le verger ; bambou ligaturé ; bosquet de bambous ; berges de pierre et eau des canaux.
 - **Décors** (`potager/props.js`, placés dans `chapters/potager.js`) : ferme au toit de chaume et tas de bois, panneau d'entrée, Jizō, épouvantails en vieux kimono, légumes feuillus (carottes, radis, navets, choux, poireaux), clôture de bambou, puits, charrette, séchoir à radis, paniers, butte en terrasses d'où tombe la cascade (bec de bambou), moulin à eau, roseaux et iris, lanternes de pierre, arbres fruitiers tortueux et voûte de branches du verger, échelle, serre (toiles déchirées, arceaux, lianes, étagères de graines, plantes suspendues, outils, treillis), grange (grand toit de chaume, mur de planches, contrefiches, outils suspendus, toiles d'araignée, meules, sacs), sanctuaire et torii, renards de pierre, pin taillé, azalées, bosquets, pas japonais, banc, pont rouge rompu, grande porte, échoppe du marchand (ombrelle rouge, auvent indigo, enseigne, marchandises), poteau indicateur. Plus des décors automatiques : buissons, fougères, roseaux et pousses de bambou derrière le chemin, poteaux sous les plateformes de bois, fleurs sauvages.
 - **Ce qui bouge** (`potager/live.js`) : roue à eau (derrière la berge, elle plonge dans le canal), eau du bief, cascade et écume, reflets et nénuphars, poissons qui sautent, tonneaux qui flottent, **kappa pêcheur** qui plonge quand KAGE approche, koïs, fumées, pluie sur la serre et gouttes qui tombent par les déchirures, rais de lumière, pénombre de la grange avec halos de lanternes et poussières, lanternes et clochette de l'échoppe, papillons, pétales, feuilles, libellules, poussières dorées. Les lanternes de sauvegarde sont des lanternes de papier sur poteau.
 - **Performances** : tout est peint une fois (~0,8 s au chargement), le terrain par tranches de 512 px peintes à la demande ; 60 images/s.
 - Planche des 8 zones : `docs/potager/potager_zones.png` ; course : `docs/potager/potager_course.gif`.
-- Tests ajoutés : cadrage 480×270 et sol en bas de l'image, caméra immobile pendant un saut, zone morte.
+- Tests ajoutés : cadrage 448×252 et sol en bas de l'image, stabilité (une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d'un seul mouvement), caméra immobile pendant un saut, zone morte.
 
 ## 6 ter. Historique des grandes étapes (toutes fusionnées dans `main`)
 
@@ -174,7 +174,7 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 5. **Sprint tactile au joystick** (PR #8), bouton de sprint supprimé.
 6. **Chapitre 1, le Potager**, en greybox jouable (PR #9).
 7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
-8. **Refonte visuelle du Potager** : cadrage 480×270, caméra posée, décor peint et animé (§ 6 quater).
+8. **Refonte visuelle du Potager** : cadrage 448×252, caméra posée à paliers, décor peint et animé (§ 6 quater).
 
 ## 7. Effets et sons
 

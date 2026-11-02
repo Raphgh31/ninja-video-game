@@ -79,7 +79,7 @@ Chaque chapitre est découpé en **zones** (8 pour le Potager), chacune avec une
 ## 8. Ordre de construction
 
 1. ~~**Chapitre 1, le Potager, en greybox jouable**~~ : fait (écran titre, sauvegarde, zones, aides, ryō, caisses, marchand et boutique en coquille).
-2. ~~**Décor du Potager**~~ : fait (refonte visuelle : cadrage 480×270, caméra posée, montagnes, décors peints et animés ; voir `docs/REPRISE.md`, § 6 quater).
+2. ~~**Décor du Potager**~~ : fait (refonte visuelle : cadrage 448×252, caméra posée à paliers, montagnes, décors peints et animés ; voir `docs/REPRISE.md`, § 6 quater).
 3. **Planches de design du Potager** : le marchand (le sage voyageur) d'abord, puis le petit nuisible ; ensuite sons d'ambiance et musique.
 4. **Expérience et paliers**, contenu de la boutique (premiers skins).
 5. **Chapitre 2, le champ des bambous**, puis les suivants : chacun avec ses planches de design d'abord, son ennemi et sa cabane de marchand.

@@ -14,8 +14,8 @@ import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 
-// Ordinateur : 480×270 fixe (on voit loin, le paysage a de la place). Mobile (écran
-// tactile) : plein écran, même cadrage (~270 px de jeu en hauteur). L'échelle est
+// Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
+// tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
 // entière en pixels réels de l'écran (pixels nets) et c'est la zone visible qui
 // s'ajuste au millimètre. En portrait, le jeu pivote d'un quart de tour : il suffit
 // de tourner le téléphone, même si la rotation automatique est bloquée.
@@ -23,7 +23,7 @@ import './style.css';
 // échelle (~180 px de haut) : elles gardent la taille validée sous le pouce.
 const MOBILE = matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('mobile', MOBILE);
-const DESK_W = 480, DESK_H = 270;
+const DESK_W = 448, DESK_H = 252;
 let VIEW_W = DESK_W;
 let VIEW_H = DESK_H;
 let SCALE = 1;
@@ -48,7 +48,7 @@ if (MOBILE) {
   // le bouton du son et l'écran de fin tournent avec le jeu
   stage.append(document.querySelector('.mute'), document.querySelector('.win'));
 }
-const MOBILE_VIEW_H = 270;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
+const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
 let touchView = { w: 320, h: 180, scale: 1 };
 function fit() {
@@ -57,7 +57,7 @@ function fit() {
     const dpr = window.devicePixelRatio || 1;
     const rotated = H > W;                                     // portrait : jeu pivoté
     const LW = rotated ? H : W, LH = rotated ? W : H;          // côtés du jeu, en paysage
-    // échelle entière en pixels réels de l'écran, la plus proche de 270 px de jeu en hauteur
+    // échelle entière en pixels réels de l'écran, la plus proche de 252 px de jeu en hauteur
     let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
     while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
@@ -263,6 +263,7 @@ const kageBar = new HealthBar(HEALTH.max);
 for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
 player.onRespawn = () => {
+  snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
   for (const t of enemies) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
@@ -363,54 +364,86 @@ function update(dt) {
 }
 
 // ---- caméra posée -------------------------------------------------------------
-// Elle ne suit pas KAGE pas à pas : tant qu'il reste dans la zone morte (centre
-// de l'écran), elle ne bouge pas ; elle glisse doucement quand il s'approche d'un
-// bord. En hauteur, elle se cale sur le sol où KAGE a posé le pied (pas sur ses
-// sauts) : le sol reste bas dans l'image, le paysage occupe le haut.
+// Stable avant tout : elle ne suit pas KAGE pas à pas.
+// - En largeur : zone morte ; tant que KAGE reste au centre de l'écran, rien ne
+//   bouge ; s'il en sort, elle le rattrape avec un amorti (sans à-coup).
+// - En hauteur : des « paliers ». Une marche, un saut, un petit relief : rien ne
+//   bouge. Seul un vrai changement de niveau (plus de 3,5 cases) déclenche un
+//   recadrage, d'un seul mouvement franc et fluide (accélère, puis se pose).
+// - Elle est arrondie au pixel une seule fois, et tout (fond, terrain,
+//   personnages) est dessiné avec cette même position : tout bouge ensemble.
 const CAM = {
   left: 0.3,       // KAGE peut aller de 30 %...
   right: 0.56,     // ... à 56 % de la largeur sans que la caméra bouge
-  follow: 5,       // vitesse de rattrapage horizontal (1/s)
+  smooth: 0.22,    // amorti horizontal (s) : temps pour rattraper l'essentiel de l'écart
   ground: 0.86,    // le sol se tient à 86 % de la hauteur de l'image
-  rise: 2.2,       // vitesse de recalage vertical (1/s)
-  top: 0.22,       // KAGE plus haut que 22 % de l'image : la caméra monte
-  bottom: 0.94,    // plus bas que 94 % (chute) : elle descend
+  step: 56,        // écart de sol (px) à partir duquel la caméra change de palier (3,5 cases)
+  move: 0.6,       // durée d'un changement de palier (s)
+  top: 0.1,        // la tête de KAGE ne sort jamais par le haut (10 % de marge)
+  bottom: 0.97,    // ni ses pieds par le bas
 };
-const camGround = { y: null };
-function cameraTarget() {
-  // horizontal : seulement si KAGE sort de la zone morte
+const camGround = { y: null };                 // sol de référence du palier en cours
+const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
+let camVX = 0;                                 // vitesse horizontale (amorti)
+
+const clampCamX = (x) => Math.min(Math.max(x, 0), level.width - VIEW_W);
+const clampCamY = (y) => Math.min(Math.max(y, 0), level.height - VIEW_H);
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // lent, rapide, lent
+
+function targetX() {
   let x = camera.x;
   const sx = player.x - camera.x;
   if (sx > VIEW_W * CAM.right) x = player.x - VIEW_W * CAM.right;
   else if (sx < VIEW_W * CAM.left) x = player.x - VIEW_W * CAM.left;
-  // vertical : le dernier sol foulé, en bas de l'image
-  if (player.onGround || camGround.y == null) camGround.y = player.y;
-  let y = camGround.y - VIEW_H * CAM.ground;
-  if (player.y - 24 < y + VIEW_H * CAM.top) y = player.y - 24 - VIEW_H * CAM.top;
-  if (player.y > y + VIEW_H * CAM.bottom) y = player.y - VIEW_H * CAM.bottom;
-  return {
-    x: Math.min(Math.max(x, 0), level.width - VIEW_W),
-    y: Math.min(Math.max(y, 0), level.height - VIEW_H),
-  };
+  return clampCamX(x);
+}
+
+/** Lance un recadrage vertical vers le palier dont le sol est groundY. */
+function retargetY(groundY) {
+  camGround.y = groundY;
+  const to = clampCamY(groundY - VIEW_H * CAM.ground);
+  if (Math.abs(to - camV.to) < 1 && camV.t < 1) return;
+  camV.from = camera.y;
+  camV.to = to;
+  camV.t = 0;
+  camV.dur = CAM.move * Math.min(1.3, Math.max(0.75, Math.abs(to - camera.y) / 70));
 }
 
 function updateCamera(dt) {
-  const t = cameraTarget();
-  camera.x += (t.x - camera.x) * Math.min(1, dt * CAM.follow);
-  camera.y += (t.y - camera.y) * Math.min(1, dt * CAM.rise);
+  // largeur : ressort critique amorti vers la cible (aucun dépassement)
+  const tx = targetX();
+  const w = 2 / CAM.smooth, k = w * dt, e = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k);
+  const diff = camera.x - tx, tmp = (camVX + w * diff) * dt;
+  camVX = (camVX - w * tmp) * e;
+  camera.x = clampCamX(tx + (diff + tmp) * e);
+  if (Math.abs(camera.x - tx) < 0.05 && Math.abs(camVX) < 0.5) { camera.x = tx; camVX = 0; }
+  // hauteur : paliers
+  if (camGround.y == null) retargetY(player.y);
+  const alive = player.state !== 'death' && player.state !== 'respawn';
+  if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
+  // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
+  const y = camV.t < 1 ? camV.to : camera.y;
+  if (alive && player.y - 26 < y + VIEW_H * CAM.top) retargetY(player.y - 26 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
+  else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
+  if (camV.t < 1) {
+    camV.t = Math.min(1, camV.t + dt / camV.dur);
+    camera.y = camV.from + (camV.to - camV.from) * ease(camV.t);
+  }
 }
 
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
   camGround.y = player.y;
-  camera.x = Math.min(Math.max(player.x - VIEW_W * 0.42, 0), level.width - VIEW_W);
-  Object.assign(camera, cameraTarget());
+  camera.x = clampCamX(player.x - VIEW_W * 0.42);
+  camera.y = clampCamY(player.y - VIEW_H * CAM.ground);
+  camV.to = camera.y; camV.t = 1; camVX = 0;
 }
 
 function draw() {
   // secousse de l'écran : décalage temporaire de la caméra
   const shake = fx.offset();
-  const cam = { x: camera.x + shake.x, y: camera.y + shake.y };
+  // une seule position, arrondie au pixel, pour tout ce qui est dessiné
+  const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);

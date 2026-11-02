@@ -520,10 +520,27 @@ async function main() {
     expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
   });
 
-  await test('potager : cadrage 480×270, sol en bas de l\'image', async () => {
+  await test('potager : cadrage 448×252, sol en bas de l\'image', async () => {
     await pat(60); await pw(1500);
     const r = await pg.evaluate(() => { const g = window.__kage, v = g.view(); return { w: v.w, h: v.h, feet: g.player.y - g.camera.y }; });
-    expect(r.w === 480 && r.h === 270 && r.feet > 270 * 0.8 && r.feet < 270 * 0.92, `vue ${r.w}×${r.h}, pieds à ${Math.round(r.feet)} px`);
+    expect(r.w === 448 && r.h === 252 && r.feet > 252 * 0.8 && r.feet < 252 * 0.92, `vue ${r.w}×${r.h}, pieds à ${Math.round(r.feet)} px`);
+  });
+
+  await test('potager : stabilité — une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d\'un seul mouvement', async () => {
+    await pat(29); await pw(1500);                       // sol de référence (zone 1)
+    const y0 = await pg.evaluate(() => window.__kage.camera.y);
+    await pat(34); await pw(900);                        // sur le muret, deux cases plus haut
+    const y1 = await pg.evaluate(() => window.__kage.camera.y);
+    await pat(95); await pw(120);                        // terrasse, quatre cases plus haut
+    const ys = [];
+    for (let i = 0; i < 14; i++) { ys.push(await pg.evaluate(() => window.__kage.camera.y)); await pw(70); }
+    // un seul mouvement : la caméra va toujours dans le même sens, puis s'arrête
+    let monotone = true;
+    for (let i = 1; i < ys.length; i++) if (ys[i] > ys[i - 1] + 0.01) monotone = false;
+    const still = Math.abs(ys[ys.length - 1] - ys[ys.length - 2]) < 0.01;
+    const integer = await pg.evaluate(() => { const c = window.__kage.camera; return [c.x, c.y]; });
+    expect(Math.abs(y1 - y0) < 0.01 && ys[0] - ys[ys.length - 1] > 40 && monotone && still,
+      `marche : ${(y1 - y0).toFixed(2)} px ; terrasse : ${ys.map((v) => v.toFixed(0)).join(' ')} ; caméra ${integer.map((v) => v.toFixed(2)).join(', ')}`);
   });
 
   await test('potager : la caméra ne suit pas les sauts', async () => {
