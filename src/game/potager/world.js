@@ -23,6 +23,17 @@ export class World {
       ...level.backdrops.map((b) => ({ ...b, x: Math.floor((b.x0 + b.x1) / 2), y: b.y1 })),
       ...level.props,
     ].map((p) => ({ p, layers: propLayers(p), reach: PROP_REACH[p.type] ?? 160 }));
+    // la colline en terrasses est au loin : peinte à part, sous l'eau animée et
+    // sous le terrain (la cascade passe derrière les plateformes du premier plan)
+    this.hills = this.items.filter((it) => it.p.type === 'terraces_bg').map(({ p }) => {
+      const x0 = p.x * TILE - 60, w = p.w * TILE + 120;
+      const c = canvas(w, level.height);
+      const g = c.getContext('2d');
+      g.translate(-x0, 0);
+      paintProp(new Brush(g), p, { level, map: this.map, x0, x1: x0 + w }, 'backdrop');
+      return { x0, c };
+    });
+    this.items = this.items.filter((it) => it.p.type !== 'terraces_bg');
     this.next = 0;                       // prochaine tranche à peindre en tâche de fond
   }
 
@@ -75,6 +86,14 @@ export class World {
     for (const i of [z + 1, a - 1]) if (i >= 0 && i < this.n && !this.back[i]) { this.ensure(i); return; }
     while (this.next < this.n && this.back[this.next]) this.next++;
     if (this.next < this.n) this.ensure(this.next);
+  }
+
+  drawHills(ctx, cam, viewW) {
+    const cx = Math.round(cam.x), cy = Math.round(cam.y);
+    for (const h of this.hills) {
+      if (h.x0 - cx > viewW || h.x0 + h.c.width - cx < 0) continue;
+      ctx.drawImage(h.c, h.x0 - cx, -cy);
+    }
   }
 
   draw(ctx, layer, cam, viewW, viewH) {

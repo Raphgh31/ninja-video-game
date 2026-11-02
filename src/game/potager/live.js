@@ -41,6 +41,76 @@ export class Live {
   }
 
   // -------------------------------------------------------------------------
+  // la colline au loin : son ruisseau et sa cascade (derrière le terrain et
+  // les plateformes du premier plan)
+  // -------------------------------------------------------------------------
+  drawHill(ctx, cam, viewW, viewH, time) {
+    const vis = (x, m = 80) => x - cam.x > -m && x - cam.x < viewW + m;
+    // le ruisseau de la colline : l'eau ondule sur les replats, ruisselle sur les murs
+    for (const h of this.hills) {
+      if (!vis(h.mx, 400)) continue;
+      for (const row of h.rows) {
+        const sy = R(row.y - cam.y);
+        if (sy < -2 || sy > viewH) continue;
+        const q = h.band((row.x0 + row.x1) >> 1, row.y);
+        if (!q) continue;
+        const w = row.x1 - row.x0;
+        if (q.part === 'wall') {
+          ctx.fillStyle = '#ffffff';
+          for (let k = 0; k < 3; k++) {
+            const x = row.x0 + 1 + ((k * 7 + R(row.y * 3 - time * 40)) % (w - 1) + (w - 1)) % (w - 1);
+            ctx.fillRect(R(x - cam.x), sy, 1, 1);
+          }
+        } else {
+          ctx.fillStyle = q.f < 0.3 ? '#ffffff' : C.WATER[5];
+          for (let k = 0; k < 2; k++) {
+            const x = row.x0 + 1 + ((k * 11 + R(time * 9 + row.y * 5)) % (w - 1) + (w - 1)) % (w - 1);
+            ctx.fillRect(R(x - cam.x), sy, 2, 1);
+          }
+          if (q.f < 0.15) {                                          // éclaboussures au pied de la chute
+            ctx.fillStyle = '#ffffff';
+            const a = time * 5 + row.y;
+            ctx.fillRect(R(row.x0 - 2 - cam.x), sy - 1 - R(Math.abs(Math.sin(a)) * 2), 1, 1);
+            ctx.fillRect(R(row.x1 + 2 - cam.x), sy - 1 - R(Math.abs(Math.cos(a)) * 2), 1, 1);
+          }
+        }
+      }
+      // l'eau qui franchit le rocher
+      ctx.fillStyle = '#ffffff';
+      for (let k = 0; k < 5; k++) ctx.fillRect(R(h.weir.x - 10 + ((time * 16 + k * 5) % 20) - cam.x), R(h.weir.y - 14 + ((time * 30 + k * 4) % 14) - cam.y), 1, 2);
+    }
+    for (const f of this.falls) {
+      let gy = f.y; while (gy < this.map.h && this.map.at(f.x + 1, gy) !== '#') gy++;
+      // elle tombe derrière la terrasse (la colline est au loin) : le bas est caché par le terrain
+      const X = f.x * TILE + 8, top = f.top ?? (f.y - f.h) * TILE - 2, bottom = gy * TILE + 10;
+      if (!vis(X)) continue;
+      const sx = R(X - cam.x), t0 = R(top - cam.y), b0 = R(bottom - cam.y), H = b0 - t0;
+      // le rideau d'eau : plus étroit au déversoir, il s'évase en tombant
+      for (let y = 0; y < H; y++) {
+        const k = y / H, half = R(10 + k * 4);
+        // dense et écumeuse au départ (dans le prolongement du rocher), elle s'éclaircit en tombant
+        ctx.globalAlpha = 0.58 + 0.37 * Math.max(0, 1 - k * 3.5);
+        ctx.fillStyle = k < 0.12 ? C.WATER[4] : C.WATER[3]; ctx.fillRect(sx - half, t0 + y, half * 2, 1);
+        ctx.fillStyle = C.WATER[4]; ctx.fillRect(sx - half, t0 + y, 2, 1); ctx.fillRect(sx + 2, t0 + y, 2, 1);
+        if (k < 0.18) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - half + ((y * 5) % (half * 2)), t0 + y, 2, 1); }
+      }
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 11, t0, 22, 1);                    // la lèvre du déversoir
+      ctx.fillStyle = C.WATER[5];
+      for (let k = 0; k < 10; k++) {                                             // filets qui descendent
+        const y = R((time * 120 + k * 31) % H);
+        ctx.fillRect(sx - 10 + k * 2 + R((y / H) * (k - 5) * 0.8), t0 + y, 1, 6);
+      }
+      ctx.globalAlpha = 0.35;
+      for (let k = 0; k < 6; k++) {                                              // bruine
+        const a = (time * 0.8 + k * 0.17) % 1;
+        ctx.fillRect(sx - 16 + k * 6 + R(Math.sin(time + k) * 3), b0 - 14 - R(a * 14), 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // derrière les personnages
   // -------------------------------------------------------------------------
   drawBehind(ctx, cam, viewW, viewH, time) {
@@ -118,39 +188,6 @@ export class Live {
         ctx.fillStyle = col[1]; ctx.fillRect(sx - 1 + dir, sy, 2, 1);
         ctx.fillStyle = col[0]; ctx.fillRect(sx - 4 * dir - (dir > 0 ? 1 : -1), sy - (R(time * 6 + i) % 2), 1, 2);
       }
-    }
-    // le ruisseau de la colline : l'eau ondule sur les replats, ruisselle sur les murs
-    for (const h of this.hills) {
-      if (!vis(h.mx, 400)) continue;
-      for (const row of h.rows) {
-        const sy = R(row.y - cam.y);
-        if (sy < -2 || sy > viewH) continue;
-        const q = h.band((row.x0 + row.x1) >> 1, row.y);
-        if (!q) continue;
-        const w = row.x1 - row.x0;
-        if (q.part === 'wall') {
-          ctx.fillStyle = '#ffffff';
-          for (let k = 0; k < 3; k++) {
-            const x = row.x0 + 1 + ((k * 7 + R(row.y * 3 - time * 40)) % (w - 1) + (w - 1)) % (w - 1);
-            ctx.fillRect(R(x - cam.x), sy, 1, 1);
-          }
-        } else {
-          ctx.fillStyle = q.f < 0.3 ? '#ffffff' : C.WATER[5];
-          for (let k = 0; k < 2; k++) {
-            const x = row.x0 + 1 + ((k * 11 + R(time * 9 + row.y * 5)) % (w - 1) + (w - 1)) % (w - 1);
-            ctx.fillRect(R(x - cam.x), sy, 2, 1);
-          }
-          if (q.f < 0.15) {                                          // éclaboussures au pied de la chute
-            ctx.fillStyle = '#ffffff';
-            const a = time * 5 + row.y;
-            ctx.fillRect(R(row.x0 - 2 - cam.x), sy - 1 - R(Math.abs(Math.sin(a)) * 2), 1, 1);
-            ctx.fillRect(R(row.x1 + 2 - cam.x), sy - 1 - R(Math.abs(Math.cos(a)) * 2), 1, 1);
-          }
-        }
-      }
-      // l'eau qui franchit le rocher
-      ctx.fillStyle = '#ffffff';
-      for (let k = 0; k < 5; k++) ctx.fillRect(R(h.weir.x - 10 + ((time * 16 + k * 5) % 20) - cam.x), R(h.weir.y - 14 + ((time * 30 + k * 4) % 14) - cam.y), 1, 2);
     }
     // tonneaux qui flottent dans les canaux
     for (const bl of this.barrels) {
@@ -283,39 +320,6 @@ export class Live {
     this.last = time;
     const vis = (x, m = 80) => x - cam.x > -m && x - cam.x < viewW + m;
     // la cascade d'irrigation : elle cache à moitié la cache secrète
-    for (const f of this.falls) {
-      let gy = f.y; while (gy < this.map.h && this.map.at(f.x + 1, gy) !== '#') gy++;
-      const X = f.x * TILE + 8, top = f.top ?? (f.y - f.h) * TILE - 2, bottom = gy * TILE - (f.basin ? 5 : -2);
-      if (!vis(X)) continue;
-      const sx = R(X - cam.x), t0 = R(top - cam.y), b0 = R(bottom - cam.y), H = b0 - t0;
-      // le rideau d'eau : plus étroit au déversoir, il s'évase en tombant
-      for (let y = 0; y < H; y++) {
-        const k = y / H, half = R(10 + k * 4);
-        // dense et écumeuse au départ (dans le prolongement du rocher), elle s'éclaircit en tombant
-        ctx.globalAlpha = 0.58 + 0.37 * Math.max(0, 1 - k * 3.5);
-        ctx.fillStyle = k < 0.12 ? C.WATER[4] : C.WATER[3]; ctx.fillRect(sx - half, t0 + y, half * 2, 1);
-        ctx.fillStyle = C.WATER[4]; ctx.fillRect(sx - half, t0 + y, 2, 1); ctx.fillRect(sx + 2, t0 + y, 2, 1);
-        if (k < 0.18) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - half + ((y * 5) % (half * 2)), t0 + y, 2, 1); }
-      }
-      ctx.globalAlpha = 0.95;
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 11, t0, 22, 1);                    // la lèvre du déversoir
-      ctx.fillStyle = C.WATER[5];
-      for (let k = 0; k < 10; k++) {                                             // filets qui descendent
-        const y = R((time * 120 + k * 31) % H);
-        ctx.fillRect(sx - 10 + k * 2 + R((y / H) * (k - 5) * 0.8), t0 + y, 1, 6);
-      }
-      ctx.fillStyle = '#ffffff';
-      for (let k = 0; k < 9; k++) {                                              // écume dans le bassin
-        const a = time * 4 + k;
-        ctx.fillRect(sx - 14 + k * 3 + R(Math.sin(a) * 1.5), b0 - 2 - R(Math.abs(Math.cos(a)) * 3), 2, 2);
-      }
-      ctx.globalAlpha = 0.35;
-      for (let k = 0; k < 6; k++) {                                              // bruine
-        const a = (time * 0.8 + k * 0.17) % 1;
-        ctx.fillRect(sx - 16 + k * 6 + R(Math.sin(time + k) * 3), b0 - 4 - R(a * 12), 1, 1);
-      }
-      ctx.globalAlpha = 1;
-    }
     // la serre : pluie sur la toile, gouttes qui tombent sur les feuilles, rais de lumière
     if (this.serre) {
       const x0 = this.serre.x0 * TILE, x1 = this.serre.x1 * TILE, y0 = this.serre.y0 * TILE, y1 = this.serre.y1 * TILE;

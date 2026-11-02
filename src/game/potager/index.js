@@ -40,7 +40,9 @@ export class PotagerArt {
     // le paysage a son propre calque, plus fin (voir main.js) ; sinon on le peint ici
     if (!this.hiBackdrop) this.backdrop.draw(ctx, cam, viewW, viewH, time);
     this.world.idle(cam, viewW);
-    this.world.draw(ctx, 'back', cam, viewW, viewH);
+    this.world.drawHills(ctx, cam, viewW);                 // la colline au loin...
+    this.live.drawHill(ctx, cam, viewW, viewH, time);      // ... son eau ...
+    this.world.draw(ctx, 'back', cam, viewW, viewH);       // ... puis le terrain devant
     // caisses : elles disparaissent quand on les brise
     for (const cr of this.level.crates.values()) {
       const sx = Math.round(cr.tx * TILE - cam.x), sy = Math.round(cr.ty * TILE - cam.y);

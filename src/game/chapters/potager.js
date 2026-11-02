@@ -191,8 +191,7 @@ function build() {
   b.row(x + 5, 3, G - 9, '=');                        // étagère cachée derrière l'eau
   b.coins([x + 5, x + 6, x + 7], 0);
   b.set(x + 6, G - 10, 'o');
-  b.prop('waterfall', x + 6, G - 9, { top: 125, basin: true, secret: true });   // elle descend de la colline
-  b.prop('basin', x + 6, G - 5);
+  b.prop('waterfall', x + 6, G - 9, { top: 125, secret: true });   // elle descend de la colline, au loin
   b.prop('bridge', x + 1, G - 5, { w: 8 });
   b.prop('crops', x + 1, G - 5, { w: 3, kind: 'poireaux+choux' });
   x = b.x; b.flat(3, G - 3);                         // escalier de pierre ébréché
