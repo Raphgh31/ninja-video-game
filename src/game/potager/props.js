@@ -146,14 +146,25 @@ export function hillGeom(p) {
   const x0 = p.x * TILE, x1 = (p.x + p.w) * TILE, mx = p.mx * TILE, base = p.y * TILE;
   const r = rng(4040);
   const tiers = [];
-  let y = p.peak, wl = 34, wr = 26;
+  let y = p.peak;
+  const incL = [], incR = [];
   for (let k = 0; y < base + 30; k++) {
     const D = Math.round(7 + k * 0.55 + r() * 2), wall = Math.round(5 + k * 0.4 + r() * 2);
-    tiers.push({ y, D, wall, sag: 3 + k * 1.5, wl: Math.min(wl, mx - x0 - 6), wr: Math.min(wr, x1 - mx - 6), kind: r(), seed: k });
+    tiers.push({ y, D, wall, sag: 3 + k * 1.5, kind: r(), seed: k });
+    incL.push(16 + Math.round(r() * 24));                         // chaque gradin dépasse le précédent,
+    incR.push(14 + Math.round(r() * 24));                         // d'une longueur inégale
     y += D + wall;
-    wl += 10 + Math.round(r() * 26);                              // chaque gradin dépasse le précédent,
-    wr += 10 + Math.round(r() * 26);                              // d'une longueur inégale
   }
+  // les largeurs sont mises à l'échelle pour que le gradin du bas finisse juste
+  // au bord de la zone peinte : l'escalier reste irrégulier jusqu'en bas
+  const fit = (inc, w0, room) => {
+    const tot = inc.slice(0, -1).reduce((a, b) => a + b, 0);
+    const k = Math.min(1, (room - w0) / Math.max(1, tot));
+    let w = w0;
+    return inc.map((d) => { const cur = w; w += d * k; return Math.round(cur); });
+  };
+  const WL = fit(incL, 34, mx - x0 - 8), WR = fit(incR, 26, x1 - mx - 8);
+  tiers.forEach((t, k) => { t.wl = WL[k]; t.wr = WR[k]; });
   const wob = (yy, k, side) => (noise1(yy * 0.35 + k * 7.3 + side * 50, 61) - 0.5) * 3;
   const covers = (t, dx, yy, k) => (dx < 0 ? -dx < t.wl + wob(yy, k, 0) : dx < t.wr + wob(yy, k, 1));
   const lip = (t, dx) => {
