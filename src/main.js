@@ -14,15 +14,18 @@ import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 
-// Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran, même cadrage
-// que sur ordinateur (~180 px de jeu en hauteur). L'échelle est entière en pixels
-// réels de l'écran (pixels nets) et c'est la zone visible qui s'ajuste au millimètre.
-// En portrait, le jeu pivote d'un quart de tour : il suffit de tourner le téléphone,
-// même si la rotation automatique est bloquée.
+// Ordinateur : 480×270 fixe (on voit loin, le paysage a de la place). Mobile (écran
+// tactile) : plein écran, même cadrage (~270 px de jeu en hauteur). L'échelle est
+// entière en pixels réels de l'écran (pixels nets) et c'est la zone visible qui
+// s'ajuste au millimètre. En portrait, le jeu pivote d'un quart de tour : il suffit
+// de tourner le téléphone, même si la rotation automatique est bloquée.
+// Les commandes tactiles sont dessinées sur leur propre calque, à l'ancienne
+// échelle (~180 px de haut) : elles gardent la taille validée sous le pouce.
 const MOBILE = matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('mobile', MOBILE);
-let VIEW_W = 320;
-let VIEW_H = 180;
+const DESK_W = 480, DESK_H = 270;
+let VIEW_W = DESK_W;
+let VIEW_H = DESK_H;
 let SCALE = 1;
 let touch = null;   // commandes tactiles (créées une fois les sprites chargés)
 
@@ -31,6 +34,13 @@ canvas.width = VIEW_W;
 canvas.height = VIEW_H;
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+// calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
+const touchCanvas = MOBILE ? document.createElement('canvas') : null;
+const touchCtx = touchCanvas?.getContext('2d');
+if (touchCanvas) {
+  touchCanvas.className = 'touch-layer';
+  canvas.after(touchCanvas);
+}
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 const stage = canvas.parentElement;
@@ -38,19 +48,31 @@ if (MOBILE) {
   // le bouton du son et l'écran de fin tournent avec le jeu
   stage.append(document.querySelector('.mute'), document.querySelector('.win'));
 }
-const MOBILE_VIEW_H = 180;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
+const MOBILE_VIEW_H = 270;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
+const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
+let touchView = { w: 320, h: 180, scale: 1 };
 function fit() {
   if (MOBILE) {
     const W = window.innerWidth, H = window.innerHeight;     // pixels CSS
     const dpr = window.devicePixelRatio || 1;
     const rotated = H > W;                                     // portrait : jeu pivoté
     const LW = rotated ? H : W, LH = rotated ? W : H;          // côtés du jeu, en paysage
-    // échelle entière en pixels réels de l'écran, la plus proche de 180 px de jeu en hauteur
+    // échelle entière en pixels réels de l'écran, la plus proche de 270 px de jeu en hauteur
     let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
-    while (dev > 1 && (LW * dpr) / dev < 280) dev--;           // jamais trop étroit
+    while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
     VIEW_W = Math.ceil((LW * dpr) / dev);
     VIEW_H = Math.ceil((LH * dpr) / dev);
+    // commandes : leur propre échelle entière, la plus proche de 180 px en hauteur
+    let tdev = Math.max(1, Math.round((LH * dpr) / TOUCH_VIEW_H));
+    while (tdev > 1 && (LW * dpr) / tdev < 280) tdev--;
+    touchView = { w: Math.ceil((LW * dpr) / tdev), h: Math.ceil((LH * dpr) / tdev), scale: tdev / dpr };
+    if (touchCanvas.width !== touchView.w || touchCanvas.height !== touchView.h) {
+      touchCanvas.width = touchView.w;
+      touchCanvas.height = touchView.h;
+    }
+    touchCanvas.style.width = `${touchView.w * touchView.scale}px`;
+    touchCanvas.style.height = `${touchView.h * touchView.scale}px`;
     document.body.classList.toggle('rotated', rotated);
     stage.style.width = `${LW}px`;
     stage.style.height = `${LH}px`;
@@ -58,9 +80,9 @@ function fit() {
     touch?.setRotation(rotated ? W : 0);
   } else {
     const stage = canvas.parentElement.getBoundingClientRect();
-    SCALE = Math.max(1, Math.floor(Math.min(stage.width / 320, stage.height / 180)));
-    VIEW_W = 320;
-    VIEW_H = 180;
+    SCALE = Math.max(1, Math.floor(Math.min(stage.width / DESK_W, stage.height / DESK_H)));
+    VIEW_W = DESK_W;
+    VIEW_H = DESK_H;
   }
   if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
     canvas.width = VIEW_W;
@@ -72,7 +94,7 @@ function fit() {
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
-  touch?.layout(VIEW_W, VIEW_H, SCALE);
+  touch?.layout(touchView.w, touchView.h, touchView.scale);
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -84,6 +106,7 @@ const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#
 const level = new Level(LEVEL_ID);
 addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
+level.player = player;   // le décor réagit à KAGE (le kappa plonge, etc.)
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
   sfx('throw');
@@ -246,10 +269,10 @@ player.onRespawn = () => {
   kageBar.reset();
 };
 const input = new Input();
-touch = MOBILE ? new TouchControls(canvas, input) : null;
+touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
-  canvas.addEventListener('pointerdown', () => {
+  touchCanvas.addEventListener('pointerdown', () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   }, { once: true });
 }
@@ -335,22 +358,52 @@ function update(dt) {
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
-  const t = cameraTarget();
-  camera.x += (t.x - camera.x) * Math.min(1, dt * 8);
-  camera.y += (t.y - camera.y) * Math.min(1, dt * 6);
+  updateCamera(dt);
   input.endFrame();
 }
 
-/** Position visée par la caméra : KAGE un peu à gauche et en bas du cadre. */
+// ---- caméra posée -------------------------------------------------------------
+// Elle ne suit pas KAGE pas à pas : tant qu'il reste dans la zone morte (centre
+// de l'écran), elle ne bouge pas ; elle glisse doucement quand il s'approche d'un
+// bord. En hauteur, elle se cale sur le sol où KAGE a posé le pied (pas sur ses
+// sauts) : le sol reste bas dans l'image, le paysage occupe le haut.
+const CAM = {
+  left: 0.3,       // KAGE peut aller de 30 %...
+  right: 0.56,     // ... à 56 % de la largeur sans que la caméra bouge
+  follow: 5,       // vitesse de rattrapage horizontal (1/s)
+  ground: 0.86,    // le sol se tient à 86 % de la hauteur de l'image
+  rise: 2.2,       // vitesse de recalage vertical (1/s)
+  top: 0.22,       // KAGE plus haut que 22 % de l'image : la caméra monte
+  bottom: 0.94,    // plus bas que 94 % (chute) : elle descend
+};
+const camGround = { y: null };
 function cameraTarget() {
+  // horizontal : seulement si KAGE sort de la zone morte
+  let x = camera.x;
+  const sx = player.x - camera.x;
+  if (sx > VIEW_W * CAM.right) x = player.x - VIEW_W * CAM.right;
+  else if (sx < VIEW_W * CAM.left) x = player.x - VIEW_W * CAM.left;
+  // vertical : le dernier sol foulé, en bas de l'image
+  if (player.onGround || camGround.y == null) camGround.y = player.y;
+  let y = camGround.y - VIEW_H * CAM.ground;
+  if (player.y - 24 < y + VIEW_H * CAM.top) y = player.y - 24 - VIEW_H * CAM.top;
+  if (player.y > y + VIEW_H * CAM.bottom) y = player.y - VIEW_H * CAM.bottom;
   return {
-    x: Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W),
-    y: Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H),
+    x: Math.min(Math.max(x, 0), level.width - VIEW_W),
+    y: Math.min(Math.max(y, 0), level.height - VIEW_H),
   };
+}
+
+function updateCamera(dt) {
+  const t = cameraTarget();
+  camera.x += (t.x - camera.x) * Math.min(1, dt * CAM.follow);
+  camera.y += (t.y - camera.y) * Math.min(1, dt * CAM.rise);
 }
 
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
+  camGround.y = player.y;
+  camera.x = Math.min(Math.max(player.x - VIEW_W * 0.42, 0), level.width - VIEW_W);
   Object.assign(camera, cameraTarget());
 }
 
@@ -387,7 +440,10 @@ function draw() {
   if (save) drawRyo(ctx, 27, 19, save.ryo);
   // chronomètre centré en haut, hors chapitre (le coin haut-droit accueille le bouton du son sur mobile)
   if (level.goal && !CHAPTER) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
-  touch?.draw(ctx);
+  if (touch) {
+    touchCtx.clearRect(0, 0, touchCanvas.width, touchCanvas.height);
+    touch.draw(touchCtx);
+  }
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';
@@ -627,4 +683,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run };
+window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };

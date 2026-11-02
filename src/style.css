@@ -154,3 +154,7 @@ body.mobile .talk__key { display: none; }
 .win__next:empty { display: none; }
 .win dl div[hidden] { display: none; }
 body.mobile .zone-banner strong { font-size: .8rem; }
+
+/* calque des commandes tactiles : au-dessus du jeu, sous l'interface du chapitre */
+body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touch-action: none;
+  image-rendering: pixelated; image-rendering: crisp-edges; }

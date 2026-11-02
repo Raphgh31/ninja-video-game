@@ -16,8 +16,9 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
-- Résolution interne 320×180 sur ordinateur, mise à l'échelle **entière** uniquement (pixels nets, `imageSmoothingEnabled = false`).
-- Mobile (`pointer: coarse`) : plein écran, même cadrage que sur ordinateur (~180 px de jeu en hauteur) ; l'échelle est entière **en pixels réels de l'écran** (`devicePixelRatio`) et c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'ajuste. En portrait, tout le bloc de jeu pivote d'un quart de tour (classe `rotated`) : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Commandes tactiles dessinées dans le canvas (`src/engine/touch.js`, `setRotation`).
+- Résolution interne **480×270** sur ordinateur (dézoom demandé par l'utilisateur : on voit loin, KAGE paraît plus petit), mise à l'échelle **entière** uniquement (pixels nets, `imageSmoothingEnabled = false`).
+- **Caméra posée** (`CAM` dans `src/main.js`) : zone morte large (KAGE va de 30 % à 56 % de la largeur sans qu'elle bouge), elle se cale en hauteur sur le dernier sol foulé (jamais sur les sauts), sol à 86 % de la hauteur de l'image.
+- Mobile (`pointer: coarse`) : plein écran, même cadrage que sur ordinateur (~270 px de jeu en hauteur) ; l'échelle est entière **en pixels réels de l'écran** (`devicePixelRatio`) et c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'ajuste. En portrait, tout le bloc de jeu pivote d'un quart de tour (classe `rotated`) : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Commandes tactiles dessinées sur leur **propre calque** (`.touch-layer`, à l'ancienne échelle ~180 px de haut : elles gardent la taille validée sous le pouce ; `src/engine/touch.js`, `setRotation`).
 - `assets/` est le `publicDir` de Vite : les chemins des ressources commencent à `./characters/...`.
 - Boucle à pas fixe de 120 Hz (`src/main.js`).
 
@@ -31,7 +32,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Niveaux
 - Cartes ASCII dans `src/game/maps.js` (légende en tête du fichier) ; `Level` gère TATE (E), WARA (W), gong (C), porte (D), lanternes (P), arrivée (G), et pour les chapitres ryō (o), caisses (B), marchand (M), bois (=), bambou (|), eau (~).
 - L'adresse sans `#` ouvre le **chapitre 1, le Potager** (écran titre, sauvegarde) ; `#niveau-1` l'ancien niveau 1, `#terrain` le terrain d'essai.
-- Le Potager est construit zone par zone dans `src/game/chapters/potager.js` ; son dessin (provisoire) est dans `src/game/potager_art.js`. Trous : 6 cases pour le dash, 5 pour le sprint ; passages bas d'une case pour la glissade.
+- Le Potager est construit zone par zone dans `src/game/chapters/potager.js` ; son décor est **peint en code** dans `src/game/potager/` (fond en parallaxe `backdrop.js`, tuiles `tiles.js`, décors `props.js`, terrain par tranches `world.js`, animations `live.js`, palette `palette.js`, outils `paint.js`). Tout est calculé une fois au chargement (~0,8 s), puis recopié à chaque image. Trous : 6 cases pour le dash, 5 pour le sprint ; passages bas d'une case pour la glissade.
 - Toute modification d'un passage du niveau 1 ou du Potager doit garder les tests de faisabilité de `tests/e2e.cjs` verts.
 
 ## Ennemis

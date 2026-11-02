@@ -520,6 +520,34 @@ async function main() {
     expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
   });
 
+  await test('potager : cadrage 480×270, sol en bas de l\'image', async () => {
+    await pat(60); await pw(1500);
+    const r = await pg.evaluate(() => { const g = window.__kage, v = g.view(); return { w: v.w, h: v.h, feet: g.player.y - g.camera.y }; });
+    expect(r.w === 480 && r.h === 270 && r.feet > 270 * 0.8 && r.feet < 270 * 0.92, `vue ${r.w}×${r.h}, pieds à ${Math.round(r.feet)} px`);
+  });
+
+  await test('potager : la caméra ne suit pas les sauts', async () => {
+    await pat(60); await pw(1500);
+    const y0 = await pg.evaluate(() => window.__kage.camera.y);
+    await PK.down('Space');
+    let dev = 0;
+    for (let i = 0; i < 12; i++) { await pw(50); dev = Math.max(dev, Math.abs((await pg.evaluate(() => window.__kage.camera.y)) - y0)); }
+    await PK.up('Space'); await pw(400);
+    expect(dev < 1, `la caméra a bougé de ${dev.toFixed(1)} px pendant le saut`);
+  });
+
+  await test('potager : zone morte — un petit pas ne déplace pas la caméra, une longue course si', async () => {
+    await pat(60); await pw(300);
+    await pg.evaluate(() => { const g = window.__kage; g.camera.x = g.player.x - g.view().w * 0.4; });
+    await pw(100);
+    const x0 = await pg.evaluate(() => window.__kage.camera.x);
+    await PK.down('ArrowRight'); await pw(300); await PK.up('ArrowRight'); await pw(200);
+    const x1 = await pg.evaluate(() => window.__kage.camera.x);
+    await PK.down('ArrowRight'); await PK.down('ShiftLeft'); await pw(1500); await PK.up('ShiftLeft'); await PK.up('ArrowRight'); await pw(200);
+    const x2 = await pg.evaluate(() => window.__kage.camera.x);
+    expect(Math.abs(x1 - x0) < 0.5 && x2 - x1 > 100, `petit pas : ${(x1 - x0).toFixed(1)} px ; longue course : ${(x2 - x1).toFixed(0)} px`);
+  });
+
   await test('potager : chaque trou se franchit (saut, ou saut + dash pour les grands)', async () => {
     const bad = [];
     for (const h of holes) {

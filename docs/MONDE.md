@@ -1,6 +1,6 @@
 # KAGE — le monde (plan de conception)
 
-> **Statut** : direction validée par l'utilisateur. Le **chapitre 1, le Potager**, existe en greybox jouable (voir `docs/REPRISE.md`, § 6 bis). Les chapitres suivants restent à concevoir ; leurs ennemis sont des pistes, chacun passera d'abord par une planche de design.
+> **Statut** : direction validée par l'utilisateur. Le **chapitre 1, le Potager**, est jouable et entièrement peint (voir `docs/REPRISE.md`, § 6 bis et § 6 quater). Les chapitres suivants restent à concevoir ; leurs ennemis sont des pistes, chacun passera d'abord par une planche de design.
 
 ![Carte schématique du monde](monde/carte_du_monde.png)
 
@@ -72,15 +72,15 @@ Chaque chapitre est découpé en **zones** (8 pour le Potager), chacune avec une
 ## 7. Comment c'est construit (technique)
 
 - **Chaque chapitre est une carte construite zone par zone** par un petit constructeur (`src/game/chapters/potager.js`) : terrain, décors, aides et zones sont déclarés à la suite, ce qui permet de réordonner ou d'allonger une zone facilement.
-- **Dessin** : pour l'instant en formes simples codées à la main (`src/game/potager_art.js`) ; après les planches de design, en pixel art définitif.
+- **Dessin** : peint en code, pixel par pixel, une fois au chargement (`src/game/potager/`) : fond en parallaxe, tuiles selon la zone, décors, éléments animés. Chaque futur chapitre aura son propre dossier sur le même modèle (palette, plans de paysage, tuiles, décors).
 - **Tests** : chaque trou et chaque passage bas du chapitre a son test de faisabilité (`tests/e2e.cjs`) ; on vérifie aussi qu'ils demandent bien la mécanique prévue.
 - **Plus tard** : relier les chapitres en un seul monde (passage de l'un à l'autre, téléportation), carte du monde dans le menu pause, installation sur téléphone.
 
 ## 8. Ordre de construction
 
 1. ~~**Chapitre 1, le Potager, en greybox jouable**~~ : fait (écran titre, sauvegarde, zones, aides, ryō, caisses, marchand et boutique en coquille).
-2. **Planches de design du Potager** : le marchand, le petit nuisible, les décors et tuiles de chaque zone.
-3. **Pixel art définitif du Potager**, animations d'ambiance, sons et musique.
+2. ~~**Décor du Potager**~~ : fait (refonte visuelle : cadrage 480×270, caméra posée, montagnes, décors peints et animés ; voir `docs/REPRISE.md`, § 6 quater).
+3. **Planches de design du Potager** : le marchand (le sage voyageur) d'abord, puis le petit nuisible ; ensuite sons d'ambiance et musique.
 4. **Expérience et paliers**, contenu de la boutique (premiers skins).
 5. **Chapitre 2, le champ des bambous**, puis les suivants : chacun avec ses planches de design d'abord, son ennemi et sa cabane de marchand.
 
