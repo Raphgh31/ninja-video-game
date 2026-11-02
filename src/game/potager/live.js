@@ -119,18 +119,38 @@ export class Live {
         ctx.fillStyle = col[0]; ctx.fillRect(sx - 4 * dir - (dir > 0 ? 1 : -1), sy - (R(time * 6 + i) % 2), 1, 2);
       }
     }
-    // le ruisseau de la colline : l'eau qui descend scintille
+    // le ruisseau de la colline : l'eau ondule sur les replats, ruisselle sur les murs
     for (const h of this.hills) {
       if (!vis(h.mx, 400)) continue;
-      const n = h.stream.length;
-      ctx.fillStyle = '#ffffff';
-      for (let k = 0; k < 5; k++) {
-        const q = h.stream[Math.floor(((time * 22 + k * n / 5) % n))];
-        ctx.fillRect(R(q.x - cam.x), R(q.y - cam.y), 1, 2);
+      for (const row of h.rows) {
+        const sy = R(row.y - cam.y);
+        if (sy < -2 || sy > viewH) continue;
+        const q = h.band((row.x0 + row.x1) >> 1, row.y);
+        if (!q) continue;
+        const w = row.x1 - row.x0;
+        if (q.part === 'wall') {
+          ctx.fillStyle = '#ffffff';
+          for (let k = 0; k < 3; k++) {
+            const x = row.x0 + 1 + ((k * 7 + R(row.y * 3 - time * 40)) % (w - 1) + (w - 1)) % (w - 1);
+            ctx.fillRect(R(x - cam.x), sy, 1, 1);
+          }
+        } else {
+          ctx.fillStyle = q.f < 0.3 ? '#ffffff' : C.WATER[5];
+          for (let k = 0; k < 2; k++) {
+            const x = row.x0 + 1 + ((k * 11 + R(time * 9 + row.y * 5)) % (w - 1) + (w - 1)) % (w - 1);
+            ctx.fillRect(R(x - cam.x), sy, 2, 1);
+          }
+          if (q.f < 0.15) {                                          // éclaboussures au pied de la chute
+            ctx.fillStyle = '#ffffff';
+            const a = time * 5 + row.y;
+            ctx.fillRect(R(row.x0 - 2 - cam.x), sy - 1 - R(Math.abs(Math.sin(a)) * 2), 1, 1);
+            ctx.fillRect(R(row.x1 + 2 - cam.x), sy - 1 - R(Math.abs(Math.cos(a)) * 2), 1, 1);
+          }
+        }
       }
-      // l'eau qui passe par-dessus le déversoir
-      ctx.fillStyle = C.WATER[5];
-      for (let k = 0; k < 4; k++) ctx.fillRect(R(h.weir.x - 16 + ((time * 14 + k * 9) % 32) - cam.x), R(h.weir.y - 6 - cam.y), 3, 1);
+      // l'eau qui franchit le rocher
+      ctx.fillStyle = '#ffffff';
+      for (let k = 0; k < 5; k++) ctx.fillRect(R(h.weir.x - 10 + ((time * 16 + k * 5) % 20) - cam.x), R(h.weir.y - 14 + ((time * 30 + k * 4) % 14) - cam.y), 1, 2);
     }
     // tonneaux qui flottent dans les canaux
     for (const bl of this.barrels) {
@@ -271,9 +291,11 @@ export class Live {
       // le rideau d'eau : plus étroit au déversoir, il s'évase en tombant
       for (let y = 0; y < H; y++) {
         const k = y / H, half = R(10 + k * 4);
-        ctx.globalAlpha = 0.55 + 0.1 * (1 - k);
-        ctx.fillStyle = C.WATER[3]; ctx.fillRect(sx - half, t0 + y, half * 2, 1);
+        // dense et écumeuse au départ (dans le prolongement du rocher), elle s'éclaircit en tombant
+        ctx.globalAlpha = 0.58 + 0.37 * Math.max(0, 1 - k * 3.5);
+        ctx.fillStyle = k < 0.12 ? C.WATER[4] : C.WATER[3]; ctx.fillRect(sx - half, t0 + y, half * 2, 1);
         ctx.fillStyle = C.WATER[4]; ctx.fillRect(sx - half, t0 + y, 2, 1); ctx.fillRect(sx + 2, t0 + y, 2, 1);
+        if (k < 0.18) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - half + ((y * 5) % (half * 2)), t0 + y, 2, 1); }
       }
       ctx.globalAlpha = 0.95;
       ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 11, t0, 22, 1);                    // la lèvre du déversoir
