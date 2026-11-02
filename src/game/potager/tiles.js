@@ -278,49 +278,75 @@ function rockyAt(map, wx, wy) {
   return st && ROCKY.has(st) ? st : null;
 }
 
-/** Couleur d'un pixel de la masse rocheuse, ou null s'il est hors des pierres. */
+/** Profondeur sous la surface libre, dans la colonne de la case (tx, ty). */
+function surfaceDepth(map, tx, ty, wy) {
+  let top = ty; while (top > 0 && map.solid(tx, top - 1)) top--;
+  return wy - top * TILE;
+}
+
+/** Couleur d'un pixel de la masse rocheuse, ou null s'il est hors de la masse. */
 function earthPixel(map, wx, wy, own) {
   const w = worley(wx, wy, CELL, SEED, SQUASH);
   const cx = wx - w.dx, cy = wy - w.dy;
   const ctx = Math.floor(cx / TILE), cty = Math.floor(cy / TILE);
+  const pty = Math.floor(wy / TILE);
+  const stone = own === 'stone' || (!own && rockyAt(map, cx, cy) === 'stone');
+  if (stone) return stonePixel(map, wx, wy, own, w, cx, cy, ctx, cty, pty);
+  // --- terre : la silhouette suit un bord à peine ondulé (±1,5 px), jamais
+  //     une coupe droite, jamais les angles vifs des pierres ---
+  const ox = (noise1(wy * 0.33, 41) - 0.5) * 3.2 + (ih(wy >> 1, 0, 43) - 0.5) * 0.9;
+  const oy = (noise1(wx * 0.33, 42) - 0.5) * 3.2 + (ih(wx >> 1, 0, 44) - 0.5) * 0.9;
+  const sx = wx + ox, sy = wy + oy;
+  const stx = Math.floor(sx / TILE), sty = Math.floor(sy / TILE);
+  let st = rockyAt(map, sx, sy);
+  if (!st) {
+    if (own && map.solid(stx, sty)) st = own; else return null;
+  }
+  if (!own) {
+    // terre qui déborde : jamais au-dessus d'une surface, jamais dans l'herbe
+    if (sty > pty) return null;
+    if (surfaceDepth(map, stx, sty, wy) < grassDepth(wx) + 3) return null;
+  }
+  const depth = surfaceDepth(map, stx, sty, wy);
+  const under = depth < grassDepth(wx) + 2 ? 0.2 : 0;            // ombre portée sous le tapis d'herbe
+  const deep = Math.min(0.36, depth / 85) + (st === 'floor' ? 0.1 : 0);
+  // radicelles près de la surface
+  if (depth < 16 && Math.abs(noise2(wx * 0.22, wy * 0.5, 23) - 0.5) < 0.014) return C.SOIL[1];
+  // une cellule sur trois environ est une grosse motte ; le reste, de la terre meuble
+  if (w.id < 0.36) {
+    const edge = w.d2 - w.d;
+    if (edge < 1.05) return C.CLOD_LINE;
+    const nx = w.dx / CELL, ny = w.dy / (CELL * SQUASH);
+    const rim = edge < 2.1 ? (w.dx + w.dy * 1.4 < 0 ? 0.15 : -0.1) : 0;
+    const v = 0.56 + (w.id - 0.18) * 0.3 - nx * 0.12 - ny * 0.2 + rim - deep - under;
+    return pick(C.SOIL, clamp01(v), wx, wy, 0.12);
+  }
+  // terre meuble : grain fin et peu contrasté, quelques gravillons
+  if (ih(wx >> 1, wy >> 1, 9) < 0.004) return C.PEBBLE[1];
+  let v = 0.5 + (noise2(wx * 0.16, wy * 0.24, 45) - 0.5) * 0.18 - deep - under;
+  const g = ih(wx, wy, 46);
+  if (g < 0.06) v -= 0.12; else if (g < 0.1) v += 0.08;
+  return pick(C.SOIL, clamp01(v), wx, wy, 0.15);
+}
+
+/** Murets de pierre sèche : la silhouette suit les pierres (elles dépassent ou se creusent). */
+function stonePixel(map, wx, wy, own, w, cx, cy, ctx, cty, pty) {
   let st = rockyAt(map, cx, cy);
   if (!st) {
-    // centre hors du sol : le pixel n'appartient pas à la masse (sauf s'il touche
-    // un autre matériau plein : pas de trou contre une marche taillée ou du bois)
     if (own && map.solid(ctx, cty)) st = own; else return null;
   }
   if (!own) {
-    // pixel hors du sol (pierre qui dépasse) : jamais au-dessus d'une surface,
-    // jamais à hauteur du tapis d'herbe
-    const pty = Math.floor(wy / TILE);
     if (cty > pty) return null;
-    let top = cty; while (top > 0 && map.solid(ctx, top - 1)) top--;
-    if (wy - top * TILE < grassDepth(wx) + 3) return null;
+    if (surfaceDepth(map, ctx, cty, wy) < grassDepth(wx) + 3) return null;
   }
-  // profondeur sous la surface (dans la colonne de la pierre)
-  let top = cty; while (top > 0 && map.solid(ctx, top - 1)) top--;
-  const depth = wy - top * TILE;
+  const depth = surfaceDepth(map, ctx, cty, wy);
   const edge = w.d2 - w.d;
   if (edge < 1.1) return depth < 10 ? '#1b2a12' : C.CREVICE;
   const nx = w.dx / CELL, ny = w.dy / (CELL * SQUASH);
-  // arête claire en haut à gauche, ombre en bas à droite (un pixel, net)
   const rim = edge < 2.1 ? (w.dx + w.dy * 1.4 < 0 ? 0.22 : -0.14) : 0;
-  const grain = 0;
-  if (st === 'stone') {
-    // murets de pierre sèche : pierres grises, mousse sur le dessus
-    if (w.id > 0.6 && ny < -0.35 && edge > 1.6) return pick(C.MOSS, clamp01(0.55 - nx * 0.3), wx, wy);
-    const v = 0.58 + (w.id - 0.5) * 0.3 - nx * 0.16 - ny * 0.26 + rim - Math.min(0.2, depth / 160);
-    return pick(C.STONE, clamp01(v), wx, wy, 0.12);
-  }
-  if (w.id < 0.025) {                                            // un galet gris parmi la terre
-    return pick(C.PEBBLE, clamp01(0.6 - nx * 0.3 - ny * 0.35 + rim), wx, wy);
-  }
-  let v = 0.6 + (w.id - 0.5) * 0.3 - nx * 0.16 - ny * 0.26 + rim + grain - Math.min(0.4, depth / 80);
-  if (depth < grassDepth(wx) + 2) v -= 0.22;                     // ombre portée sous le tapis d'herbe
-  if (st === 'floor') v -= 0.12;
-  // radicelles près de la surface
-  if (depth < 16 && edge > 2 && Math.abs(noise2(wx * 0.22, wy * 0.5, 23) - 0.5) < 0.015) return C.SOIL[1];
-  return pick(C.SOIL, clamp01(v), wx, wy, 0.12);
+  if (w.id > 0.6 && ny < -0.35 && edge > 1.6) return pick(C.MOSS, clamp01(0.55 - nx * 0.3), wx, wy);
+  const v = 0.58 + (w.id - 0.5) * 0.3 - nx * 0.16 - ny * 0.26 + rim - Math.min(0.2, depth / 160);
+  return pick(C.STONE, clamp01(v), wx, wy, 0.12);
 }
 
 /**

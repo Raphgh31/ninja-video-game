@@ -24,8 +24,10 @@ export const HEDGE = ['#2f5534', '#3a6439', '#477442', '#56854b', '#6a9a53'];
 
 // terrain
 export const GRASS = ['#2d5a1f', '#3e7a27', '#559d30', '#72bb3a', '#97d34a', '#c4ea66'];
-export const SOIL = ['#33190d', '#4f2a16', '#6c3d1f', '#8b552b', '#aa6e3a', '#c98d54'];
+// terre : brun un peu sec, moins chaud qu'avant, toujours plus chaud que la pierre
+export const SOIL = ['#3a2a1f', '#543d2b', '#6f5139', '#8a6748', '#a3805c', '#bb9a74'];
 export const CREVICE = '#21110a';      // joints sombres entre les pierres
+export const CLOD_LINE = '#2e2118';    // contour des mottes de terre (plus doux que la pierre)
 export const PEBBLE = ['#5e5248', '#7d7064', '#9d8f80', '#bcae9c'];
 export const STONE = ['#4f4a44', '#67625a', '#827c71', '#9e978a', '#bab3a4', '#d3ccbd'];
 export const MOSS = ['#4c7232', '#5f8a3a', '#78a347', '#94bb58'];
