@@ -23,8 +23,9 @@ export const HILL = ['#43703f', '#517f45', '#62904c', '#77a456', '#90b862'];
 export const HEDGE = ['#2f5534', '#3a6439', '#477442', '#56854b', '#6a9a53'];
 
 // terrain
-export const GRASS = ['#3c6b2c', '#4f8a35', '#66a33d', '#83bd48', '#a6d35d', '#c8e57d'];
-export const SOIL = ['#3e2618', '#4f3220', '#64402a', '#7a5134', '#93653f', '#ad7d50'];
+export const GRASS = ['#2d5a1f', '#3e7a27', '#559d30', '#72bb3a', '#97d34a', '#c4ea66'];
+export const SOIL = ['#33190d', '#4f2a16', '#6c3d1f', '#8b552b', '#aa6e3a', '#c98d54'];
+export const CREVICE = '#21110a';      // joints sombres entre les pierres
 export const PEBBLE = ['#5e5248', '#7d7064', '#9d8f80', '#bcae9c'];
 export const STONE = ['#4f4a44', '#67625a', '#827c71', '#9e978a', '#bab3a4', '#d3ccbd'];
 export const MOSS = ['#4c7232', '#5f8a3a', '#78a347', '#94bb58'];

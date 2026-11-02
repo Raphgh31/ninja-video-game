@@ -5,7 +5,7 @@
 // Les tranches sont peintes à la demande (celles qu'on voit d'abord, puis les
 // suivantes une par une pendant le jeu), pour un chargement rapide.
 import { Pix, Brush, canvas } from './paint.js';
-import { TileMap, paintTiles, paintGrassTops, TILE } from './tiles.js';
+import { TileMap, paintTiles, paintOverhangs, paintGrassTops, TILE } from './tiles.js';
 import { paintProp, propLayers, PROP_REACH, autoDecor, groveLeaves } from './props.js';
 
 const CHUNK = 512;
@@ -52,6 +52,7 @@ export class World {
     // tuiles, peintes pixel par pixel
     const tiles = new Pix(CHUNK + 2 * TILE, H);
     paintTiles(tiles, this.map, tx0, tx1, x0 - TILE);
+    paintOverhangs(tiles, this.map, tx0, tx1, x0 - TILE);
     bctx.drawImage(tiles.done(), x0 - TILE, 0);
     paintGrassTops(b, this.map, tx0, tx1);
     groveLeaves(b, this.map, tx0, tx1);

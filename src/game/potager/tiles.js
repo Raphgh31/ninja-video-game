@@ -94,8 +94,13 @@ function depthBelowAir(map, tx, ty, py) {
 // épaisseur du tapis d'herbe : irrégulière, avec des coulures
 function grassDepth(wx, seed = 0) {
   const n = noise1(wx * 0.35, seed);
-  let d = 3 + Math.round(n * 3);
-  if (ih(wx, 0, seed + 7) < 0.12) d += 2 + Math.floor(ih(wx, 1, seed) * 3);   // touffe qui pend
+  let d = 4 + Math.round(n * 2);
+  // coulures en pointe : une touffe pend sur 3 à 5 px, en s'affinant
+  const k = Math.floor(wx / 5), c = ih(k, 0, seed + 7);
+  if (c < 0.32) {
+    const len = 2 + Math.floor(ih(k, 1, seed) * 4), mid = k * 5 + 2, off = Math.abs(wx - mid);
+    d += Math.max(0, len - off * 2);
+  }
   return d;
 }
 
@@ -117,10 +122,11 @@ function soilColor(wx, wy, depth, ramp = C.SOIL, dark = 0) {
 }
 
 function grassColor(wx, wy, py, gd) {
-  // bande d'herbe : claire en haut, plus sombre en dessous, liseré foncé à la lisière
+  // tapis d'herbe : clair en haut, brins verticaux, sombre en dessous, liseré foncé
   if (py >= gd - 1) return C.GRASS[0];
-  let v = 0.78 - (py / gd) * 0.5 + (noise2(wx * 0.6, wy * 0.6, 5) - 0.5) * 0.3;
-  if (py === 0) v += 0.12;
+  let v = 0.84 - (py / gd) * 0.55 + (noise2(wx * 0.6, wy * 0.6, 5) - 0.5) * 0.22;
+  if (py <= 1) v += 0.1;
+  if ((wx + Math.floor(py / 2)) % 3 === 0 && py > 1) v -= 0.12;   // brins
   return pick(C.GRASS, clamp01(v), wx, wy, 0.3);
 }
 
@@ -254,6 +260,69 @@ function groveColor(map, tx, ty, px, py, wx, wy) {
   return pick(C.BAMBOO, clamp01(v), wx, wy);
 }
 
+// ---------------------------------------------------------------------------
+// la masse de terre et de pierre : de grosses pierres taillées en facettes,
+// séparées par des joints sombres. La silhouette des flancs suit les pierres :
+// une pierre dont le centre est dans le sol est peinte entière, même si elle
+// dépasse un peu de sa case (micro-falaises irrégulières, sans toucher aux
+// collisions).
+// ---------------------------------------------------------------------------
+const ROCKY = new Set(['soil', 'stone', 'floor']);
+const CELL = 8.5, SQUASH = 0.62, SEED = 211;
+
+/** Style rocheux de la case qui contient le point (wx, wy), ou null. */
+function rockyAt(map, wx, wy) {
+  const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
+  if (tx < 0 || tx >= map.w || ty >= map.h) return 'soil';
+  const st = map.styleAt(tx, ty);
+  return st && ROCKY.has(st) ? st : null;
+}
+
+/** Couleur d'un pixel de la masse rocheuse, ou null s'il est hors des pierres. */
+function earthPixel(map, wx, wy, own) {
+  const w = worley(wx, wy, CELL, SEED, SQUASH);
+  const cx = wx - w.dx, cy = wy - w.dy;
+  const ctx = Math.floor(cx / TILE), cty = Math.floor(cy / TILE);
+  let st = rockyAt(map, cx, cy);
+  if (!st) {
+    // centre hors du sol : le pixel n'appartient pas à la masse (sauf s'il touche
+    // un autre matériau plein : pas de trou contre une marche taillée ou du bois)
+    if (own && map.solid(ctx, cty)) st = own; else return null;
+  }
+  if (!own) {
+    // pixel hors du sol (pierre qui dépasse) : jamais au-dessus d'une surface,
+    // jamais à hauteur du tapis d'herbe
+    const pty = Math.floor(wy / TILE);
+    if (cty > pty) return null;
+    let top = cty; while (top > 0 && map.solid(ctx, top - 1)) top--;
+    if (wy - top * TILE < grassDepth(wx) + 3) return null;
+  }
+  // profondeur sous la surface (dans la colonne de la pierre)
+  let top = cty; while (top > 0 && map.solid(ctx, top - 1)) top--;
+  const depth = wy - top * TILE;
+  const edge = w.d2 - w.d;
+  if (edge < 1.1) return depth < 10 ? '#1b2a12' : C.CREVICE;
+  const nx = w.dx / CELL, ny = w.dy / (CELL * SQUASH);
+  // arête claire en haut à gauche, ombre en bas à droite (un pixel, net)
+  const rim = edge < 2.1 ? (w.dx + w.dy * 1.4 < 0 ? 0.22 : -0.14) : 0;
+  const grain = 0;
+  if (st === 'stone') {
+    // murets de pierre sèche : pierres grises, mousse sur le dessus
+    if (w.id > 0.6 && ny < -0.35 && edge > 1.6) return pick(C.MOSS, clamp01(0.55 - nx * 0.3), wx, wy);
+    const v = 0.58 + (w.id - 0.5) * 0.3 - nx * 0.16 - ny * 0.26 + rim - Math.min(0.2, depth / 160);
+    return pick(C.STONE, clamp01(v), wx, wy, 0.12);
+  }
+  if (w.id < 0.025) {                                            // un galet gris parmi la terre
+    return pick(C.PEBBLE, clamp01(0.6 - nx * 0.3 - ny * 0.35 + rim), wx, wy);
+  }
+  let v = 0.6 + (w.id - 0.5) * 0.3 - nx * 0.16 - ny * 0.26 + rim + grain - Math.min(0.4, depth / 80);
+  if (depth < grassDepth(wx) + 2) v -= 0.22;                     // ombre portée sous le tapis d'herbe
+  if (st === 'floor') v -= 0.12;
+  // radicelles près de la surface
+  if (depth < 16 && edge > 2 && Math.abs(noise2(wx * 0.22, wy * 0.5, 23) - 0.5) < 0.015) return C.SOIL[1];
+  return pick(C.SOIL, clamp01(v), wx, wy, 0.12);
+}
+
 /**
  * Peint les tuiles des colonnes [tx0, tx1[ dans le tampon pix, dont le pixel
  * (0, 0) correspond au point du monde (ox, 0).
@@ -300,9 +369,19 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
       for (let py = 0; py < TILE; py++) {
         for (let px = 0; px < TILE; px++) {
           const wx = tx * TILE + px, wy = ty * TILE + py;
+          // terre, murets, sol de la grange : la masse rocheuse et son tapis d'herbe
+          if (ROCKY.has(style)) {
+            const gd = grassDepth(wx);
+            let col = null;
+            if (topOpen && style !== 'floor' && py < gd) col = grassColor(wx, wy, py, gd);
+            else if (topOpen && style === 'floor' && py < 2) col = pick(C.SOIL, 0.45 + (noise1(wx * 0.5, 4) - 0.5) * 0.3, wx, wy);
+            else col = earthPixel(map, wx, wy, style);
+            if (style === 'floor' && col && py >= 2 && py < 6 && ih(wx, wy, 8) < 0.1) col = C.STRAW[2];
+            if (col) pix.set(wx - ox, wy, col);
+            continue;
+          }
           // coins arrondis là où deux faces sont à l'air libre
           if (topOpen && ((leftOpen && px + py < 2) || (rightOpen && (TILE - 1 - px) + py < 2))) continue;
-          if (botOpen && style !== 'deck' && style !== 'beam' && style !== 'shelf' && style !== 'branch' && ((leftOpen && px + (TILE - 1 - py) < 2) || (rightOpen && (TILE - 1 - px) + (TILE - 1 - py) < 2))) continue;
           let col;
           const grassy = style === 'soil' || style === 'stone' || style === 'roots';
           const gd = grassDepth(wx);
@@ -342,6 +421,26 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
   }
 }
 
+/** Pierres qui débordent dans les cases vides, contre les flancs et sous les surplombs. */
+export function paintOverhangs(pix, map, tx0, tx1, ox) {
+  for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
+    for (let ty = 0; ty < map.h; ty++) {
+      if (map.solid(tx, ty) || map.at(tx, ty) === '~') continue;
+      const L = ROCKY.has(map.styleAt(tx - 1, ty) ?? ''), Rr = ROCKY.has(map.styleAt(tx + 1, ty) ?? ''), U = ROCKY.has(map.styleAt(tx, ty - 1) ?? '');
+      if (!L && !Rr && !U) continue;
+      for (let py = 0; py < TILE; py++) {
+        for (let px = 0; px < TILE; px++) {
+          const near = (L && px < 4) || (Rr && px > 11) || (U && py < 4);
+          if (!near) continue;
+          const wx = tx * TILE + px, wy = ty * TILE + py;
+          const col = earthPixel(map, wx, wy, null);
+          if (col) pix.set(wx - ox, wy, col);
+        }
+      }
+    }
+  }
+}
+
 /** Herbe qui dépasse du sol, fleurs sauvages : peints au-dessus des tuiles (derrière les personnages). */
 export function paintGrassTops(b, map, tx0, tx1) {
   for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
@@ -350,13 +449,24 @@ export function paintGrassTops(b, map, tx0, tx1) {
       if (!(st === 'soil' || st === 'stone' || st === 'roots') || map.solid(tx, ty - 1) || map.at(tx, ty - 1) === '~') continue;
       const z = map.zone[tx];
       if (z === '06') continue;
+      // l'herbe déborde des angles et coule sur le flanc
+      for (const side of [-1, 1]) {
+        if (map.solid(tx + side, ty)) continue;
+        const ex = side < 0 ? tx * TILE : tx * TILE + TILE - 1, wy0 = ty * TILE;
+        const drop = 4 + Math.floor(ih(tx, ty, 90 + side) * 6);
+        b.r(side < 0 ? ex - 2 : ex + 1, wy0 + 1, 2, 3, C.GRASS[2]).p(side < 0 ? ex - 2 : ex + 2, wy0 + 1, C.GRASS[4]);
+        for (let k = 0; k < 3; k++) {
+          const x = ex + side * (k === 0 ? 1 : k === 1 ? 0 : -1), len = drop - k * 2;
+          for (let j = 0; j < len; j++) b.p(x, wy0 + 3 + j, j > len - 2 ? C.GRASS[1] : j % 2 ? C.GRASS[2] : C.GRASS[3]);
+        }
+      }
       for (let px = 0; px < TILE; px++) {
         const wx = tx * TILE + px, wy = ty * TILE;
-        const n = ih(wx, ty, 77);
-        if (n < 0.42) {
-          const h = 1 + Math.floor(ih(wx, ty, 78) * (z === '05' ? 2 : 4));
+        const clump = noise1(wx * 0.28, 76);
+        if (ih(wx, ty, 77) < 0.35 + clump * 0.45) {
+          const h = 1 + Math.floor(ih(wx, ty, 78) * (z === '05' ? 2 : 2 + clump * 5));
           const lean = ih(wx, ty, 79) < 0.3 ? -1 : ih(wx, ty, 79) > 0.7 ? 1 : 0;
-          for (let k = 1; k <= h; k++) b.p(wx + (k === h ? lean : 0), wy - k, k === h ? C.GRASS[4] : C.GRASS[3]);
+          for (let k = 1; k <= h; k++) b.p(wx + (k > h * 0.6 ? lean : 0), wy - k, k === h ? C.GRASS[5] : k > h - 2 ? C.GRASS[4] : C.GRASS[3]);
         }
         // fleurs sauvages selon la zone
         const fl = ih(wx, ty, 80);
