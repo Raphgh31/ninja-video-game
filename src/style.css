@@ -22,6 +22,12 @@ h1 span { color: var(--muted); letter-spacing: .04em; font-weight: 400; margin-l
 
 .stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: .5rem; min-height: 0; }
 #game { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
+/* calque du paysage, exactement sous le jeu */
+.bg-layer { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
+.bg-layer[hidden] { display: none; }
+.stage > #game, .stage > .bg-layer { grid-area: 1 / 1; }
+#game.over-bg { background: transparent; }
+body.mobile .bg-layer { position: absolute; left: 0; top: 0; }
 
 .keys { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: 0; font-size: .78rem; }
 .keys div { display: flex; gap: .45rem; }

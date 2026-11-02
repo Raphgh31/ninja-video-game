@@ -670,6 +670,7 @@ export class Backdrop {
     this.fore = time('fore', () => paintFore(level.width, zones));
     this.timings = T;
     this.skyH = 0;
+    this.k = 1;
     this.sky = null;
     // nuages : grands cumulus dans le ciel, nappes basses autour des montagnes
     const r = rng(500);
@@ -684,17 +685,27 @@ export class Backdrop {
     }
   }
 
-  /** Base d'un plan à l'écran, selon la hauteur de la caméra. */
+  /**
+   * Base d'un plan à l'écran, selon la hauteur de la caméra. Le fond est peint
+   * sur son propre calque à la résolution de l'écran (k pixels d'écran par pixel
+   * de jeu) : les positions sont arrondies au pixel d'écran, pas au pixel de jeu,
+   * pour que les plans lointains glissent lentement et sans à-coups.
+   */
   planeY(plane, cam, viewH) {
     const gy = GROUND_ROW * TILE - cam.y;                    // sol de référence à l'écran
     const ref = viewH * GROUND_AT;
-    return Math.round(ref + plane.off + (gy - ref) * plane.fy) - plane.base;
+    return this.q(ref + plane.off + (gy - ref) * plane.fy) - plane.base;
   }
 
+  /** Arrondi au pixel d'écran. */
+  q(v) { return Math.round(v * this.k) / this.k; }
+
   drawStrip(ctx, strip, cam, viewW, viewH) {
-    const sx = Math.round(cam.x * strip.plane.fx);
+    const off = this.q(cam.x * strip.plane.fx);
+    const sx = Math.floor(off), frac = off - sx;
     const y = this.planeY(strip.plane, cam, viewH);
-    ctx.drawImage(strip.img, sx, 0, Math.min(viewW, strip.W - sx), strip.plane.h, 0, y, Math.min(viewW, strip.W - sx), strip.plane.h);
+    const w = Math.min(viewW + 1, strip.W - sx);
+    if (w > 0) ctx.drawImage(strip.img, sx, 0, w, strip.plane.h, -frac, y, w, strip.plane.h);
     return y;
   }
 
@@ -706,18 +717,19 @@ export class Backdrop {
       if (x > viewW || x + c.img.width < 0) continue;
       const y = high ? c.y + Math.round((viewH - 270) * 0.3) : this.planeY(PLANES.mid, cam, viewH) + PLANES.mid.base - 64 + c.dy;
       if (!high) ctx.globalAlpha = 0.82;
-      ctx.drawImage(c.img, Math.round(x), Math.round(y));
+      ctx.drawImage(c.img, this.q(x), this.q(y));
       ctx.globalAlpha = 1;
     }
   }
 
-  draw(ctx, cam, viewW, viewH, time) {
+  /** k = pixels d'écran par pixel de jeu (le contexte est déjà mis à l'échelle). */
+  draw(ctx, cam, viewW, viewH, time, k = 1) {
+    this.k = k;
     if (this.skyH !== viewH) {
       this.skyH = viewH;
       this.sky = paintSky(viewH, viewH * GROUND_AT - 30);
     }
     ctx.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
-    // halo du soleil, en haut à gauche, hors de l'image
     this.drawClouds(ctx, cam, viewW, viewH, time, true);
     this.drawStrip(ctx, this.far, cam, viewW, viewH);
     this.drawBirds(ctx, cam, viewW, viewH, time);
@@ -727,7 +739,7 @@ export class Backdrop {
     const vy = this.drawStrip(ctx, this.village, cam, viewW, viewH);
     this.villageY = vy;
     // fumées des cheminées du village
-    const sx0 = cam.x * this.village.plane.fx;
+    const sx0 = this.q(cam.x * this.village.plane.fx);
     for (const c of this.village.smoke) {
       const x = c.x - sx0, y = vy + c.y;
       if (x < -10 || x > viewW + 10) continue;
@@ -736,14 +748,14 @@ export class Backdrop {
         ctx.globalAlpha = 0.45 * (1 - t);
         ctx.fillStyle = '#f1f3ef';
         const sz = 1 + Math.round(t * 3);
-        ctx.fillRect(Math.round(x + Math.sin(t * 4 + c.x) * 2 + t * 8), Math.round(y - 2 - t * 26), sz, sz);
+        ctx.fillRect(x + Math.round(Math.sin(t * 4 + c.x) * 2 + t * 8), y + Math.round(-2 - t * 26), sz, sz);
       }
       ctx.globalAlpha = 1;
     }
     const ny = this.drawStrip(ctx, this.near, cam, viewW, viewH);
     // sous la lisière (visible dans les canaux et les fossés) : la haie se prolonge
     const bottom = ny + this.near.plane.h;
-    if (bottom < viewH) { ctx.fillStyle = C.HEDGE[0]; ctx.fillRect(0, bottom, viewW, viewH - bottom); }
+    if (bottom < viewH) { ctx.fillStyle = C.HEDGE[0]; ctx.fillRect(0, bottom - 1, viewW, viewH - bottom + 1); }
   }
 
   /** Vols d'oiseaux en V qui traversent lentement le ciel. */
@@ -752,11 +764,11 @@ export class Backdrop {
     for (let f = 0; f < 3; f++) {
       const period = 70 + f * 23;
       const t = ((time + f * 31) % period) / period;
-      const x0 = viewW + 60 - t * (viewW + 160) - cam.x * 0.02, y0 = 30 + f * 26 + Math.sin(time * 0.3 + f) * 4;
+      const x0 = this.q(viewW + 60 - t * (viewW + 160) - cam.x * 0.02), y0 = 30 + f * 26 + Math.sin(time * 0.3 + f) * 4;
       const n = 3 + f * 2;
       for (let i = 0; i < n; i++) {
         const side = i % 2 ? 1 : -1, k = Math.ceil(i / 2);
-        const x = Math.round(x0 + k * 7), y = Math.round(y0 + side * k * 4);
+        const x = x0 + k * 7, y = Math.round(y0 + side * k * 4);
         const up = Math.sin(time * 9 + i) > 0;
         ctx.fillRect(x - 2, y + (up ? -1 : 0), 2, 1); ctx.fillRect(x, y, 1, 1); ctx.fillRect(x + 1, y + (up ? -1 : 0), 2, 1);
       }

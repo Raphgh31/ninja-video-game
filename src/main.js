@@ -34,6 +34,14 @@ canvas.width = VIEW_W;
 canvas.height = VIEW_H;
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+// calque du paysage (chapitres) : derrière le jeu, à la résolution réelle de
+// l'écran, pour que les plans lointains glissent au pixel d'écran près
+const bgCanvas = document.createElement('canvas');
+bgCanvas.className = 'bg-layer';
+bgCanvas.hidden = true;
+canvas.before(bgCanvas);
+const bgCtx = bgCanvas.getContext('2d');
+let bgK = 1;   // pixels d'écran par pixel de jeu
 // calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
 const touchCanvas = MOBILE ? document.createElement('canvas') : null;
 const touchCtx = touchCanvas?.getContext('2d');
@@ -60,6 +68,7 @@ function fit() {
     // échelle entière en pixels réels de l'écran, la plus proche de 252 px de jeu en hauteur
     let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
     while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
+    bgK = Math.min(6, dev);
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
     VIEW_W = Math.ceil((LW * dpr) / dev);
     VIEW_H = Math.ceil((LH * dpr) / dev);
@@ -83,6 +92,7 @@ function fit() {
     SCALE = Math.max(1, Math.floor(Math.min(stage.width / DESK_W, stage.height / DESK_H)));
     VIEW_W = DESK_W;
     VIEW_H = DESK_H;
+    bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
   if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
     canvas.width = VIEW_W;
@@ -91,6 +101,12 @@ function fit() {
   }
   canvas.style.width = `${VIEW_W * SCALE}px`;
   canvas.style.height = `${VIEW_H * SCALE}px`;
+  if (bgCanvas.width !== VIEW_W * bgK || bgCanvas.height !== VIEW_H * bgK) {
+    bgCanvas.width = VIEW_W * bgK;
+    bgCanvas.height = VIEW_H * bgK;
+  }
+  bgCanvas.style.width = canvas.style.width;
+  bgCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
@@ -104,6 +120,11 @@ const look = skins.encre;   // palette du ninja noir (les skins viendront plus t
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
+if (level.art) {
+  level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
+  bgCanvas.hidden = false;
+  canvas.classList.add('over-bg');
+}
 addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
 level.player = player;   // le décor réagit à KAGE (le kappa plonge, etc.)
@@ -444,6 +465,13 @@ function draw() {
   const shake = fx.offset();
   // une seule position, arrondie au pixel, pour tout ce qui est dessiné
   const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
+  if (level.art) {
+    // paysage : position exacte de la caméra, arrondie au pixel d'écran
+    bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
+    bgCtx.imageSmoothingEnabled = false;
+    level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
+    ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+  }
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);

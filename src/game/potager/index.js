@@ -37,7 +37,8 @@ export class PotagerArt {
   }
 
   drawBack(ctx, cam, viewW, viewH, time) {
-    this.backdrop.draw(ctx, cam, viewW, viewH, time);
+    // le paysage a son propre calque, plus fin (voir main.js) ; sinon on le peint ici
+    if (!this.hiBackdrop) this.backdrop.draw(ctx, cam, viewW, viewH, time);
     this.world.idle(cam, viewW);
     this.world.draw(ctx, 'back', cam, viewW, viewH);
     // caisses : elles disparaissent quand on les brise
