@@ -284,13 +284,35 @@ function surfaceDepth(map, tx, ty, wy) {
   return wy - top * TILE;
 }
 
+/**
+ * Matière d'une pierre (cellule de centre cx, cy) : la limite entre muret et
+ * terre n'est pas une ligne droite. Chaque cellule tire un petit décalage au
+ * hasard : près de la limite, des pierres s'enfoncent dans la terre, de la
+ * terre remonte entre les pierres, et quelques pierres à demi enterrées
+ * parsèment la terre sous le muret (de plus en plus rares en descendant).
+ */
+function materialOf(map, cx, cy, own) {
+  const here = rockyAt(map, cx, cy);
+  if (!here) return own === 'stone' ? 'stone' : own;
+  const h = ih(Math.round(cx * 2), Math.round(cy * 2), 77);
+  const jx = (ih(Math.round(cx), Math.round(cy), 78) - 0.5) * 10, jy = (h - 0.5) * 16;
+  const there = rockyAt(map, cx + jx, cy + jy);
+  if (here === 'stone') return there && there !== 'stone' ? there : 'stone';
+  if (there === 'stone') return 'stone';
+  // pierres à demi enterrées sous un muret
+  for (const [k, p] of [[10, 0.42], [20, 0.2], [32, 0.08]]) {
+    if (rockyAt(map, cx, cy - k) === 'stone') return h < p ? 'stone' : here;
+  }
+  return here;
+}
+
 /** Couleur d'un pixel de la masse rocheuse, ou null s'il est hors de la masse. */
 function earthPixel(map, wx, wy, own) {
   const w = worley(wx, wy, CELL, SEED, SQUASH);
   const cx = wx - w.dx, cy = wy - w.dy;
   const ctx = Math.floor(cx / TILE), cty = Math.floor(cy / TILE);
   const pty = Math.floor(wy / TILE);
-  const stone = own === 'stone' || (!own && rockyAt(map, cx, cy) === 'stone');
+  const stone = materialOf(map, cx, cy, own) === 'stone';
   if (stone) return stonePixel(map, wx, wy, own, w, cx, cy, ctx, cty, pty);
   // --- terre : la silhouette suit un bord à peine ondulé (±1,5 px), jamais
   //     une coupe droite, jamais les angles vifs des pierres ---
