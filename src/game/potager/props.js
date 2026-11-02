@@ -4,7 +4,7 @@
 //   backdrop : fond d'intérieur (serre, grange) ; back : derrière KAGE ;
 //   ground : posé sur l'herbe, devant les tuiles ; front : devant KAGE.
 // Les éléments animés (roue à eau, eau qui coule, lanternes, koïs…) sont dans live.js.
-import { ih, noise1, noise2, rng, pick, mix, hex, worley } from './paint.js';
+import { ih, noise1, noise2, rng, pick, mix, hex, mixHex, worley } from './paint.js';
 import * as C from './palette.js';
 
 const TILE = 16;
@@ -12,7 +12,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
-  serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], terraces_bg: ['backdrop'],
+  serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'], orchard_canopy: ['front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
   bridge_red: ['back'], stall: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
@@ -23,7 +23,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { terraces_bg: 1000, serre: 700, grange: 600, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { terraces_bg: 1100, serre: 700, grange: 600, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -130,6 +130,46 @@ function tileRoof(b, cx, y, w, h, flare = 3) {
     }
   }
   b.r(cx - w / 2 + 6, y - 2, w - 12, 2, C.ROOF[0]).r(cx - w / 2 + 6, y - 2, w - 12, 1, C.ROOF[2]);
+}
+
+/**
+ * La colline en terrasses (zone 2) : géométrie partagée par le décor et l'eau
+ * animée. Gradins en arcs (plus bas au milieu : on les voit un peu d'en haut,
+ * ils épousent la rondeur), de plus en plus hauts en descendant.
+ */
+const hillCache = new Map();
+export function hillGeom(p) {
+  const key = `${p.x},${p.w},${p.mx},${p.peak}`;
+  if (hillCache.has(key)) return hillCache.get(key);
+  const x0 = p.x * TILE, x1 = (p.x + p.w) * TILE, mx = p.mx * TILE, peak = p.peak, base = p.y * TILE;
+  const WL = mx - x0, WR = x1 - mx;
+  const top = (x) => {
+    const dx = x - mx, W = dx < 0 ? WL : WR, t = Math.abs(dx) / W;
+    if (t >= 1) return null;
+    // dôme arrondi : sommet large, épaules, flancs qui s'évasent
+    const dome = 1 - Math.sqrt(Math.max(0, 1 - t * t));
+    return Math.round(peak + (base - peak) * (0.55 * dome + 0.45 * t * t) + (noise1(x * 0.07, 3) - 0.5) * 4);
+  };
+  const band = (x, y) => {
+    const dx = x - mx, W = dx < 0 ? WL : WR, t = Math.min(1, Math.abs(dx) / W);
+    const r = (y - peak) / (base - peak);
+    const e = y - 20 * (0.35 + 0.65 * r) * (1 - t * t) + (noise1(x * 0.05, 9) - 0.5) * 2;
+    const k = Math.pow(Math.max(0, e - peak + 4), 0.75) * 0.15;   // ~9 gradins, plus hauts en bas
+    const tier = Math.floor(k);
+    return { tier, frac: k - tier };
+  };
+  // le ruisseau : de la source (au sommet) au déversoir, en serpentant un peu
+  const src = { x: mx + 16, y: peak + 12 };
+  const weir = { x: p.spout * TILE + 8, y: p.lip };
+  const stream = [];
+  const n = Math.max(1, weir.y - 6 - src.y);
+  for (let i = 0; i <= n; i++) {
+    const tt = i / n;
+    stream.push({ x: Math.round(src.x + (weir.x - src.x) * tt + Math.sin(tt * 7) * 7 * (1 - tt)), y: src.y + i });
+  }
+  const g = { x0, x1, mx, peak, base, WL, WR, top, band, stream, weir };
+  hillCache.set(key, g);
+  return g;
 }
 
 const hazeRampLite = (ramp) => ramp.map((c) => hex(mix(c, '#c2d6cc', 0.35)));
@@ -421,45 +461,136 @@ const PAINT = {
   },
 
   terraces_bg(b, p, X, Y) {
-    // une butte cultivée en terrasses, derrière le chemin : murets de pierre
-    // sèche et bandes de cultures, voilés par la distance ; la cascade en descend
-    const x0 = p.x * TILE, x1 = (p.x + p.w) * TILE, mid = p.spout ? p.spout * TILE + 20 : (x0 + x1) / 2;
-    const peak = p.peak ?? 118;
-    const veil = (c, k) => hex(mix(c, '#c2d6cc', k));
-    for (let x = x0; x < x1; x++) {
-      const t = Math.min(1, Math.abs(x - mid) / (x < mid ? mid - x0 : x1 - mid));
-      const top = Math.round(peak + t * t * (Y - peak) + (noise1(x * 0.08, 3) - 0.5) * 3);
+    // la colline en terrasses : gradins qui épousent sa rondeur (le dessus de
+    // chaque gradin vu un peu d'en haut, son mur de pierre en façade), flanc
+    // droit dans l'ombre, arbres, abri, escalier ; un ruisseau naît au sommet et
+    // descend de gradin en gradin jusqu'au déversoir d'où tombe la cascade
+    const H = hillGeom(p);
+    const VEIL = '#c4d7cc';
+    for (let x = H.x0; x < H.x1; x++) {
+      const top = H.top(x);
+      if (top == null) continue;
+      const dx = x - H.mx, W = dx < 0 ? H.WL : H.WR, t = Math.abs(dx) / W;
+      const side = -0.32 * (dx / W) - (dx > 0 ? 0.18 * t * t * t : 0.06 * t);   // lumière à gauche, ombre à droite
       for (let y = top; y < Y; y++) {
-        const off = Math.round(Math.sin(x * 0.015) * 4);
-        const ly = (y - peak + off + 300) % 26;
-        const tier = Math.floor((y - peak + off + 300) / 26);
+        const r = (y - H.peak) / (Y - H.peak);
         let col;
-        if (y - top < 2) col = C.GRASS[y === top ? 4 : 3];
-        else if (ly < 9) {
-          const w = worley(x, y, 5, 61, 0.6);
-          let v = 0.55 - (w.dx / 5) * 0.3 - (w.dy / 3) * 0.35;
-          if (w.d2 - w.d < 0.9) v = 0.05;
-          col = pick(C.STONE, clamp01(v), x, y);
-          if (ly === 0) col = C.GRASS[3];
+        if (y - top < 2) {
+          col = C.GRASS[y === top ? 5 : 4];
         } else {
-          const row = (ly - 9) % 6;
-          col = row < 2 ? C.SOIL[3] : row === 5 ? C.GRASS[1] : pick(C.GRASS, 0.45 + (noise2(x * 0.5, y * 0.5, tier) - 0.5) * 0.5, x, y);
-          if (row === 3 && ih(x, tier, 5) < 0.18) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0'][tier % 3];
+          const { tier, frac } = H.band(x, y);
+          if (frac >= 0.62) {
+            // mur de pierre sèche, en façade
+            const w = worley(x, y, 3.4, 91 + tier, 0.6);
+            let v = 0.56 - (w.dx / 3.4) * 0.2 - (w.dy / 2) * 0.2 + side;
+            if (w.d2 - w.d < 0.8) v = 0.08;
+            if (frac > 0.93) v -= 0.25;
+            if (frac < 0.67) v += 0.12;                                   // arête du mur, éclairée
+            col = pick(C.STONE, clamp01(v), x, y, 0.15);
+          } else {
+            const kind = ih(tier, 0, 5);
+            const f = frac / 0.62;
+            if (f < 0.12) col = pick(C.GRASS, clamp01(0.78 + side), x, y);                 // bord herbeux
+            else if (kind < 0.42) {                                                        // légumes en rangs
+              const row = Math.floor(f * 3), ry = f * 3 - row;
+              const px = (x + row * 4 + tier * 3) % 6;
+              const plant = ry > 0.25 && px < 4 && !(px === 0 && ry < 0.5) && !(px === 3 && ry < 0.5);
+              col = plant ? pick(C.GRASS, clamp01(0.62 + side + (ry < 0.55 ? 0.12 : -0.08) - (px > 1 ? 0.1 : 0)), x, y) : C.SOIL[3];
+              if (plant && px === 1 && ry > 0.7 && ih(x, tier, 6) < 0.35) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][tier % 4];
+            } else if (kind < 0.7) {                                                       // rizière inondée : le ciel s'y reflète
+              col = f > 0.85 ? C.GRASS[1] : ih(Math.floor(x / 3), y, tier) > 0.9 ? '#eef7f4' : (y + tier) % 3 === 0 ? '#a9d0d6' : '#bcdde0';
+              if ((x + y) % 4 === 0 && f < 0.85) col = '#93c46a';                           // jeunes pousses
+            } else {                                                                       // théiers taillés en boules
+              const bx = ((x + tier * 7) % 7) - 3, by = f * 7 - 4;
+              const inBush = bx * bx * 0.5 + by * by < 9;
+              col = inBush ? pick(C.HEDGE, clamp01(0.6 + side - bx * 0.08 - by * 0.1), x, y) : C.SOIL[2];
+            }
+          }
         }
-        b.p(x, y, veil(col, 0.42));
+        b.p(x, y, mixHex(col, VEIL, Math.round((0.26 + (1 - r) * 0.1) * 20) / 20));
       }
     }
-    // quelques arbres et un abri de bois au sommet de la butte
-    leaves(b, mid - 70, peak + 12, 10, hazeRampLite(C.LEAF), 5, { light: 0.05 });
-    leaves(b, mid + 64, peak + 16, 8, hazeRampLite(C.LEAF), 6, { light: 0.05 });
-    // le bec de bambou d'où jaillit la cascade
-    if (p.spout) {
-      const sx = p.spout * TILE, sy = peak + 6;
-      b.r(sx - 20, sy, 24, 3, C.BAMBOO[3]).r(sx - 20, sy, 24, 1, C.BAMBOO[5]).r(sx - 20, sy + 3, 24, 1, C.BAMBOO[1]);
-      b.r(sx - 6, sy - 1, 2, 5, '#2a2420').r(sx - 15, sy - 1, 2, 5, '#2a2420');
-      b.r(sx - 24, sy - 4, 6, 12, C.STONE[2]).r(sx - 24, sy - 4, 6, 1, C.STONE[4]);
-      b.r(sx + 2, sy + 1, 4, 2, C.WATER[4]);
+    const vr = (ramp) => ramp.map((c) => mixHex(c, VEIL, 0.25));
+    // une haie de buissons suit la crête (silhouette organique)
+    for (let x = H.x0 + 10; x < H.x1 - 10; x += 9 + Math.floor(ih(x, 0, 12) * 9)) {
+      const y = H.top(x);
+      if (y == null || y > Y - 30) continue;
+      leaves(b, x, y + 2, 4 + ih(x, 1, 12) * 3, vr(ih(x, 2, 12) < 0.25 ? C.BLOSSOM : C.HEDGE), x, { sq: 0.75, light: -0.04 });
     }
+    // escalier de pierre qui grimpe à flanc de colline, en lacets
+    let last = null;
+    for (let i = 0; i <= 90; i++) {
+      const tt = i / 90, sx = Math.round(H.mx - 140 + tt * 110 + Math.sin(tt * 8) * 16), sy = Math.round(Y - 34 - tt * (Y - 34 - H.peak - 30));
+      if (H.top(sx) == null || sy < H.top(sx) + 4) continue;
+      if (last && last.y - sy < 3) continue;
+      last = { x: sx, y: sy };
+      b.r(sx - 3, sy, 7, 2, mixHex(C.STONE[4], VEIL, 0.18)).r(sx - 3, sy + 2, 7, 1, mixHex(C.STONE[1], VEIL, 0.18)).p(sx + 3, sy, mixHex(C.STONE[2], VEIL, 0.18));
+    }
+    // arbres, buissons, pin du sommet, abri de paille
+    const tree = (x, kind, s) => {
+      const y = H.top(x) + 4;
+      if (y == null) return;
+      const ramp = vr(kind === 'blossom' ? C.BLOSSOM : kind === 'pine' ? C.HEDGE : C.LEAF);
+      b.r(x, y - 10 * s, 2, 10 * s, mixHex(C.WOOD[1], VEIL, 0.25));
+      if (kind === 'pine') {
+        for (let k = 0; k < 3; k++) leaves(b, x + (k % 2 ? 3 : -2), y - 10 * s - k * 5, (7 - k * 1.6) * s, ramp, x + k, { sq: 0.55 });
+      } else {
+        leaves(b, x - 4 * s, y - 12 * s, 6 * s, ramp, x, {});
+        leaves(b, x + 4 * s, y - 13 * s, 6 * s, ramp, x + 1, {});
+        leaves(b, x, y - 17 * s, 6.5 * s, ramp, x + 2, { light: 0.06 });
+      }
+    };
+    tree(H.mx - 18, 'pine', 1.2);
+    tree(H.mx - 125, 'leaf', 1);
+    tree(H.mx - 205, 'blossom', 0.9);
+    tree(H.mx + 105, 'leaf', 0.95);
+    tree(H.mx + 175, 'pine', 0.9);
+    tree(H.mx - 270, 'leaf', 0.8);
+    for (const [dx, dy] of [[-90, 30], [-165, 52], [60, 34], [135, 62], [-235, 78], [210, 84]]) {
+      const x = H.mx + dx, y = Math.max(H.top(x) ?? 999, H.peak + dy);
+      if (y > Y - 6) continue;
+      leaves(b, x, y, 5, vr(C.HEDGE), x, { sq: 0.7 });
+      if (dx % 3 === 0) dots(b, x, y - 1, 4, [mixHex(C.FLOWER.pink, VEIL, 0.2), mixHex('#ffffff', VEIL, 0.2)], 4, x, 1);
+    }
+    // abri de paille près du sommet
+    const hx = H.mx - 62, hy = H.top(hx) + 6;
+    b.r(hx - 9, hy - 8, 18, 8, mixHex(C.WOOD[2], VEIL, 0.25)).r(hx - 3, hy - 6, 5, 6, mixHex(C.WOOD[0], VEIL, 0.25));
+    for (let k = 0; k < 7; k++) b.r(hx - 12 + k, hy - 9 - k, 24 - k * 2, 1, mixHex(C.THATCH[k < 2 ? 1 : 3], VEIL, 0.25));
+    // la source : un petit bassin entre les rochers, au sommet
+    const s0 = H.stream[0];
+    for (let j = -2; j <= 2; j++) for (let i = -8; i <= 8; i++) if (i * i / 64 + j * j / 4 <= 1) b.p(s0.x + i, s0.y + j, mixHex(j < 0 ? C.WATER[5] : C.WATER[4], VEIL, 0.15));
+    for (const [rx, ry, rr] of [[-10, 0, 3], [9, 1, 3], [-6, -3, 2], [5, -3, 2.5]]) {
+      b.disc(s0.x + rx, s0.y + ry, rr, mixHex(C.STONE[2], VEIL, 0.2), rr * 0.7).p(s0.x + rx - 1, s0.y + ry - 1, mixHex(C.STONE[4], VEIL, 0.2));
+    }
+    for (let k = 0; k < 5; k++) b.r(s0.x + 10 + k * 2, s0.y - 3 - (k % 2) * 2, 1, 4 + (k % 2) * 2, mixHex(C.GRASS[2], VEIL, 0.2));
+    // le ruisseau : bleu sur les gradins, blanc d'écume là où il passe un mur
+    for (const q of H.stream) {
+      const { frac } = H.band(q.x, q.y);
+      const wall = frac >= 0.62;
+      for (let i = -1; i <= 1; i++) {
+        b.p(q.x + i, q.y, wall ? (i === 0 ? '#ffffff' : '#d8eef0') : i === -1 ? C.WATER[5] : C.WATER[3]);
+      }
+      if (wall) { b.p(q.x - 2, q.y, '#c4e2e8'); b.p(q.x + 2, q.y, '#c4e2e8'); }
+    }
+    // le déversoir : un muret de pierre qui retient l'eau, d'où tombe le rideau
+    const wx = H.weir.x, wy = H.weir.y;
+    b.r(wx - 18, wy - 6, 36, 4, C.WATER[4]).r(wx - 18, wy - 6, 36, 1, C.WATER[5]);
+    for (let k = 0; k < 6; k++) {
+      const sx = wx - 20 + k * 7;
+      b.r(sx, wy - 2, 7, 5, C.STONE[k % 2 ? 2 : 3]).r(sx, wy - 2, 7, 1, C.STONE[4]).r(sx + 6, wy - 2, 1, 5, C.STONE[0]);
+    }
+    b.r(wx - 22, wy - 9, 5, 12, C.STONE[2]).r(wx - 22, wy - 9, 5, 1, C.STONE[4]).r(wx + 18, wy - 9, 5, 12, C.STONE[1]).r(wx + 18, wy - 9, 5, 1, C.STONE[3]);
+    leaves(b, wx - 24, wy - 9, 4, C.LEAF, 3, { sq: 0.7 });
+    leaves(b, wx + 23, wy - 8, 3.5, C.LEAF, 4, { sq: 0.7 });
+  },
+
+  basin(b, p, X, Y) {
+    // bassin de pierre où tombe la cascade
+    b.r(X - 16, Y - 7, 32, 7, C.STONE[2]).r(X - 16, Y - 7, 32, 1, C.STONE[4]).r(X - 16, Y - 1, 32, 1, C.STONE[0]);
+    for (let k = 0; k < 4; k++) b.r(X - 16 + k * 8, Y - 6, 1, 5, C.STONE[1]);
+    b.r(X - 14, Y - 6, 28, 2, C.WATER[3]).r(X - 14, Y - 6, 28, 1, C.WATER[5]);
+    leaves(b, X - 18, Y - 4, 4, C.MOSS, 2, { sq: 0.6 });
+    for (let k = 0; k < 4; k++) b.r(X + 15 + k * 2, Y - 8 - (k % 2) * 3, 1, 8 + (k % 2) * 3, C.GRASS[2 + (k % 2)]);
   },
 
   // --- zone 3 : les canaux --------------------------------------------------

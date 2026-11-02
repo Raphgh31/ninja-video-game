@@ -164,7 +164,7 @@ function build() {
   // ZONE 02 — Les cultures en terrasse : sauter, puis le dash
   // -------------------------------------------------------------------------
   b.zone('02', 'Les cultures en terrasse');
-  b.prop('terraces_bg', b.x + 24, G, { w: 34, spout: b.x + 46, peak: 118 });   // une butte en terrasses, derrière
+  b.prop('terraces_bg', b.x + 29, G, { w: 31, mx: b.x + 44, spout: b.x + 46, peak: 72, lip: 125 });   // la colline en terrasses, derrière
   b.gap(3, 'ditch');                                 // fossé peu profond
   x = b.x; b.flat(5);
   b.prop('daikon_rack', x + 2, G, { w: 3 });
@@ -191,9 +191,10 @@ function build() {
   b.row(x + 5, 3, G - 9, '=');                        // étagère cachée derrière l'eau
   b.coins([x + 5, x + 6, x + 7], 0);
   b.set(x + 6, G - 10, 'o');
-  b.prop('waterfall', x + 6, G - 9, { h: 2, secret: true });
+  b.prop('waterfall', x + 6, G - 9, { top: 125, basin: true, secret: true });   // elle descend de la colline
+  b.prop('basin', x + 6, G - 5);
   b.prop('bridge', x + 1, G - 5, { w: 8 });
-  b.prop('crops', x + 7, G - 5, { w: 3, kind: 'poireaux+choux' });
+  b.prop('crops', x + 1, G - 5, { w: 3, kind: 'poireaux+choux' });
   x = b.x; b.flat(3, G - 3);                         // escalier de pierre ébréché
   b.flat(3, G - 1);
   b.flat(4);

@@ -4,6 +4,7 @@
 import { ih, rng } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
+import { hillGeom } from './props.js';
 
 const R = Math.round;
 
@@ -23,6 +24,7 @@ export class Live {
     this.grange = level.backdrops.find((b) => b.type === 'grange');
     this.kappas = P.filter((p) => p.type === 'kappa').map((p) => ({ p, state: 'sit', t: 0 }));
     this.barrels = P.filter((p) => p.type === 'barrel');
+    this.hills = P.filter((p) => p.type === 'terraces_bg').map((p) => hillGeom(p));
     // colonnes d'eau (pour les reflets et les poissons qui sautent)
     this.water = [];
     for (let tx = 0; tx < map.w; tx++) {
@@ -116,6 +118,19 @@ export class Live {
         ctx.fillStyle = col[1]; ctx.fillRect(sx - 1 + dir, sy, 2, 1);
         ctx.fillStyle = col[0]; ctx.fillRect(sx - 4 * dir - (dir > 0 ? 1 : -1), sy - (R(time * 6 + i) % 2), 1, 2);
       }
+    }
+    // le ruisseau de la colline : l'eau qui descend scintille
+    for (const h of this.hills) {
+      if (!vis(h.mx, 400)) continue;
+      const n = h.stream.length;
+      ctx.fillStyle = '#ffffff';
+      for (let k = 0; k < 5; k++) {
+        const q = h.stream[Math.floor(((time * 22 + k * n / 5) % n))];
+        ctx.fillRect(R(q.x - cam.x), R(q.y - cam.y), 1, 2);
+      }
+      // l'eau qui passe par-dessus le déversoir
+      ctx.fillStyle = C.WATER[5];
+      for (let k = 0; k < 4; k++) ctx.fillRect(R(h.weir.x - 16 + ((time * 14 + k * 9) % 32) - cam.x), R(h.weir.y - 6 - cam.y), 3, 1);
     }
     // tonneaux qui flottent dans les canaux
     for (const bl of this.barrels) {
@@ -250,22 +265,32 @@ export class Live {
     // la cascade d'irrigation : elle cache à moitié la cache secrète
     for (const f of this.falls) {
       let gy = f.y; while (gy < this.map.h && this.map.at(f.x + 1, gy) !== '#') gy++;
-      const X = f.x * TILE, top = (f.y - f.h) * TILE - 2, bottom = gy * TILE + 2;
+      const X = f.x * TILE + 8, top = f.top ?? (f.y - f.h) * TILE - 2, bottom = gy * TILE - (f.basin ? 5 : -2);
       if (!vis(X)) continue;
-      const sx = R(X - cam.x), t0 = R(top - cam.y), b0 = R(bottom - cam.y);
-      ctx.globalAlpha = 0.62;
-      ctx.fillStyle = C.WATER[3]; ctx.fillRect(sx - 5, t0, 26, b0 - t0);
-      ctx.fillStyle = C.WATER[4]; ctx.fillRect(sx - 3, t0, 4, b0 - t0); ctx.fillRect(sx + 10, t0, 3, b0 - t0);
-      ctx.globalAlpha = 0.9;
+      const sx = R(X - cam.x), t0 = R(top - cam.y), b0 = R(bottom - cam.y), H = b0 - t0;
+      // le rideau d'eau : plus étroit au déversoir, il s'évase en tombant
+      for (let y = 0; y < H; y++) {
+        const k = y / H, half = R(10 + k * 4);
+        ctx.globalAlpha = 0.55 + 0.1 * (1 - k);
+        ctx.fillStyle = C.WATER[3]; ctx.fillRect(sx - half, t0 + y, half * 2, 1);
+        ctx.fillStyle = C.WATER[4]; ctx.fillRect(sx - half, t0 + y, 2, 1); ctx.fillRect(sx + 2, t0 + y, 2, 1);
+      }
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(sx - 11, t0, 22, 1);                    // la lèvre du déversoir
       ctx.fillStyle = C.WATER[5];
-      for (let k = 0; k < 9; k++) {
-        const y = t0 + R((time * 110 + k * 29) % (b0 - t0));
-        ctx.fillRect(sx - 4 + k * 3, y, 1, 7);
+      for (let k = 0; k < 10; k++) {                                             // filets qui descendent
+        const y = R((time * 120 + k * 31) % H);
+        ctx.fillRect(sx - 10 + k * 2 + R((y / H) * (k - 5) * 0.8), t0 + y, 1, 6);
       }
       ctx.fillStyle = '#ffffff';
-      for (let k = 0; k < 8; k++) {                              // écume en bas
+      for (let k = 0; k < 9; k++) {                                              // écume dans le bassin
         const a = time * 4 + k;
-        ctx.fillRect(sx - 6 + k * 4 + R(Math.sin(a) * 2), b0 - 3 - R(Math.abs(Math.cos(a)) * 3), 2, 2);
+        ctx.fillRect(sx - 14 + k * 3 + R(Math.sin(a) * 1.5), b0 - 2 - R(Math.abs(Math.cos(a)) * 3), 2, 2);
+      }
+      ctx.globalAlpha = 0.35;
+      for (let k = 0; k < 6; k++) {                                              // bruine
+        const a = (time * 0.8 + k * 0.17) % 1;
+        ctx.fillRect(sx - 16 + k * 6 + R(Math.sin(time + k) * 3), b0 - 4 - R(a * 12), 1, 1);
       }
       ctx.globalAlpha = 1;
     }
