@@ -529,6 +529,12 @@ async function main() {
     expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
   });
 
+  await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
+    await pw(1500);
+    const m = await pg.evaluate(() => { const m = window.__kage.music; return [m.playing, m.source?.loop, m.source?.loopStart, m.source?.loopEnd, m.buffer?.duration ?? 0]; });
+    expect(m[0] && m[1] && m[2] > 20 && Math.abs(m[3] - m[2] - 90) < 0.01 && m[4] >= m[3], `musique ${m.join(' / ')}`);
+  });
+
   await test('potager : silence à l\'arrêt (ennemis hors de l\'écran inaudibles), pas qui suivent la course et s\'arrêtent avec KAGE', async () => {
     await pat(4); await PK.press('ShiftLeft'); await pw(200);
     await pg.evaluate(() => { window.__sons = 0; });
@@ -639,10 +645,13 @@ async function main() {
   await test('potager : une caisse de la grange se brise au sabre et lâche un ryō', async () => {
     const before = await pg.evaluate(() => { const l = window.__kage.level; const [k, c] = [...l.crates.entries()].find(([, c]) => c.ty === l.h - 4); return { k, tx: c.tx, n: l.crates.size, coins: l.coins.length }; });
     await pat(before.tx - 2); await pg.evaluate(() => { window.__kage.player.facing = 1; });
-    await pw(80); await PK.press('KeyJ'); await pw(400);
-    const after = await pg.evaluate(() => { const l = window.__kage.level; return { n: l.crates.size, coins: l.coins.length }; });
+    await pw(80); await PK.press('KeyJ');
+    // attend que la lame atteigne la caisse (au plus 1,5 s), sans dépendre d'un délai fixe
+    await pg.waitForFunction((n) => window.__kage.level.crates.size < n, before.n, { timeout: 1500 }).catch(() => {});
+    await pw(100);
+    const after = await pg.evaluate(() => { const g = window.__kage, l = g.level; return { n: l.crates.size, coins: l.coins.length, st: `${g.player.state} x=${Math.round(g.player.x)} sens=${g.player.facing}` }; });
     // un coup peut briser deux caisses d'une même pile : un ryō par caisse
-    expect(after.n < before.n && after.coins - before.coins === before.n - after.n, `caisses ${before.n} → ${after.n}, ryō ${before.coins} → ${after.coins}`);
+    expect(after.n < before.n && after.coins - before.coins === before.n - after.n, `caisses ${before.n} → ${after.n}, ryō ${before.coins} → ${after.coins}, KAGE ${after.st}`);
   });
 
   await test('potager : un ryō ramassé est compté et enregistré', async () => {

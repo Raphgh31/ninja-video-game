@@ -22,6 +22,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Mobile (`pointer: coarse`) : plein écran, même cadrage que sur ordinateur (~252 px de jeu en hauteur) ; l'échelle est entière **en pixels réels de l'écran** (`devicePixelRatio`) et c'est la zone visible (`VIEW_W`/`VIEW_H`) qui s'ajuste. En portrait, tout le bloc de jeu pivote d'un quart de tour (classe `rotated`) : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Commandes tactiles dessinées sur leur **propre calque** (`.touch-layer`, à l'ancienne échelle ~180 px de haut : elles gardent la taille validée sous le pouce ; `src/engine/touch.js`, `setRotation`).
 - `assets/` est le `publicDir` de Vite : les chemins des ressources commencent à `./characters/...`.
 - Boucle à pas fixe de 120 Hz (`src/main.js`).
+- Sons synthétisés (`src/engine/sfx.js`, aucun fichier) ; les sons des ennemis s'éteignent hors de l'écran (`sfxAt`). Musique : une piste par chapitre (`assets/music/`, `src/engine/music.js`, champ `music` du chapitre), introduction puis boucle sans couture, préparée par `tools/musique_boucle.py` (ne pas réencoder à la main : refaire depuis la source avec le script).
 
 ## Personnage KAGE
 - Les PNG de `assets/characters/kage/` sont **générés** : ne jamais les éditer à la main. Modifier `tools/kage_forge/` puis `npm run sprites`.

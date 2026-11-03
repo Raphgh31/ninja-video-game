@@ -6,7 +6,8 @@ let ac = null;
 let master = null;
 let noiseBuf = null;
 let muted = false;
-let out = null;   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
+let out = null;
+let musicBus = null;   // la musique a son propre circuit (même bouton « Son »)   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
 try { muted = localStorage.getItem('kage-muted') === '1'; } catch { /* stockage indisponible */ }
 
 function ensure() {
@@ -17,6 +18,14 @@ function ensure() {
   master = ac.createGain();
   master.gain.value = muted ? 0 : 0.35;
   master.connect(ac.destination);
+  musicBus = ac.createGain();
+  musicBus.gain.value = muted ? 0 : 1;
+  musicBus.connect(ac.destination);
+  // onglet caché ou téléphone verrouillé : tout se tait, et reprend au retour
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) ac.suspend().catch(() => {});
+    else ac.resume().catch(() => {});
+  });
   noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -35,6 +44,13 @@ export function setMuted(m) {
   muted = m;
   try { localStorage.setItem('kage-muted', m ? '1' : '0'); } catch { /* stockage indisponible */ }
   if (master) master.gain.setTargetAtTime(m ? 0 : 0.35, ac.currentTime, 0.02);
+  if (musicBus) musicBus.gain.setTargetAtTime(m ? 0 : 1, ac.currentTime, 0.05);
+}
+
+/** Contexte audio et sortie de la musique, une fois l'audio débloqué (sinon null). */
+export function musicOutput() {
+  if (!ensure()) return null;
+  return { ac, bus: musicBus };
 }
 
 function env(g, t, vol, attack, dur) {
