@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Carte du jeu KAGE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Carte mentale plein écran : KAGE au centre, cinq branches de chaque côté,
+   boîtes carrées (pixel art) au bout ; panneau de détails à droite (en bas sur téléphone). */
+:root {
+  --bg: #e6e8ec;          /* papier gris bleuté */
+  --grid: #d5d9e1;
+  --panel: #f5f6f8;
+  --ink: #1a1c25;          /* encre de KAGE */
+  --muted: #5a5f6e;
+  --line: #c3c8d3;
+  --box: #fbfbfc;
+  --focus: #1f5fd1;
+  --c-kage: #3f4a6b; --c-ennemis: #a3362c; --c-habitants: #3c5096; --c-monde: #4c7536; --c-potager: #94661f;
+  --c-decor: #2a7471; --c-son: #74467f; --c-systemes: #826d10; --c-tech: #535e6c; --c-projet: #ad5124;
+  --f-pixel: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11131b; --grid: #1a1d28; --panel: #191c27; --ink: #e7e4dc; --muted: #9ba0b1; --line: #343849; --box: #1d212d; --focus: #7aa7ff;
+    --c-kage: #a3b0d4; --c-ennemis: #e57a68; --c-habitants: #94a6ea; --c-monde: #8fc06e; --c-potager: #dcab5f;
+    --c-decor: #6cc4bd; --c-son: #c79ed3; --c-systemes: #d9c35a; --c-tech: #aab4c2; --c-projet: #ea9663;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11131b; --grid: #1a1d28; --panel: #191c27; --ink: #e7e4dc; --muted: #9ba0b1; --line: #343849; --box: #1d212d; --focus: #7aa7ff;
+  --c-kage: #a3b0d4; --c-ennemis: #e57a68; --c-habitants: #94a6ea; --c-monde: #8fc06e; --c-potager: #dcab5f;
+  --c-decor: #6cc4bd; --c-son: #c79ed3; --c-systemes: #d9c35a; --c-tech: #aab4c2; --c-projet: #ea9663;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- la carte ---- */
+#map {
+  position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: grab;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+#map.dragging { cursor: grabbing; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+#world.ease { transition: transform .45s cubic-bezier(.3,.1,.2,1); }
+#links { position: absolute; left: -3000px; top: -3000px; width: 6000px; height: 6000px; overflow: visible; pointer-events: none; }
+#links path { fill: none; stroke-width: 1.5; }
+#links path.trunk { stroke-width: 3; }
+
+.node { position: absolute; }
+.center {
+  width: 210px; padding: 14px 16px 12px; text-align: left; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: 0;
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: end;
+}
+.center img { grid-row: span 2; width: 66px; height: 69px; image-rendering: pixelated; display: block; }
+.center b { font: 700 30px/1 var(--f-pixel); letter-spacing: .04em; }
+.center span { font: 12px/1.3 var(--f-body); opacity: .75; }
+
+.hub {
+  width: 168px; padding: 9px 12px; border: 0; cursor: pointer; text-align: left;
+  background: var(--c); color: var(--bg);
+  font: 700 16px/1.15 var(--f-pixel); letter-spacing: .02em;
+}
+.hub small { display: block; font: 500 11px/1.3 var(--f-body); letter-spacing: 0; opacity: .85; margin-top: 3px; }
+
+.leaf {
+  width: 196px; min-height: 52px; padding: 7px 9px 7px 10px; cursor: pointer; text-align: left;
+  background: var(--box); border: 1px solid color-mix(in srgb, var(--c) 45%, var(--line));
+  display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: start;
+  transition: transform .15s ease, border-color .15s ease, opacity .2s ease;
+}
+.leaf:hover { border-color: var(--c); transform: translateY(-1px); }
+.leaf .t { font: 700 13.5px/1.25 var(--f-body); min-width: 0; }
+.leaf .d { grid-column: 1 / -1; font: 12px/1.3 var(--f-body); color: var(--muted); margin-top: 2px; }
+.leaf .spr { image-rendering: pixelated; height: 26px; width: auto; margin: -3px -3px -6px 0; }
+.leaf.sel { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+.leaf.dim, .hub.dim { opacity: .18; }
+.leaf.hit { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+
+/* pastilles d'état : la forme dit l'état */
+.st { width: 10px; height: 10px; margin-top: 4px; display: inline-block; flex: none; }
+.st[data-s="fait"] { background: var(--c, var(--ink)); }
+.st[data-s="encours"] { background: linear-gradient(90deg, var(--c, var(--ink)) 50%, transparent 50%); border: 1.5px solid var(--c, var(--ink)); }
+.st[data-s="provisoire"] { border: 1.5px dashed var(--c, var(--ink)); }
+.st[data-s="afaire"] { border: 1.5px solid var(--c, var(--ink)); }
+.st[data-s="idee"] { border: 1.5px dotted var(--muted); border-radius: 50%; }
+
+/* ---- bandeau du haut ---- */
+.top {
+  position: fixed; z-index: 5; top: calc(12px + env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; pointer-events: none;
+}
+.top > * { pointer-events: auto; }
+.brand { background: var(--panel); border: 1px solid var(--line); padding: 7px 12px; }
+.brand h1 { margin: 0; font: 700 18px/1.1 var(--f-pixel); letter-spacing: .03em; }
+.brand p { margin: 2px 0 0; font: 11.5px/1.3 var(--f-mono); color: var(--muted); }
+.search { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); padding: 0 10px; height: 38px; min-width: 0; flex: 0 1 300px; }
+.search input { border: 0; background: transparent; color: var(--ink); font: 14px var(--f-body); width: 100%; min-width: 0; height: 100%; outline: none; }
+.search:focus-within { border-color: var(--focus); }
+.search output { font: 12px var(--f-mono); color: var(--muted); white-space: nowrap; }
+
+.legend {
+  position: fixed; z-index: 5; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 150px);
+}
+.legend button {
+  display: inline-flex; gap: 7px; align-items: center; padding: 5px 9px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); font-size: 12.5px; --c: var(--ink);
+}
+.legend button .st { margin: 0; }
+.legend button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.legend button em { font: normal 11px var(--f-mono); color: var(--muted); }
+
+.zoom {
+  position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; border: 1px solid var(--line); background: var(--panel);
+}
+.zoom button { width: 40px; height: 38px; border: 0; background: transparent; cursor: pointer; font: 700 18px var(--f-pixel); }
+.zoom button + button { border-top: 1px solid var(--line); }
+.zoom button:hover { background: var(--bg); }
+.zoom .fit { font: 600 11px var(--f-body); }
+
+/* ---- panneau de détails ---- */
+#panel {
+  position: fixed; z-index: 10; top: 0; right: 0; bottom: 0; width: min(400px, 100%);
+  background: var(--panel); border-left: 1px solid var(--line);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) 22px;
+}
+#panel .close { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); width: 36px; height: 36px; border: 1px solid var(--line); background: var(--box); cursor: pointer; font-size: 18px; }
+#panel .eyebrow { font: 700 12px/1 var(--f-pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+#panel h2 { margin: 8px 44px 10px 0; font: 700 23px/1.15 var(--f-body); text-wrap: balance; }
+#panel .chip { display: inline-flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--muted); }
+#panel .hero { display: flex; gap: 12px; margin: 14px 0 4px; align-items: flex-end; }
+#panel .hero img { image-rendering: pixelated; height: 96px; width: auto; background: var(--bg); padding: 8px; }
+#panel p.txt { margin: 14px 0 0; max-width: 62ch; }
+#panel h3 { margin: 22px 0 8px; font: 700 11.5px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+#panel ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+#panel ul.keys li { padding-left: 14px; position: relative; font-size: 14px; }
+#panel ul.keys li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; background: var(--c); }
+#panel ul.files a { font: 12.5px/1.35 var(--f-mono); color: var(--ink); word-break: break-all; text-decoration: none; border-bottom: 1px solid var(--line); }
+#panel ul.files a:hover { border-color: var(--c); }
+#panel ul.files span { font: 12px var(--f-body); color: var(--muted); }
+#panel ul.files a.lk { font: 14px/1.35 var(--f-body); }
+#panel .see { display: flex; flex-wrap: wrap; gap: 6px; }
+#panel .see button { border: 1px solid var(--line); background: var(--box); padding: 4px 9px; cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+#panel .see button:hover { border-color: var(--c); }
+
+@media (max-width: 640px) {
+  .brand p { display: none; }
+  .search { flex: 1 1 100%; }
+  .legend { max-width: calc(100% - 80px); }
+  .legend button em { display: none; }
+  #panel { top: auto; height: 62%; width: 100%; border-left: 0; border-top: 1px solid var(--line); padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); padding-top: 18px; }
+  #panel .close { top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #world.ease, .leaf { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Carte du jeu KAGE</h1>
+    <p id="etat">état au 3 nov. 2026</p>
+  </div>
+  <label class="search" for="q">
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Zm0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm4.6 7.7 3.9 3.9-1.4 1.4-3.9-3.9z" fill="currentColor"/></svg>
+    <input id="q" type="search" placeholder="Chercher (dash, grange, sfx.js…)" autocomplete="off" aria-label="Chercher un élément du jeu">
+    <output id="count"></output>
+  </label>
+</header>
+
+<main id="map" aria-label="Carte mentale du jeu">
+  <div id="world">
+    <svg id="links" viewBox="-3000 -3000 6000 6000" aria-hidden="true"></svg>
+  </div>
+</main>
+
+<nav class="legend" id="legend" aria-label="Filtrer par état"></nav>
+
+<div class="zoom" role="group" aria-label="Zoom">
+  <button type="button" id="zin" aria-label="Zoomer">+</button>
+  <button type="button" id="zout" aria-label="Dézoomer">−</button>
+  <button type="button" id="zfit" class="fit" aria-label="Voir toute la carte">Tout</button>
+</div>
+
+<aside id="panel" hidden aria-live="polite"></aside>
+
+<script>
+// ===========================================================================
+// Images (générées par tools/carte_mentale.py à partir des sprites du jeu)
+// ===========================================================================
+const SPRITES = {"kage":["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAYAAAAP6L+eAAACKUlEQVR42p2Vz2vTYBzGPwltbaTZ1pZNV1qYtHYy7aqMeXAg4kGP7iA7yE7C/oL9Ex562lXw4FE8uJPOg3gYO1iGtP4Ay4IbdlkR2o7VLSUR4mEkJE3Tpj4QeMn7fT887/s+7/sKjKhwRDL9+gxdE6y2EARkDQhHJDMmxwGIyeOuuszMLOWdLRsuDoMur6wRjkimBY3J4x4owK/9HyzeeWjPSAwy/eWVNSyng+SEC8McX712k+vziwAcH7cHgk//dAAo72z5r3E4Ipn3HjxmYuLc6bdqmaPDA3sZSk+KfcetljYxdE0Q/aDZ/DyV3W0A3rx67qkpzOV4uvGOwlzO1bYk+jkFaDcbNvTo8GCkWAp+4MruNu1mgyBRs9RQ9+36UD/ox/eviScvewZems44cpt3pKGGUqu6DkjIG5kaAInkFO1mw9XXav4mkZxy1QEotarnMHnAmZk8Sq3qcQDw19DRzk5R6wqpdBYAta5w6/Z91u/KVipMVyqcy2DomtAL9VMqneXzpw+e/yH+Q6l01nZdXFiiuLDEauml6yISnTeT5XYUOMCzR5NUXqy7+kW/a6+fkpPTZGcL9gfwdvPc6Zfve4NzPOiIy2MJ5LG4vWnODew1J4wCdapz0rLBTql1xf+uCAI1dE1Q64rLbeBU9EI7Jy3XdA1dE5xPleU2UNwMvQtAt3vmu8EXopLnKQuc42j0otU0/dJzJXcDgJ97X81Aj+mwSPar+QeLoQ5+kvFbrQAAAABJRU5ErkJggg==","data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAYAAAAP6L+eAAACIUlEQVR42p2Vz2vTYBzGPwltbKTZ1pXpVjpQWjuZdlXGPDgQ8aBHd5AdZCdhf8H+CQ897Sp48Cge3EnnQTzIDhaR1R9gWXDDrutl61jdUhIhHsYbkqVvm/pA6Jvmm0+e932f930VBlRc013ZM8e2FNFWooDEC3FNd5NGCoCkMRyom7w0RWVj3YOr/aALi8vENd0V0KQxHIIC/N7+ydztB16P1CjdX1hcRjjtJT9c6ef4ytUbXJuZA+DwsNUTfPynDUBlY10+xnFNd+/ef8TIyKnT79UKe7s73jCUH5e6vrdUXsOxLUWVQXOFGTY/fwTg9ctnoZridJ4nq28pTucDbSFV5hSgtd/0oHu7OwPFUukG/fDuFan0OK39JlGiJtRsbHv1sUFcXJyY9OW24EtDDbNW7b5AxLiatSri118Y13Q3lR5nNH0h9EGzVg2tvlhw9RQwa9UQVOivY2OdHNOom2SyOQAadZObt+6xcscQqXC9VPjH1rEtpRtUpkw2x5dP70P/x/gPZbI5z3Vpdp7S7DxL5ReBoVDFjXA7KBzg6cMxNp+vBJ6r3bY8mdJjE+Smit4F8Gbt1OnXH1vyHPfbN4yhUYyhlDdp/gk8a1AZBOpX++jAA/vVqJvyvSIK1LEtpVE3A24jp+IstH10EOiuY1uK/6gSbiPFzbE7AHQ6J9JJPpfQQ0dZ5BwnEudF05Ul6HL+OgC/tr65kQ5T2Uncq+YfyFwJarzPC6UAAAAASUVORK5CYII=","data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAYAAAAP6L+eAAACL0lEQVR42rWVTWsTURSGnxkyY0YyaZNQbUMKlsRWatMopS4siLjQpV1IF9KV0F/QP+GiK7eCC5fiwq60LsRF6cJQJPEDDB1sMU2zaVIS68iMMC7qHWaSTL7AAwPDvfc8973nvnMG/lNIgyYoquYEzdmWKfUNVlTNEQmKqjkRPQZARB/xrZu8NEN+Z8uFy72gyytrKKrmCGhEH2mDAvzY/8bizXvuieR+jr+8soZQ2i28cKmX4stXrnF1fhGAk5N6V/DpzyYA+Z2t4BorqubcvvuA0dEzpV+KeY4OD9wybDzMdcxb3djEtkxJDoKmp+cp7G4D8OrF07Y12dkMj568ITub8b2LkIOUAtSPqy706PBgeB8LaGF3m/px1efLblYTUa3suzmhVuj7ty+JJcY7Jl6cmPT4dtrjhhJGqdj+gYiaGqUiAOK9VXEsMU48caFtQ5Hn/fpCXgUCZpSKjhcq4o9tYf46pVI2SKbSAFTKBtdv3GH9li5c4diWKcneEghYJ2hQJFNpPn541zYeGqZzJVNpV3VuYYncwhKrG899pZBty5S8ageFAzy+P0bh2bpvXh7k6ImxCdIzWfcBeL15pvTT173h+rGiao4ejaNHY+6leS+w1RVSv41dj8Z9481GzQV7o1I2sC1TCvWjsjWajRq2ZUqVsuGIeg/sCtv6/W+TMM1GzXdc2zIlRdWcc2ENgO97n4ObULcNwuHzXddMZeaYysz1bvSdfp6dHNRpzV9I9/81FaxpuwAAAABJRU5ErkJggg==","data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAYAAAAP6L+eAAACM0lEQVR42rWVzWsTURTFfxMyY0YyaZPQaEMCLYmp1KZRSl1YEHGhS7uQLqQroX9B/wkXXbkVXLiULuxK24V0UbowFEn8AEMHW0zTICQpiXVkRhgXdYZMJh+TigcGhvfuPe+8+867D/4ThGETREk2e80ZuiZ4JhYl2bQSREk2g0oYgKAy4ohLTkyR3920yX2DSBeXVhAl2bRIg8qIixTg28EX5m/dt3fk87L9xaUVLKX90E4uDFJ85ep1rs3OA3By0uhLfPqjBUB+d7N3jUVJNu/ce8jo6JnST8U8x0eHdhnWHuW65i2vbWDomuDrRZrKzFLY2wHg1ctnrpjsdJrHT9+QnU47/i34eilVS0Ui0ZhNenx0+G8+togLezs0alW8WM1CtXJgx/u7kW5vrROOXnYlXhpPtvk20+aGEmqp6LggfrdlSgBEojEatapjrl77TiQac8QBqKWi6zK5iJMTGdRS0aUA4Leho/08pVJWiSdSAFTKKjdu3mX1tmK5wuzpis573w/xRIr37966xv3n6VzxRMpWnZtbIDe3wPLaC4cgX6fK7a11T2otcoAnD8YoPF91zPuGKUF0bJzUVNb+AF5vnCn98Hn/fP1YlGRTCUVQQmH70NoPsFOY4LWxK6GIY7zVrNvE7aiUVQxdE/xeVHai1axj6JpQKaumVe+hXWHov/4uEqDVrDu2a+iaIEqyeSEgA/B1/2Pvw+u3QCBwsW/MZHqGyfTM4Ebf7fHs5ppuMX8A6f31DhQCP0UAAAAASUVORK5CYII="],"kage_attack_03":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACUAAAAeCAYAAACrI9dtAAADFElEQVR42u2V30tTYRjHv0d2Dp7c1LkyXQ2n06G5ZigWZKEQGVGRhHgR1VXSH6B3iX+B/0AUXkhXEeGgkKKgKAIzBJeZjp1aOVcIzrGlky14upD39O64X2dtN9EDB54D57zv5/0+3+d5BZQgLly5SSx/8uieoPd/ASWMQuFKClUs5UoOxwP+B/snwQo2nSjJGU+aTMQFPQ2gNX9ZIRCiJJPRZIbRZEad1Z7ydJ88lxWYj0ydWJYv0MDQMERJpj9AVTCaqvZ8uxpY0QWmHRk5oRgEex8YGobRZM65iR6wdGoJ2crU1z+I1YAPNrsTa9/8aHd3AwAikc2sG239jAEA5t4+zctfWm8JWhiH0w2b3QkAePnsIRxON8Ib6+g9cwkA8NE7h+9rX9XSTVztSLvRtQlP3oZnYAzKwID6+gdVEMXnBQCYLXVqDgDTD+6ipfXYngWPHmku7rwQJZnOXrxOvH9ESaba+kbSdpwoyWS2WMlssZLN3kY2extVGKupwlhNS/fHUnI9Rufn1uz8MglsQya1KMnkcLqh+Lxp5WfdByBt9wHAj1BAV+l4sPGx0d3y8QskE3FB8Xkp26IH621qzvy323W+jIfRE4ZCJnJ4Yx01lloVhEUxgDJC5YpfyQTi21sIBRVYDzsAAKGgUjSfG4q1EAdHeu6/v4YSJZlMlTUwVZpVEF6tjq4edHT1AABmPFMFw5UVQ6FQUEkpX0BZwsLkCBYmR6B3NBRUPsuBetjsLer76xfTAAC7ox0znikAwPnLNwAAH5b80I6cfC9lXeWr2X+IGppc1NDkIlGSU3J++LLH3XmaVj6HSHu5p4OanV8mXUoxPwFALLqZ1ei8Kp8W35Pn8XMsLu+W19XqyOk1g14gFrFoGMlEXAgFFWJAnMdUsGQiLtwevUXAHQBIC6ctnUEvUCwaThmwDIxXKzMYkAlufGwUJzpbhbyVSiZ2AAA7O9tpJz57DwUVamx2pRyIBwOATHCRSLSw7isv38fSnN3E4L74F0l7t2rhek8dx6s379RDCPl6Kt+7Uc+3vJq8qr8BQzzLtZOPQ64AAAAASUVORK5CYII=","kage_kick_02":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAdCAYAAADLnm6HAAACoklEQVR42uVXTWsTURQ9UzJjnklqJtPWJCaQkjq10bSFUlyIIEgFidBSxIVUFxL/gQsXrlzXX1BXpasipVloEVy7KW5izSJkSMWYFKQftErqzOK6qDNMMpNJmwlE8K4m72XeOfe8cy93AAC8wAg9ij5eYHTrzv2ekejDvxC8wGjm3iPqhQqGAt+2i/+nCp7TVIHTvqbWOVcEeIFRUh6HUsw3AOoH8wIjf0AEAPgDFxpejidGsfnxPbkhwfECI1EKY393BwCQlMeRnryO9dWlv6CiBdiGRMdKGFmKUhghaQjxhIxg8CTjDxtvbDPvJgmu+Z5FKYyBwTCujk8DAA4O9h0P+PXzCADcEzATmXvwFADwJb+J2vevhgKLDydsD1lYzJ0a3OwvowrsYn11CZevTFrW06kRV6U+PHIN5dKWs3F5gdGJL6IkSlGKJ8Yonhgjnz9IPn+QCisvGp6dylQ/ixcYyalpklPTxAuMMvNZsr2C5pdblaAeO9Vti/xmQtFY0lg/52UAgHJpC5pa5zLzWfK0k+1iJG5yuwxz61aK+QZwHdgM2ioy81l6u/aa45yyD/SH4OEFhKQhy/7a8xkAwMSTV9DUOscLjFoBVytKy+7ZVgHGfFCKeSOrakXB3dnHAIDPhZJBthncDOpkuLYKAMDR4Z5BYGLqhvGfjdyy5Z514NOWpeNAEokNGwDNMm7klhGNJS3gmlrnztKQuFbZy6kp43etUkagX2wgYSd5J52w7UhWLHyCNBhBcjSNm7fnbCXvFNzWhLzAaOXZLADg5bsKAGD3Rw3q72NUK4qt5K4HEqfsNbXOHR3ukV1puQVv24qb10IDl8hur+tjuZOT9dLsyXeBph5DU4/bzold80Cr8HrP64/k1gfcWb3RzYkYAP4ACbAvOvIBV2wAAAAASUVORK5CYII=","tate":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB8AAAAfCAYAAAAfrhY5AAADcklEQVR42tWXTWgTWxiGnyn9kUomjZ1obLWlSa2CRgTjohTpBaUgWQgKvRJcVRBcaRWEClkFVAQNrlyIXUkEEcGFCtJybfFeXVTx3ii3tWlLlNjGTjVNQEorjovpmU7SJOZHEd/N8A1nzvt97/cz50CJUGSLpsgWjTJQWQopQNsGu3ilAajJlFTsXlIxhABra6oBaKyzArBrkwLA7ef/F+2AVAipIBQQxAJmBwqFmkxJUj7iTNJsxNmcqKr9zJZmhfGoytT0PC0brWk2wD+RRPacK7JFO+feWnwFLX4FIFpbRsGpyZR0PjyWVsk161wAWC2VOFu3rfqmxenk1vUgAN4/e7B27icxMICtARJg2DH15fIXL9LJzYVlLp58LXWz9ytHgxUEDka4dV1/V/d+kPmhf6l7vyK7sBuXdNmj5sgV2aLdD/mNTb2+QM4WanE6mZqcBMB/rxWYXH6W0OeKbNFe/fcQgB07DwAgHPH6ApqaTEkKExrAPC4GHz0wNpiMjALwbPAeajIlmVVqX5Bpt8mwAGq+nD8+dpY/blwyJBeR3w/58foCWpdDr2SPXf+ktdkBQCQ6w+XYl9VFO7YIQOjTO3y2zShji4yvySDPjFp43+VQ8Njr8foCdDkUTl45AcDfF24bpAJnGiu5jAuhjsDTNcm8sleIqDMxtGjlxoId4UQ8NEw8NAxAR183rc0OI3qAzur5VXu0L8j4bJt1NbdWZyf/VagAjFznwsjsHJHoDJHoDCOzc1w9fc2wO/q6GZmdWz0rTJHmkj+t4MxwbLCyY2cbS0OjeOz1xvsjnu1p+Y6HhvHY6+no6+aRLwBAomEf1s79PFwaMNblHDLRqTd69MttBnDquJdw+DWHr5wgHB7F7V6Zah+y2GYUPWREpYtW6+3VW62//y4161zU1U8bmyfmptPsxiYXwTt/lZbzXPO9lANCUeRqMiV5D56kHKLY24nSq/1nR1i07GLm6/nemJbfXBC/3R9ygBQ/lPjHFVnj40/058eJsiOvLDTy+PiTrOnJXPPDZP+lOQe46Pfh3bu+7DW/T+SKbNGCQT/h8Gv6++/mbMflaYjbvZ2enkOm2X6GRMM+bLsPpdmxKiexKmf+S4MiW7S2Jv1K9Obt7HdngXn9nubags7tBcne1mSn3EthydelQqdgMQ6qyZT0DU3+lw6dNSw7AAAAAElFTkSuQmCC","wara":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAcCAYAAACUJBTQAAACuUlEQVR42rWWX0hTURzHv7vbi+xGcl9uScZmG00IJ9L22BZtTxYRJYExfMhcD16MaCMfRH2IAp9kviyMkB6kpOhBDfoDM2EPbgwdE9PN3EJYw7j4MCEIdnqQc7l3u/ur/uDwu4ffOfdzfud3fr9zgDLCcyzBSQrPseRX/BXhOZacKIznWPL9w9NjgTGVjC/ffEU6lUQkNIm56UE0CmOqDVhZ20E6lYTBZMbc9CAiocm641UR0tlxAXarEQaTGelUUgLWC9JUOll3HRexmsyi03y2RAPA26VNaU5OzGtqhvAcS3xCN+xWIwAovJB7JbcBQE//VFkgUwxwOyw17/W7958lGI0XPSBVPZH35+cC0nefdxwzwdGS/vUeAXRxX5Z+lHiiqZYrcoiaRGMJjD0PVowNU+vW9HnHK/ZzYl4jB8h3RFcrRPDeVvx4JjiKaCxRdpsjoUnYnEMkJ+Y1CrKaqzzHkrFhLy53XUI0lpA0leXFRdVFPRRuwmAyw+YcOvSE51hCycWDr1lbMTszi43wYY5Qfd7cgsL+AdYzYgnA43EqTp+WAtKpJMRMFm1nTisa06yH79Et5MFgZOQBWlqbkdrdw4DHhTv3biCxsYX4Zhb5v/+kpm/S4kVgEfomLX5m/hwGnhK7rnRgPSMqmlxoDQOAj5FTWN9rLwl8Tsxr6DGmWgcAq/FtTAQW4HZY8Hv/QJrodlgw4HGpZrvf6wBQgN7jovkhxbRYM2rkSnWISui+X1FIq1bhYjIVNS9W1nYAAOf8vdiKzcNgMsNuNcIndJetzEy5THc7LKoAWjgLB7uKu+ZIl1atshrfbgwyEViQvuWlnN6YcvuRr1+bcwgAYLcaITx5LS3AJ3Sjp39Ksjf0WinWvVfbibWNJ8W2Y3un8RxLHg8/I5++het+sejqGRxeDuHEpdF3139HY43chZ96xgAAAABJRU5ErkJggg=="};
+
+// ===========================================================================
+// CONTENU DE LA CARTE — c'est ici qu'on la tient à jour.
+// États : fait · encours · provisoire · afaire · idee
+// Chaque boîte : id, t (titre), s (état), d (une ligne), txt (résumé),
+// keys (repères), files (chemins du dépôt, « chemin#L12 » pour une ligne),
+// links ([libellé, adresse]), see (ids d'autres boîtes), spr (image).
+// ===========================================================================
+const BRANCHES = [
+// ------------------------------------------------------------------ droite
+{ id: 'kage', side: 'R', t: 'Le personnage KAGE', sub: 'design, mouvements, combat', color: 'kage', leaves: [
+  { id: 'kage-apparence', t: 'Apparence', s: 'fait', d: 'Ninja noir, visage et mains visibles', spr: 'kage0',
+    txt: "Ninja noir minimaliste et agile. Bande de peau autour des yeux et mains couleur peau. Capuche arrondie (la capuche pointue « chapeau de lutin » a été refusée), bandeau au front noué en papillon derrière la tête, deux pans de longueur fixe. Garde basse : jambe avant fléchie, jambe arrière presque tendue, poing lointain levé.",
+    keys: ['Cellule 48×32 : 32 colonnes pour le corps, 16 pour le sabre', 'Ancrage (16, 31) sous les pieds, tourné à droite, retourné pour la gauche', 'Palette unique « Encre », appliquée par slots'],
+    files: ['docs/kage/README.md', 'assets/characters/kage/skins/encre.json', 'assets/characters/kage/kage.json'],
+    links: [['Planche de référence', 'docs/kage/kage_reference.png']], see: ['kage-forge', 'kage-skins'] },
+  { id: 'kage-anims', t: '20 animations', s: 'fait', d: 'De idle à respawn, chacune liée à un état',
+    txt: "Chaque animation porte le même nom qu'un état de la machine d'états du joueur. Mort et réapparition sont calculées à partir du sprite (découpe en blocs) ; toutes les autres frames sont posées à la main via le rig.",
+    keys: ['idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3', 'dash 5 · attack 7 · kick 5 · throw 5 · hurt 2', 'wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4', 'skid 2 · slide 3 · death 6 · respawn 3'],
+    files: ['tools/kage_forge/art.py', 'src/game/player.js', 'docs/kage/previews/'],
+    links: [['Planche des animations', 'docs/kage/kage_animations.png']], see: ['kage-forge'] },
+  { id: 'kage-forge', t: 'Forge des sprites', s: 'fait', d: 'Les PNG sont générés, jamais retouchés',
+    txt: "Tout le dessin de KAGE vient d'un code Python : on modifie la forge puis on lance npm run sprites. Le build échoue si un contrôle qualité échoue (pieds hors du sol, slot inconnu, pixel isolé) : on corrige la pose, on ne désactive jamais le contrôle.",
+    keys: ['npm run sprites régénère KAGE, TATE et WARA', 'Contrôles qualité bloquants', 'Couleurs appliquées depuis kage_sheet_index.png'],
+    files: ['tools/kage_forge/rig.py', 'tools/kage_forge/art.py', 'tools/kage_forge/build.py', 'tools/kage_forge/palette.py', 'tools/kage_forge/preview.py', 'assets/characters/kage/'] },
+  { id: 'kage-commandes', t: 'Commandes', s: 'fait', d: 'Clavier et tactile',
+    txt: "Au clavier, chaque action a sa touche. Sur téléphone, un joystick flottant sur la moitié gauche et des boutons ronds à droite. Le sprint tactile se fait en poussant le joystick au-delà de son cercle (le contour devient vert) ; le dash, d'un coup de joystick très rapide puis relâché.",
+    keys: ['Courir ← → · Sprint Maj + flèche · Dash double appui', 'Saut Espace · Glissade ↓ ou C', 'Sabre J ou X · Shuriken K ou V · Coup de pied U ou Z', 'H : zones de collision · M : son'],
+    files: ['src/engine/input.js', 'src/engine/touch.js'], see: ['tech-mobile'] },
+  { id: 'kage-mouvement', t: 'Course, saut, dash', s: 'fait', d: 'Vitesses et réglages de déplacement',
+    txt: "Toutes les constantes de mouvement sont dans P, en tête de player.js. Un seul dash en l'air par saut ; le saut mural ne marche pas deux fois de suite sur le même mur ; dérapage au demi-tour en pleine course. Le dash vertical a été supprimé.",
+    keys: ['Course 96 px/s, sprint 140, marche essoufflée 34', 'Saut 315, gravité 980, relâcher tôt = saut plus court', 'Dash 290 px/s, environ 57 px, 0,25 s', 'Glissade 190 px/s, 0,36 s', 'Gabarits : course 3,8 cases, sprint 5,5, course + dash 7, hauteur 3,1'],
+    files: ['src/game/player.js'], see: ['kage-energie'] },
+  { id: 'kage-energie', t: 'Énergie', s: 'fait', d: 'Anneau en haut à gauche, à bout de souffle',
+    txt: "Chaque effort coûte de l'énergie (toutes les dépenses réduites à 85 %). On peut enchaîner exactement 3 dashs. À zéro, KAGE ne peut plus que marcher jusqu'à 40 % ; le saut reste toujours possible.",
+    keys: ['Course −3,4 %/s · sprint −13,6 %/s', 'Dash −28 % · saut −8,5 % · sabre −10,2 % · coup de pied −12,75 %', 'Shuriken gratuit · recharge +55 %/s à l\'arrêt'],
+    files: ['src/game/energy.js'] },
+  { id: 'kage-vie', t: 'Vie et dégâts', s: 'provisoire', d: 'Valeurs à rééquilibrer en jouant',
+    txt: "KAGE a 5 points de vie, affichés par une barre fine (1 px) verte au-dessus de la tête. Touché : recul, 0,3 s sans contrôle, 1 s d'invincibilité. Les valeurs de dégâts sont provisoires.",
+    keys: ['Infligés : sabre 2, sabre en l\'air 3, shuriken 1, coup de pied 2', 'Subis : charge de TATE 2, moulinet de WARA 1, pics 1', 'Chute hors du niveau = mort'],
+    files: ['src/game/combat.js', 'src/game/healthbar.js'] },
+  { id: 'kage-sabre', t: 'Sabre', s: 'fait', d: 'Demi-cercle au sol, deux mains en l\'air', spr: 'kage_attack_03',
+    txt: "Au sol : légère fente, demi-cercle devant, lame longue et large. En l'air : à deux mains, lame levée au-dessus de la tête, temps d'arrêt, puis abattue en plongeant, plus spectaculaire et plus de dégâts.",
+    files: ['src/game/player.js', 'src/game/combat.js'], see: ['son-kage'] },
+  { id: 'kage-shuriken', t: 'Shuriken', s: 'fait', d: 'Stock de 3, se plante, se ramasse',
+    txt: "Armé derrière la tête, bras entièrement tendu au lâcher. Il se plante dans les murs et le sol, puis se ramasse en passant dessus. Sorti du niveau, il revient dans le stock.",
+    keys: ['Stock 3, 260 px/s, 0,35 s entre deux lancers', 'Touche un sol plat à 10 carreaux'],
+    files: ['src/game/shuriken.js', 'assets/characters/kage/kage_shuriken.png'] },
+  { id: 'kage-pied', t: 'Coup de pied', s: 'fait', d: 'Yoko geri, pousse dans le vide', spr: 'kage_kick_02',
+    txt: "Coup de pied de côté de karaté d'après des images de Raph : genou armé, hanche qui pivote, pied fléchi orteils vers le haut. L'effort se voit (yeux plissés, bouffée d'expiration, goutte de sueur). Il repousse même TATE qui pare et WARA qui mouline, jusque dans le vide.",
+    keys: ['2 dégâts, recul 170 px/s', '0,35 s avant d\'en relancer un', 'Portée équivalente au sabre'],
+    files: ['src/game/fall.js', 'tools/kage_forge/rig.py'], see: ['ennemi-chute'] },
+  { id: 'kage-skins', t: 'Skins de KAGE', s: 'afaire', d: 'Mis de côté, système prêt',
+    txt: "Le système de palette par slots reste en place : un skin changera les couleurs, jamais la silhouette. Les exemples Cendre et Minuit ont été supprimés. Les skins seront vendus par le marchand.",
+    files: ['assets/characters/kage/skins/encre.json'], see: ['sys-boutique', 'hab-marchand'] },
+]},
+{ id: 'ennemis', side: 'R', t: 'Les ennemis', sub: 'deux en jeu, cinq à concevoir', color: 'ennemis', leaves: [
+  { id: 'ennemi-tate', t: 'TATE', s: 'fait', d: 'Garde de temple au grand bouclier', spr: 'tate',
+    txt: "Chapeau conique laqué à liseré rouge, masque de fer aux yeux ambrés, armure rouge sourd, talisman de papier dans le dos (halo qui pulse quand le dos est exposé). Il bloque tout de face : on le frappe dans le dos, ou on passe entre ses jambes en glissade. Mort lourde en 4 temps.",
+    keys: ['Marche 18 px/s, demi-tour lent 0,7 s', 'Charge au bouclier après 0,45 s d\'élan, étourdi 1,4 s s\'il rate', '5 points de vie (3 coups de sabre)'],
+    files: ['src/game/tate.js', 'tools/kage_forge/enemies/tate.py', 'tools/kage_forge/enemies/build_tate.py', 'docs/enemies/README.md'],
+    links: [['Planche de design', 'docs/enemies/tate_design.png'], ['GIF de marche', 'docs/enemies/tate_marche.gif']] },
+  { id: 'ennemi-wara', t: 'WARA', s: 'fait', d: 'Épouvantail du dojo, à régler en jouant', spr: 'wara',
+    txt: "Mignon et un peu ridicule : grand chapeau de paille, tête en toile de sac, robe de paille, long pieu. Il sautille vers KAGE ; à 30 px son chapeau saute, puis sa traverse tourne en hélice et touche des deux côtés. Ensuite il a le tournis 0,9 s : c'est le moment de frapper. Reste à régler en jouant (bonds, signal, tournis).",
+    keys: ['Repère KAGE à 120 px, bonds de 20 px', 'Signal 0,45 s, moulinet 0,5 s (1 dégât)', '2 points de vie ; abîmé, il devient plus vif'],
+    files: ['src/game/wara.js', 'tools/kage_forge/enemies/wara.py', 'tools/kage_forge/enemies/build_wara.py', 'tools/kage_forge/enemies/wara_board.py'],
+    links: [['Planche de design', 'docs/enemies/wara_design.png'], ['Animations', 'docs/enemies/wara_animations.gif'], ['En jeu', 'docs/enemies/wara_en_jeu.gif']] },
+  { id: 'ennemi-nuisible', t: 'Le petit nuisible', s: 'afaire', d: 'Voleur de légumes du verger',
+    txt: "Petites créatures qui volent les légumes dans la zone 4 du Potager. Pour l'instant, elles sont jouées par des WARA. Planche de design à présenter après celle du marchand.",
+    see: ['pot-z04', 'proj-suite'] },
+  { id: 'ennemi-kagemane', t: 'Kage-mane', s: 'idee', d: 'Kunoichi de l\'ombre, lance des kunaïs',
+    txt: "Ennemi proposé pour la forêt des grands arbres (chapitre 3). Pas commencé : il passera d'abord par une planche de design.", see: ['monde-ch3'] },
+  { id: 'ennemi-chochin', t: 'Chōchin', s: 'idee', d: 'Lanterne volante, à vaincre au shuriken',
+    txt: "Ennemi proposé pour le village des basses montagnes (chapitre 4). Pas commencé.", see: ['monde-ch4'] },
+  { id: 'ennemi-karasu', t: 'Karasu', s: 'idee', d: 'Corbeau messager, obstacle rapide',
+    txt: "Ennemi proposé pour les hautes montagnes (chapitre 5). Pas commencé.", see: ['monde-ch5'] },
+  { id: 'ennemi-ishi', t: 'Ishi', s: 'idee', d: 'Sumo de pierre, mini-boss à onde de choc',
+    txt: "Mini-boss proposé pour le temple de pierre (chapitre 6). Pas commencé.", see: ['monde-ch6'] },
+  { id: 'ennemi-chute', t: 'Chute dans le vide', s: 'fait', d: 'Règle commune aux ennemis',
+    txt: "En marchant, les ennemis évitent toujours le vide d'eux-mêmes. Poussés par le coup de pied, ils tombent : sur des pics ou hors du niveau ils sont vaincus, sur un sol plus bas ils reprennent le combat.",
+    files: ['src/game/fall.js'], see: ['kage-pied'] },
+]},
+{ id: 'habitants', side: 'R', t: 'Habitants et animaux', sub: 'ceux qui ne se battent pas', color: 'habitants', leaves: [
+  { id: 'hab-marchand', t: 'Le marchand', s: 'provisoire', d: 'Dessin codé en attendant sa planche',
+    txt: "Il tient le comptoir du voyageur (zone 8) et ouvre la boutique. Le dessin actuel est provisoire (tenue indigo, ceinture orange, barbe blanche, grand chapeau, il compte ses pièces). Direction choisie pour la planche : le sage voyageur, vieil homme droit, chapeau conique très large, kimono rapiécé de toutes les couleurs, barbe longue, bâton de marche, sac en bandoulière. Une cabane par chapitre, qui servira aussi de point de téléportation.",
+    files: ['src/game/potager/live.js', 'src/game/shop.js'], see: ['sys-boutique', 'proj-suite', 'pot-z08'] },
+  { id: 'hab-kappa', t: 'Kappa pêcheur', s: 'fait', d: 'Plonge quand KAGE approche',
+    txt: "Créature du folklore qui pêche dans les canaux d'irrigation (zone 3) et plonge dans l'eau à l'approche de KAGE.", files: ['src/game/potager/live.js'], see: ['pot-z03'] },
+  { id: 'hab-chouette', t: 'Chouette du grenier', s: 'fait', d: 'Suit KAGE du regard',
+    txt: "Sur son perchoir dans le grenier de la grange : elle cligne des yeux, suit KAGE du regard et s'agite s'il est tout près.", files: ['src/game/potager/live.js'], see: ['pot-grenier'] },
+  { id: 'hab-koi', t: 'Koïs du bassin', s: 'fait', d: 'Jardin des sentinelles',
+    txt: "Carpes qui nagent dans le bassin du jardin des sentinelles (zone 7).", files: ['src/game/potager/live.js'], see: ['pot-z07'] },
+  { id: 'hab-epouvantail', t: 'Épouvantail de l\'entrée', s: 'provisoire', d: 'Un WARA immobile qui se balance',
+    txt: "L'épouvantail au grand chapeau de la zone 1 est pour l'instant un WARA immobile, utilisé comme décor.", see: ['pot-z01', 'ennemi-wara'] },
+  { id: 'hab-faune', t: 'Petite faune', s: 'fait', d: 'Oiseaux, papillons, libellules…',
+    txt: "Vols d'oiseaux dans le ciel, papillons, libellules, poissons qui sautent, pétales et feuilles qui volent : de quoi rendre le Potager vivant.", files: ['src/game/potager/live.js', 'src/game/potager/backdrop.js'], see: ['decor-live'] },
+]},
+{ id: 'monde', side: 'R', t: 'Le monde', sub: 'sept chapitres, un seul voyage', color: 'monde', leaves: [
+  { id: 'monde-principe', t: 'Un monde unique', s: 'fait', d: 'Décision de Raph : pas de niveaux séparés',
+    txt: "Un seul monde continu, parcouru d'ouest en est, sans menu de niveaux. Rythme d'un jeu de plateforme rapide et exigeant, avec des passages secondaires facultatifs vers des secrets. Aucune mécanique ne se débloque : KAGE a tout dès le début ; ce sont les attributs qui progressent. Retour en arrière libre.",
+    keys: ['Environ 20 minutes par chapitre', 'Une zone = une idée de gameplay', 'Lanternes = reprise et sauvegarde'],
+    files: ['docs/MONDE.md'], links: [['Carte du monde', 'docs/monde/carte_du_monde.png']] },
+  { id: 'monde-ch1', t: '1 · Le Potager', s: 'fait', d: 'Jouable et entièrement peint',
+    txt: "Jour, champs, paille, montagnes au loin. 8 zones, 8 lanternes, le marchand à la sortie. Voir la branche « Chapitre 1 ».", files: ['src/game/chapters/potager.js'], see: ['pot-z01'] },
+  { id: 'monde-ch2', t: '2 · Le champ des bambous', s: 'afaire', d: 'Rizières, bambous, eau', txt: "Ennemi à concevoir. Marchand au bord des rizières.", files: ['docs/MONDE.md'] },
+  { id: 'monde-ch3', t: '3 · La forêt des grands arbres', s: 'afaire', d: 'Troncs immenses, brume', txt: "Ennemi pressenti : Kage-mane. Marchand dans une clairière.", see: ['ennemi-kagemane'] },
+  { id: 'monde-ch4', t: '4 · Le village des basses montagnes', s: 'afaire', d: 'Toits, lanternes, marché', txt: "Ennemi pressenti : Chōchin. Marchand au marché.", see: ['ennemi-chochin'] },
+  { id: 'monde-ch5', t: '5 · Les hautes montagnes', s: 'afaire', d: 'Vent, neige, glace, ascension', txt: "Ennemi pressenti : Karasu. Marchand dans un refuge.", see: ['ennemi-karasu'] },
+  { id: 'monde-ch6', t: '6 · Le temple de pierre', s: 'afaire', d: 'Pierre, mousse, or terni', txt: "Mini-boss pressenti : Ishi. Marchand devant le temple.", see: ['ennemi-ishi'] },
+  { id: 'monde-ch7', t: '7 · Le dojo final', s: 'afaire', d: 'L\'épreuve ultime', txt: "Tous les ennemis, combinés. On le devine déjà sur l'épaule du Mont Kagero, au fond du Potager.", see: ['decor-backdrop'] },
+  { id: 'monde-histoire', t: 'Le fil des talismans', s: 'idee', d: 'Histoire en fond, à confirmer',
+    txt: "Proposition : quelqu'un pose des talismans maudits qui réveillent gardiens, mannequins et objets du pays ; KAGE remonte la piste jusqu'au dojo. Pas de longs dialogues : l'histoire se lit dans le décor. Question encore ouverte.", see: ['proj-questions'] },
+  { id: 'monde-niveau1', t: 'Niveau 1 (ancien)', s: 'fait', d: 'Adresse #niveau-1',
+    txt: "170×22 carreaux qui demandent toutes les mécaniques : tunnel bas, fossés de 5 et 8, puits à sauts muraux, gong au shuriken, arène, pics, torii d'arrivée ; 5 WARA, plusieurs TATE, 3 lanternes, chronomètre et écran de fin.",
+    files: ['src/game/maps.js', 'src/game/level.js'] },
+  { id: 'monde-terrain', t: 'Terrain d\'essai', s: 'fait', d: 'Adresse #terrain',
+    txt: "Long sol plat, un puits et un mur isolé pour le saut mural, un TATE et un WARA. Sert à essayer les mouvements.", files: ['src/game/maps.js'] },
+  { id: 'monde-carte', t: 'Carte du monde', s: 'fait', d: 'Schéma des 7 chapitres',
+    txt: "Carte schématique dessinée par un script Python.", files: ['tools/monde_carte.py'], links: [['Voir la carte', 'docs/monde/carte_du_monde.png']] },
+]},
+{ id: 'potager', side: 'R', t: 'Chapitre 1 · Le Potager', sub: '8 zones, 522 × 22 cases', color: 'potager', leaves: [
+  { id: 'pot-z01', t: '01 · Le chemin des premières pousses', s: 'fait', d: 'Avancer, sauter, sprinter',
+    txt: "Le début du voyage : ferme au toit de chaume, panneau d'entrée, épouvantail au grand chapeau, rangs de carottes. Les premières aides apparaissent une par une.",
+    files: ['src/game/chapters/potager.js#L120'], see: ['hab-epouvantail', 'sys-aides'] },
+  { id: 'pot-z02', t: '02 · Les cultures en terrasse', s: 'fait', d: 'Le premier dash, la cache de la cascade',
+    txt: "Premier trou à franchir au dash. Au loin, la colline en terrasses d'où descend la grande cascade, et une cache de ryō derrière elle.",
+    files: ['src/game/chapters/potager.js#L167'], see: ['decor-colline'] },
+  { id: 'pot-z03', t: '03 · Les canaux d\'irrigation', s: 'fait', d: 'Saut, dash, sprint ; la roue à eau',
+    txt: "Canaux, berges de pierre, moulin et roue à eau qui plonge dans le bief, tonneaux qui flottent, kappa pêcheur.",
+    files: ['src/game/chapters/potager.js#L207'], see: ['hab-kappa'] },
+  { id: 'pot-z04', t: '04 · Le vieux verger', s: 'fait', d: 'Premiers WARA, coup de pied',
+    txt: "Arbres fruitiers tortueux, voûte de branches, grosse branche praticable. Premiers ennemis et apprentissage du coup de pied.",
+    files: ['src/game/chapters/potager.js#L246'], see: ['ennemi-wara', 'ennemi-nuisible'] },
+  { id: 'pot-z05', t: '05 · La serre de bambou', s: 'fait', d: 'Trois passages en glissade',
+    txt: "Toiles déchirées, arceaux, lianes, pluie et gouttes qui tombent par les déchirures. Trois passages bas d'une case, puis un enchaînement de sortie.",
+    files: ['src/game/chapters/potager.js#L281'] },
+  { id: 'pot-z06', t: '06 · La grange abandonnée', s: 'fait', d: 'Caisses à briser au sabre',
+    txt: "Grand toit de chaume, mur de planches, outils suspendus, pénombre et halos de lanternes. Trois niveaux : sol, mezzanine, grenier.",
+    files: ['src/game/chapters/potager.js#L321'], see: ['pot-grenier', 'sys-caisses'] },
+  { id: 'pot-grenier', t: 'Le grenier de la grange', s: 'fait', d: '3e étage, 5 ryō et une caisse',
+    txt: "On monte de la mezzanine par des bottes de foin jusqu'au plancher du grenier. Pignon en planches, chevrons, lucarne, kakis séchés, coffre, chouette. Un plafond invisible suit la pente du toit. Sur la PR #19 : le toit reste plein de loin et s'efface quand KAGE monte.",
+    files: ['src/game/potager/props.js', 'src/game/potager/live.js'], links: [['Planche du grenier', 'docs/potager/grenier_grange.png']], see: ['hab-chouette', 'proj-pr19'] },
+  { id: 'pot-z07', t: '07 · Le jardin des sentinelles', s: 'fait', d: 'Bassin, pont rouge, TATE, grande porte',
+    txt: "Bassin aux carpes, pont rouge rompu, bosquet de bambous en glissade, sanctuaire, renards de pierre, un TATE et la grande porte en bois.",
+    files: ['src/game/chapters/potager.js#L367'], see: ['ennemi-tate', 'hab-koi'] },
+  { id: 'pot-z08', t: '08 · Le comptoir du voyageur', s: 'fait', d: 'Le marchand, puis la sortie',
+    txt: "Échoppe à l'ombrelle rouge et à l'auvent indigo, poteau indicateur, puis la route vers les collines et les rizières, et la sortie du chapitre.",
+    files: ['src/game/chapters/potager.js#L410'], see: ['hab-marchand'] },
+  { id: 'pot-reste', t: 'Ce qui reste du script', s: 'afaire', d: 'Planches, ambiance, lumière',
+    txt: "Le script détaillé du chapitre fourni par Raph demande encore : les planches du marchand et du petit nuisible, des sons d'ambiance et de la musique par zone, un éclairage plus marqué dans la grange et plus de pluie dans la serre.",
+    files: ['docs/REPRISE.md'], see: ['proj-suite', 'son-ambiance'] },
+]},
+// ------------------------------------------------------------------ gauche
+{ id: 'decor', side: 'L', t: 'Décor et image', sub: 'tout est peint en code', color: 'decor', leaves: [
+  { id: 'decor-cadrage', t: 'Cadrage 448 × 252', s: 'fait', d: 'Pixels nets, échelle entière',
+    txt: "Résolution interne de 448×252 (dézoom demandé, puis très léger rezoom pour que KAGE ne paraisse pas trop petit). Mise à l'échelle entière uniquement, sans lissage. Le sol est à 86 % de la hauteur de l'image.",
+    files: ['src/main.js'] },
+  { id: 'decor-camera', t: 'Caméra à paliers', s: 'fait', d: 'Stable avant tout',
+    txt: "En largeur, zone morte (KAGE va de 30 % à 56 % de l'écran) puis rattrapage amorti. En hauteur, des paliers : seul un changement de sol de plus de 3,5 cases déclenche un recadrage franc d'environ 0,6 s. Ne jamais réintroduire de suivi vertical continu.",
+    keys: ['Réglages CAM dans main.js', 'Position arrondie au pixel une seule fois pour tout le dessin', 'Coupe franche à la réapparition'],
+    files: ['src/main.js'], links: [['GIF de la caméra', 'docs/potager/camera_paliers.gif']] },
+  { id: 'decor-calque', t: 'Paysage sur son calque', s: 'fait', d: 'Les montagnes glissent au pixel d\'écran',
+    txt: "Le paysage est dessiné sur un calque à part, à la résolution réelle de l'écran : il glisse d'un pixel d'écran à la fois au lieu de sauter de 4. Le jeu est transparent là où il n'y a pas de terrain.",
+    files: ['src/main.js', 'src/style.css'] },
+  { id: 'decor-backdrop', t: 'Fond en parallaxe', s: 'fait', d: 'Du Mont Kagero au premier plan',
+    txt: "Ciel tramé et cumulus ; grande chaîne enneigée dominée par le Mont Kagero et le dojo final ; mer de nuages ; montagnes moyennes à falaises ; contreforts, temple et torii ; village et pagode ; lisière ; rizières à l'approche de la sortie ; premier plan sombre qui défile plus vite.",
+    files: ['src/game/potager/backdrop.js'], see: ['monde-ch7'] },
+  { id: 'decor-tuiles', t: 'Terrain et tuiles', s: 'fait', d: 'Terre à mottes, murets de pierre sèche',
+    txt: "Terre meuble mêlée de grosses mottes, flancs légèrement ondulés, tapis d'herbe épais. Murets de pierre sèche moussus avec une limite naturelle vers la terre. Aussi : pierre taillée, racines, poutres, bambou, berges et eau. Le terrain est peint par tranches de 512 px à la demande.",
+    files: ['src/game/potager/tiles.js', 'src/game/potager/world.js'],
+    links: [['Sol de terre', 'docs/potager/sol_terre.png'], ['Murets', 'docs/potager/sol_pierres.png'], ['Transition', 'docs/potager/sol_transition.png']] },
+  { id: 'decor-props', t: 'Une cinquantaine de décors', s: 'fait', d: 'Ferme, Jizō, puits, pont rouge…',
+    txt: "Ferme, Jizō, épouvantails, légumes, clôture de bambou, puits, charrette, moulin, lanternes de pierre, arbres fruitiers, serre, grange, sanctuaire, renards de pierre, pont rouge rompu, grande porte, échoppe du marchand… plus des décors automatiques (buissons, fougères, fleurs).",
+    files: ['src/game/potager/props.js', 'src/game/chapters/potager.js'], links: [['Planche des 8 zones', 'docs/potager/potager_zones.png']] },
+  { id: 'decor-colline', t: 'Colline en terrasses', s: 'encours', d: 'Rizières retouchées sur la PR #19',
+    txt: "Colline au loin, construite gradin par gradin (largeurs irrégulières), avec un ruisseau qui naît au sommet et la grande cascade qui passe derrière les plateformes. Raph y est très attentif : pas d'effet « feuille de papier ». La PR #19 en fait de vraies rizières en terrasses.",
+    files: ['src/game/potager/props.js', 'src/game/potager/live.js'],
+    links: [['Colline', 'docs/potager/colline_terrasses.png'], ['Colline dans le fossé', 'docs/potager/colline_fosse.png']], see: ['proj-pr19', 'pot-z02'] },
+  { id: 'decor-live', t: 'Ce qui bouge', s: 'fait', d: 'Eau, pluie, fumées, lumière…',
+    txt: "Roue à eau, cascade et écume, reflets et nénuphars, poissons, tonneaux, kappa, koïs, fumées, pluie de la serre, rais de lumière, pénombre de la grange, clochette de l'échoppe, papillons, pétales, poussières dorées.",
+    files: ['src/game/potager/live.js'], see: ['hab-faune'] },
+  { id: 'decor-palette', t: 'Palette et pinceaux', s: 'fait', d: 'Bruit, tramage, couleurs',
+    txt: "Les couleurs du Potager et les outils de peinture (bruit, tramage, pinceaux) partagés par tout le décor. Tout est calculé une fois au chargement (environ 0,8 s), puis recopié à chaque image.",
+    files: ['src/game/potager/palette.js', 'src/game/potager/paint.js', 'src/game/potager/index.js'] },
+]},
+{ id: 'son', side: 'L', t: 'Son et musique', sub: 'bruitages synthétisés, une musique par chapitre', color: 'son', leaves: [
+  { id: 'son-sfx', t: 'Bruitages synthétisés', s: 'fait', d: 'Web Audio, aucun fichier',
+    txt: "Tous les sons sont fabriqués en code : briques tone, noise, air (souffle à courbes) et ring (tintement métallique). Des fichiers audio pourront les remplacer un jour.",
+    files: ['src/engine/sfx.js'] },
+  { id: 'son-kage', t: 'Sons de KAGE', s: 'fait', d: 'Whoosh, lame, glissade, pas',
+    txt: "Dash = whoosh ; saut sans « bip », seulement une réception légère ; sabre qui fend l'air, impact de lame plus lourd en l'air ; glissade granuleuse ; shuriken en déclic puis sifflement. Un pas à chaque appui du cycle de course.",
+    files: ['src/engine/sfx.js'], links: [['Spectrogrammes', 'docs/sons/spectres_sons.png']] },
+  { id: 'son-volume', t: 'Volume des bruitages', s: 'fait', d: '−9 dB, la pièce −16 dB',
+    txt: "Baissé trois fois à la demande de Raph. SFX_VOLUME est passé de 0,35 à 0,125. La plupart des bruitages sont maintenant au niveau de la musique ou en dessous.",
+    files: ['src/main.js'], links: [['Graphique', 'docs/sons/volume_bruitages.png']] },
+  { id: 'son-oreille', t: 'Sons des ennemis à l\'écran', s: 'fait', d: 'Ils s\'éteignent hors champ',
+    txt: "Les ennemis sont entendus pleinement à l'écran et s'éteignent en environ 7 cases au-delà du bord (earGain, sfxAt). Avant, des pas tournaient en boucle à l'arrêt.",
+    files: ['src/main.js'] },
+  { id: 'son-musique', t: 'Musique du Potager', s: 'encours', d: 'Intro de 25 s puis boucle de 90 s',
+    txt: "Tirée d'une vidéo fournie par Raph : 64 BPM, introduction jouée une fois, boucle sans couture (fondu d'un temps). Démarre au premier geste avec un fondu, baisse dans la boutique, s'éteint à la fin. La PR #19 la remonte encore de 3 dB. Droits : Raph doit pouvoir utiliser ce morceau.",
+    keys: ['MUSIC.volume 0,0226 dans main, 0,0319 sur la PR #19', 'Repères loopStart 25,09 s, loopEnd 115,089 s', '−16 LUFS, MP3 160 kb/s'],
+    files: ['assets/music/potager.mp3', 'src/engine/music.js'], links: [['Planche', 'docs/sons/musique_potager.png']], see: ['proj-pr19'] },
+  { id: 'son-outil', t: 'Préparer une musique', s: 'fait', d: 'tools/musique_boucle.py',
+    txt: "« chercher » propose tempo et points de boucle ; « monter » égalise, fond la boucle, règle le volume et sort le MP3. Ne jamais réencoder à la main : refaire depuis la source avec le script.",
+    files: ['tools/musique_boucle.py'] },
+  { id: 'son-banc', t: 'Banc d\'écoute', s: 'fait', d: 'Avant / après, page privée',
+    txt: "Page claude.ai privée pour comparer les anciens et les nouveaux bruitages.", links: [['Ouvrir le banc d\'écoute', 'https://claude.ai/artifact/PZ5fAyEtafMpjNeH3yqnLp']] },
+  { id: 'son-ambiance', t: 'Sons d\'ambiance', s: 'afaire', d: 'Oiseaux, eau, moulin, pluie…',
+    txt: "Prévu par zone : oiseaux, eau, moulin, pluie dans la serre, grange feutrée, clochettes.", see: ['pot-reste'] },
+  { id: 'son-chapitres', t: 'Musiques des autres chapitres', s: 'afaire', d: 'Une piste par chapitre',
+    txt: "Même recette que pour le Potager, puis ajouter music: { src, loopStart, loopEnd } à la définition du chapitre.", files: ['tools/musique_boucle.py', 'src/engine/music.js'] },
+]},
+{ id: 'systemes', side: 'L', t: 'Règles et systèmes', sub: 'sauvegarde, ryō, boutique, progression', color: 'systemes', leaves: [
+  { id: 'sys-titre', t: 'Écran titre', s: 'fait', d: 'Nouvelle partie ou Continuer',
+    txt: "L'adresse sans # ouvre le chapitre 1 avec son écran titre.", files: ['src/main.js'] },
+  { id: 'sys-sauvegarde', t: 'Sauvegarde automatique', s: 'fait', d: 'Dans le navigateur',
+    txt: "Point de reprise, ryō, caisses brisées, rencontre du marchand, temps de jeu, chutes. Si le navigateur refuse, le jeu continue sans sauvegarde et le signale. À venir : skins, expérience, secrets, chapitres débloqués.",
+    keys: ['localStorage, clé kage.save.v1', 'La lanterne est retenue par sa position (checkpointX)'],
+    files: ['src/game/save.js'] },
+  { id: 'sys-lanternes', t: 'Lanternes de reprise', s: 'fait', d: 'Une au début de chaque zone',
+    txt: "8 lanternes dans le Potager. Elles s'allument au passage, déplacent le point de réapparition et affichent « Sauvegardé ». Une ancienne sauvegarde reprend toujours à la bonne lanterne. La PR #19 place celle de la zone 5 devant la serre.",
+    files: ['src/game/level.js', 'src/game/chapters/potager.js'], links: [['Planche des lanternes', 'docs/potager/lanternes_zones.png']] },
+  { id: 'sys-ryo', t: 'Ryō', s: 'fait', d: 'La monnaie du jeu',
+    txt: "Pièces à ramasser, plus nombreuses sur les chemins de défi et dans les secrets. 51 dans la carte du Potager, plus une par caisse. Compteur discret sous les shurikens, enregistré aussitôt.",
+    files: ['src/game/level.js', 'src/main.js'] },
+  { id: 'sys-caisses', t: 'Caisses', s: 'fait', d: 'À briser au sabre, une pièce dedans',
+    txt: "Apprises dans la grange (zone 6). Chaque caisse brisée est enregistrée.", files: ['src/game/level.js'], see: ['pot-z06'] },
+  { id: 'sys-boutique', t: 'Boutique', s: 'provisoire', d: 'Coquille vide, sans économie',
+    txt: "« ↑ / E : parler » devant le comptoir ouvre la boutique et met le jeu en pause. Catégories Apparences, Ressources, Objets, encore vides. Plus tard : skins de ninja et d'armes, à plusieurs prix (environ 50 ryō pour un article simple, 150 à 300 pour un rare).",
+    files: ['src/game/shop.js'], see: ['hab-marchand', 'kage-skins'] },
+  { id: 'sys-aides', t: 'Aides contextuelles', s: 'fait', d: 'Une commande à la fois',
+    txt: "Seulement dans le premier chapitre : la commande s'affiche au moment où elle sert et disparaît dès qu'elle est utilisée (ou après 9 s). Textes ordinateur et tactile.",
+    files: ['src/main.js'] },
+  { id: 'sys-gong', t: 'Gong, porte, torii', s: 'fait', d: 'Éléments du niveau 1',
+    txt: "Le gong se touche au shuriken et ouvre la porte ; le torii marque l'arrivée. Chronomètre en chiffres pixel et écran de fin (temps, chutes, Rejouer).",
+    files: ['src/game/level.js', 'src/game/maps.js'], see: ['monde-niveau1'] },
+  { id: 'sys-exp', t: 'Expérience et paliers', s: 'afaire', d: 'Les attributs progressent',
+    txt: "KAGE gagnera de l'expérience (ennemis, épreuves, secrets) et franchira des paliers qui améliorent un attribut : vie, attaque, énergie… jamais une nouvelle mécanique. Le détail reste à décider.",
+    files: ['docs/MONDE.md'], see: ['proj-questions'] },
+  { id: 'sys-teleport', t: 'Téléportation', s: 'afaire', d: 'Entre les cabanes des marchands',
+    txt: "Retour en arrière libre, avec un point de téléportation par chapitre. Plus tard aussi : la carte du monde dans le menu pause.", see: ['hab-marchand'] },
+]},
+{ id: 'tech', side: 'L', t: 'Technique et outils', sub: 'moteur, tests, mise en ligne', color: 'tech', leaves: [
+  { id: 'tech-pile', t: 'Moteur du jeu', s: 'fait', d: 'Vite, Canvas 2D, boucle à 120 Hz',
+    txt: "JavaScript en modules, Canvas 2D sans bibliothèque de rendu, boucle à pas fixe de 120 Hz. Les ressources sont servies depuis assets/.",
+    files: ['src/main.js', 'vite.config.js', 'index.html', 'src/engine/sprites.js', 'src/engine/fx.js'] },
+  { id: 'tech-mobile', t: 'Mobile et tactile', s: 'fait', d: 'Plein écran, pivote en portrait',
+    txt: "Même cadrage que sur ordinateur. En portrait, tout le jeu pivote d'un quart de tour : on tourne le téléphone vers la gauche, même avec la rotation bloquée. Les commandes sont dessinées sur leur propre calque et gardent la taille validée sous le pouce.",
+    files: ['src/engine/touch.js', 'src/style.css'], see: ['kage-commandes'] },
+  { id: 'tech-cartes', t: 'Cartes en ASCII', s: 'fait', d: 'Une lettre par case',
+    txt: "Niveaux décrits en texte, légende en tête du fichier : E = TATE, W = WARA, C = gong, D = porte, P = lanterne, G = arrivée, o = ryō, B = caisse, M = marchand, = bois, | bambou, ~ eau, % bloc invisible.",
+    files: ['src/game/maps.js', 'src/game/level.js'] },
+  { id: 'tech-tests', t: '57 tests de bout en bout', s: 'fait', d: 'Chaque passage reste faisable',
+    txt: "Playwright dans Chromium : terrain d'essai, tactile, niveau 1, Potager. Chaque trou et passage bas a son test de faisabilité et demande bien la mécanique prévue ; aussi la caméra, les sons, la sauvegarde, la boutique.",
+    keys: ['npm test = build + version autonome + tests'], files: ['tests/e2e.cjs'] },
+  { id: 'tech-standalone', t: 'Version en un fichier', s: 'fait', d: 'dist/kage-standalone.html',
+    txt: "Tout le jeu dans un seul fichier HTML, publié comme version de test. Tout nouvel ennemi doit y être embarqué, sinon elle ne démarre pas.",
+    files: ['tools/standalone.mjs'], see: ['proj-test'] },
+  { id: 'tech-capture', t: 'Captures d\'écran', s: 'fait', d: 'Pour montrer une retouche',
+    txt: "Photographie KAGE posé à une colonne donnée, ou la colline de la zone 2 à sa résolution réelle. Pour une capture, photographier les deux calques.",
+    keys: ['node tools/capture.cjs dossier/vue 110 121', 'node tools/capture.cjs --colline fichier.png'], files: ['tools/capture.cjs'] },
+  { id: 'tech-deploy', t: 'Mise en ligne', s: 'fait', d: 'GitHub Pages à chaque push sur main',
+    txt: "Le workflow GitHub Actions construit et publie le site. Réglage du dépôt : Settings → Pages → Source : GitHub Actions. Après une fusion, vérifier que le workflow a réussi.",
+    files: ['.github/workflows/deploy.yml'], see: ['proj-site'] },
+  { id: 'tech-npm', t: 'Commandes', s: 'fait', d: 'dev, sprites, build, test',
+    txt: "Les commandes du quotidien. Avant de pousser : npm run sprites puis npm test sans échec, et tester sur ordinateur, en tactile paysage et portrait.",
+    keys: ['npm run dev : jeu en local', 'npm run sprites : régénère les sprites', 'npm run build / npm run standalone', 'npm test : tout vérifier'], files: ['package.json'] },
+]},
+{ id: 'projet', side: 'L', t: 'Suivi du projet', sub: 'docs, liens, chantiers', color: 'projet', leaves: [
+  { id: 'proj-pr19', t: 'Série de retouches du Potager', s: 'encours', d: 'PR #19, à fusionner en fin de série',
+    txt: "Branche ouverte, pas encore fusionnée : le toit de la grange reste plein de loin et s'efface quand KAGE monte ; de vraies rizières en terrasses sur la colline ; la lanterne de la zone 5 devant la serre ; musique encore +3 dB.",
+    files: [], links: [['Ouvrir la PR #19', 'https://github.com/Raphgh31/ninja-video-game/pull/19']], see: ['decor-colline', 'son-musique', 'pot-grenier'] },
+  { id: 'proj-suite', t: 'Prochaine étape', s: 'afaire', d: 'La planche du marchand',
+    txt: "Conseillé : la planche de design du marchand (le sage voyageur), puis celle du petit nuisible. Ensuite : sons d'ambiance et musique par zone, expérience et premiers skins, puis le chapitre 2.",
+    files: ['docs/REPRISE.md', 'docs/MONDE.md'], see: ['hab-marchand', 'ennemi-nuisible', 'monde-ch2'] },
+  { id: 'proj-questions', t: 'Questions ouvertes', s: 'idee', d: 'À trancher par Raph',
+    txt: "Trois questions du plan du monde attendent une réponse.", keys: ['Durée visée : 20 min par chapitre, environ 2 h 30 au total ?', 'Garder les talismans comme fil rouge ?', 'Quels attributs et combien de paliers d\'expérience ?'],
+    files: ['docs/MONDE.md'], see: ['monde-histoire', 'sys-exp'] },
+  { id: 'proj-docs', t: 'Documents de reprise', s: 'fait', d: 'À lire dans l\'ordre',
+    txt: "Pour reprendre dans une nouvelle discussion : CLAUDE.md (règles du projet), docs/REPRISE.md (état, réglages, préférences, suite), docs/MONDE.md (plan du monde).",
+    files: ['CLAUDE.md', 'docs/REPRISE.md', 'docs/MONDE.md', 'README.md'] },
+  { id: 'proj-site', t: 'Site du jeu', s: 'fait', d: 'Public, mis à jour automatiquement',
+    txt: "La version en ligne du jeu, mise à jour à chaque push sur main.", links: [['Jouer en ligne', 'https://raphgh31.github.io/ninja-video-game/']], see: ['tech-deploy'] },
+  { id: 'proj-test', t: 'Version de test', s: 'fait', d: 'Page privée, hors main',
+    txt: "Page claude.ai privée pour essayer une branche avant la fusion ; on la republie avec dist/kage-standalone.html.", links: [['Ouvrir la version de test', 'https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm']], see: ['tech-standalone'] },
+  { id: 'proj-historique', t: 'Grandes étapes', s: 'fait', d: 'De la PR #1 à la PR #18',
+    txt: "KAGE, TATE, niveau 1 et tactile (#1) ; WARA (#2) ; plan du monde (#3) ; sprint au joystick (#8) ; le Potager en greybox (#9) ; refonte visuelle du Potager (#11) ; musique (#13) ; bruitages (#12, #14 à #16) ; lanternes par zone (#17) ; grenier de la grange (#18).",
+    links: [['Toutes les PR', 'https://github.com/Raphgh31/ninja-video-game/pulls?q=is%3Apr']] },
+  { id: 'proj-prefs', t: 'Façon de travailler', s: 'fait', d: 'Les préférences de Raph',
+    txt: "Retouches petites et précises, résultat montré en capture ou GIF ; planche de design avant tout nouveau personnage ; image stable avant tout ; profondeur cohérente et volumes (jamais de « feuille de papier ») ; interface discrète ; commits et docs en français.",
+    files: ['CLAUDE.md', 'docs/REPRISE.md'] },
+  { id: 'proj-carte', t: 'Cette carte', s: 'fait', d: 'Suit le jeu à chaque modification',
+    txt: "Chaque modification du jeu met aussi la carte à jour : nouvelle boîte, changement d'état, nouveaux chemins. Une vérification automatique (npm test, et sur chaque PR) échoue si la carte prend du retard : fichier cité disparu, zone ou ennemi sans boîte, nombre d'animations ou de tests périmé. La version en ligne est republiée avec le jeu à chaque fusion dans main.",
+    keys: ['npm run carte : vérifier la carte', 'python3 tools/carte_mentale.py : images et date'],
+    files: ['docs/carte-mentale/index.html', 'docs/carte-mentale/README.md', 'tools/carte_mentale_verif.mjs', 'tools/carte_mentale.py', '.github/workflows/carte.yml'],
+    links: [['Carte en ligne', 'https://raphgh31.github.io/ninja-video-game/carte-mentale/']] },
+]},
+];
+
+// ===========================================================================
+// Mise en page et interactions
+// ===========================================================================
+const REPO = 'https://github.com/Raphgh31/ninja-video-game/blob/main/';
+const STATES = {
+  fait: 'Fait', encours: 'En cours', provisoire: 'Provisoire', afaire: 'À faire', idee: 'Idée',
+};
+const $ = (s, el = document) => el.querySelector(s);
+const world = $('#world'), map = $('#map'), svg = $('#links'), panel = $('#panel');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS = 'http://www.w3.org/2000/svg';
+const LEAF_W = 196, LEAF_H = 58, GAP_X = 10, GAP_Y = 10, HUB_W = 168, HUB_X = 300, LEAF_X = 520, BRANCH_GAP = 46;
+const byId = {};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// --- centre ---
+const center = document.createElement('button');
+center.type = 'button';
+center.className = 'node center';
+center.innerHTML = `<img alt="KAGE" src="${SPRITES.kage[0]}"><b>KAGE</b><span>jeu de plateforme ninja · ${BRANCHES.reduce((n, b) => n + b.leaves.length, 0)} éléments</span>`;
+world.appendChild(center);
+const CW = 210, CH = 95;
+center.style.left = -CW / 2 + 'px'; center.style.top = -CH / 2 + 'px';
+if (!reduce) { let f = 0; const img = $('img', center); setInterval(() => { f = (f + 1) % 4; img.src = SPRITES.kage[f]; }, 170); }
+
+// --- branches : on crée les boîtes, on mesure leur hauteur, puis on les range ---
+function path(d, color, cls) {
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', d); p.setAttribute('stroke', color);
+  if (cls) p.setAttribute('class', cls);
+  svg.appendChild(p); return p;
+}
+BRANCHES.forEach(b => {
+  const col = `var(--c-${b.color})`;
+  b.el = document.createElement('button');
+  b.el.type = 'button'; b.el.className = 'node hub';
+  b.el.style.setProperty('--c', col);
+  b.el.innerHTML = `${esc(b.t)}<small>${esc(b.sub)}</small>`;
+  b.el.addEventListener('click', () => focusBranch(b));
+  world.appendChild(b.el);
+  b.leaves.forEach(l => {
+    l.branch = b; byId[l.id] = l;
+    const el = document.createElement('button');
+    el.type = 'button'; el.className = 'node leaf'; el.id = 'n-' + l.id;
+    el.style.setProperty('--c', col);
+    const spr = l.spr && sprite(l.spr);
+    el.innerHTML = `<span class="t">${esc(l.t)}</span>${spr ? `<img class="spr" alt="" src="${spr}">` : `<span class="st" data-s="${l.s}" title="${STATES[l.s]}"></span>`}<span class="d">${esc(l.d)}</span>`;
+    if (spr) el.setAttribute('aria-label', `${l.t}, ${STATES[l.s]}`);
+    el.addEventListener('click', () => open(l));
+    world.appendChild(el);
+    l.el = el;
+  });
+});
+function layout() {
+  svg.replaceChildren();
+  BRANCHES.forEach(b => b.leaves.forEach(l => { l.el.style.height = ''; }));
+  ['R', 'L'].forEach(side => {
+    const list = BRANCHES.filter(b => b.side === side);
+    list.forEach(b => {
+      b.cols = b.leaves.length > 3 ? 2 : 1;
+      b.rowH = [];
+      b.leaves.forEach((l, i) => { const r = Math.floor(i / b.cols); b.rowH[r] = Math.max(b.rowH[r] || 0, l.el.offsetHeight); });
+      b.h = b.rowH.reduce((n, h) => n + h, 0) + GAP_Y * (b.rowH.length - 1);
+    });
+    const total = list.reduce((n, b) => n + b.h, 0) + BRANCH_GAP * (list.length - 1);
+    let y = -total / 2;
+    list.forEach(b => { b.y0 = y; b.cy = y + b.h / 2; y += b.h + BRANCH_GAP; });
+  });
+  BRANCHES.forEach(b => {
+    const dir = b.side === 'R' ? 1 : -1, col = `var(--c-${b.color})`;
+    const hubH = b.el.offsetHeight;
+    b.el.style.left = (dir > 0 ? HUB_X : -HUB_X - HUB_W) + 'px';
+    b.el.style.top = (b.cy - hubH / 2) + 'px';
+    const sx = dir * CW / 2, ex = dir > 0 ? HUB_X : -HUB_X, mx = (sx + ex) / 2;
+    b.trunk = path(`M${sx} 0 C${mx} 0 ${mx} ${b.cy} ${ex} ${b.cy}`, col, 'trunk');
+    const hubOut = dir > 0 ? HUB_X + HUB_W : -HUB_X - HUB_W;
+    const inner = dir > 0 ? LEAF_X : -LEAF_X, m2 = (hubOut + inner) / 2;
+    let ry = b.y0;
+    b.rowH.forEach((h, r) => {
+      // une brindille par rangée, jusqu'à la boîte intérieure ; la boîte extérieure lui fait suite
+      const ty = ry + h / 2;
+      const tw = path(`M${hubOut} ${b.cy} C${m2} ${b.cy} ${m2} ${ty} ${inner} ${ty}`, col);
+      tw.setAttribute('stroke-opacity', '.55');
+      b.leaves.slice(r * b.cols, r * b.cols + b.cols).forEach((l, c) => {
+        l.x = dir > 0 ? LEAF_X + c * (LEAF_W + GAP_X) : -LEAF_X - LEAF_W - c * (LEAF_W + GAP_X);
+        l.y = ry; l.h = h; l.twig = tw;
+        l.el.style.left = l.x + 'px'; l.el.style.top = l.y + 'px'; l.el.style.height = h + 'px';
+      });
+      ry += h + GAP_Y;
+    });
+  });
+}
+layout();
+function sprite(k) { return k === 'kage0' ? SPRITES.kage[0] : SPRITES[k]; }
+
+// --- vue : déplacement et zoom ---
+const view = { x: 0, y: 0, k: 1 };
+function apply(ease) {
+  world.classList.toggle('ease', !!ease && !reduce);
+  world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
+}
+const clampK = k => Math.min(2.4, Math.max(0.18, k));
+function zoomAt(px, py, f, ease) {
+  const k = clampK(view.k * f); f = k / view.k;
+  view.x = px - (px - view.x) * f; view.y = py - (py - view.y) * f; view.k = k; apply(ease);
+}
+function bounds() {
+  const B = { x0: -CW / 2, x1: CW / 2, y0: -CH / 2, y1: CH / 2 };
+  BRANCHES.forEach(b => b.leaves.forEach(l => { B.x0 = Math.min(B.x0, l.x); B.x1 = Math.max(B.x1, l.x + LEAF_W); B.y0 = Math.min(B.y0, l.y); B.y1 = Math.max(B.y1, l.y + l.h); }));
+  return B;
+}
+function fitTo(B, ease, maxK = 1.2) {
+  const W = innerWidth, H = innerHeight;
+  const top = $('.top').getBoundingClientRect().bottom + 12, bottom = 70;
+  const avW = W - 32 - (panel.hidden || W <= 640 ? 0 : 400), avH = H - top - bottom - (!panel.hidden && W <= 640 ? H * .62 : 0);
+  const k = clampK(Math.min(avW / (B.x1 - B.x0), avH / (B.y1 - B.y0), maxK));
+  view.k = k;
+  view.x = 16 + avW / 2 - (B.x0 + B.x1) / 2 * k;
+  view.y = top + avH / 2 - (B.y0 + B.y1) / 2 * k;
+  apply(ease);
+}
+function fitAll(ease) { fitTo(bounds(), ease); }
+function focusBranch(b) {
+  const xs = b.leaves.map(l => l.x), ys = b.leaves.map(l => l.y);
+  const hx = b.side === 'R' ? HUB_X : -HUB_X - HUB_W;
+  fitTo({ x0: Math.min(hx, ...xs) - 10, x1: Math.max(hx + HUB_W, ...xs.map(x => x + LEAF_W)) + 10, y0: Math.min(...ys) - 10, y1: Math.max(...b.leaves.map(l => l.y + l.h)) + 10 }, true, 1.6);
+}
+function reveal(l) {
+  const W = innerWidth, H = innerHeight, narrow = W <= 640;
+  const r = l.el.getBoundingClientRect();
+  const maxX = narrow ? W : W - 400, maxY = narrow ? H * .38 : H;
+  const topY = $('.top').getBoundingClientRect().bottom;
+  if (view.k < .75) { // trop petit pour lire : on rapproche
+    const k = 1; const cx = l.x + LEAF_W / 2, cy = l.y + l.h / 2;
+    view.k = k; view.x = maxX / 2 - cx * k; view.y = (topY + maxY) / 2 - cy * k; apply(true); return;
+  }
+  if (r.left < 8 || r.right > maxX - 8 || r.top < topY + 4 || r.bottom > maxY - 8) {
+    view.x += (maxX / 2) - (r.left + r.right) / 2; view.y += (topY + maxY) / 2 - (r.top + r.bottom) / 2; apply(true);
+  }
+}
+
+// glisser, molette, pincer
+const pts = new Map(); let drag = null, moved = false, pinch = null;
+map.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pts.size === 1) { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; moved = false; }
+  if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: view.k }; drag = null; moved = true; }
+});
+addEventListener('pointermove', e => {
+  if (!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pts.size === 2) {
+    const [a, b] = [...pts.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, (pinch.k * d / pinch.d) / view.k);
+  } else if (drag) {
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.hypot(dx, dy) > 5) { moved = true; map.classList.add('dragging'); }
+    if (moved) { view.x = drag.vx + dx; view.y = drag.vy + dy; apply(); }
+  }
+});
+function up(e) {
+  pts.delete(e.pointerId);
+  if (pts.size < 2) pinch = null;
+  if (pts.size === 0) { drag = null; map.classList.remove('dragging'); }
+}
+addEventListener('pointerup', up); addEventListener('pointercancel', up);
+map.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+map.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = Math.exp(-(e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) * 0.0016);
+  zoomAt(e.clientX, e.clientY, f);
+}, { passive: false });
+$('#zin').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, 1.3, true);
+$('#zout').onclick = () => zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.3, true);
+$('#zfit').onclick = () => fitAll(true);
+center.addEventListener('click', () => fitAll(true));
+
+// --- panneau de détails ---
+let current = null;
+function fileLink(f) {
+  const [p, line] = f.split('#');
+  const label = p + (line ? ' · ligne ' + line.slice(1) : '');
+  return `<li><a href="${REPO + p + (line ? '#' + line : '')}" target="_blank" rel="noopener">${esc(label)}</a></li>`;
+}
+function open(l) {
+  if (current) current.el.classList.remove('sel');
+  current = l; l.el.classList.add('sel');
+  const b = l.branch;
+  panel.style.setProperty('--c', `var(--c-${b.color})`);
+  const spr = l.spr && sprite(l.spr);
+  const links = (l.links || []).map(([t, u]) => `<li><a class="lk" href="${/^https?:/.test(u) ? u : REPO + u}" target="_blank" rel="noopener">${esc(t)}</a> <span>${/^https?:/.test(u) ? '' : esc(u)}</span></li>`).join('');
+  const see = (l.see || []).filter(id => byId[id]).map(id => `<button type="button" data-go="${id}" style="--c: var(--c-${byId[id].branch.color})"><span class="st" data-s="${byId[id].s}"></span>${esc(byId[id].t)}</button>`).join('');
+  panel.innerHTML = `
+    <button type="button" class="close" aria-label="Fermer">×</button>
+    <div class="eyebrow">${esc(b.t)}</div>
+    <h2>${esc(l.t)}</h2>
+    <div class="chip"><span class="st" data-s="${l.s}"></span>${STATES[l.s]} · ${esc(l.d)}</div>
+    ${spr ? `<div class="hero"><img alt="${esc(l.t)}" src="${spr}"></div>` : ''}
+    <p class="txt">${esc(l.txt || '')}</p>
+    ${l.keys && l.keys.length ? `<h3>Repères</h3><ul class="keys">${l.keys.map(k => `<li>${esc(k)}</li>`).join('')}</ul>` : ''}
+    ${l.files && l.files.length ? `<h3>Fichiers</h3><ul class="files">${l.files.map(fileLink).join('')}</ul>` : ''}
+    ${links ? `<h3>Images et liens</h3><ul class="files">${links}</ul>` : ''}
+    ${see ? `<h3>Voir aussi</h3><div class="see">${see}</div>` : ''}`;
+  panel.hidden = false;
+  panel.scrollTop = 0;
+  $('.close', panel).onclick = close;
+  panel.querySelectorAll('[data-go]').forEach(btn => btn.onclick = () => { const t = byId[btn.dataset.go]; open(t); t.el.focus({ preventScroll: true }); });
+  try { history.replaceState(null, '', '#' + l.id); } catch (e) {}
+  requestAnimationFrame(() => reveal(l));
+}
+function close() {
+  panel.hidden = true;
+  if (current) { current.el.classList.remove('sel'); current.el.focus({ preventScroll: true }); current = null; }
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) close(); });
+
+// --- recherche et filtres d'état ---
+const active = new Set();
+const legend = $('#legend');
+const counts = {};
+BRANCHES.forEach(b => b.leaves.forEach(l => counts[l.s] = (counts[l.s] || 0) + 1));
+Object.entries(STATES).forEach(([s, label]) => {
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.setAttribute('aria-pressed', 'false');
+  btn.innerHTML = `<span class="st" data-s="${s}"></span>${label} <em>${counts[s] || 0}</em>`;
+  btn.onclick = () => { active.has(s) ? active.delete(s) : active.add(s); btn.setAttribute('aria-pressed', active.has(s)); filter(); };
+  legend.appendChild(btn);
+});
+const q = $('#q'), count = $('#count');
+function matches(l, words) {
+  if (active.size && !active.has(l.s)) return false;
+  if (!words.length) return true;
+  const hay = l._hay || (l._hay = norm([l.t, l.d, l.txt, l.branch.t, ...(l.keys || []), ...(l.files || [])].join(' ')));
+  return words.every(w => hay.includes(w));
+}
+function filter() {
+  const words = norm(q.value.trim()).split(/\s+/).filter(Boolean);
+  const on = words.length || active.size;
+  let n = 0;
+  BRANCHES.forEach(b => {
+    let any = false;
+    b.leaves.forEach(l => {
+      const m = matches(l, words); if (m) { n++; any = true; }
+      l.el.classList.toggle('dim', on && !m);
+      l.el.classList.toggle('hit', !!words.length && m);
+      l.twig.style.opacity = on && !m ? .15 : '';
+    });
+    b.el.classList.toggle('dim', on && !any);
+    b.trunk.style.opacity = on && !any ? .15 : '';
+  });
+  count.textContent = on ? `${n} trouvé${n > 1 ? 's' : ''}` : '';
+  return n;
+}
+q.addEventListener('input', filter);
+q.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const first = BRANCHES.flatMap(b => b.leaves).find(l => !l.el.classList.contains('dim'));
+  if (first) { open(first); first.el.focus({ preventScroll: true }); }
+});
+
+// --- démarrage ---
+fitAll(false);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); filter(); if (!current) fitAll(false); });
+const start = location.hash.slice(1);
+if (byId[start]) open(byId[start]);
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => current ? reveal(current) : fitAll(false), 150); });
+</script>
+</body>
+</html>

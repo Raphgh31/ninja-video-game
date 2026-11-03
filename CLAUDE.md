@@ -6,6 +6,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
 - **Site du jeu** : https://raphgh31.github.io/ninja-video-game/ — mis en ligne automatiquement par `.github/workflows/deploy.yml` à chaque push sur `main` (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Après une fusion, vérifier que le workflow a réussi et tester le site.
 - Version de test hors `main` : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html`.
+- **Carte mentale** de tout le jeu : `docs/carte-mentale/index.html` (mode d'emploi dans son README), en ligne avec le jeu (…/ninja-video-game/carte-mentale/). **Règle de l'utilisateur : chaque modification du jeu met aussi la carte à jour**, dans le même commit (boîte ajoutée, état changé, chemins, résumé), puis republier l'artefact de la carte (https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi) avec `python3 tools/carte_mentale.py --artefact <fichier>`. `npm run carte` (inclus dans `npm test`, et vérifié sur chaque PR) échoue si elle a pris du retard.
 - Direction choisie par l'utilisateur : un **monde unique** très long (zones, chapitres, sauvegarde, améliorations de KAGE), pas des niveaux séparés. Plan : `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 
 ## Façon de travailler (préférences de l'utilisateur)
@@ -43,5 +44,6 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Un nouvel ennemi doit aussi être embarqué dans `tools/standalone.mjs` (sinon la version autonome ne démarre pas).
 
 ## Vérifications avant de pousser
-- `npm run sprites` puis `npm test` (build + version autonome + tests de bout en bout) sans échec.
+- Carte mentale mise à jour pour ce changement (voir Reprise).
+- `npm run sprites` puis `npm test` (carte mentale + build + version autonome + tests de bout en bout) sans échec.
 - Tester dans un navigateur sur ordinateur, et en mode tactile en paysage (~844×390) et en portrait (~390×844).
