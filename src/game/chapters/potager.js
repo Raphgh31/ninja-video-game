@@ -164,7 +164,7 @@ function build() {
   // ZONE 02 — Les cultures en terrasse : sauter, puis le dash
   // -------------------------------------------------------------------------
   b.zone('02', 'Les cultures en terrasse');
-  b.prop('terraces_bg', b.x + 23, G, { w: 37, mx: b.x + 41, spout: b.x + 46, peak: 72, lip: 125 });   // la colline en terrasses, derrière
+  b.prop('terraces_bg', b.x + 22, G, { w: 38, mx: b.x + 41, spout: b.x + 46, peak: 72, lip: 125 });   // la colline en terrasses, derrière
   b.gap(3, 'ditch');                                 // fossé peu profond
   x = b.x; b.flat(5);
   b.prop('daikon_rack', x + 2, G, { w: 3 });

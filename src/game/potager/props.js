@@ -150,7 +150,7 @@ export function hillGeom(p) {
   const incL = [], incR = [];
   for (let k = 0; y < base + 30; k++) {
     const D = Math.round(7 + k * 0.55 + r() * 2), wall = Math.round(5 + k * 0.4 + r() * 2);
-    tiers.push({ y, D, wall, sag: 3 + k * 1.5, kind: r(), seed: k });
+    tiers.push({ y, D, wall, sag: 3 + k * 1.5, curl: Math.min(D - 4, 3 + k * 0.35), kind: r(), seed: k });
     incL.push(16 + Math.round(r() * 24));                         // chaque gradin dépasse le précédent,
     incR.push(14 + Math.round(r() * 24));                         // d'une longueur inégale
     y += D + wall;
@@ -166,10 +166,16 @@ export function hillGeom(p) {
   const WL = fit(incL, 34, mx - x0 - 8), WR = fit(incR, 26, x1 - mx - 8);
   tiers.forEach((t, k) => { t.wl = WL[k]; t.wr = WR[k]; });
   const wob = (yy, k, side) => (noise1(yy * 0.35 + k * 7.3 + side * 50, 61) - 0.5) * 3;
-  const covers = (t, dx, yy, k) => (dx < 0 ? -dx < t.wl + wob(yy, k, 0) : dx < t.wr + wob(yy, k, 1));
+  // bout de gradin arrondi : le coin haut du replat s'arrondit (rayon R)
+  const R = 5;
+  const round = (t, yy) => { const d = yy - t.y; return d >= R ? 0 : R - Math.sqrt(Math.max(0, R * R - (R - d) * (R - d))); };
+  const covers = (t, dx, yy, k) => (dx < 0 ? -dx < t.wl + wob(yy, k, 0) - round(t, yy) : dx < t.wr + wob(yy, k, 1) - round(t, yy));
+  // bord avant du replat : il plonge au milieu (plus près de nous) et, au bout,
+  // remonte en douceur, comme s'il contournait la colline
   const lip = (t, dx) => {
     const u = Math.min(1, Math.abs(dx) / (dx < 0 ? t.wl : t.wr));
-    return t.y + t.D + t.sag * (1 - u * u) + (noise1((mx + dx) * 0.06, t.seed + 3) - 0.5) * 1.6;
+    const v = Math.max(0, (u - 0.8) / 0.2);
+    return t.y + t.D + t.sag * (1 - u * u) - t.curl * v * v + (noise1((mx + dx) * 0.06, t.seed + 3) - 0.5) * 1.6;
   };
   /** Ce qu'il y a au point (x, y) : null (ciel), ou { tier, part: 'top' | 'wall', f }. */
   const band = (x, yy) => {
@@ -179,7 +185,7 @@ export function hillGeom(p) {
     let start = tiers[k].y;
     for (let j = k; j < tiers.length; j++) {
       const t = tiers[j], L = lip(t, dx), B = L + t.wall;
-      if (yy < L) return { tier: j, t, part: 'top', f: (yy - start) / Math.max(1, L - start), edge: j === k };
+      if (yy < L) return { tier: j, t, part: 'top', f: (yy - start) / Math.max(1, L - start), h: L - start, edge: j === k };
       if (yy < B) return { tier: j, t, part: 'wall', f: (yy - L) / t.wall };
       start = B;
     }
@@ -556,8 +562,15 @@ const PAINT = {
             if ((x + y) % 4 === 0 && f < 0.88) col = '#93c46a';
             if (side < -0.15 && col !== '#93c46a') col = mixHex(col, '#7fa4ae', 0.3);
           } else {                                                                   // théiers taillés en boules
-            const bx = ((x + q.tier * 7) % 7) - 3, by = f * 7 - 4;
-            col = bx * bx * 0.5 + by * by < 9 ? pick(C.HEDGE, clamp01(0.6 + side - bx * 0.08 - by * 0.1), x, y) : C.SOIL[2];
+            // rangs de buissons (un rang par ~6 px de profondeur), décalés d'un rang à
+            // l'autre, chaque buisson un peu différent ; ombre portée sur la terre
+            const rows = Math.max(1, Math.round((q.h ?? 8) / 6)), ff = (f - 0.16) / 0.84;
+            const row = Math.min(rows - 1, Math.floor(ff * rows)), ry = ff * rows - row;
+            const cx = x + q.tier * 7 + row * 4, cell = Math.floor(cx / 8), bx = (cx % 8) - 3.5;
+            const rad = 2.9 + ih(cell, row, q.tier + 30) * 1.1, by = (ry - 0.5) * 6.5;
+            const d = (bx * bx) / (rad * rad) + (by * by) / 10;
+            if (d < 1) col = pick(C.HEDGE, clamp01(0.62 + side - bx * 0.06 - by * 0.09 + (d < 0.3 ? 0.08 : 0)), x, y);
+            else col = by > 0 && Math.abs(bx) < rad + 1 ? C.SOIL[1] : C.SOIL[2 + (ih(x, y, 31) < 0.2 ? 1 : 0)];
           }
         }
         b.p(x, y, veil(col, y));
