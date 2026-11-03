@@ -1,0 +1,21 @@
+# Sur chaque PR : vérifie que la carte mentale (docs/carte-mentale/) suit les changements du jeu.
+# En cas d'échec, le journal dit quelle boîte ajouter ou corriger dans la liste BRANCHES.
+name: Carte mentale à jour
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  carte:
+    name: Vérification de la carte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/carte_mentale_verif.mjs

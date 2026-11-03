@@ -58,6 +58,10 @@ def main():
     html, n = re.subn(r'^const SPRITES = .*;$', lambda _: line, html, count=1, flags=re.M)
     if n != 1:
         raise SystemExit('ligne « const SPRITES = … ; » introuvable dans index.html')
+    import datetime
+    mois = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+    d = datetime.date.today()
+    html = re.sub(r'<p id="etat">.*?</p>', f'<p id="etat">état au {d.day} {mois[d.month - 1]} {d.year}</p>', html, count=1)
     PAGE.write_text(html, encoding='utf-8')
     print(f'{PAGE.relative_to(ROOT)} : images à jour')
 
