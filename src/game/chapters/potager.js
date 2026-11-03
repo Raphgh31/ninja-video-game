@@ -98,8 +98,8 @@ class Builder {
     return this;
   }
 
-  backdrop(type, x0, x1, y0, y1) {
-    this.backdrops.push({ type, x0, x1, y0, y1 });
+  backdrop(type, x0, x1, y0, y1, extra = {}) {
+    this.backdrops.push({ type, x0, x1, y0, y1, ...extra });
     return this;
   }
 
@@ -327,7 +327,7 @@ function build() {
   x = b.x; b.flat(30);
   b.row(x + 3, 10, G - 4, '=');                      // mezzanine : on ne passe pas par-dessus
   b.set(x + 6, G - 1, 'B').set(x + 6, G - 2, 'B').set(x + 6, G - 3, 'B');   // caisses empilées
-  b.coins([x + 9, x + 11], 5);
+  b.coins([x + 5, x + 7], 0);                        // deux ryō sur la mezzanine
   b.set(x + 15, G - 1, 'B');
   b.on(x + 17, 'W');                                 // il se cachait derrière la caisse
   b.set(x + 21, G - 1, 'B').set(x + 22, G - 1, 'B').set(x + 22, G - 2, 'B');
@@ -338,8 +338,25 @@ function build() {
   b.prop('sacks', x + 11, G);
   b.prop('tubs', x + 19, G);
   const grange1 = b.x;
-  b.block(grange0 + 1, grange1 - grange0 - 1, G - 9, G - 9, '=');   // charpente
-  b.backdrop('grange', grange0, grange1, G - 9, G);
+  // GRENIER, le 3e étage sous le toit : un plancher au-dessus de la mezzanine,
+  // ouvert à droite (la grange monte jusqu'au toit). On y grimpe par les bottes
+  // de foin posées au bout de la mezzanine. Le chemin mezzanine → 2e plateforme
+  // reste dégagé. Le plafond suit la pente du toit ; il est invisible (« % ») :
+  // c'est le toit peint qui se voit.
+  const gFloor = G - 8;                               // plancher (ligne 11)
+  b.block(grange0 + 1, 12, gFloor, gFloor, '=');
+  b.block(x + 9, 2, G - 6, G - 5, '%');               // bottes de foin sur la mezzanine : la marche (2 cases libres à droite pour atterrir)
+  // plafond : il suit l'intérieur du toit (calculé sur sa forme), bas aux deux bouts, sous l'entrait au milieu
+  const CEIL = [11, 11, 12, 12, 13, 13, ...Array(19).fill(14), 13, 13, 12, 12, 11, 11, 11, 10];
+  CEIL.forEach((d, i) => b.set(grange0 + 1 + i, G - d, '%'));
+  for (const c of [3, 5, 7, 9, 11]) b.set(grange0 + 1 + c, gFloor - 1, 'o');   // le trésor du grenier
+  b.set(grange0 + 2, gFloor - 1, 'B');                // une vieille caisse (un ryō de plus)
+  b.prop('grenier', Math.floor((grange0 + grange1) / 2), gFloor, {
+    gx0: grange0, gx1: grange1, eave: G - 9, roofH: 150, floor: gFloor, floorX0: grange0 + 1, floorX1: grange0 + 12,
+    collar: G - 14, step: { x: x + 9, w: 2, y0: G - 6, y1: G - 5 },
+    owl: { x: (grange0 + 26) * 16 + 4, y: (G - 12) * 16 + 10 },          // la chouette, sur son perchoir
+  });
+  b.backdrop('grange', grange0, grange1, G - 7, G, { eave: G - 9, roofH: 150 });
   x = b.x; b.flat(5);
   b.on(x + 2, 'P'); b.legacy.push(x + 2);            // sauvegarde : sortie de la grange
   b.prop('woodpile', x + 4, G);

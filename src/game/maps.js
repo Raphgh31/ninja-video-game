@@ -5,7 +5,7 @@ import { POTAGER } from './chapters/potager.js';
 //   C gong (au shuriken ou au sabre : ouvre les portes)   D porte   G torii (arrivée)
 //   T cible d'entraînement
 //   Chapitres (monde continu, voir chapters/) : = bois   | bambou   ~ eau   B caisse
-//   o ryō   M marchand
+//   o ryō   M marchand   % bloc invisible (le décor peint montre ce qui arrête KAGE : pente d'un toit, foin…)
 
 // Terrain d'essai : long sol plat fermé par deux murs, puits et mur isolé.
 export const TERRAIN = [

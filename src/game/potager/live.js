@@ -4,7 +4,7 @@
 import { ih, rng } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
-import { hillGeom } from './props.js';
+import { hillGeom, atticGeom } from './props.js';
 
 const R = Math.round;
 
@@ -22,6 +22,8 @@ export class Live {
     this.stalls = P.filter((p) => p.type === 'stall');
     this.serre = level.backdrops.find((b) => b.type === 'serre');
     this.grange = level.backdrops.find((b) => b.type === 'grange');
+    const gr = P.find((p) => p.type === 'grenier');
+    this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1 } : null;
     this.kappas = P.filter((p) => p.type === 'kappa').map((p) => ({ p, state: 'sit', t: 0 }));
     this.barrels = P.filter((p) => p.type === 'barrel');
     this.hills = P.filter((p) => p.type === 'terraces_bg').map((p) => hillGeom(p));
@@ -115,6 +117,7 @@ export class Live {
   // -------------------------------------------------------------------------
   drawBehind(ctx, cam, viewW, viewH, time) {
     const vis = (x, m = 80) => x - cam.x > -m && x - cam.x < viewW + m;
+    if (this.attic && vis(this.attic.p.owl.x)) this.owl(ctx, cam, time);
     // reflets mouvants à la surface de l'eau
     for (const w of this.water) {
       const wx = w.tx * TILE;
@@ -315,6 +318,63 @@ export class Live {
   // -------------------------------------------------------------------------
   // devant les personnages
   // -------------------------------------------------------------------------
+  /** Le grenier : pénombre qui suit la forme du toit, rai de la lucarne et poussières. */
+  atticLight(ctx, cam, time) {
+    const g = this.attic.g;
+    ctx.fillStyle = 'rgba(16, 10, 8, 0.34)';
+    for (let yy = g.top - 6; yy < g.bottom; yy += 2) {
+      const [xa, xb] = g.span(yy);
+      ctx.fillRect(R(xa - cam.x), R(yy - cam.y), R(xb - xa) + 1, 2);
+    }
+    ctx.fillStyle = 'rgba(16, 10, 8, 0.22)';                                 // le haut, sous le chaume
+    for (let yy = g.top - 6; yy < g.top + 12; yy += 2) {
+      const [xa, xb] = g.span(yy);
+      ctx.fillRect(R(xa - cam.x), R(yy - cam.y), R(xb - xa) + 1, 2);
+    }
+    // la lucarne : son halo, puis le rai qui descend sur le plancher
+    const wx = g.floorX0 + 48, wy = g.top + 26;
+    for (let rr = 18; rr > 4; rr -= 4) {
+      ctx.fillStyle = `rgba(255, 214, 140, ${0.03 + (18 - rr) * 0.005})`;
+      ctx.fillRect(R(wx + 12 - rr - cam.x), R(wy + 8 - rr * 0.7 - cam.y), rr * 2, R(rr * 1.4));
+    }
+    ctx.globalAlpha = 0.09;
+    ctx.fillStyle = '#ffe6a6';
+    for (let k = 0; wy + 16 + k * 4 < g.floorY; k++) ctx.fillRect(R(wx + 2 + k * 2 - cam.x), R(wy + 16 + k * 4 - cam.y), 22, 4);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255, 236, 190, 0.85)';
+    for (let i = 0; i < 12; i++) {
+      const k = (ih(i, 2, 13) * 30 + time * 3) % 30;
+      const px = wx + 4 + k * 0.6 * 2 + ih(i, 3, 13) * 18 + Math.sin(time * 0.7 + i) * 2;
+      const py = wy + 16 + k * 1.2;
+      if (py < g.floorY - 1) ctx.fillRect(R(px - cam.x), R(py - cam.y), 1, 1);
+    }
+  }
+
+  /** La chouette du grenier : elle cligne des yeux et suit KAGE du regard. */
+  owl(ctx, cam, time) {
+    const o = this.attic.p.owl, pl = this.level.player;
+    const x = R(o.x - cam.x), y = R(o.y - cam.y);
+    const dx = pl ? pl.x - o.x : 99, near = Math.abs(dx) < 170 && Math.abs((pl?.y ?? 0) - o.y) < 150;
+    const look = near ? Math.sign(dx) : 0;
+    const blink = (time % 4.3) < 0.13 || (time % 9.7) > 9.55;
+    const bob = near && Math.abs(dx) < 50 ? R(Math.sin(time * 9) * 0.6) : 0;   // KAGE tout près : elle s'agite un peu
+    const f = (c, a, b2, w, h) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b2 + bob, w, h); };
+    // corps
+    f('#5c452c', -4, -10, 9, 10); f('#7a5d3c', -3, -11, 7, 11); f('#94744c', -2, -10, 5, 9);
+    for (const [a, b2] of [[-1, -5], [1, -4], [0, -3], [-1, -2], [1, -1]]) f('#c9b089', a, b2, 1, 1);   // poitrail moucheté
+    f('#5c452c', -4, -6, 1, 5); f('#5c452c', 4, -6, 1, 5);                  // ailes repliées
+    // tête : disque facial, aigrettes
+    f('#6b5134', -4, -16, 9, 6); f('#d2bd94', -3, -15, 7, 4);
+    f('#5c452c', -4, -17, 2, 2); f('#5c452c', 3, -17, 2, 2);
+    if (blink) { f('#7a5d3c', -3, -14, 2, 1); f('#7a5d3c', 1, -14, 2, 1); }
+    else {
+      f('#f0b030', -3, -15, 2, 2); f('#f0b030', 1, -15, 2, 2);
+      f('#14100c', -3 + (look > 0 ? 1 : 0), -14, 1, 1); f('#14100c', 1 + (look > 0 ? 1 : 0), -14, 1, 1);
+    }
+    f('#3a2e22', 0, -13, 1, 1);                                             // bec
+    f('#c8a050', -2, 0, 1, 1); f('#c8a050', 1, 0, 1, 1);                    // serres sur le perchoir
+  }
+
   drawFront(ctx, cam, viewW, viewH, time) {
     const dt = Math.min(0.05, Math.max(0, time - this.last));
     this.last = time;
@@ -364,7 +424,8 @@ export class Live {
         // lanternes suspendues : halo chaud
         for (let x = x0 + 80; x < x1 - 40; x += 180) {
           const sx = R(x - cam.x), sy = R(y0 + 26 - cam.y), sw = R(Math.sin(time * 1.3 + x) * 1);
-          ctx.fillStyle = '#2a2420'; ctx.fillRect(sx + 2, R(y0 - cam.y), 1, 20);
+          const a = this.attic?.g, hang = a && (x < a.floorX0 || x >= a.floorX1) ? a.top : y0;   // pendue à l'entrait si pas de plancher
+          ctx.fillStyle = '#2a2420'; ctx.fillRect(sx + 2, R(hang - cam.y), 1, y0 + 20 - hang);
           for (let rr = 26; rr > 6; rr -= 5) {
             ctx.fillStyle = `rgba(255, 196, 110, ${0.05 + (26 - rr) * 0.004})`;
             ctx.fillRect(sx + 2 - rr + sw, sy + 4 - rr * 0.7, rr * 2, rr * 1.4);
@@ -385,6 +446,7 @@ export class Live {
           const py = y0 + 40 + ((ih(i, 1, 11) * 120 + time * 4) % 120);
           ctx.fillRect(R(px - cam.x), R(py - cam.y), 1, 1);
         }
+        if (this.attic) this.atticLight(ctx, cam, time);
       }
     }
     this.ambient(ctx, cam, viewW, viewH, time, dt);

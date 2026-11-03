@@ -10,9 +10,28 @@ import * as C from './palette.js';
 const TILE = 16;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
+// Le grenier de la grange : sa forme suit l'intérieur du toit de chaume.
+const ATTIC = ['#100b07', '#181009', '#22170f', '#2d2015', '#38291b', '#443221'];
+export function atticGeom(p) {
+  const x0 = p.gx0 * TILE, x1 = p.gx1 * TILE, cx = (x0 + x1) / 2, w = x1 - x0 + 70, h = p.roofH;
+  const ye = p.eave * TILE, yTop = ye - h + 2;
+  const span = (yy) => {
+    const j = yTop + h - 1 - yy;
+    let half = j < 0 ? w / 2 : Math.round(w / 2 - (j * (w / 2 - 6)) / h);
+    half -= 12;                                                              // épaisseur du chaume
+    return [Math.max(x0 + 6, cx - half), Math.min(x1 - 7, cx + half)];
+  };
+  return {
+    x0, x1, cx, ye, span,
+    top: (p.collar + 1) * TILE,                                              // sous l'entrait
+    bottom: (p.floor + 1) * TILE,                                            // sous le plancher (plafond du rez-de-chaussée)
+    floorY: p.floor * TILE, floorX0: p.floorX0 * TILE, floorX1: (p.floorX1 + 1) * TILE,
+  };
+}
+
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
-  serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], terraces_bg: ['backdrop'], basin: ['ground'],
+  serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'], orchard_canopy: ['front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
   bridge_red: ['back'], stall: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
@@ -23,7 +42,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { terraces_bg: 1100, serre: 700, grange: 600, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -825,9 +844,10 @@ const PAINT = {
   // --- zone 6 : la grange --------------------------------------------------
   grange(b, p, X, Y, env, layer) {
     const x0 = p.x0 * TILE, x1 = p.x1 * TILE, y0 = p.y0 * TILE, y1 = p.y1 * TILE;
+    const ye = (p.eave ?? p.y0) * TILE, RH = p.roofH ?? 98;   // avant-toit et hauteur du toit
     if (layer === 'backdrop') {
-      // grand toit de chaume visible de loin
-      thatchRoof(b, (x0 + x1) / 2, y0 - 96, x1 - x0 + 70, 98, 91);
+      // grand toit de chaume visible de loin (assez haut pour loger le grenier)
+      thatchRoof(b, (x0 + x1) / 2, ye - RH + 2, x1 - x0 + 70, RH, 91);
       // mur du fond : planches sombres, poteaux, contrefiches
       planks(b, x0, y0, x1 - x0, y1 - y0, ['#1f160f', '#2c2017', '#3a2a1e', '#4a3626', '#5a4330'], { pw: 6, v: 0.45, seed: 9 });
       for (let x = x0 + 24; x < x1; x += 96) {
@@ -862,8 +882,197 @@ const PAINT = {
       }
     } else if (layer === 'front') {
       // encadrement de la porte et poteau d'angle, au premier plan
-      b.r(x0 - 4, y0 - 6, 8, y1 - y0 + 6, C.WOOD[1]).r(x0 - 4, y0 - 6, 2, y1 - y0 + 6, C.WOOD[3]);
-      b.r(x1 - 6, y0 - 6, 8, y1 - y0 + 6, C.WOOD[1]).r(x1 - 6, y0 - 6, 2, y1 - y0 + 6, C.WOOD[3]);
+      b.r(x0 - 4, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x0 - 4, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
+      b.r(x1 - 6, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x1 - 6, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
+    }
+  },
+
+  // --- zone 6 : le grenier, 3e étage sous le toit de chaume -----------------
+  // Vu en coupe comme le reste de la grange : sous l'entrait, le chaume de
+  // devant a disparu (grange abandonnée) et l'on voit l'intérieur du toit :
+  // pignon en planches, chevrons qui suivent les pentes, pannes, poteaux.
+  grenier(b, p, X, Y, env, layer) {
+    const g = atticGeom(p);
+    const W = C.WOOD;
+    if (layer === 'backdrop') {
+      // 1. le pignon du fond : planches sombres, plus sombres sous le toit
+      for (let yy = g.top - 6; yy < g.bottom; yy++) {
+        const [xa, xb] = g.span(yy);
+        for (let x = Math.ceil(xa); x <= Math.floor(xb); x++) {
+          const i = x - g.x0, k = Math.floor(i / 7);
+          let v = 0.45 + (ih(k, Math.floor(yy / 29), 77) - 0.5) * 0.3 + (noise2(x * 0.4, yy * 0.05, 7) - 0.5) * 0.22;
+          if (i % 7 === 0) v -= 0.26; else if (i % 7 === 1) v += 0.08;
+          v -= clamp01((g.ye + 10 - yy) / 52) * 0.3;                       // pénombre sous le chaume
+          if (ih(x, yy, 78) < 0.012) v += 0.25;                             // nœuds, échardes claires
+          b.p(x, yy, pick(ATTIC, clamp01(v), x, yy));
+        }
+      }
+      // jours entre les planches du pignon (le soleil filtre)
+      for (let x = g.x0 + 37; x < g.x1 - 20; x += 43) {
+        const [xa, xb] = g.span(g.top + 4);
+        if (x < xa + 6 || x > xb - 6) continue;
+        b.r(x, g.top + 4, 1, g.bottom - g.top - 10, 'rgba(255, 220, 150, 0.22)');
+      }
+      // 2. sablière du grenier (au-dessus du plancher) et poteaux, dans le prolongement de ceux du bas
+      b.r(g.floorX0, g.ye - 2, g.floorX1 - g.floorX0, 4, W[1]).r(g.floorX0, g.ye - 2, g.floorX1 - g.floorX0, 1, W[3]);
+      for (let x = g.x0 + 24; x < g.x1; x += 96) {
+        const [xa, xb] = g.span(g.top);
+        if (x < xa + 2 || x + 6 > xb - 2) continue;
+        b.r(x, g.top, 6, g.bottom - g.top, W[1]).r(x, g.top, 2, g.bottom - g.top, W[2]).r(x + 5, g.top, 1, g.bottom - g.top, W[0]);
+        b.line(x + 6, g.top + 22, x + 28, g.top + 2, W[1], 3).line(x, g.top + 22, x - 22, g.top + 2, W[1], 3);   // contrefiches
+      }
+      // 3. chevrons le long des deux pentes, pannes vues en bout, brins de chaume qui pendent
+      for (let yy = g.top - 6; yy < g.ye + 2; yy++) {
+        const [xa, xb] = g.span(yy);
+        for (let t = 0; t < 4; t++) {
+          const c = t === 0 ? W[0] : t === 1 ? W[2] : t === 2 ? W[1] : W[0];
+          b.p(Math.round(xa) + t, yy, c);
+          b.p(Math.round(xb) - t, yy, c);
+        }
+        if ((yy - g.top) % 15 === 7) {                                       // pannes
+          b.r(Math.round(xa) + 4, yy - 2, 4, 4, W[1]).p(Math.round(xa) + 4, yy - 2, W[3]);
+          b.r(Math.round(xb) - 7, yy - 2, 4, 4, W[1]).p(Math.round(xb) - 7, yy - 2, W[3]);
+        }
+        if (ih(yy, 0, 81) < 0.28) {                                          // brins de paille
+          const n = 3 + Math.floor(ih(yy, 1, 81) * 5);
+          for (let k = 0; k < n; k++) {
+            b.p(Math.round(xa) + 4 + Math.floor(k * 0.6), yy + k, C.STRAW[k < 2 ? 1 : 0]);
+            b.p(Math.round(xb) - 4 - Math.floor(k * 0.6), yy + 2 + k, C.STRAW[k < 2 ? 1 : 0]);
+          }
+        }
+      }
+      // 4. l'entrait : grosse poutre qui ferme le grenier sous le faîte, et ses jambes de force
+      {
+        const yb = g.top - 9, [xa, xb] = g.span(g.top - 4);
+        for (let yy = yb; yy < g.top + 2; yy++) {
+          for (let x = Math.round(xa) - 2; x <= Math.round(xb) + 2; x++) {
+            const grain = noise2(x * 0.08, yy * 0.9, 61);
+            let v = 0.46 + (grain - 0.5) * 0.5 - ((yy - yb) / 11) * 0.18;
+            if (Math.abs(grain - 0.5) < 0.03) v -= 0.2;
+            if (yy === yb) v = 0.85; else if (yy === g.top + 1) v = 0.05;
+            if (x < Math.round(xa) + 1 || x > Math.round(xb) + 1) v -= 0.25;
+            b.p(x, yy, pick(W, clamp01(v), x, yy));
+          }
+        }
+        // chevilles
+        for (let x = Math.round(xa) + 14; x < xb - 10; x += 37) b.r(x, yb + 4, 2, 2, W[0]).p(x, yb + 4, W[3]);
+        const ys = g.ye - 4;
+        const [la, lb] = g.span(ys);
+        b.line(Math.round(xa) + 22, g.top + 1, Math.round(la) + 4, ys, W[1], 3);
+        b.line(Math.round(xb) - 22, g.top + 1, Math.round(lb) - 4, ys, W[1], 3);
+      }
+      // 5. lucarne à croisillons : papier usé, un coin déchiré
+      {
+        const wx = g.floorX0 + 48, wy = g.top + 26, ww = 24, wh = 16;
+        b.r(wx - 2, wy - 2, ww + 4, wh + 4, W[1]).r(wx - 2, wy - 2, ww + 4, 1, W[3]);
+        for (let j = 0; j < wh; j++) for (let i = 0; i < ww; i++) {
+          let v = 0.75 - j * 0.02 + (noise2((wx + i) * 0.5, (wy + j) * 0.5, 13) - 0.5) * 0.25;
+          b.p(wx + i, wy + j, pick(C.PAPER, clamp01(v), wx + i, wy + j));
+        }
+        b.r(wx + ww / 2 - 1, wy, 2, wh, W[1]).r(wx, wy + wh / 2 - 1, ww, 2, W[1]);
+        b.r(wx + ww / 4, wy, 1, wh, W[2]).r(wx + (3 * ww) / 4, wy, 1, wh, W[2]);
+        for (let k = 0; k < 6; k++) b.r(wx + ww - 6 + k, wy + 1, 6 - k, 1, '#f9e7b0');   // le coin déchiré : le jour
+        b.r(wx - 3, wy + wh + 2, ww + 6, 2, W[2]).r(wx - 3, wy + wh + 2, ww + 6, 1, W[4]);   // appui
+      }
+      // 6. kakis séchés (hoshigaki) et bottes de riz suspendus à l'entrait
+      for (let k = 0; k < 3; k++) {
+        const sx = g.floorX0 + 98 + k * 9, n = 5 + (k % 2), y1 = g.top + 18;
+        b.r(sx, g.top + 2, 1, y1 - g.top + n * 5, C.STRAW[1]);
+        for (let i = 0; i < n; i++) {
+          const yy = y1 + i * 5;
+          b.r(sx - 1, yy, 3, 4, '#c8692a').r(sx - 1, yy, 1, 2, '#e8964a').p(sx + 1, yy + 3, '#7e3e16').p(sx, yy - 1, '#4d5a2a');
+        }
+      }
+      for (let k = 0; k < 2; k++) {                                          // gerbes de riz, épis en bas
+        const sx = g.floorX0 + 136 + k * 14, y1 = g.top + 16 + k * 5;
+        b.r(sx, g.top + 2, 1, y1 - g.top - 2, '#6a5530');
+        b.r(sx - 1, y1, 3, 2, C.STRAW[0]);
+        for (let i = -3; i <= 3; i++) {
+          const len = 10 + Math.round(ih(i, k, 83) * 5);
+          for (let j = 0; j < len; j++) b.p(sx + Math.round(i * (j / len) * 0.9), y1 + 2 + j, C.STRAW[j > len - 3 ? 3 : 1 + ((i + 3) % 2)]);
+        }
+      }
+      // tirant du côté ouvert (au niveau du plafond du rez-de-chaussée), dans le plan du mur du fond
+      b.r(g.floorX1, g.bottom - 5, g.x1 - 6 - g.floorX1, 5, W[0]).r(g.floorX1, g.bottom - 5, g.x1 - 6 - g.floorX1, 1, W[2]);
+      for (let x = g.floorX1 + 20; x < g.x1 - 10; x += 41) b.r(x, g.bottom - 4, 2, 2, '#1a120c');
+            // 7. perchoir de la chouette, côté ouvert de la grange
+      b.r(p.owl.x - 30, p.owl.y, 60, 3, W[1]).r(p.owl.x - 30, p.owl.y, 60, 1, W[3]);
+      // 8. toiles d'araignée dans les coins sous le chaume
+      for (const side of [-1, 1]) {
+        const [xa, xb] = g.span(g.top + 3);
+        const cx = side < 0 ? Math.round(xa) + 4 : Math.round(xb) - 4, cy = g.top + 2;
+        for (let a = 0; a < 5; a++) {
+          const ang = side < 0 ? a * 0.36 + 0.1 : Math.PI - a * 0.36 - 0.1;
+          b.line(cx, cy, cx + Math.cos(ang) * 13, cy + Math.sin(ang) * 13, 'rgba(220, 220, 210, 0.32)');
+        }
+        for (const rr of [5, 9]) for (let a = 0; a < 5; a++) {
+          const ang = side < 0 ? a * 0.36 + 0.1 : Math.PI - a * 0.36 - 0.1;
+          b.p(Math.round(cx + Math.cos(ang) * rr), Math.round(cy + Math.sin(ang) * rr), 'rgba(230, 230, 220, 0.5)');
+        }
+      }
+    } else if (layer === 'back') {
+      const fy = g.floorY;                                                   // dessus du plancher
+      // vieux coffre (nagamochi) : bois sombre, ferrures, serrure de laiton
+      {
+        const cx = g.floorX0 + 92, w = 34, h = 15;
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+          let v = 0.4 + (noise2((cx + i) * 0.3, (fy - h + j) * 0.9, 21) - 0.5) * 0.3 - (i / w) * 0.12;
+          if (j === 4) v -= 0.3;                                             // joint du couvercle
+          b.p(cx + i, fy - h + j, pick(W, clamp01(v), cx + i, j));
+        }
+        b.r(cx, fy - h, w, 1, W[4]);
+        for (const fx of [cx, cx + w - 4]) b.r(fx, fy - h, 4, 4, '#55585f').r(fx, fy - 4, 4, 4, '#55585f').p(fx + 1, fy - h + 1, '#8a8e96');
+        b.r(cx + w / 2 - 2, fy - h + 3, 4, 5, '#b08a3a').p(cx + w / 2 - 1, fy - h + 4, '#e2c070').p(cx + w / 2, fy - h + 6, W[0]);
+        b.r(cx - 2, fy - 9, 2, 3, '#55585f').r(cx + w, fy - 9, 2, 3, '#55585f');   // poignées
+      }
+      // sac de riz affaissé et petite caisse
+      PAINT.sacks(b, p, g.floorX0 + 136, fy, true);
+      b.r(g.floorX0 + 146, fy - 9, 12, 9, W[2]).r(g.floorX0 + 146, fy - 9, 12, 1, W[4]).r(g.floorX0 + 146, fy - 5, 12, 1, W[1]);
+      // ombrelle de papier huilé (wagasa) fermée, posée contre la pente
+      {
+        const ax = g.floorX0 + 24, ay = fy;
+        for (let k = 0; k < 24; k++) {
+          const x = ax + Math.round(k * 0.42), y = ay - k;
+          const wdt = k < 4 ? 1 : k < 18 ? 3 : 2;
+          b.r(x - 1, y, wdt, 1, k % 5 === 0 ? C.RED[1] : C.RED[2]);
+          if (wdt > 1) b.p(x - 1, y, C.RED[3]);
+        }
+        b.r(ax + 10, ay - 27, 1, 3, W[1]);
+      }
+      // lanterne de papier crevée, couchée sur le plancher
+      {
+        const lx = g.floorX0 + 168, ly = fy - 5;
+        for (let j = -4; j <= 4; j++) for (let i = -6; i <= 6; i++) {
+          if ((i * i) / 36 + (j * j) / 16 > 1) continue;
+          b.p(lx + i, ly + j, i % 3 === 0 ? C.PAPER[0] : pick(C.PAPER, 0.5 - j * 0.06, lx + i, j));
+        }
+        b.r(lx - 7, ly - 2, 1, 5, '#2a2420').r(lx + 7, ly - 2, 1, 5, '#2a2420');
+        b.r(lx + 1, ly - 2, 3, 3, '#3a2e22');                               // la déchirure
+      }
+    } else if (layer === 'ground') {
+      // la marche : bottes de foin empilées au bout de la mezzanine (on y grimpe)
+      const st = p.step, sx = st.x * TILE, sy = st.y0 * TILE, sw = st.w * TILE, sh = (st.y1 - st.y0 + 1) * TILE;
+      const bale = (bx, by, w, h, seed) => {
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+          let v = 0.6 - (i / w) * 0.25 - (j / h) * 0.15 + (noise2((bx + i) * 0.7, (by + j) * 0.3, seed) - 0.5) * 0.45;
+          if (j === 0) v += 0.12;
+          if (j === h - 1 || i === w - 1) v -= 0.18;
+          b.p(bx + i, by + j, pick(C.STRAW, clamp01(v), bx + i, by + j));
+        }
+        b.r(bx + 5, by, 1, h, C.STRAW[0]).r(bx + w - 6, by, 1, h, C.STRAW[0]);   // liens
+        for (let k = 0; k < w; k += 2) if (ih(k, by, seed) < 0.6) b.p(bx + k, by - 1 - Math.floor(ih(k, bx, seed) * 2), C.STRAW[3]);
+      };
+      bale(sx - 1, sy + sh / 2, sw + 2, sh / 2, 5);
+      bale(sx + 1, sy, sw - 2, sh / 2, 6);
+      bale(sx - 13, sy + sh - 10, 13, 10, 7);                                // une botte tombée, à côté
+      // fourche plantée dans la botte du haut
+      b.line(sx + sw - 7, sy + 5, sx + sw + 5, sy - 17, W[1], 2);               // manche de bois clair, ombré
+      b.line(sx + sw - 7, sy + 4, sx + sw + 4, sy - 17, W[4], 1);
+      b.r(sx + sw + 2, sy - 19, 6, 2, '#5d6168').r(sx + sw + 2, sy - 19, 6, 1, '#9aa0a8');   // douille
+      for (let k = 0; k < 3; k++) b.r(sx + sw + 2 + k * 2 + (k === 1 ? 0 : 0), sy - 25, 1, 6, k === 1 ? '#8a8e96' : '#a7adb5');
+      // paille éparse sur le plancher du grenier et sur la mezzanine
+      for (let x = g.floorX0 + 8; x < g.floorX1 - 2; x++) if (ih(x, 3, 85) < 0.3) b.p(x, g.floorY - 1, C.STRAW[ih(x, 4, 85) < 0.5 ? 2 : 3]);
+      for (let x = sx - 30; x < sx + sw + 10; x++) if (ih(x, 5, 85) < 0.25) b.p(x, sy + sh - 1, C.STRAW[2]);
     }
   },
 

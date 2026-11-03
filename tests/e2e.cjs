@@ -654,6 +654,22 @@ async function main() {
     expect(after.n < before.n && after.coins - before.coins === before.n - after.n, `caisses ${before.n} → ${after.n}, ryō ${before.coins} → ${after.coins}, KAGE ${after.st}`);
   });
 
+  await test('potager : le grenier de la grange (3e étage) se rejoint par les bottes de foin, avec ses ryō', async () => {
+    const at = await pg.evaluate(() => { const l = window.__kage.level, gr = l.props.find((p) => p.type === 'grenier'); return { step: gr.step, floor: gr.floor, x0: gr.floorX0, x1: gr.floorX1, top: l.coins.filter((c) => Math.floor(c.y / 16) === gr.floor - 1 && c.x / 16 >= gr.floorX0 && c.x / 16 <= gr.floorX1 + 1).length }; });
+    // KAGE sur la mezzanine, juste à droite des bottes de foin
+    await pg.evaluate((sx) => { const g = window.__kage, pl = g.player; pl.x = (sx + 3) * 16 + 4; pl.y = 15 * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.energy.value = 1;
+      for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, at.step.x);
+    await pw(200);
+    // comme un joueur : on saute, puis on se dirige
+    await PK.down('Space'); await pw(110); await PK.down('ArrowLeft'); await pw(200); await PK.up('Space'); await pw(140); await PK.up('ArrowLeft'); await pw(400);
+    const hay = await PS();
+    await PK.down('Space'); await pw(110); await PK.down('ArrowLeft'); await pw(240); await PK.up('Space'); await pw(200); await PK.up('ArrowLeft'); await pw(400);
+    const up = await PS();
+    await PK.down('ArrowLeft'); await pw(1600); await PK.up('ArrowLeft'); await pw(200);
+    const got = await pg.evaluate((gr) => window.__kage.level.coins.filter((c) => c.taken && Math.floor(c.y / 16) === gr.floor - 1 && c.x / 16 >= gr.x0 && c.x / 16 <= gr.x1 + 1).length, at);
+    expect(at.top >= 5 && hay.y === at.step.y0 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
+  });
+
   await test('potager : un ryō ramassé est compté et enregistré', async () => {
     // un ryō à hauteur de hanche, au-dessus du sol
     const c = await pg.evaluate(() => {

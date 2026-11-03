@@ -246,7 +246,7 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || c === '=' || c === '|' || c === 'B' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
   }
 
   // --- ryō et caisses --------------------------------------------------------
