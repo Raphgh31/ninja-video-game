@@ -281,7 +281,7 @@ function build() {
   b.zone('05', 'La serre de bambou');
   const serre0 = b.x;
   b.flat(6);
-  b.on(serre0 + 1, 'P');                             // point de reprise : début de la zone 5
+  b.on(serre0 - 2, 'P');                             // point de reprise : à l'entrée de la serre, dehors (pas devant ses toiles)
   b.hint('slide', serre0 + 2);
   x = b.x; b.flat(5);                                // 1. sous une structure de bambou
   b.block(x, 5, G - 6, G - 2, '|');

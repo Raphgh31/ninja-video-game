@@ -59,6 +59,10 @@ export function paintRoofCover(b, gb) {
   b.r(x1 - 6, ye - 6, 8, h, C.WOOD[1]).r(x1 - 6, ye - 6, 2, h, C.WOOD[3]);
 }
 
+// cultures des gradins de la colline, du sommet vers le bas (0,2 rizière inondée,
+// 0,5 riz, 0,7 potager, 0,9 théiers) : elles alternent pour que chaque marche se lise
+const TERRACE_KINDS = [0.2, 0.5, 0.9, 0.2, 0.7, 0.5, 0.2, 0.9, 0.7, 0.2, 0.5, 0.7];
+
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
@@ -590,40 +594,69 @@ const PAINT = {
         const side = -0.3 * (dx / Math.max(1, W)) * (0.5 + 0.5 * u) - (dx > 0 ? 0.12 * u * u : 0);   // lumière à gauche
         let col;
         if (q.part === 'wall') {
+          // mur de pierres sèches : sous le rebord du replat, une ombre (le replat
+          // avance au-dessus du mur), puis l'arête éclairée ; pied du mur sombre
           const w = worley(x, y, 3.4, 91 + q.tier, 0.6);
-          let v = 0.56 - (w.dx / 3.4) * 0.2 - (w.dy / 2) * 0.2 + side;
-          if (w.d2 - w.d < 0.8) v = 0.08;
-          if (q.f > 0.86) v -= 0.25;
-          if (q.f < 0.16) v += 0.14;                                  // arête du mur, éclairée
+          const wy = Math.floor(q.f * q.t.wall);                       // rang de pixel dans le mur
+          // les murs, verticaux, reçoivent moins de lumière que les replats : plus sombres,
+          // clairs juste sous l'arête puis de plus en plus sombres vers le pied
+          let v = 0.46 - q.f * 0.16 - (w.dx / 3.4) * 0.2 - (w.dy / 2) * 0.22 + side;
+          if (w.d2 - w.d < 0.8) v = 0.04;
+          if (wy === 0) v -= 0.3;                                       // ombre sous le rebord
+          else if (wy === 1) v += 0.2;                                  // arête éclairée
+          if (wy >= q.t.wall - 1) v -= 0.25;                            // pied du mur
           col = pick(C.STONE, clamp01(v), x, y, 0.15);
-          if (q.f < 0.2 && ih(x, q.tier, 13) < 0.25) col = pick(C.GRASS, clamp01(0.55 + side), x, y);   // herbe qui retombe
+          if (wy <= 1 && ih(x, q.tier, 13) < 0.22) col = pick(C.GRASS, clamp01(0.42 + side), x, y);   // herbe qui retombe du rebord
+          if (wy > 1 && wy < q.t.wall - 1 && ih(x >> 1, y >> 1, 40 + q.tier) < 0.05) col = pick(C.MOSS, clamp01(0.5 + side), x, y);   // mousse entre les pierres
         } else {
-          const f = q.f, kind = q.t.kind;
-          // bord herbeux clair à l'avant du replat (au-dessus du mur) ; au fond, au
-          // pied du mur du gradin supérieur, une bande d'herbe dans l'ombre
+          // le replat, vu un peu d'en haut : au fond l'ombre du mur du dessus, à l'avant
+          // une diguette éclairée ; entre les deux, des rangs qui suivent la courbe du
+          // gradin, plus grands au premier rang (la profondeur se lit)
+          // les cultures alternent d'un gradin à l'autre (rizière inondée, riz, potager, théiers)
+          const kind = TERRACE_KINDS[q.tier % TERRACE_KINDS.length], h = Math.max(1, q.h ?? 8);
+          const py = q.f * h, pf = h - py;                              // pixels depuis le fond, depuis l'avant
+          const back = q.edge ? 0 : 2;                                  // bande d'ombre au fond (sauf au sommet)
           if (q.edge && y - q.t.y < 1) col = pick(C.GRASS, clamp01(0.66 + side), x, y);
-          else if (f > 0.86) col = pick(C.GRASS, clamp01(0.78 + side), x, y);
-          else if (f < 0.14) col = pick(C.GRASS, clamp01((q.edge ? 0.6 : 0.36) + side), x, y);
-          else if (kind < 0.42) {                                                    // légumes en rangs
-            const fc = (f - 0.14) / 0.72 * 3, row = Math.floor(fc), ry = fc - row;
-            const px = (x + row * 4 + q.tier * 3) % 6;
-            const plant = ry > 0.25 && px < 4 && !(px === 0 && ry < 0.5) && !(px === 3 && ry < 0.5);
-            col = plant ? pick(C.GRASS, clamp01(0.62 + side + (ry < 0.55 ? 0.12 : -0.08) - (px > 1 ? 0.1 : 0)), x, y) : C.SOIL[3];
-            if (plant && px === 1 && ry > 0.7 && ih(x, q.tier, 6) < 0.35) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][q.tier % 4];
-          } else if (kind < 0.72) {                                                  // rizière inondée : le ciel s'y reflète
-            col = f > 0.8 ? C.GRASS[2] : ih(Math.floor(x / 3), y, q.tier) > 0.9 ? '#eef7f4' : (y + q.tier) % 3 === 0 ? '#a9d0d6' : '#bcdde0';
-            if ((x + y) % 4 === 0 && f < 0.88) col = '#93c46a';
-            if (side < -0.15 && col !== '#93c46a') col = mixHex(col, '#7fa4ae', 0.3);
-          } else {                                                                   // théiers taillés en boules
-            // rangs de buissons (un rang par ~6 px de profondeur), décalés d'un rang à
-            // l'autre, chaque buisson un peu différent ; ombre portée sur la terre
-            const rows = Math.max(1, Math.round((q.h ?? 8) / 6)), ff = (f - 0.14) / 0.72;
-            const row = Math.min(rows - 1, Math.floor(ff * rows)), ry = ff * rows - row;
-            const cx = x + q.tier * 7 + row * 4, cell = Math.floor(cx / 8), bx = (cx % 8) - 3.5;
-            const rad = 2.9 + ih(cell, row, q.tier + 30) * 1.1, by = (ry - 0.5) * 6.5;
-            const d = (bx * bx) / (rad * rad) + (by * by) / 10;
-            if (d < 1) col = pick(C.HEDGE, clamp01(0.62 + side - bx * 0.06 - by * 0.09 + (d < 0.3 ? 0.08 : 0)), x, y);
-            else col = by > 0 && Math.abs(bx) < rad + 1 ? C.SOIL[1] : C.SOIL[2 + (ih(x, y, 31) < 0.2 ? 1 : 0)];
+          else if (pf <= 1) col = pick(C.GRASS, clamp01(0.8 + side), x, y);            // arête de la diguette, au soleil
+          else if (pf <= 2 && kind < 0.62) col = pick(C.SOIL, clamp01(0.42 + side), x, y);   // flanc de la diguette (rizières)
+          else if (py < back) col = py < 1 ? pick(C.SOIL, clamp01(0.18 + side), x, y) : pick(C.GRASS, clamp01(0.26 + side), x, y);   // ombre portée du mur
+          else {
+            const m0 = back, m1 = h - (kind < 0.62 ? 2 : 1), g = Math.min(0.999, Math.max(0, (py - m0) / Math.max(1, m1 - m0)));
+            const n = Math.max(2, Math.round((m1 - m0) / (kind < 0.42 ? 2.6 : 3))), rr = g * n, row = Math.floor(rr), ry = rr - row;
+            const near = row / Math.max(1, n - 1);                      // 0 au fond, 1 au premier rang
+            if (kind < 0.42) {                                          // rizière inondée, jeunes pousses en rangs
+              const wcol = mixHex('#b9dce2', '#78aab4', g);              // le ciel se reflète, plus clair au fond
+              const gap = (x + row * 3 + q.tier * 5) % 5 === 0;          // le rang de pousses, presque continu
+              if (ry > 0.5 - near * 0.15 && !gap) col = ry < 0.75 && near > 0.3 ? '#b4de6c' : '#78b84a';
+              else if (ry > 0.25 && !gap) col = mixHex(wcol, '#4f7f6c', 0.3);   // l'eau assombrie sous le rang
+              else col = ih(x >> 2, y, q.tier + 50) > 0.93 ? '#e8f6f6' : wcol;        // rides claires
+              if (side < -0.15) col = mixHex(col, '#6f95a0', 0.25);
+            } else if (kind < 0.62) {                                   // riz qui a poussé : tiges serrées, en rangs
+              if (ry < 0.22) col = mixHex('#9cc5cf', C.SOIL[2], 0.4);     // l'eau entre les rangs
+              else {
+                const blade = (x * 7 + row * 3 + q.tier) % 3;
+                let v = 0.42 + ry * 0.28 + (blade === 0 ? 0.14 : blade === 1 ? -0.06 : 0) + near * 0.06 + side;
+                col = pick(C.GRASS, clamp01(v), x, y);
+                if (ry > 0.85 && blade === 0 && ih(x, row, q.tier) < 0.3) col = '#d9cf6a';   // épis qui dorent
+              }
+            } else if (kind < 0.84) {                                   // potager : touffes de légumes entre des sillons
+              const cx = (x + row * 2 + q.tier * 3) % 5;
+              if (ry < 0.24) col = pick(C.SOIL, clamp01(0.16 + side), x, y);                // sillon, dans l'ombre
+              else if (cx === 0) col = pick(C.SOIL, clamp01(0.5 + side + (ry > 0.7 ? -0.12 : 0)), x, y);
+              else {
+                let v = 0.46 + (ry < 0.55 ? 0.22 : -0.06) + (cx === 1 ? 0.1 : cx === 4 ? -0.16 : 0) + near * 0.06 + side;
+                col = pick(C.LEAF, clamp01(v), x, y);
+                if (cx === 2 && ry > 0.7 && ih(x >> 2, row, q.tier + 6) < 0.3) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][q.tier % 4];
+              }
+            } else {                                                    // théiers taillés en boules
+              const rows = Math.max(1, Math.round(h / 6)), ff = q.f;
+              const trow = Math.min(rows - 1, Math.floor(ff * rows)), ty = ff * rows - trow;
+              const cxx = x + q.tier * 7 + trow * 4, cell = Math.floor(cxx / 8), bx = (cxx % 8) - 3.5;
+              const rad = 2.9 + ih(cell, trow, q.tier + 30) * 1.1, by = (ty - 0.5) * 6.5;
+              const d = (bx * bx) / (rad * rad) + (by * by) / 10;
+              if (d < 1) col = pick(C.HEDGE, clamp01(0.62 + side - bx * 0.06 - by * 0.09 + (d < 0.3 ? 0.08 : 0)), x, y);
+              else col = by > 0 && Math.abs(bx) < rad + 1 ? C.SOIL[1] : C.SOIL[2 + (ih(x, y, 31) < 0.2 ? 1 : 0)];
+            }
           }
         }
         b.p(x, y, veil(col, y));
