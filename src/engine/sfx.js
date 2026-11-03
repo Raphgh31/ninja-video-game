@@ -5,7 +5,7 @@
 let ac = null;
 let master = null;
 let noiseBuf = null;
-const SFX_VOLUME = 0.28;   // volume général des bruitages (0,35 avant : « légèrement trop forts », −2 dB)
+const SFX_VOLUME = 0.198;  // volume général des bruitages (0,35 à l'origine, puis −2 dB, puis encore −3 dB à la demande de l'utilisateur)
 let muted = false;
 let out = null;
 let musicBus = null;   // la musique a son propre circuit (même bouton « Son »)   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
@@ -201,8 +201,8 @@ const SOUNDS = {
   kick: () => noise({ dur: 0.1, vol: 0.08, f: 1800, to: 700, q: 1.3, attack: 0.01 }),
   breath: () => noise({ dur: 0.22, vol: 0.05, type: 'bandpass', f: 1300, to: 600, q: 0.7, attack: 0.03 }),
   enemyFall: () => tone({ f: 520, to: 160, dur: 0.45, type: 'triangle', vol: 0.05, attack: 0.02 }),
-  // pièce ramassée : baissée de 3 dB en plus du volume général (elle ressortait trop)
-  coin: () => { tone({ f: 1568, dur: 0.05, type: 'square', vol: 0.024 }); tone({ f: 2093, dur: 0.09, type: 'square', vol: 0.021, delay: 0.05 }); },
+  // pièce ramassée : baissée de 5 dB en plus du volume général (elle ressortait trop)
+  coin: () => { tone({ f: 1568, dur: 0.05, type: 'square', vol: 0.0191 }); tone({ f: 2093, dur: 0.09, type: 'square', vol: 0.0167, delay: 0.05 }); },
   crate: () => { noise({ dur: 0.14, vol: 0.14, type: 'lowpass', f: 900, to: 300 }); tone({ f: 180, to: 90, dur: 0.1, type: 'triangle', vol: 0.06 }); },
   bell: () => { tone({ f: 1760, dur: 0.5, type: 'sine', vol: 0.05, attack: 0.002 }); tone({ f: 2637, dur: 0.35, type: 'sine', vol: 0.025, attack: 0.002 }); },
   kickHit: () => { noise({ dur: 0.08, vol: 0.16, type: 'lowpass', f: 700 }); tone({ f: 120, to: 70, dur: 0.09, type: 'sine', vol: 0.12 }); },
