@@ -471,6 +471,15 @@ async function main() {
   const pg = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   pg.setDefaultTimeout(8000);
   pg.on('pageerror', (e) => errors.push('[potager] ' + e.message));
+  // compte les sons réellement joués (chaque source audio démarrée)
+  await pg.addInitScript(() => {
+    window.__sons = 0;
+    const AC = window.AudioContext;
+    for (const m of ['createBufferSource', 'createOscillator']) {
+      const orig = AC.prototype[m];
+      AC.prototype[m] = function () { const n = orig.call(this); const st = n.start.bind(n); n.start = (...a) => { window.__sons++; st(...a); }; return n; };
+    }
+  });
   await pg.goto(PAGE); await pg.waitForFunction(() => window.__kage); await pg.waitForTimeout(300);
   await pg.evaluate(() => localStorage.clear());
   await pg.reload(); await pg.waitForFunction(() => window.__kage); await pg.waitForTimeout(300);
@@ -518,6 +527,23 @@ async function main() {
     await pg.click('[data-new]'); await pw(200);
     const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused]; });
     expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
+  });
+
+  await test('potager : silence à l\'arrêt (ennemis hors de l\'écran inaudibles), pas qui suivent la course et s\'arrêtent avec KAGE', async () => {
+    await pat(4); await PK.press('ShiftLeft'); await pw(200);
+    await pg.evaluate(() => { window.__sons = 0; });
+    await pw(1500);
+    const still = await pg.evaluate(() => window.__sons);
+    await pg.evaluate(() => {
+      const pl = window.__kage.player, o = pl.onEvent; window.__pas = 0;
+      pl.onEvent = (n, d) => { if (n === 'step') window.__pas++; o(n, d); };
+    });
+    await PK.down('ArrowRight'); await pw(1000); await PK.up('ArrowRight'); await pw(200);
+    const running = await pg.evaluate(() => window.__pas);
+    await pg.evaluate(() => { window.__pas = 0; window.__sons = 0; });
+    await pw(1000);
+    const after = await pg.evaluate(() => [window.__pas, window.__sons]);
+    expect(still === 0 && running >= 3 && after[0] === 0 && after[1] === 0, `sons à l'arrêt ${still}, pas en 1 s de course ${running}, après l'arrêt : pas ${after[0]}, sons ${after[1]}`);
   });
 
   await test('potager : cadrage 448×252, sol en bas de l\'image', async () => {

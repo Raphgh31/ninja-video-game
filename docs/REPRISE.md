@@ -6,7 +6,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 > « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE. »
 > Puis dire ce qu'on veut faire : poursuivre les retouches du décor du Potager, ou passer à la planche de design du marchand (direction choisie : le sage voyageur), voir § 9.
 >
-> Tout est dans `main`, y compris la refonte visuelle du Potager (PR #11 fusionnée) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 3 novembre 2026.
+> Tout est dans `main`, y compris la refonte visuelle du Potager (PR #11 fusionnée) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 3 novembre 2026 (sons de KAGE revus).
 
 ---
 
@@ -16,7 +16,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 52 tests automatiques. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
+- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 53 tests automatiques. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
@@ -27,7 +27,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 52 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 53 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -55,12 +55,12 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `src/engine/touch.js` | commandes tactiles dessinées dans le canvas (constantes `STICK`) |
 | `src/engine/sprites.js` | chargement, recoloration par palette, lecteur d'animation |
 | `src/engine/fx.js` | particules (poussière, étincelles), secousse, micro-arrêt |
-| `src/engine/sfx.js` | sons synthétisés (Web Audio, aucun fichier) |
+| `src/engine/sfx.js` | sons synthétisés (Web Audio, aucun fichier) ; `play(nom, options, volume)` ; briques `tone`, `noise`, `air` (souffle à courbes, modulation), `ring` (tintement métallique) |
 | `tools/kage_forge/` | **forge des sprites** : `palette.py`, `core.py`, `rig.py`, `art.py` (toutes les poses), `build.py` (export + contrôles), `preview.py` |
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
 | `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
-| `tests/e2e.cjs` | 52 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tests/e2e.cjs` | 53 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
@@ -183,7 +183,13 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 ## 7. Effets et sons
 
 - **Poussière** : saut, atterrissage, dash, sprint, dérapage, glissade, murs, shuriken planté, pas et chute de TATE. **Étincelles**, **micro-arrêt de l'image** sur les coups, **secousses** de l'écran.
-- **Sons synthétisés** (Web Audio, aucun fichier) pour toutes les actions, plus gong, porte, lanterne et arrivée. Ils ont été réglés « à l'aveugle » : **à faire valider à l'oreille**. Des fichiers audio fournis par l'utilisateur pourront les remplacer.
+- **Sons synthétisés** (Web Audio, aucun fichier) pour toutes les actions, plus gong, porte, lanterne et arrivée. Des fichiers audio fournis par l'utilisateur pourront les remplacer.
+- **Sons de KAGE revus à la demande de l'utilisateur** (novembre 2026) : **dash** = whoosh (souffle qui enfle, monte puis retombe) ; **saut** = plus de « bip » au décollage, seulement une **réception très légère** (petit choc mat) ; **sabre dans le vide** = la lame fend l'air (souffle fin et aigu), **sabre qui touche** = impact de lame (`bladeHit` : claquement, tintement métallique, choc dans le corps ; plus lourd pour le sabre en l'air ; sur WARA, la paille s'entend à mi-volume dessous) ; **glissade** = frottement granuleux ; **shuriken** = déclic métallique puis sifflement en tournoyant. Le saut mural garde son ancien son.
+- **Pas** : ils ne suivaient pas la course (le contrôle se faisait avant l'avancée de l'animation : un seul pas en entrant dans la course). Maintenant un pas à chaque appui du cycle, seulement au sol et en mouvement, légèrement varié ; rien à l'arrêt.
+- **« Les pas tournent en boucle même à l'arrêt »** (remarque de l'utilisateur) : c'étaient les **ennemis hors de l'écran** (TATE qui marche à 450 cases, WARA qui sautillent), entendus à plein volume partout. Les sons des ennemis sont maintenant **pleins à l'écran et s'éteignent en ~7 cases au-delà du bord** (`earGain` / `sfxAt` dans `main.js`). Un test le vérifie (silence à l'arrêt, pas qui suivent la course).
+- Spectrogrammes avant / après : `docs/sons/spectres_sons.png`.
+- **Banc d'écoute** (page claude.ai privée, avant / après) : <https://claude.ai/artifact/PZ5fAyEtafMpjNeH3yqnLp>, régénéré par un petit script à partir de l'ancien et du nouveau `sfx.js`.
+- **Musique** : une par chapitre (demande de l'utilisateur). Faisable à partir d'une vidéo : extraction de la piste audio (ffmpeg), boucle, encodage OGG/MP3 léger, lecture en boucle avec fondu. Seule réserve : les droits (le site est public). En attente du fichier de l'utilisateur.
 
 ## 8. Préférences et façon de travailler de l'utilisateur
 
