@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>KAGE — prototype</title>
+    <title>The Ninja Game</title>
   </head>
   <body>
     <header class="bar">
-      <h1>KAGE</h1>
+      <h1>The Ninja Game</h1>
       <nav class="levels" aria-label="Niveau">
         <a href="#potager" data-level="potager">Chapitre 1 — Le Potager</a>
         <a href="#niveau-1" data-level="niveau-1">Niveau 1</a>
@@ -19,13 +19,13 @@
       <p class="state" data-state aria-live="off">idle</p>
     </header>
     <main class="stage">
-      <canvas id="game" aria-label="KAGE, jeu de plateforme"></canvas>
+      <canvas id="game" aria-label="The Ninja Game, jeu de plateforme"></canvas>
       <div class="zone-banner" aria-live="polite"><span data-zone-num></span><strong data-zone-name></strong></div>
       <p class="hint" aria-live="polite"></p>
       <p class="saved" aria-live="polite">Sauvegardé</p>
       <button type="button" class="talk" hidden><span class="talk__key">↑</span> Parler au marchand</button>
       <section class="title-screen" hidden aria-label="Écran titre">
-        <h2 class="title-screen__name">KAGE</h2>
+        <h2 class="title-screen__name">The Ninja Game</h2>
         <p class="title-screen__chapter" data-chapter></p>
         <div class="title-screen__actions">
           <button type="button" data-continue hidden>Continuer</button>
@@ -49,10 +49,10 @@
         <div><dt>Maj + ← →</dt><dd>sprint</dd></div>
         <div><dt>Espace</dt><dd>sauter</dd></div>
         <div><dt>← ← / → →</dt><dd>dash (double appui)</dd></div>
-        <div><dt>↓ / C</dt><dd>glissade</dd></div>
-        <div><dt>J / X</dt><dd>sabre</dd></div>
-        <div><dt>K / V</dt><dd>shuriken</dd></div>
-        <div><dt>U / Z</dt><dd>coup de pied</dd></div>
+        <div><dt>↓</dt><dd>glissade</dd></div>
+        <div><dt>X / W</dt><dd>sabre</dd></div>
+        <div><dt>C / V</dt><dd>shuriken</dd></div>
+        <div><dt>B / N</dt><dd>coup de pied</dd></div>
         <div><dt>H</dt><dd>hitbox</dd></div>
         <div><dt>↑ / E</dt><dd>parler</dd></div>
         <div><dt>M</dt><dd>son</dd></div>

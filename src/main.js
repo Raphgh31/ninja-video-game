@@ -572,8 +572,8 @@ const HINTS = {
   jump: ['Espace : sauter', 'Bouton flèche : sauter'],
   sprint: ['Maj + → : sprinter', 'Joystick poussé hors du cercle : sprinter'],
   dash: ['→ → (double appui) : dash', 'Coup de joystick rapide, relâché : dash'],
-  kick: ['U : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
-  attack: ['J : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
+  kick: ['B : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
+  attack: ['X : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
   slide: ['↓ en courant : glissade', 'Joystick vers le bas en courant : glissade'],
 };
 const HINT_USED = {
