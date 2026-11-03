@@ -526,7 +526,7 @@ async function main() {
     const shown = await pg.evaluate(() => !document.querySelector('.title-screen').hidden);
     await pg.click('[data-new]'); await pw(200);
     const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused]; });
-    expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
+    expect(shown && i.join() === '8,8,true,true,false', `titre ${shown}, ${i.join()}`);
   });
 
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
@@ -669,11 +669,18 @@ async function main() {
   });
 
   await test('potager : une lanterne enregistre la partie (icône « enregistré »)', async () => {
-    const c = await pg.evaluate(() => Math.floor(window.__kage.level.checkpoints[1].x / 16));
-    await pat(c - 2); await PK.down('ArrowRight'); await pw(500); await PK.up('ArrowRight'); await pw(150);
+    // la première lanterne encore éteinte (les tests précédents ont pu en allumer)
+    const k = await pg.evaluate(() => { const l = window.__kage.level, i = l.checkpoints.findIndex((c) => !c.lit); return { i, x: l.checkpoints[i].x }; });
+    await pat(Math.floor(k.x / 16) - 2); await PK.down('ArrowRight'); await pw(500); await PK.up('ArrowRight'); await pw(150);
     const icon = await pg.evaluate(() => document.querySelector('.saved').classList.contains('on'));
     const s = await SAVE();
-    expect(s && s.checkpoint === 1 && icon, `point de reprise ${s && s.checkpoint}, icône ${icon}`);
+    expect(s && s.checkpoint === k.i && s.checkpointX === k.x && icon, `point de reprise ${s && s.checkpoint} (${s && s.checkpointX}) / attendu ${k.i} (${k.x}), icône ${icon}`);
+  });
+
+  await test('potager : un point de reprise au début de chaque zone (2 à 8)', async () => {
+    const r = await pg.evaluate(() => { const l = window.__kage.level; return l.zones.slice(1).map((z) => [z.id, l.checkpoints.some((c) => c.x >= z.px0 - 4 * 16 && c.x <= z.px0 + 8 * 16)]); });
+    const missing = r.filter(([, ok]) => !ok).map(([id]) => id);
+    expect(missing.length === 0, `zones sans point de reprise : ${missing.join(', ')}`);
   });
 
   await test('potager : « Continuer » reprend à la dernière lanterne, avec les ryō', async () => {
@@ -681,8 +688,24 @@ async function main() {
     await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
     const cont = await pg.evaluate(() => !document.querySelector('[data-continue]').hidden);
     await pg.click('[data-continue]'); await pw(300);
-    const r = await pg.evaluate(() => { const g = window.__kage, l = g.level; return { px: g.player.x, lx: l.checkpoints[1].x, taken: l.coins.filter((c) => c.taken).map((c) => c.id) }; });
+    const r = await pg.evaluate((lx) => { const g = window.__kage, l = g.level; return { px: g.player.x, lx, taken: l.coins.filter((c) => c.taken).map((c) => c.id) }; }, before.checkpointX);
     expect(cont && Math.abs(r.px - r.lx) < 24 && before.coins.every((id) => r.taken.includes(id)), `continuer ${cont}, KAGE ${Math.round(r.px)} / lanterne ${r.lx}`);
+  });
+
+  await test('potager : une sauvegarde d\'avant les nouvelles lanternes reprend à la bonne lanterne', async () => {
+    // ancienne sauvegarde : seulement l'indice (1) parmi les 3 lanternes d'origine
+    const want = await pg.evaluate(() => {
+      const l = window.__kage.level, cols = new Set(l.legacyCheckpoints);
+      const old = l.checkpoints.filter((k) => cols.has(Math.floor(k.x / 16))).sort((a, b) => a.y - b.y || a.x - b.x);
+      const s = JSON.parse(localStorage.getItem('kage.save.v1'));
+      localStorage.setItem('kage.save.v1', JSON.stringify({ ...s, checkpoint: 1, checkpointX: undefined }));
+      return { x: old[1].x, cols: l.legacyCheckpoints.length };
+    });
+    await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
+    await pg.click('[data-continue]'); await pw(300);
+    const r = await pg.evaluate(() => { const g = window.__kage; return { px: g.player.x, lit: g.level.checkpoints.filter((c) => c.lit).length }; });
+    const lit = await pg.evaluate((x) => window.__kage.level.checkpoints.filter((c) => c.x <= x).length, want.x);
+    expect(want.cols === 3 && Math.abs(r.px - want.x) < 24 && r.lit === lit, `KAGE ${Math.round(r.px)} / lanterne ${want.x}, allumées ${r.lit}/${lit}`);
   });
 
   await test('potager : le marchand ouvre la boutique (↑) et Échap la referme', async () => {

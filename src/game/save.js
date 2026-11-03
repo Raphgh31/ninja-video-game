@@ -11,6 +11,7 @@ export function emptySave(chapter) {
     v: VERSION,
     chapter,
     checkpoint: -1,      // indice de la dernière lanterne allumée (-1 : départ)
+    checkpointX: null,   // position (px) de cette lanterne : c'est elle qui sert à la reprise
     ryo: 0,
     coins: [],           // ryō déjà ramassés (identifiants)
     crates: [],          // caisses déjà brisées

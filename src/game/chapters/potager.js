@@ -15,6 +15,7 @@ class Builder {
   constructor() {
     this.cols = [];
     this.zones = [];
+    this.legacy = [];     // colonnes des 3 lanternes d'origine (anciennes sauvegardes)
     this.props = [];
     this.hints = [];
     this.backdrops = [];
@@ -167,6 +168,7 @@ function build() {
   b.prop('terraces_bg', b.x + 22, G, { w: 38, mx: b.x + 41, spout: b.x + 46, peak: 72, lip: 125 });   // la colline en terrasses, derrière
   b.gap(3, 'ditch');                                 // fossé peu profond
   x = b.x; b.flat(5);
+  b.on(x, 'P');                                      // point de reprise : début de la zone 2
   b.prop('daikon_rack', x + 2, G, { w: 3 });
   b.prop('tubs', x + 4, G);
   x = b.x; b.flat(5, G - 2);                         // terrasses
@@ -204,6 +206,7 @@ function build() {
   // -------------------------------------------------------------------------
   b.zone('03', "Les canaux d'irrigation");
   x = b.x; b.flat(8);
+  b.on(x + 1, 'P');                                  // point de reprise : début de la zone 3
   b.prop('mill', x + 7, G, { flume: (x + 9) * 16 - 4 });   // le moulin et sa grande roue
   b.prop('waterwheel', x + 8, G, { r: 3, dx: 16, lift: 10 });
   b.prop('reeds', x + 7, G, { w: 1 });
@@ -242,7 +245,7 @@ function build() {
   // -------------------------------------------------------------------------
   b.zone('04', 'Le vieux verger');
   x = b.x; b.flat(6);
-  b.on(x + 2, 'P');                                  // sauvegarde : entrée du verger
+  b.on(x + 2, 'P'); b.legacy.push(x + 2);            // sauvegarde : entrée du verger
   b.prop('tree', x + 5, G, { kind: 'cerisier' });
   b.prop('orchard_canopy', x + 2, G, { w: 54 });   // voûte de branches au-dessus du chemin
   b.hint('kick', x + 7);
@@ -278,6 +281,7 @@ function build() {
   b.zone('05', 'La serre de bambou');
   const serre0 = b.x;
   b.flat(6);
+  b.on(serre0 + 1, 'P');                             // point de reprise : début de la zone 5
   b.hint('slide', serre0 + 2);
   x = b.x; b.flat(5);                                // 1. sous une structure de bambou
   b.block(x, 5, G - 6, G - 2, '|');
@@ -318,6 +322,7 @@ function build() {
   const grange0 = b.x;
   b.flat(4);
   b.prop('barn_door', grange0 + 1, G);
+  b.on(grange0 + 3, 'P');                            // point de reprise : début de la zone 6 (dans la grange)
   b.hint('attack', grange0 + 3);
   x = b.x; b.flat(30);
   b.row(x + 3, 10, G - 4, '=');                      // mezzanine : on ne passe pas par-dessus
@@ -336,7 +341,7 @@ function build() {
   b.block(grange0 + 1, grange1 - grange0 - 1, G - 9, G - 9, '=');   // charpente
   b.backdrop('grange', grange0, grange1, G - 9, G);
   x = b.x; b.flat(5);
-  b.on(x + 2, 'P');                                  // sauvegarde : sortie de la grange
+  b.on(x + 2, 'P'); b.legacy.push(x + 2);            // sauvegarde : sortie de la grange
   b.prop('woodpile', x + 4, G);
 
   // -------------------------------------------------------------------------
@@ -362,7 +367,7 @@ function build() {
   b.prop('bridge_red', b.x - 8, G, { w: 10, broken: true });
   b.prop('reeds', b.x - 7, G, { w: 1 });
   x = b.x; b.flat(6);
-  b.on(x + 3, 'P');                                  // sauvegarde : avant la dernière partie
+  b.on(x + 3, 'P'); b.legacy.push(x + 3);            // sauvegarde : avant la dernière partie
   x = b.x; b.flat(4);                                // bosquet de bambous couchés : glissade
   b.block(x, 4, G - 12, G - 2, '|');
   b.prop('bamboo_grove', x + 2, G - 12, { w: 3 });
@@ -387,6 +392,7 @@ function build() {
   // -------------------------------------------------------------------------
   b.zone('08', 'Le comptoir du voyageur');
   x = b.x; b.flat(18);
+  b.on(x + 5, 'P');                                  // point de reprise : début de la zone 8
   b.on(x + 9, 'M');
   b.prop('stall', x + 9, G);
   b.prop('jizo', x + 2, G);
@@ -412,6 +418,7 @@ export const POTAGER = {
   props: B.props,
   hints: B.hints,
   backdrops: B.backdrops,
+  legacyCheckpoints: B.legacy,
   theme: 'potager',
   chapter: 1,
   // introduction (25 s) jouée une fois, puis boucle de 90 s (24 mesures à 64 BPM)

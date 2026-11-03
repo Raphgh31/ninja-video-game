@@ -16,6 +16,7 @@ export class Level {
     this.theme = def.theme ?? 'ville';
     this.chapter = def.chapter ?? null;
     this.music = def.music ?? null;   // { src, loopStart, loopEnd } : musique du chapitre
+    this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;
     this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
     this.props = def.props ?? [];
@@ -59,6 +60,8 @@ export class Level {
       }
       this.rows[y] = this.rows[y].replace(/[TEWCPGoM]/g, '.');
     }
+    // lanternes dans l'ordre du parcours (de gauche à droite)
+    this.checkpoints.sort((a, b) => a.x - b.x);
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
     this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
