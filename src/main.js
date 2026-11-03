@@ -210,25 +210,35 @@ shurikens.onEvent = (n, d) => {
     default:
   }
 };
+// Sons des ennemis : pleins tant qu'ils sont à l'écran, ils s'éteignent en
+// s'éloignant du bord (sur ~7 cases) ; au loin, on ne les entend plus du tout.
+function earGain(x, y) {
+  const dx = Math.max(0, Math.abs(x - (camera.x + VIEW_W / 2)) - VIEW_W / 2);
+  const dy = Math.max(0, Math.abs(y - (camera.y + VIEW_H / 2)) - VIEW_H / 2);
+  const d = Math.max(dx, dy);
+  return d <= 8 ? 1 : Math.max(0, 1 - (d - 8) / 112);
+}
+const sfxAt = (name, d, opts, k = 1) => sfx(name, opts, k * earGain(d.x, d.y));
+let swordStrike = false;   // vrai pendant que le sabre de KAGE frappe (le son d'impact est celui de la lame)
 // un ennemi poussé dans le vide : petit cri en tombant, nuage au fond
 function onFallEvent(n, d) {
-  if (n === 'fall_start') sfx('enemyFall');
-  else if (n === 'fall_land') { sfx('land', { strength: 0.8 }); fx.dust(d.x, d.y, 5, { spread: 30 }); }
-  else if (n === 'fell') { sfx('hit'); fx.shake(1, 0.15); fx.dust(d.x, d.y, 8, { spread: 45, up: 20 }); }
+  if (n === 'fall_start') sfxAt('enemyFall', d);
+  else if (n === 'fall_land') { sfxAt('enemyLand', d, { strength: 0.8 }); fx.dust(d.x, d.y, 5, { spread: 30 }); }
+  else if (n === 'fell') { sfxAt('hit', d); fx.shake(1, 0.15); fx.dust(d.x, d.y, 8, { spread: 45, up: 20 }); }
 }
 function onTateEvent(n, d) {
   onFallEvent(n, d);
   switch (n) {
-    case 'step': sfx('tateStep'); fx.dust(d.x - 6, d.y, 2, { dir: -1, up: 8 }); fx.dust(d.x + 6, d.y, 2, { dir: 1, up: 8 }); break;
-    case 'windup': sfx('tateWindup'); break;
-    case 'bash': sfx('tateBash'); fx.dust(d.x - d.facing * 8, d.y, 6, { dir: -d.facing, spread: 40 }); break;
+    case 'step': sfxAt('tateStep', d); fx.dust(d.x - 6, d.y, 2, { dir: -1, up: 8 }); fx.dust(d.x + 6, d.y, 2, { dir: 1, up: 8 }); break;
+    case 'windup': sfxAt('tateWindup', d); break;
+    case 'bash': sfxAt('tateBash', d); fx.dust(d.x - d.facing * 8, d.y, 6, { dir: -d.facing, spread: 40 }); break;
     case 'bash_hit': fx.shake(3, 0.3); break;
-    case 'block': sfx('block'); fx.sparks(d.x, d.y, 7, { dir: d.facing, speed: 100 }); break;
-    case 'hit': sfx('hit'); fx.sparks(d.x, d.y - 16, 8, { palette: 'hit' }); break;
-    case 'stunned': sfx('tateStun'); break;
-    case 'defeat_kneel': sfx('tateKneel'); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
+    case 'block': sfxAt('block', d); fx.sparks(d.x, d.y, 7, { dir: d.facing, speed: 100 }); break;
+    case 'hit': if (!swordStrike) sfxAt('hit', d); fx.sparks(d.x, d.y - 16, 8, { palette: 'hit' }); break;
+    case 'stunned': sfxAt('tateStun', d); break;
+    case 'defeat_kneel': sfxAt('tateKneel', d); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
     case 'defeat_impact':
-      sfx('tateFall');
+      sfxAt('tateFall', d);
       fx.shake(2, 0.25);
       fx.dust(d.x - 4, d.y, 6, { dir: -1, spread: 45 });
       fx.dust(d.x + 14 * d.facing, d.y, 6, { dir: 1, spread: 45 });
@@ -240,15 +250,15 @@ for (const t of tates) t.onEvent = onTateEvent;
 function onWaraEvent(n, d) {
   onFallEvent(n, d);
   switch (n) {
-    case 'crouch': sfx('waraHop'); break;
+    case 'crouch': sfxAt('waraHop', d); break;
     case 'land': fx.dust(d.x, d.y, 3, { spread: 18, up: 8, life: 0.3 }); break;
-    case 'windup': sfx('waraWindup'); break;
-    case 'spin': sfx('waraSpin'); break;
+    case 'windup': sfxAt('waraWindup', d); break;
+    case 'spin': sfxAt('waraSpin', d); break;
     case 'spin_hit': fx.shake(2, 0.2); break;
-    case 'dizzy': sfx('waraDizzy'); break;
-    case 'block': sfx('waraBlock'); fx.sparks(d.x + d.facing * 10, d.y, 5, { dir: d.facing, speed: 80, palette: 'straw' }); break;
-    case 'hit': sfx('waraHit'); fx.sparks(d.x, d.y - 16, 9, { palette: 'straw', speed: 100 }); break;
-    case 'death_poof': sfx('waraPoof'); fx.sparks(d.x, d.y - 14, 14, { palette: 'straw', speed: 120 }); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
+    case 'dizzy': sfxAt('waraDizzy', d); break;
+    case 'block': sfxAt('waraBlock', d); fx.sparks(d.x + d.facing * 10, d.y, 5, { dir: d.facing, speed: 80, palette: 'straw' }); break;
+    case 'hit': sfxAt('waraHit', d, undefined, swordStrike ? 0.5 : 1); fx.sparks(d.x, d.y - 16, 9, { palette: 'straw', speed: 100 }); break;
+    case 'death_poof': sfxAt('waraPoof', d); fx.sparks(d.x, d.y - 14, 14, { palette: 'straw', speed: 120 }); fx.dust(d.x, d.y, 5, { spread: 30 }); break;
     case 'death_pile': fx.dust(d.x - 4, d.y, 4, { dir: -1, spread: 25 }); fx.dust(d.x + 4, d.y, 4, { dir: 1, spread: 25 }); break;
     default:
   }
@@ -329,8 +339,11 @@ function update(dt) {
     const heavy = player.state === 'air_attack';
     level.hitGongs(ab);
     for (const t of enemies) {
+      swordStrike = true;
       const r = t.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
+      swordStrike = false;
       if (r === 'hit') {
+        sfx('bladeHit', { heavy });
         fx.hitStop(heavy ? 0.11 : 0.07);
         if (heavy) fx.shake(2, 0.18);
       } else if (r === 'blocked') {

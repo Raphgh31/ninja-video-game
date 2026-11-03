@@ -149,7 +149,6 @@ export class Player {
     this.kickCd = Math.max(0, (this.kickCd ?? 0) - dt);
     this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
-    const prevFrame = this.anim.frame;
     const L = input.isHeld('left'), R = input.isHeld('right');
     const dir = (R ? 1 : 0) - (L ? 1 : 0);
     if (input.wasPressed('jump')) this.jumpBuffer = P.buffer;
@@ -400,14 +399,6 @@ export class Player {
       }
     }
 
-    // bruit de pas : images de contact du cycle de course / sprint
-    if ((this.state === 'run' || this.state === 'sprint') && this.anim.frame !== prevFrame && STEP_FRAMES.includes(this.anim.frame)) {
-      this.emit('step', { sprint: this.state === 'sprint' });
-    }
-    if (this.state === 'walk' && this.anim.frame !== prevFrame && (this.anim.frame === 0 || this.anim.frame === 2)) {
-      this.emit('step', { walk: true });
-    }
-
     if (this.y > this.level.height + 64) {
       this.die();
     } else if (this.level.hitsSpike(this.box())) {
@@ -426,7 +417,15 @@ export class Player {
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
       walking: this.onGround && this.state === 'walk',
     });
+    const before = this.anim.frame, stateBefore = this.state;
     this.anim.update(dt);
+    // bruit de pas : seulement quand le pied touche le sol dans le cycle, et que
+    // KAGE avance vraiment (rien à l'arrêt, ni en entrant dans la course)
+    const f = this.anim.frame;
+    if (f !== before && this.state === stateBefore && this.onGround && Math.abs(this.vx) > 20) {
+      if ((this.state === 'run' || this.state === 'sprint') && STEP_FRAMES.includes(f)) this.emit('step', { sprint: this.state === 'sprint' });
+      else if (this.state === 'walk' && (f === 0 || f === 2)) this.emit('step', { walk: true });
+    }
   }
 
   endSpecial() {
