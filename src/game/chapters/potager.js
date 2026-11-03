@@ -355,6 +355,7 @@ function build() {
     gx0: grange0, gx1: grange1, eave: G - 9, roofH: 150, floor: gFloor, floorX0: grange0 + 1, floorX1: grange0 + 12,
     collar: G - 14, step: { x: x + 9, w: 2, y0: G - 6, y1: G - 5 },
     owl: { x: (grange0 + 26) * 16 + 4, y: (G - 12) * 16 + 10 },          // la chouette, sur son perchoir
+    revealY: (G - 4) * 16,                                                  // KAGE à hauteur de la mezzanine ou plus haut : le toit s'efface
   });
   b.backdrop('grange', grange0, grange1, G - 7, G, { eave: G - 9, roofH: 150 });
   x = b.x; b.flat(5);

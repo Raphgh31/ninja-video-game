@@ -29,6 +29,36 @@ export function atticGeom(p) {
   };
 }
 
+/**
+ * Le toit « plein » de la grange, tel qu'on le voit de loin : tout le chaume,
+ * et la grosse poutre sous l'avant-toit. Il est peint à part (live.js le pose
+ * par-dessus le grenier, et le rend presque transparent quand KAGE est monté).
+ * gb : le fond « grange ».
+ */
+export function roofCoverBox(gb) {
+  const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
+  return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
+}
+export function paintRoofCover(b, gb) {
+  const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98;
+  thatchRoof(b, (x0 + x1) / 2, ye - RH + 2, x1 - x0 + 70, RH, 91);
+  // la poutre sous l'avant-toit (comme l'ancienne charpente) : bois veiné, bouts sombres
+  for (let yy = ye; yy < ye + TILE; yy++) {
+    for (let x = x0 + TILE; x < x1 - 6; x++) {
+      const grain = noise2(x * 0.08, yy * 0.9, 61);
+      let v = 0.42 + (grain - 0.5) * 0.5 - ((yy - ye) / 16) * 0.15;
+      if (Math.abs(grain - 0.5) < 0.03) v -= 0.2;
+      if (yy === ye) v = 0.8; else if (yy >= ye + 14) v = 0.05;
+      if (x < x0 + TILE + 2) v -= 0.2;
+      b.p(x, yy, pick(C.WOOD, clamp01(v), x, yy));
+    }
+  }
+  // les poteaux d'angle restent devant (même dessin que la couche avant de la grange)
+  const h = ye + TILE - (ye - 6);
+  b.r(x0 - 4, ye - 6, 8, h, C.WOOD[1]).r(x0 - 4, ye - 6, 2, h, C.WOOD[3]);
+  b.r(x1 - 6, ye - 6, 8, h, C.WOOD[1]).r(x1 - 6, ye - 6, 2, h, C.WOOD[3]);
+}
+
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],

@@ -670,6 +670,15 @@ async function main() {
     expect(at.top >= 5 && hay.y === at.step.y0 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
   });
 
+  await test('potager : le toit de la grange cache le grenier, et s\'efface quand KAGE monte sur la mezzanine', async () => {
+    const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const pl = window.__kage.player; pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); }, [tx, ty]);
+    const alpha = () => pg.evaluate(() => window.__kage.level.art.live.attic.alpha);
+    await put(362, 19); await pw(700); const sol = await alpha();
+    await put(361, 15); await pw(700); const haut = await alpha();
+    await put(362, 19); await pw(700); const retour = await alpha();
+    expect(sol > 0.95 && haut < 0.2 && retour > 0.95, `opacité du toit : au sol ${sol.toFixed(2)}, sur la mezzanine ${haut.toFixed(2)}, de retour au sol ${retour.toFixed(2)}`);
+  });
+
   await test('potager : un ryō ramassé est compté et enregistré', async () => {
     // un ryō à hauteur de hanche, au-dessus du sol
     const c = await pg.evaluate(() => {

@@ -1,10 +1,10 @@
 // Tout ce qui bouge dans le Potager : la roue à eau, l'eau qui coule, les koïs,
 // la pluie de la serre, la lumière de la grange, la fumée, le marchand, et la vie
 // sauvage (papillons, pétales, feuilles, libellules, poussières dans la lumière).
-import { ih, rng } from './paint.js';
+import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
-import { hillGeom, atticGeom } from './props.js';
+import { hillGeom, atticGeom, paintRoofCover, roofCoverBox } from './props.js';
 
 const R = Math.round;
 
@@ -23,7 +23,7 @@ export class Live {
     this.serre = level.backdrops.find((b) => b.type === 'serre');
     this.grange = level.backdrops.find((b) => b.type === 'grange');
     const gr = P.find((p) => p.type === 'grenier');
-    this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1 } : null;
+    this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1, roof: null, alpha: 1 } : null;
     this.kappas = P.filter((p) => p.type === 'kappa').map((p) => ({ p, state: 'sit', t: 0 }));
     this.barrels = P.filter((p) => p.type === 'barrel');
     this.hills = P.filter((p) => p.type === 'terraces_bg').map((p) => hillGeom(p));
@@ -350,6 +350,32 @@ export class Live {
     }
   }
 
+  /**
+   * Le toit plein par-dessus le grenier : de loin, la grange garde son grand toit
+   * de chaume ; dès que KAGE est à hauteur de la mezzanine (ou plus haut), le toit
+   * devient presque transparent et révèle le grenier ; il revient quand KAGE redescend.
+   */
+  roofCover(ctx, cam, dt) {
+    const A = this.attic, gb = this.grange;
+    if (!A.roof) {                                         // peint une seule fois, à la première vue
+      const box = roofCoverBox(gb);
+      const c = canvas(box.w, box.h), g = c.getContext('2d');
+      g.translate(-box.x, -box.y);
+      paintRoofCover(new Brush(g), gb);
+      A.roof = { c, ...box };
+    }
+    const pl = this.level.player, x0 = gb.x0 * TILE, x1 = gb.x1 * TILE;
+    const up = pl && pl.state !== 'death' && pl.x > x0 && pl.x < x1 && pl.y <= A.p.revealY + 2;
+    const target = up ? 0.1 : 1;
+    A.alpha += (target - A.alpha) * (1 - Math.exp(-dt / 0.16));
+    if (Math.abs(A.alpha - target) < 0.004) A.alpha = target;
+    const r = A.roof;
+    if (r.x - cam.x > ctx.canvas.width || r.x + r.w - cam.x < 0) return;
+    ctx.globalAlpha = A.alpha;
+    ctx.drawImage(r.c, R(r.x - cam.x), R(r.y - cam.y));
+    ctx.globalAlpha = 1;
+  }
+
   /** La chouette du grenier : elle cligne des yeux et suit KAGE du regard. */
   owl(ctx, cam, time) {
     const o = this.attic.p.owl, pl = this.level.player;
@@ -448,6 +474,7 @@ export class Live {
         }
         if (this.attic) this.atticLight(ctx, cam, time);
       }
+      if (this.attic) this.roofCover(ctx, cam, dt);
     }
     this.ambient(ctx, cam, viewW, viewH, time, dt);
   }

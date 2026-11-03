@@ -13,6 +13,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Interface discrète et lisible ; rendu « jeu indé soigné », jamais générique.
 - Nouveau personnage ou ennemi : présenter une planche de design avant de l'intégrer en jeu.
 - Commits et documentation en français.
+- Fusion des PR et mise en ligne du site : **seulement à la fin d'une série de modifications** (quand l'utilisateur le demande ou change de conversation). Entre-temps : branche, commits, et republication de l'artefact de test.
 
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
