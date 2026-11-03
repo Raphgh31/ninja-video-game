@@ -3,15 +3,16 @@
 Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, ennemi, niveau, outils) avec les décisions prises et leurs raisons. Il sert à reprendre le projet dans une nouvelle discussion sans rien perdre.
 
 > **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et écrire :
-> « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE : prochaine étape, la planche de design du marchand (direction choisie : le sage voyageur). »
+> « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE. »
+> Puis dire ce qu'on veut faire : poursuivre les retouches du décor du Potager, ou passer à la planche de design du marchand (direction choisie : le sage voyageur), voir § 9.
 >
-> Tout est dans `main` (aucune PR ouverte, aucune tâche planifiée en cours). Dernière mise à jour : 2 novembre 2026.
+> Tout est dans `main`, y compris la refonte visuelle du Potager (PR #11 fusionnée) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 3 novembre 2026.
 
 ---
 
 ## 1. Où en est le projet
 
-- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, en greybox jouable)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
+- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, jouable et entièrement peint)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
@@ -58,6 +59,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tools/kage_forge/` | **forge des sprites** : `palette.py`, `core.py`, `rig.py`, `art.py` (toutes les poses), `build.py` (export + contrôles), `preview.py` |
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
+| `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
 | `tests/e2e.cjs` | 52 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
@@ -176,7 +178,7 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 5. **Sprint tactile au joystick** (PR #8), bouton de sprint supprimé.
 6. **Chapitre 1, le Potager**, en greybox jouable (PR #9).
 7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
-8. **Refonte visuelle du Potager** : cadrage 448×252, caméra posée à paliers, décor peint et animé (§ 6 quater).
+8. **Refonte visuelle du Potager** (PR #11) : cadrage 448×252, caméra posée à paliers, paysage sur son propre calque, terrain retravaillé (terre et murets), colline en terrasses avec cascade, décor peint et animé (§ 6 quater).
 
 ## 7. Effets et sons
 
@@ -189,12 +191,15 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 - Il veut des éléments **discrets et lisibles** à l'écran (HUD, barres de vie), et un rendu « vrai jeu indé », pas générique.
 - Pour les nouveaux personnages ou ennemis : **présenter une planche de design avant toute intégration en jeu**.
 - Après chaque modification : `npm test`, commit en français, push sur la branche, republication de `dist/kage-standalone.html` sur l'artefact, puis un résumé clair.
-- Il teste lui-même sur téléphone (le tactile est validé).
+- Il teste lui-même sur téléphone (le tactile est validé) et envoie souvent des **captures prises sur téléphone, en portrait** (jeu pivoté d'un quart de tour : l'image est tournée). Pour comprendre une remarque, reproduire la vue avec `tools/capture.cjs` et **zoomer** (×4 à ×8) sur le détail.
+- Sur le décor, il est très attentif à la **cohérence de la profondeur** : ce qui est au loin passe derrière le premier plan (cascade derrière les plateformes de bois, colline qui déborde derrière le bloc de pierre dans le fossé) ; aux volumes (pas d'image « plate », de « feuille de papier », de « dalle de béton », de cercle parfait) ; à l'irrégularité naturelle (pas de coupes droites). Il valide d'un mot (« Parfait », « Excellent ») puis enchaîne la retouche suivante.
+- **Stabilité de l'image avant tout** : il a refusé une caméra qui bouge sans cesse et un paysage qui tremble. Ne jamais réintroduire de suivi vertical continu.
 - **Il autorise Claude à fusionner les PR et à mettre en ligne lui-même** via GitHub (« dis-moi si quelque chose bloque »). Après une fusion : vérifier que le workflow « Mise en ligne (GitHub Pages) » a réussi. Le réseau de l'environnement Claude bloque `raphgh31.github.io` : on ne peut pas ouvrir le site en ligne d'ici, mais `dist/kage-standalone.html` est le même jeu (le tester avec Playwright).
 - Il préfère qu'on lui présente les choix importants (ordre des chapitres, mécaniques) avant de coder, et qu'on avance par phases : greybox jouable, puis planches de design, puis art définitif.
 
 ## 9. Ce qui reste à faire (pistes discutées)
 
+- **Méthode pour une retouche du décor** : modifier `src/game/potager/…` ou `src/game/chapters/potager.js`, puis `npm run standalone`, `node tools/capture.cjs <dossier>/vue 110 121` (colonnes en cases ; la zone 2 commence vers la colonne 100) ou `node tools/capture.cjs --colline <fichier.png>`, regarder et zoomer, ajuster ; enfin `npm run sprites`, `npm test`, mise à jour de ce fichier, commit, push, republication de l'artefact et capture envoyée à l'utilisateur.
 - **Prochaine étape conseillée** : la **planche de design du marchand** (direction choisie par l'utilisateur : le **sage voyageur** — vieil homme droit, chapeau conique très large, kimono rapiécé de tissus de toutes les couleurs, barbe longue, bâton de marche, sac en bandoulière), puis celle du **petit nuisible** qui vole les légumes. Ensuite : sons d'ambiance et musique par zone (oiseaux, eau, moulin, pluie, grange feutrée, clochettes), retouches du décor selon les retours de l'utilisateur.
 - Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
 - Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).

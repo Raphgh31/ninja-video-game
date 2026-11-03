@@ -9,7 +9,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Direction choisie par l'utilisateur : un **monde unique** très long (zones, chapitres, sauvegarde, améliorations de KAGE), pas des niveaux séparés. Plan : `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 
 ## Façon de travailler (préférences de l'utilisateur)
-- Retouches visuelles précises et petites : appliquer exactement ce qui est demandé, montrer le résultat (capture ou GIF), republier l'artefact, résumer clairement.
+- Retouches visuelles précises et petites : appliquer exactement ce qui est demandé, montrer le résultat (capture ou GIF : `tools/capture.cjs`), republier l'artefact, résumer clairement.
 - Interface discrète et lisible ; rendu « jeu indé soigné », jamais générique.
 - Nouveau personnage ou ennemi : présenter une planche de design avant de l'intégrer en jeu.
 - Commits et documentation en français.
