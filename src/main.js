@@ -273,6 +273,7 @@ level.onEvent = (n, d) => {
       fx.sparks(d.x, d.y - 16, 5, { speed: 40 });
       if (save) {
         save.checkpoint = level.checkpoints.findIndex((c) => c.x === d.x && c.y === d.y);
+        save.checkpointX = d.x;   // la lanterne est retrouvée par sa position (les indices changent si on en ajoute)
         persist(true);
       }
       break;
@@ -639,6 +640,23 @@ function openShop() {
 }
 ui.talk.addEventListener('click', openShop);
 
+/**
+ * Lanterne de reprise d'une sauvegarde : par sa position ; pour une sauvegarde
+ * d'avant l'ajout des lanternes de début de zone, par son indice parmi les
+ * 3 lanternes d'origine (dans l'ordre où l'ancienne version les lisait : ligne
+ * par ligne, puis de gauche à droite).
+ */
+function savedCheckpoint(s) {
+  if (s.checkpointX != null) return level.checkpoints.find((k) => k.x === s.checkpointX) ?? null;
+  if (!(s.checkpoint >= 0)) return null;
+  if (level.legacyCheckpoints) {
+    const cols = new Set(level.legacyCheckpoints);
+    const old = level.checkpoints.filter((k) => cols.has(Math.floor(k.x / 16))).sort((a, b) => a.y - b.y || a.x - b.x);
+    return old[s.checkpoint] ?? null;
+  }
+  return level.checkpoints[s.checkpoint] ?? null;
+}
+
 /** Écran titre : continuer la partie enregistrée, ou en commencer une nouvelle. */
 function startChapter(resume) {
   const s = resume ? loadSave() : null;
@@ -647,10 +665,10 @@ function startChapter(resume) {
   level.applySave(save);
   run.time = save.time;
   run.falls = save.falls;
-  if (save.checkpoint >= 0) {
-    level.checkpoints.forEach((c, i) => { c.lit = i <= save.checkpoint; });
-    const c = level.checkpoints[save.checkpoint];
-    if (c) level.spawn = { x: c.x, y: c.y };
+  const c = savedCheckpoint(save);
+  if (c) {
+    level.checkpoints.forEach((k) => { k.lit = k.x <= c.x; });
+    level.spawn = { x: c.x, y: c.y };
   }
   player.respawn(true);
   startX = player.x;

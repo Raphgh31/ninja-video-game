@@ -7,7 +7,7 @@
 import { musicOutput } from './sfx.js';
 
 export const MUSIC = {
-  volume: 0.016,   // ~8 dB sous les bruitages principaux (dash, sabre), pour qu'ils restent nets
+  volume: 0.0226,  // 0,016 puis +3 dB à la demande de l'utilisateur (la musique doit ressortir face aux bruitages)
   fadeIn: 2.5,     // s
   duck: 0.45,      // volume relatif pendant la boutique
 };
