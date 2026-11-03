@@ -6,6 +6,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
 - **Site du jeu** : https://raphgh31.github.io/ninja-video-game/ — mis en ligne automatiquement par `.github/workflows/deploy.yml` à chaque push sur `main` (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Après une fusion, vérifier que le workflow a réussi et tester le site.
 - Version de test hors `main` : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html`.
+- **Carte mentale** de tout le jeu : `docs/carte-mentale/index.html` (mode d'emploi dans son README). La mettre à jour quand un élément change d'état ou qu'on en ajoute un.
 - Direction choisie par l'utilisateur : un **monde unique** très long (zones, chapitres, sauvegarde, améliorations de KAGE), pas des niveaux séparés. Plan : `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 
 ## Façon de travailler (préférences de l'utilisateur)

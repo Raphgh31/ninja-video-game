@@ -66,6 +66,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tests/e2e.cjs` | 57 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
+| `docs/carte-mentale/` | **carte mentale de tout le jeu** (page interactive : branches, une boîte par élément, détails et chemins de fichiers) ; contenu dans la liste `BRANCHES` de `index.html`, images par `tools/carte_mentale.py` ; page claude.ai privée : <https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi> |
 | `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
 | `.github/workflows/deploy.yml` | mise en ligne sur GitHub Pages à chaque push sur `main` |
 
