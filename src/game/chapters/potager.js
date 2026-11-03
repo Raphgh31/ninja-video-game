@@ -414,5 +414,7 @@ export const POTAGER = {
   backdrops: B.backdrops,
   theme: 'potager',
   chapter: 1,
+  // introduction (25 s) jouée une fois, puis boucle de 90 s (24 mesures à 64 BPM)
+  music: { src: './music/potager.mp3', loopStart: 25.09, loopEnd: 115.089 },
   next: 'Les rizières',
 };

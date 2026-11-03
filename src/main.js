@@ -10,6 +10,7 @@ import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
@@ -157,7 +158,7 @@ const ui = {
   talk: document.querySelector('.talk'),
 };
 const shop = new Shop(document.querySelector('.shop'));
-shop.onClose = () => { run.paused = false; };
+shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
 player.onEvent = (n, d) => {
@@ -287,7 +288,11 @@ function refreshMute() {
 }
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); refreshMute(); muteBtn.blur(); });
 refreshMute();
-for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, unlockAudio, { capture: true, passive: true });
+// musique du chapitre : chargée tout de suite, jouée au premier geste du joueur
+const music = new Music();
+music.load(level.music);
+const onGesture = () => { unlockAudio(); music.start(); };
+for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
 
 // barres de vie fines au-dessus de chaque personnage
 const kageBar = new HealthBar(HEALTH.max);
@@ -626,6 +631,7 @@ function hideChapterUi() {
 function openShop() {
   if (shop.isOpen) return;
   run.paused = true;
+  music.setLevel(MUSIC.duck, 0.4);
   hideChapterUi();
   sfx('bell');
   shop.open({ firstVisit: !save.merchantMet, ryo: save.ryo });
@@ -698,6 +704,7 @@ function drawRyo(c, x, y, n) {
 const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function win() {
   run.won = true;
+  music.setLevel(0, 3);
   sfx('win');
   const el = document.querySelector('.win');
   if (CHAPTER) {
@@ -757,4 +764,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };

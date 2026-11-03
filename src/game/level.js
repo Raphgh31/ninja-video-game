@@ -15,6 +15,7 @@ export class Level {
     // chapitre (monde continu) : zones, décors, aides contextuelles, thème graphique
     this.theme = def.theme ?? 'ville';
     this.chapter = def.chapter ?? null;
+    this.music = def.music ?? null;   // { src, loopStart, loopEnd } : musique du chapitre
     this.next = def.next ?? null;
     this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
     this.props = def.props ?? [];
