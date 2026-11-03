@@ -1,7 +1,7 @@
 // Niveau : grille de tuiles + éléments (TATE, WARA, gong, porte, lanternes, torii).
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
-import * as potagerArt from './potager_art.js';
+import { PotagerArt } from './potager/index.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
@@ -58,6 +58,9 @@ export class Level {
       }
       this.rows[y] = this.rows[y].replace(/[TEWCPGoM]/g, '.');
     }
+    // chapitre peint (décors calculés une fois, au chargement)
+    this.view = { w: 480, h: 270 };
+    this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
   }
 
   // --- cibles d'entraînement -------------------------------------------------
@@ -94,7 +97,7 @@ export class Level {
   /** Gongs, lanternes, porte et torii (dessinés avec le décor). */
   drawProps(ctx, cam) {
     const R = (v) => Math.round(v);
-    if (this.theme === 'potager') potagerArt.drawProps(ctx, cam, this, this.time);
+    if (this.art) this.art.drawBehind(ctx, cam, this.view.w, this.view.h, this.time);
     // ryō : petite pièce d'or percée d'un trou carré, qui tourne
     for (const c of this.coins) {
       if (c.taken) continue;
@@ -129,6 +132,26 @@ export class Level {
     }
     for (const c of this.checkpoints) {
       const sx = R(c.x - cam.x), sy = R(c.y - cam.y);
+      if (this.art) {
+        // lanterne de papier (andon) sur un poteau, coiffée d'un petit toit
+        const glow = c.lit ? 0.75 + 0.25 * Math.sin(c.t * 4) : 0;
+        if (c.lit) {
+          for (let rr = 22; rr > 4; rr -= 4) {
+            ctx.fillStyle = `rgba(255, 200, 110, ${(0.035 + (22 - rr) * 0.004) * glow})`;
+            ctx.fillRect(sx - rr, sy - 30 - rr * 0.8, rr * 2 + 1, rr * 1.6);
+          }
+        }
+        ctx.fillStyle = '#4a3220'; ctx.fillRect(sx - 1, sy - 22, 3, 22);
+        ctx.fillStyle = '#6b4a2b'; ctx.fillRect(sx - 1, sy - 22, 1, 22);
+        ctx.fillStyle = '#3a2c22'; ctx.fillRect(sx - 4, sy - 2, 9, 2);
+        ctx.fillStyle = c.lit ? '#f6d27a' : '#b8ad92'; ctx.fillRect(sx - 4, sy - 33, 9, 11);
+        ctx.fillStyle = c.lit ? '#fff1c4' : '#d6cdb6'; ctx.fillRect(sx - 3, sy - 32, 3, 9);
+        ctx.fillStyle = c.lit ? '#e09a3c' : '#8f8672';
+        ctx.fillRect(sx - 4, sy - 29, 9, 1); ctx.fillRect(sx - 4, sy - 25, 9, 1);
+        ctx.fillStyle = '#2a2420'; ctx.fillRect(sx - 4, sy - 34, 9, 1); ctx.fillRect(sx - 4, sy - 22, 9, 1);
+        ctx.fillStyle = '#3a3f4f'; ctx.fillRect(sx - 6, sy - 36, 13, 2); ctx.fillRect(sx - 4, sy - 38, 9, 2); ctx.fillRect(sx, sy - 40, 1, 2);
+        continue;
+      }
       ctx.fillStyle = '#3a2c22';
       ctx.fillRect(sx, sy - 20, 1, 20);                     // poteau
       ctx.fillRect(sx - 3, sy - 21, 7, 1);
@@ -175,7 +198,7 @@ export class Level {
 
   /** Devant les personnages (cascade). */
   drawForeground(ctx, cam) {
-    if (this.theme === 'potager') potagerArt.drawForeground(ctx, cam, this, this.time);
+    if (this.art) this.art.drawFront(ctx, cam, this.view.w, this.view.h, this.time);
   }
 
   drawTargets(ctx, cam) {
@@ -325,18 +348,9 @@ export class Level {
   }
 
   draw(ctx, cam, viewW, viewH) {
-    if (this.theme === 'potager') {
-      potagerArt.drawBackground(ctx, cam, viewW, viewH, this, this.time);
-      potagerArt.drawBackdrops(ctx, cam, this, this.time);
-      const x0 = Math.floor(cam.x / TILE), x1 = Math.ceil((cam.x + viewW) / TILE);
-      const y0 = Math.max(0, Math.floor(cam.y / TILE)), y1 = Math.min(this.h - 1, Math.ceil((cam.y + viewH) / TILE));
-      for (let ty = y0; ty <= y1; ty++) {
-        for (let tx = x0; tx <= x1; tx++) {
-          const t = this.at(tx, ty);
-          if (t === '.') continue;
-          potagerArt.drawTile(ctx, t, tx * TILE - Math.round(cam.x), ty * TILE - Math.round(cam.y), this, tx, ty, this.time);
-        }
-      }
+    if (this.art) {
+      this.view = { w: viewW, h: viewH };
+      this.art.drawBack(ctx, cam, viewW, viewH, this.time);
       return;
     }
     // fond : aplats désaturés, plus clairs que le personnage pour qu'il reste lisible

@@ -14,15 +14,18 @@ import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 
-// Ordinateur : 320×180 fixe. Mobile (écran tactile) : plein écran, même cadrage
-// que sur ordinateur (~180 px de jeu en hauteur). L'échelle est entière en pixels
-// réels de l'écran (pixels nets) et c'est la zone visible qui s'ajuste au millimètre.
-// En portrait, le jeu pivote d'un quart de tour : il suffit de tourner le téléphone,
-// même si la rotation automatique est bloquée.
+// Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
+// tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
+// entière en pixels réels de l'écran (pixels nets) et c'est la zone visible qui
+// s'ajuste au millimètre. En portrait, le jeu pivote d'un quart de tour : il suffit
+// de tourner le téléphone, même si la rotation automatique est bloquée.
+// Les commandes tactiles sont dessinées sur leur propre calque, à l'ancienne
+// échelle (~180 px de haut) : elles gardent la taille validée sous le pouce.
 const MOBILE = matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('mobile', MOBILE);
-let VIEW_W = 320;
-let VIEW_H = 180;
+const DESK_W = 448, DESK_H = 252;
+let VIEW_W = DESK_W;
+let VIEW_H = DESK_H;
 let SCALE = 1;
 let touch = null;   // commandes tactiles (créées une fois les sprites chargés)
 
@@ -31,6 +34,21 @@ canvas.width = VIEW_W;
 canvas.height = VIEW_H;
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+// calque du paysage (chapitres) : derrière le jeu, à la résolution réelle de
+// l'écran, pour que les plans lointains glissent au pixel d'écran près
+const bgCanvas = document.createElement('canvas');
+bgCanvas.className = 'bg-layer';
+bgCanvas.hidden = true;
+canvas.before(bgCanvas);
+const bgCtx = bgCanvas.getContext('2d');
+let bgK = 1;   // pixels d'écran par pixel de jeu
+// calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
+const touchCanvas = MOBILE ? document.createElement('canvas') : null;
+const touchCtx = touchCanvas?.getContext('2d');
+if (touchCanvas) {
+  touchCanvas.className = 'touch-layer';
+  canvas.after(touchCanvas);
+}
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 const stage = canvas.parentElement;
@@ -38,19 +56,32 @@ if (MOBILE) {
   // le bouton du son et l'écran de fin tournent avec le jeu
   stage.append(document.querySelector('.mute'), document.querySelector('.win'));
 }
-const MOBILE_VIEW_H = 180;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
+const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
+const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
+let touchView = { w: 320, h: 180, scale: 1 };
 function fit() {
   if (MOBILE) {
     const W = window.innerWidth, H = window.innerHeight;     // pixels CSS
     const dpr = window.devicePixelRatio || 1;
     const rotated = H > W;                                     // portrait : jeu pivoté
     const LW = rotated ? H : W, LH = rotated ? W : H;          // côtés du jeu, en paysage
-    // échelle entière en pixels réels de l'écran, la plus proche de 180 px de jeu en hauteur
+    // échelle entière en pixels réels de l'écran, la plus proche de 252 px de jeu en hauteur
     let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
-    while (dev > 1 && (LW * dpr) / dev < 280) dev--;           // jamais trop étroit
+    while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
+    bgK = Math.min(6, dev);
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
     VIEW_W = Math.ceil((LW * dpr) / dev);
     VIEW_H = Math.ceil((LH * dpr) / dev);
+    // commandes : leur propre échelle entière, la plus proche de 180 px en hauteur
+    let tdev = Math.max(1, Math.round((LH * dpr) / TOUCH_VIEW_H));
+    while (tdev > 1 && (LW * dpr) / tdev < 280) tdev--;
+    touchView = { w: Math.ceil((LW * dpr) / tdev), h: Math.ceil((LH * dpr) / tdev), scale: tdev / dpr };
+    if (touchCanvas.width !== touchView.w || touchCanvas.height !== touchView.h) {
+      touchCanvas.width = touchView.w;
+      touchCanvas.height = touchView.h;
+    }
+    touchCanvas.style.width = `${touchView.w * touchView.scale}px`;
+    touchCanvas.style.height = `${touchView.h * touchView.scale}px`;
     document.body.classList.toggle('rotated', rotated);
     stage.style.width = `${LW}px`;
     stage.style.height = `${LH}px`;
@@ -58,9 +89,10 @@ function fit() {
     touch?.setRotation(rotated ? W : 0);
   } else {
     const stage = canvas.parentElement.getBoundingClientRect();
-    SCALE = Math.max(1, Math.floor(Math.min(stage.width / 320, stage.height / 180)));
-    VIEW_W = 320;
-    VIEW_H = 180;
+    SCALE = Math.max(1, Math.floor(Math.min(stage.width / DESK_W, stage.height / DESK_H)));
+    VIEW_W = DESK_W;
+    VIEW_H = DESK_H;
+    bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
   if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
     canvas.width = VIEW_W;
@@ -69,10 +101,16 @@ function fit() {
   }
   canvas.style.width = `${VIEW_W * SCALE}px`;
   canvas.style.height = `${VIEW_H * SCALE}px`;
+  if (bgCanvas.width !== VIEW_W * bgK || bgCanvas.height !== VIEW_H * bgK) {
+    bgCanvas.width = VIEW_W * bgK;
+    bgCanvas.height = VIEW_H * bgK;
+  }
+  bgCanvas.style.width = canvas.style.width;
+  bgCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
-  touch?.layout(VIEW_W, VIEW_H, SCALE);
+  touch?.layout(touchView.w, touchView.h, touchView.scale);
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -82,8 +120,14 @@ const look = skins.encre;   // palette du ninja noir (les skins viendront plus t
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
+if (level.art) {
+  level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
+  bgCanvas.hidden = false;
+  canvas.classList.add('over-bg');
+}
 addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
+level.player = player;   // le décor réagit à KAGE (le kappa plonge, etc.)
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
   sfx('throw');
@@ -240,16 +284,17 @@ const kageBar = new HealthBar(HEALTH.max);
 for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
 player.onRespawn = () => {
+  snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
   for (const t of enemies) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
   kageBar.reset();
 };
 const input = new Input();
-touch = MOBILE ? new TouchControls(canvas, input) : null;
+touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
-  canvas.addEventListener('pointerdown', () => {
+  touchCanvas.addEventListener('pointerdown', () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   }, { once: true });
 }
@@ -335,29 +380,98 @@ function update(dt) {
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
-  const t = cameraTarget();
-  camera.x += (t.x - camera.x) * Math.min(1, dt * 8);
-  camera.y += (t.y - camera.y) * Math.min(1, dt * 6);
+  updateCamera(dt);
   input.endFrame();
 }
 
-/** Position visée par la caméra : KAGE un peu à gauche et en bas du cadre. */
-function cameraTarget() {
-  return {
-    x: Math.min(Math.max(player.x - VIEW_W * 0.4, 0), level.width - VIEW_W),
-    y: Math.min(Math.max(player.y - VIEW_H * 0.62, 0), level.height - VIEW_H),
-  };
+// ---- caméra posée -------------------------------------------------------------
+// Stable avant tout : elle ne suit pas KAGE pas à pas.
+// - En largeur : zone morte ; tant que KAGE reste au centre de l'écran, rien ne
+//   bouge ; s'il en sort, elle le rattrape avec un amorti (sans à-coup).
+// - En hauteur : des « paliers ». Une marche, un saut, un petit relief : rien ne
+//   bouge. Seul un vrai changement de niveau (plus de 3,5 cases) déclenche un
+//   recadrage, d'un seul mouvement franc et fluide (accélère, puis se pose).
+// - Elle est arrondie au pixel une seule fois, et tout (fond, terrain,
+//   personnages) est dessiné avec cette même position : tout bouge ensemble.
+const CAM = {
+  left: 0.3,       // KAGE peut aller de 30 %...
+  right: 0.56,     // ... à 56 % de la largeur sans que la caméra bouge
+  smooth: 0.22,    // amorti horizontal (s) : temps pour rattraper l'essentiel de l'écart
+  ground: 0.86,    // le sol se tient à 86 % de la hauteur de l'image
+  step: 56,        // écart de sol (px) à partir duquel la caméra change de palier (3,5 cases)
+  move: 0.6,       // durée d'un changement de palier (s)
+  top: 0.1,        // la tête de KAGE ne sort jamais par le haut (10 % de marge)
+  bottom: 0.97,    // ni ses pieds par le bas
+};
+const camGround = { y: null };                 // sol de référence du palier en cours
+const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
+let camVX = 0;                                 // vitesse horizontale (amorti)
+
+const clampCamX = (x) => Math.min(Math.max(x, 0), level.width - VIEW_W);
+const clampCamY = (y) => Math.min(Math.max(y, 0), level.height - VIEW_H);
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // lent, rapide, lent
+
+function targetX() {
+  let x = camera.x;
+  const sx = player.x - camera.x;
+  if (sx > VIEW_W * CAM.right) x = player.x - VIEW_W * CAM.right;
+  else if (sx < VIEW_W * CAM.left) x = player.x - VIEW_W * CAM.left;
+  return clampCamX(x);
+}
+
+/** Lance un recadrage vertical vers le palier dont le sol est groundY. */
+function retargetY(groundY) {
+  camGround.y = groundY;
+  const to = clampCamY(groundY - VIEW_H * CAM.ground);
+  if (Math.abs(to - camV.to) < 1 && camV.t < 1) return;
+  camV.from = camera.y;
+  camV.to = to;
+  camV.t = 0;
+  camV.dur = CAM.move * Math.min(1.3, Math.max(0.75, Math.abs(to - camera.y) / 70));
+}
+
+function updateCamera(dt) {
+  // largeur : ressort critique amorti vers la cible (aucun dépassement)
+  const tx = targetX();
+  const w = 2 / CAM.smooth, k = w * dt, e = 1 / (1 + k + 0.48 * k * k + 0.235 * k * k * k);
+  const diff = camera.x - tx, tmp = (camVX + w * diff) * dt;
+  camVX = (camVX - w * tmp) * e;
+  camera.x = clampCamX(tx + (diff + tmp) * e);
+  if (Math.abs(camera.x - tx) < 0.05 && Math.abs(camVX) < 0.5) { camera.x = tx; camVX = 0; }
+  // hauteur : paliers
+  if (camGround.y == null) retargetY(player.y);
+  const alive = player.state !== 'death' && player.state !== 'respawn';
+  if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
+  // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
+  const y = camV.t < 1 ? camV.to : camera.y;
+  if (alive && player.y - 26 < y + VIEW_H * CAM.top) retargetY(player.y - 26 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
+  else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
+  if (camV.t < 1) {
+    camV.t = Math.min(1, camV.t + dt / camV.dur);
+    camera.y = camV.from + (camV.to - camV.from) * ease(camV.t);
+  }
 }
 
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
-  Object.assign(camera, cameraTarget());
+  camGround.y = player.y;
+  camera.x = clampCamX(player.x - VIEW_W * 0.42);
+  camera.y = clampCamY(player.y - VIEW_H * CAM.ground);
+  camV.to = camera.y; camV.t = 1; camVX = 0;
 }
 
 function draw() {
   // secousse de l'écran : décalage temporaire de la caméra
   const shake = fx.offset();
-  const cam = { x: camera.x + shake.x, y: camera.y + shake.y };
+  // une seule position, arrondie au pixel, pour tout ce qui est dessiné
+  const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
+  if (level.art) {
+    // paysage : position exacte de la caméra, arrondie au pixel d'écran
+    bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
+    bgCtx.imageSmoothingEnabled = false;
+    level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
+    ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+  }
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);
@@ -387,7 +501,10 @@ function draw() {
   if (save) drawRyo(ctx, 27, 19, save.ryo);
   // chronomètre centré en haut, hors chapitre (le coin haut-droit accueille le bouton du son sur mobile)
   if (level.goal && !CHAPTER) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
-  touch?.draw(ctx);
+  if (touch) {
+    touchCtx.clearRect(0, 0, touchCanvas.width, touchCanvas.height);
+    touch.draw(touchCtx);
+  }
   if (debug) {
     const b = player.box();
     ctx.strokeStyle = '#ff3b3b';
@@ -627,4 +744,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run };
+window.__kage = { player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };

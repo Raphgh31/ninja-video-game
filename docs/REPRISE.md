@@ -3,19 +3,20 @@
 Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, ennemi, niveau, outils) avec les décisions prises et leurs raisons. Il sert à reprendre le projet dans une nouvelle discussion sans rien perdre.
 
 > **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et écrire :
-> « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE : prochaine étape, les planches de design du Potager (le marchand d'abord). »
+> « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE. »
+> Puis dire ce qu'on veut faire : poursuivre les retouches du décor du Potager, ou passer à la planche de design du marchand (direction choisie : le sage voyageur), voir § 9.
 >
-> Tout est dans `main` (aucune PR ouverte, aucune tâche planifiée en cours). Dernière mise à jour : 2 novembre 2026.
+> Tout est dans `main`, y compris la refonte visuelle du Potager (PR #11 fusionnée) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 3 novembre 2026.
 
 ---
 
 ## 1. Où en est le projet
 
-- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, en greybox jouable)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
+- **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, jouable et entièrement peint)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
 - **Version de test** (page privée claude.ai) : <https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>. Elle se met à jour en republiant `dist/kage-standalone.html` (identifiant de l'artefact : `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`).
-- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 48 tests automatiques.
+- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (20 animations, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, des effets visuels et 52 tests automatiques. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
@@ -26,7 +27,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 48 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 52 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -47,7 +48,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `src/game/level.js` | niveau : tuiles, gong, porte, lanternes, torii, décor ; ryō, caisses, zones, marchand (chapitres) |
 | `src/game/maps.js` | cartes ASCII (terrain d'essai, niveau 1), légende en tête ; branche les chapitres |
 | `src/game/chapters/potager.js` | **chapitre 1** : carte construite zone par zone (petit constructeur `Builder`), décors, aides, zones |
-| `src/game/potager_art.js` | dessin provisoire du Potager : ciel et montagnes en parallaxe, tuiles, décors, cascade |
+| `src/game/potager/` | **décor peint du Potager** : `backdrop.js` (ciel, nuages, oiseaux, cinq plans de paysage en parallaxe, premier plan sombre), `tiles.js` (tuiles selon la zone : terre, murets de pierre sèche, pierre taillée, racines, poutres, étagère, branche, bambou, bosquet ; berges et eau des canaux), `props.js` (une cinquantaine de décors + décors automatiques), `world.js` (terrain peint par tranches de 512 px, à la demande), `live.js` (roue à eau, cascade, koïs, kappa, pluie, lumière de la grange, marchand, papillons, pétales…), `palette.js`, `paint.js` (bruit, tramage, pinceaux), `index.js` (point d'entrée) |
 | `src/game/save.js` | sauvegarde automatique (`localStorage`, clé `kage.save.v1`) |
 | `src/game/shop.js` | boutique du marchand : coquille d'interface (catégories vides, répliques) |
 | `src/engine/input.js` | clavier |
@@ -58,7 +59,8 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tools/kage_forge/` | **forge des sprites** : `palette.py`, `core.py`, `rig.py`, `art.py` (toutes les poses), `build.py` (export + contrôles), `preview.py` |
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
-| `tests/e2e.cjs` | 48 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
+| `tests/e2e.cjs` | 52 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
@@ -142,7 +144,7 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 - **Sauvegarde** : 3 lanternes (entrée du verger, sortie de la grange, jardin des sentinelles) enregistrent le point de reprise et affichent « Sauvegardé ». Les ryō ramassés et les caisses brisées sont enregistrés aussitôt.
 - **Ryō** : pièces à ramasser (51 dans la carte, plus une par caisse), compteur sous les shurikens.
 - **Marchand** : « ↑ / E : parler » devant son comptoir ouvre la boutique (le jeu se met en pause) ; catégories Apparences, Ressources, Objets, encore vides. Dessin **provisoire** en attendant sa planche de design.
-- **Tout le décor est provisoire** (formes simples dessinées en code dans `potager_art.js`) : les planches de design (marchand, petit nuisible, décors et tuiles par zone) puis le pixel art définitif viendront ensuite.
+- **Le décor est peint** (voir § 6 quater). Restent provisoires : le marchand (en attendant sa planche) et le petit nuisible (joué par des WARA).
 - Les tests vérifient : chaque trou franchissable, le premier dash et le sprint réellement nécessaires, chaque passage bas uniquement en glissade, les caisses, les ryō, la sauvegarde et « Continuer », la boutique et la sortie.
 - **Provisoires en jeu** : le « petit nuisible » voleur de légumes du verger est pour l'instant joué par des **WARA** ; l'épouvantail de la zone 1 est un WARA immobile qui se balance (décor) ; le marchand est un petit dessin codé (tenue indigo, ceinture orange, barbe blanche, grand chapeau, il compte ses pièces).
 
@@ -151,6 +153,21 @@ L'utilisateur a fourni un script détaillé du chapitre (8 zones continues, envi
 - **Planches de design** (avant toute intégration) : le **marchand** (vieux, coloré, grand chapeau, gros sac), le **petit nuisible** (petites créatures qui volent les légumes, zone 4), les **décors et tuiles** de chaque zone (épouvantail au grand chapeau, cascade d'irrigation, roue à eau, verger, serre de bambou sous la pluie, grange sombre, jardin des sentinelles avec bassin aux carpes, pont rouge rompu et grande porte en bois, comptoir du voyageur).
 - **Ambiance** : animations d'ambiance (oiseaux, feuilles, eau, pluie dans la serre, lucioles…), **sons d'ambiance et musique** par zone.
 - **Intérieur sombre de la grange** (éclairage), **pluie** plus marquée dans la serre.
+
+## 6 quater. Refonte visuelle du Potager (novembre 2026)
+
+Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeux de référence en pixel art (Owlboy), avec des initiatives pour enrichir le décor. Ce qui a été fait :
+- **Cadrage** : 448×252 (d'abord 480×270, puis très léger rezoom demandé : KAGE paraissait un poil trop petit). Le sol est bas dans l'image (86 %), le paysage occupe le haut. Sur téléphone, même cadrage (~252 px de haut) ; les commandes tactiles restent à leur taille validée (calque séparé).
+- **Caméra posée, stable** (retour de l'utilisateur : le décor bougeait tout le temps, de façon désordonnée, quand KAGE montait ou descendait — « pas pro ») : en hauteur, des **paliers** (rien ne bouge pour une marche, un saut ou un petit relief ; au-delà de 3,5 cases de différence de sol, un seul recadrage franc et fluide de ~0,6 s) ; en largeur, zone morte et rattrapage amorti ; position **arrondie au pixel une seule fois** pour tout le dessin (avant, chaque plan et chaque sprite arrondissait de son côté : décalages d'un pixel en désordre). Réglages `CAM` dans `main.js`.
+- **Défilement latéral fluide** (retour de l'utilisateur : les montagnes « tremblaient » en avançant) : le paysage est peint sur un calque à part, à la résolution réelle de l'écran, avec la position exacte de la caméra. Avant, les montagnes sautaient de 4 pixels d'écran d'un coup environ 3 fois par seconde ; maintenant elles glissent d'un pixel d'écran à la fois. Le terrain et les personnages restent en pixels de jeu nets.
+- Mesure : course avec sauts dans la zone 1, 0 recadrage vertical ; dans les terrasses de la zone 2, 2. GIF : `docs/potager/camera_paliers.gif`.
+- **Fond en parallaxe** (`potager/backdrop.js`), du plus loin au plus proche : ciel tramé et grands cumulus en relief ; la **grande chaîne enneigée** (trois rangs de sommets qui se chevauchent, arêtes, ravines, neige qui descend dans les couloirs, brume au pied), dominée par le **Mont Kagero**, sur l'épaule duquel on devine le **dojo final** et son sentier en lacets (« le début d'une grande aventure ») ; vols d'oiseaux ; mer de nuages ; **montagnes moyennes** boisées avec **aiguilles à falaises**, pins accrochés et cascades ; contreforts boisés, champs, temple et torii ; **village** (maisons au toit de chaume, pagode à cinq étages, cerisiers, fumées qui montent) ; lisière (grands arbres, cerisiers, bambous) ; **rizières en terrasses** qui apparaissent à l'approche de la sortie ; **premier plan sombre** (herbes, fougères, grandes feuilles) qui défile plus vite que le jeu.
+- **Terrain** (`potager/tiles.js`) : d'après des références fournies par l'utilisateur. **Terre** : de la terre meuble (grain fin, peu contrasté, quelques gravillons) mêlée au hasard de **grosses mottes** (environ une cellule sur trois, cellules de Voronoï de 8,5 px, contour doux, arête claire en haut à gauche) ; brun un peu sec, moins chaud qu'avant mais plus chaud que la pierre, peu de nuances pour ne pas fatiguer l'œil ; flancs de terre **légèrement ondulés** (±1,5 px, jamais de coupe droite). **Murets de pierre sèche** : grosses pierres grises aux joints sombres, mousse, et silhouette qui suit les pierres (elles dépassent ou se creusent de 1 à 4 px). **Limite muret / terre** naturelle (`materialOf`) : chaque pierre tire un petit décalage au hasard, les dernières pierres s'enfoncent dans la terre, de la terre remonte entre elles, et quelques pierres à demi enterrées parsèment la terre sous le muret. Collisions inchangées (`earthPixel`, `stonePixel`, `paintOverhangs`) ; **tapis d'herbe épais** avec coulures en pointe, brins en touffes, herbe qui déborde des angles et coule sur les flancs ; brun chaud et orangé ; murets de pierre sèche moussus pour les terrasses ; pierre taillée pour les marches du jardin ; racines enchevêtrées sous la serre ; poutres de la grange ; étagère de bocaux ; grosse branche dans le verger ; bambou ligaturé ; bosquet de bambous ; berges de pierre et eau des canaux.
+- **Décors** (`potager/props.js`, placés dans `chapters/potager.js`) : ferme au toit de chaume et tas de bois, panneau d'entrée, Jizō, épouvantails en vieux kimono, légumes feuillus (carottes, radis, navets, choux, poireaux), clôture de bambou, puits, charrette, séchoir à radis, paniers, **colline en terrasses** (zone 2, `terraces_bg` et `hillGeom`) construite **gradin par gradin** : chaque gradin a sa largeur tirée au hasard (différente à gauche et à droite), d'où une silhouette en escalier irrégulier (replat, mur, replat…) ; dessus vu un peu d'en haut, en arc (rangs de légumes, rizière inondée ou théiers), mur de pierre en façade, flanc droit dans l'ombre ; touffes aux angles, arbres sur les replats, pin et abri de paille au sommet, escalier en lacets ; **le ruisseau naît au sommet** entre des rochers moussus et, presque aussi large que la cascade, descend en nappe sur chaque replat et en chute d'écume sur chaque mur (éclaboussures animées), puis franchit **un gros rocher naturel** (fissuré, moussu) d'où tombe la grande cascade, dense au départ. La colline est **au loin** : elle est peinte à part (`World.drawHills`), son eau est dessinée par-dessus (`Live.drawHill`), puis le terrain du premier plan : la cascade passe derrière les plateformes de bois, leurs poteaux, la rambarde et la terrasse (demande de l'utilisateur, pour la profondeur). Les ryō de la cache restent visibles devant elle. Chaque bout de gradin est **arrondi**, et le bord avant du replat remonte doucement à ses extrémités, comme s'il contournait la colline ; le liseré d'herbe clair est **à l'avant du replat**, juste au-dessus du mur (au fond, au pied du mur du gradin supérieur, l'herbe est dans l'ombre : sinon chaque mur ressemble à une feuille de papier, remarque de l'utilisateur) ; les théiers sont plantés en rangs de buissons inégaux, avec leur ombre sur la terre. Les gradins du bas débordent **légèrement à gauche du bloc de pierre** et se voient dans le fossé (le dash) : la colline passe derrière le bloc au lieu d'avoir l'air posée dessus (demande de l'utilisateur). Puis : moulin à eau, roseaux et iris, lanternes de pierre, arbres fruitiers tortueux et voûte de branches du verger, échelle, serre (toiles déchirées, arceaux, lianes, étagères de graines, plantes suspendues, outils, treillis), grange (grand toit de chaume, mur de planches, contrefiches, outils suspendus, toiles d'araignée, meules, sacs), sanctuaire et torii, renards de pierre, pin taillé, azalées, bosquets, pas japonais, banc, pont rouge rompu, grande porte, échoppe du marchand (ombrelle rouge, auvent indigo, enseigne, marchandises), poteau indicateur. Plus des décors automatiques : buissons, fougères, roseaux et pousses de bambou derrière le chemin, poteaux sous les plateformes de bois, fleurs sauvages.
+- **Ce qui bouge** (`potager/live.js`) : roue à eau (derrière la berge, elle plonge dans le canal), eau du bief, cascade et écume, reflets et nénuphars, poissons qui sautent, tonneaux qui flottent, **kappa pêcheur** qui plonge quand KAGE approche, koïs, fumées, pluie sur la serre et gouttes qui tombent par les déchirures, rais de lumière, pénombre de la grange avec halos de lanternes et poussières, lanternes et clochette de l'échoppe, papillons, pétales, feuilles, libellules, poussières dorées. Les lanternes de sauvegarde sont des lanternes de papier sur poteau.
+- **Performances** : tout est peint une fois (~0,8 s au chargement), le terrain par tranches de 512 px peintes à la demande ; 60 images/s.
+- Planche des 8 zones : `docs/potager/potager_zones.png` ; course : `docs/potager/potager_course.gif`.
+- Tests ajoutés : cadrage 448×252 et sol en bas de l'image, stabilité (une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d'un seul mouvement), caméra immobile pendant un saut, zone morte.
 
 ## 6 ter. Historique des grandes étapes (toutes fusionnées dans `main`)
 
@@ -161,6 +178,7 @@ L'utilisateur a fourni un script détaillé du chapitre (8 zones continues, envi
 5. **Sprint tactile au joystick** (PR #8), bouton de sprint supprimé.
 6. **Chapitre 1, le Potager**, en greybox jouable (PR #9).
 7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
+8. **Refonte visuelle du Potager** (PR #11) : cadrage 448×252, caméra posée à paliers, paysage sur son propre calque, terrain retravaillé (terre et murets), colline en terrasses avec cascade, décor peint et animé (§ 6 quater).
 
 ## 7. Effets et sons
 
@@ -173,13 +191,16 @@ L'utilisateur a fourni un script détaillé du chapitre (8 zones continues, envi
 - Il veut des éléments **discrets et lisibles** à l'écran (HUD, barres de vie), et un rendu « vrai jeu indé », pas générique.
 - Pour les nouveaux personnages ou ennemis : **présenter une planche de design avant toute intégration en jeu**.
 - Après chaque modification : `npm test`, commit en français, push sur la branche, republication de `dist/kage-standalone.html` sur l'artefact, puis un résumé clair.
-- Il teste lui-même sur téléphone (le tactile est validé).
+- Il teste lui-même sur téléphone (le tactile est validé) et envoie souvent des **captures prises sur téléphone, en portrait** (jeu pivoté d'un quart de tour : l'image est tournée). Pour comprendre une remarque, reproduire la vue avec `tools/capture.cjs` et **zoomer** (×4 à ×8) sur le détail.
+- Sur le décor, il est très attentif à la **cohérence de la profondeur** : ce qui est au loin passe derrière le premier plan (cascade derrière les plateformes de bois, colline qui déborde derrière le bloc de pierre dans le fossé) ; aux volumes (pas d'image « plate », de « feuille de papier », de « dalle de béton », de cercle parfait) ; à l'irrégularité naturelle (pas de coupes droites). Il valide d'un mot (« Parfait », « Excellent ») puis enchaîne la retouche suivante.
+- **Stabilité de l'image avant tout** : il a refusé une caméra qui bouge sans cesse et un paysage qui tremble. Ne jamais réintroduire de suivi vertical continu.
 - **Il autorise Claude à fusionner les PR et à mettre en ligne lui-même** via GitHub (« dis-moi si quelque chose bloque »). Après une fusion : vérifier que le workflow « Mise en ligne (GitHub Pages) » a réussi. Le réseau de l'environnement Claude bloque `raphgh31.github.io` : on ne peut pas ouvrir le site en ligne d'ici, mais `dist/kage-standalone.html` est le même jeu (le tester avec Playwright).
 - Il préfère qu'on lui présente les choix importants (ordre des chapitres, mécaniques) avant de coder, et qu'on avance par phases : greybox jouable, puis planches de design, puis art définitif.
 
 ## 9. Ce qui reste à faire (pistes discutées)
 
-- **Prochaine étape conseillée — Potager, phase 2** : planches de design du marchand (vieil homme coloré, grand chapeau, gros sac), du « petit nuisible » qui vole les légumes, et des décors et tuiles de chaque zone. **Phase 3** : pixel art définitif, animations d'ambiance, sons et musique.
+- **Méthode pour une retouche du décor** : modifier `src/game/potager/…` ou `src/game/chapters/potager.js`, puis `npm run standalone`, `node tools/capture.cjs <dossier>/vue 110 121` (colonnes en cases ; la zone 2 commence vers la colonne 100) ou `node tools/capture.cjs --colline <fichier.png>`, regarder et zoomer, ajuster ; enfin `npm run sprites`, `npm test`, mise à jour de ce fichier, commit, push, republication de l'artefact et capture envoyée à l'utilisateur.
+- **Prochaine étape conseillée** : la **planche de design du marchand** (direction choisie par l'utilisateur : le **sage voyageur** — vieil homme droit, chapeau conique très large, kimono rapiécé de tissus de toutes les couleurs, barbe longue, bâton de marche, sac en bandoulière), puis celle du **petit nuisible** qui vole les légumes. Ensuite : sons d'ambiance et musique par zone (oiseaux, eau, moulin, pluie, grange feutrée, clochettes), retouches du décor selon les retours de l'utilisateur.
 - Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
 - Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).

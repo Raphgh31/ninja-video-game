@@ -520,6 +520,51 @@ async function main() {
     expect(shown && i.join() === '8,3,true,true,false', `titre ${shown}, ${i.join()}`);
   });
 
+  await test('potager : cadrage 448×252, sol en bas de l\'image', async () => {
+    await pat(60); await pw(1500);
+    const r = await pg.evaluate(() => { const g = window.__kage, v = g.view(); return { w: v.w, h: v.h, feet: g.player.y - g.camera.y }; });
+    expect(r.w === 448 && r.h === 252 && r.feet > 252 * 0.8 && r.feet < 252 * 0.92, `vue ${r.w}×${r.h}, pieds à ${Math.round(r.feet)} px`);
+  });
+
+  await test('potager : stabilité — une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d\'un seul mouvement', async () => {
+    await pat(29); await pw(1500);                       // sol de référence (zone 1)
+    const y0 = await pg.evaluate(() => window.__kage.camera.y);
+    await pat(34); await pw(900);                        // sur le muret, deux cases plus haut
+    const y1 = await pg.evaluate(() => window.__kage.camera.y);
+    await pat(95); await pw(120);                        // terrasse, quatre cases plus haut
+    const ys = [];
+    for (let i = 0; i < 14; i++) { ys.push(await pg.evaluate(() => window.__kage.camera.y)); await pw(70); }
+    // un seul mouvement : la caméra va toujours dans le même sens, puis s'arrête
+    let monotone = true;
+    for (let i = 1; i < ys.length; i++) if (ys[i] > ys[i - 1] + 0.01) monotone = false;
+    const still = Math.abs(ys[ys.length - 1] - ys[ys.length - 2]) < 0.01;
+    const integer = await pg.evaluate(() => { const c = window.__kage.camera; return [c.x, c.y]; });
+    expect(Math.abs(y1 - y0) < 0.01 && ys[0] - ys[ys.length - 1] > 40 && monotone && still,
+      `marche : ${(y1 - y0).toFixed(2)} px ; terrasse : ${ys.map((v) => v.toFixed(0)).join(' ')} ; caméra ${integer.map((v) => v.toFixed(2)).join(', ')}`);
+  });
+
+  await test('potager : la caméra ne suit pas les sauts', async () => {
+    await pat(60); await pw(1500);
+    const y0 = await pg.evaluate(() => window.__kage.camera.y);
+    await PK.down('Space');
+    let dev = 0;
+    for (let i = 0; i < 12; i++) { await pw(50); dev = Math.max(dev, Math.abs((await pg.evaluate(() => window.__kage.camera.y)) - y0)); }
+    await PK.up('Space'); await pw(400);
+    expect(dev < 1, `la caméra a bougé de ${dev.toFixed(1)} px pendant le saut`);
+  });
+
+  await test('potager : zone morte — un petit pas ne déplace pas la caméra, une longue course si', async () => {
+    await pat(60); await pw(300);
+    await pg.evaluate(() => { const g = window.__kage; g.camera.x = g.player.x - g.view().w * 0.4; });
+    await pw(100);
+    const x0 = await pg.evaluate(() => window.__kage.camera.x);
+    await PK.down('ArrowRight'); await pw(300); await PK.up('ArrowRight'); await pw(200);
+    const x1 = await pg.evaluate(() => window.__kage.camera.x);
+    await PK.down('ArrowRight'); await PK.down('ShiftLeft'); await pw(1500); await PK.up('ShiftLeft'); await PK.up('ArrowRight'); await pw(200);
+    const x2 = await pg.evaluate(() => window.__kage.camera.x);
+    expect(Math.abs(x1 - x0) < 0.5 && x2 - x1 > 100, `petit pas : ${(x1 - x0).toFixed(1)} px ; longue course : ${(x2 - x1).toFixed(0)} px`);
+  });
+
   await test('potager : chaque trou se franchit (saut, ou saut + dash pour les grands)', async () => {
     const bad = [];
     for (const h of holes) {
