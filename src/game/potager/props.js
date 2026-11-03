@@ -550,21 +550,25 @@ const PAINT = {
           if (q.f < 0.2 && ih(x, q.tier, 13) < 0.25) col = pick(C.GRASS, clamp01(0.55 + side), x, y);   // herbe qui retombe
         } else {
           const f = q.f, kind = q.t.kind;
-          if (f < 0.16 || (q.edge && y - q.t.y < 1)) col = pick(C.GRASS, clamp01(0.78 + side), x, y);   // bord herbeux
+          // bord herbeux clair à l'avant du replat (au-dessus du mur) ; au fond, au
+          // pied du mur du gradin supérieur, une bande d'herbe dans l'ombre
+          if (q.edge && y - q.t.y < 1) col = pick(C.GRASS, clamp01(0.66 + side), x, y);
+          else if (f > 0.86) col = pick(C.GRASS, clamp01(0.78 + side), x, y);
+          else if (f < 0.14) col = pick(C.GRASS, clamp01((q.edge ? 0.6 : 0.36) + side), x, y);
           else if (kind < 0.42) {                                                    // légumes en rangs
-            const row = Math.floor(f * 3), ry = f * 3 - row;
+            const fc = (f - 0.14) / 0.72 * 3, row = Math.floor(fc), ry = fc - row;
             const px = (x + row * 4 + q.tier * 3) % 6;
             const plant = ry > 0.25 && px < 4 && !(px === 0 && ry < 0.5) && !(px === 3 && ry < 0.5);
             col = plant ? pick(C.GRASS, clamp01(0.62 + side + (ry < 0.55 ? 0.12 : -0.08) - (px > 1 ? 0.1 : 0)), x, y) : C.SOIL[3];
             if (plant && px === 1 && ry > 0.7 && ih(x, q.tier, 6) < 0.35) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][q.tier % 4];
           } else if (kind < 0.72) {                                                  // rizière inondée : le ciel s'y reflète
-            col = f > 0.88 ? C.GRASS[1] : ih(Math.floor(x / 3), y, q.tier) > 0.9 ? '#eef7f4' : (y + q.tier) % 3 === 0 ? '#a9d0d6' : '#bcdde0';
+            col = f > 0.8 ? C.GRASS[2] : ih(Math.floor(x / 3), y, q.tier) > 0.9 ? '#eef7f4' : (y + q.tier) % 3 === 0 ? '#a9d0d6' : '#bcdde0';
             if ((x + y) % 4 === 0 && f < 0.88) col = '#93c46a';
             if (side < -0.15 && col !== '#93c46a') col = mixHex(col, '#7fa4ae', 0.3);
           } else {                                                                   // théiers taillés en boules
             // rangs de buissons (un rang par ~6 px de profondeur), décalés d'un rang à
             // l'autre, chaque buisson un peu différent ; ombre portée sur la terre
-            const rows = Math.max(1, Math.round((q.h ?? 8) / 6)), ff = (f - 0.16) / 0.84;
+            const rows = Math.max(1, Math.round((q.h ?? 8) / 6)), ff = (f - 0.14) / 0.72;
             const row = Math.min(rows - 1, Math.floor(ff * rows)), ry = ff * rows - row;
             const cx = x + q.tier * 7 + row * 4, cell = Math.floor(cx / 8), bx = (cx % 8) - 3.5;
             const rad = 2.9 + ih(cell, row, q.tier + 30) * 1.1, by = (ry - 0.5) * 6.5;
