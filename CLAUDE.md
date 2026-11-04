@@ -41,6 +41,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Ennemis
 - TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.
 - WARA (épouvantail) : dessin dans `tools/kage_forge/enemies/wara.py`, export `build_wara.py` (inclus dans `npm run sprites`, avec contrôles qualité), planches `wara_board.py`, comportement `src/game/wara.js` (constantes `WARA`). Les PNG de `assets/characters/wara/` sont générés.
+- KARASU-KASHI (mini-boss du Potager, zone 9) : dessin dans `tools/kage_forge/enemies/karasu.py`, export `build_karasu.py` (inclus dans `npm run sprites`), planches `karasu_board.py`, comportement `src/game/karasu.js` (constantes `KARASU`). Les PNG de `assets/characters/karasu/` sont générés. Sa défaite ouvre la porte du temple (`level.doorOpen`) et est sauvegardée (`bossDefeated`). Fiche : `docs/enemies/README.md`.
 - Un nouvel ennemi doit aussi être embarqué dans `tools/standalone.mjs` (sinon la version autonome ne démarre pas).
 
 ## Vérifications avant de pousser

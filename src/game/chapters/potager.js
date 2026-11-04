@@ -19,6 +19,7 @@ class Builder {
     this.props = [];
     this.hints = [];
     this.backdrops = [];
+    this.bossDef = null;
   }
 
   get x() { return this.cols.length; }
@@ -418,12 +419,30 @@ function build() {
   b.prop('tall_grass', x + 17, G, { w: 2 });
   b.coins([x + 3, x + 15]);
   for (let s = 1; s <= 4; s++) b.flat(4, G - s); // le chemin monte vers les collines
-  x = b.x; b.flat(10, G - 4);
-  b.prop('signpost', x + 2, G - 4);
-  b.prop('bush', x + 5, G - 4);
-  b.prop('stone', x + 9, G - 4);
-  b.on(x + 7, 'G');
-  b.flat(4, G - 4);
+
+  // -------------------------------------------------------------------------
+  // ZONE 09 — Le champ du corbeau : KARASU-KASHI, le mini-boss du chapitre.
+  // Un champ plat, l'épouvantail géant au milieu (son perchoir), des cultures,
+  // et au bout la grande porte du temple, scellée tant que le corbeau règne.
+  // -------------------------------------------------------------------------
+  b.zone('09', 'Le champ du corbeau');
+  const A = G - 4;                                   // sol de l'arène
+  const arena0 = b.x;
+  b.flat(40, A);
+  b.on(arena0 + 2, 'P');                             // point de reprise : avant le combat
+  b.prop('signpost', arena0 + 4, A);
+  b.prop('crops', arena0 + 7, A, { w: 4, kind: 'navets' });
+  b.prop('crops', arena0 + 21, A, { w: 5, kind: 'choux' });
+  b.prop('crops', arena0 + 27, A, { w: 3, kind: 'radis' });
+  b.prop('tall_grass', arena0 + 12, A, { w: 2 });
+  const gx = arena0 + 34;                            // la grande porte du temple
+  // l'épouvantail géant, et le corbeau perché dessus ; il ne quitte pas l'arène
+  b.bossDef = { type: 'karasu', x: arena0 + 16, y: A, arena: [arena0, gx] };
+  b.prop('temple_gate', gx, A);
+  b.block(gx, 1, A - 7, A - 1, 'D');                 // fermée : on ne passe pas (s'ouvre quand il est vaincu)
+  b.prop('bush', arena0 + 38, A);
+  b.on(arena0 + 38, 'G');                            // la sortie, derrière la porte
+  b.flat(6, A);
   b.zones[b.zones.length - 1].x1 = b.x;
   return b;
 }
@@ -437,6 +456,7 @@ export const POTAGER = {
   hints: B.hints,
   backdrops: B.backdrops,
   legacyCheckpoints: B.legacy,
+  boss: B.bossDef,
   theme: 'potager',
   chapter: 1,
   // introduction (25 s) jouée une fois, puis boucle de 90 s (24 mesures à 64 BPM)

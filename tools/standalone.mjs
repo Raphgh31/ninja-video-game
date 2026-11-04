@@ -29,6 +29,12 @@ const wbase = 'characters/wara';
 const wmeta = JSON.parse(readFileSync(join(dist, wbase, 'wara.json'), 'utf8'));
 embed[`./${wbase}/wara.json`] = wmeta;
 embed[`./${wbase}/${wmeta.image}`] = 'data:image/png;base64,' + readFileSync(join(dist, wbase, wmeta.image)).toString('base64');
+const kbase = 'characters/karasu';
+const kmeta = JSON.parse(readFileSync(join(dist, kbase, 'karasu.json'), 'utf8'));
+embed[`./${kbase}/karasu.json`] = kmeta;
+for (const f of [kmeta.image, kmeta.perchImage, kmeta.itemImage]) {
+  embed[`./${kbase}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, kbase, f)).toString('base64');
+}
 
 // musiques des chapitres
 for (const f of readdirSync(join(dist, 'music'))) {

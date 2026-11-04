@@ -245,6 +245,59 @@ const SOUNDS = {
   waraHit: () => { noise({ dur: 0.12, vol: 0.14, f: 2200, to: 900, q: 0.8 }); tone({ f: 260, to: 140, dur: 0.1, type: 'triangle', vol: 0.05 }); },
   waraPoof: () => { noise({ dur: 0.3, vol: 0.14, type: 'lowpass', f: 2600, to: 400 }); tone({ f: 500, to: 180, dur: 0.22, type: 'sine', vol: 0.05 }); },
   tateFall: () => { noise({ dur: 0.32, vol: 0.28, type: 'lowpass', f: 320 }); tone({ f: 62, to: 30, dur: 0.36, type: 'sine', vol: 0.26 }); },
+  // KARASU-KASHI, le corbeau du potager
+  // croassement : voix râpeuse (dents de scie filtrées par un souffle nasal), deux syllabes
+  caw: ({ soft = false, pitch = 1 } = {}) => {
+    const v = soft ? 0.5 : 1;
+    [0, 0.2].forEach((d, i) => {
+      tone({ f: 640 * pitch * (i ? 0.92 : 1), to: 430 * pitch, dur: 0.17, type: 'sawtooth', vol: 0.03 * v, attack: 0.012, delay: d });
+      air({ dur: 0.18, vol: 0.08 * v, q: 3, f: [[0, 1500 * pitch], [0.4, 1250 * pitch], [1, 900 * pitch]], g: [[0, 0.05], [0.15, 1], [1, 0.01]], am: { rate: 38, depth: 0.6, type: 'sawtooth' }, delay: d });
+    });
+  },
+  // cri vexé quand il est touché : bref, aigu, étranglé
+  squawk: () => {
+    tone({ f: 980, to: 620, dur: 0.12, type: 'sawtooth', vol: 0.03, attack: 0.004 });
+    air({ dur: 0.13, vol: 0.08, q: 3.5, f: [[0, 2300], [1, 1300]], g: [[0, 1], [1, 0.01]], am: { rate: 46, depth: 0.7, type: 'sawtooth' } });
+  },
+  // battement d'ailes : deux souffles graves et feutrés
+  flap: () => [0, 0.14].forEach((d) => air({ dur: 0.12, vol: 0.09, type: 'lowpass', q: 0.8, f: [[0, 260], [0.4, 700], [1, 220]], g: [[0, 0.02], [0.35, 1], [1, 0.01]], delay: d })),
+  // le regard qui se plisse avant le plongeon : un petit tintement sec
+  glare: () => { ring({ f: 3400, vol: 0.02, dur: 0.16 }); tone({ f: 220, to: 330, dur: 0.18, type: 'triangle', vol: 0.03, attack: 0.02 }); },
+  // plongeon : sifflement de l'air qui monte en vitesse
+  diveWhistle: () => {
+    air({ dur: 0.5, vol: 0.1, q: 4, f: [[0, 900], [0.8, 3000], [1, 2600]], g: [[0, 0.05], [0.7, 1], [1, 0.01]] });
+    tone({ f: 700, to: 1500, dur: 0.45, type: 'sine', vol: 0.015, attack: 0.1 });
+  },
+  // il s'écrase dans la terre : choc sourd et motte projetée
+  crash: () => {
+    noise({ dur: 0.3, vol: 0.2, type: 'lowpass', f: 520, to: 160 });
+    tone({ f: 90, to: 38, dur: 0.3, type: 'sine', vol: 0.18 });
+    noise({ dur: 0.18, vol: 0.06, f: 1800, to: 600, q: 0.8, delay: 0.05 });
+  },
+  // gland piquant qui éclate au sol : craquement d'écorce
+  acorn: () => { noise({ dur: 0.05, vol: 0.12, type: 'highpass', f: 2600, attack: 0.001 }); tone({ f: 420, to: 160, dur: 0.06, type: 'triangle', vol: 0.05 }); },
+  // navet qui tombe et grésille (mèche)
+  turnipLand: () => {
+    noise({ dur: 0.08, vol: 0.08, type: 'lowpass', f: 600 });
+    air({ dur: 0.7, vol: 0.03, type: 'highpass', q: 0.8, f: [[0, 5000], [1, 6500]], g: [[0, 0.3], [0.1, 1], [1, 0.6]], am: { rate: 23, depth: 0.8 }, delay: 0.05 });
+  },
+  boom: () => {
+    noise({ dur: 0.45, vol: 0.24, type: 'lowpass', f: 900, to: 140 });
+    tone({ f: 70, to: 32, dur: 0.4, type: 'sine', vol: 0.2 });
+    noise({ dur: 0.08, vol: 0.12, type: 'highpass', f: 2000, attack: 0.001 });
+  },
+  // vaincu : un long croassement qui retombe, puis le talisman qui se déchire
+  karasuDefeat: () => {
+    tone({ f: 620, to: 210, dur: 0.7, type: 'sawtooth', vol: 0.03, attack: 0.02 });
+    air({ dur: 0.7, vol: 0.08, q: 3, f: [[0, 1400], [1, 500]], g: [[0, 0.05], [0.1, 1], [1, 0.01]], am: { rate: 30, depth: 0.6, type: 'sawtooth' } });
+  },
+  paperTear: () => air({ dur: 0.4, vol: 0.09, type: 'highpass', q: 0.9, f: [[0, 2500], [1, 4200]], g: [[0, 0.1], [0.1, 1], [0.8, 0.6], [1, 0.01]], am: { rate: 60, depth: 0.9, type: 'square' } }),
+  // la grande porte du temple : bois lourd qui grince en pivotant
+  gateCreak: () => {
+    tone({ f: 95, to: 120, dur: 1.4, type: 'triangle', vol: 0.06, attack: 0.2 });
+    air({ dur: 1.5, vol: 0.05, q: 6, f: [[0, 380], [0.5, 520], [1, 300]], g: [[0, 0.05], [0.2, 1], [0.8, 0.8], [1, 0.01]], am: { rate: 11, depth: 0.8, type: 'sawtooth' } });
+    noise({ dur: 0.5, vol: 0.12, type: 'lowpass', f: 240, to: 110, delay: 1.3 });
+  },
 };
 
 /**

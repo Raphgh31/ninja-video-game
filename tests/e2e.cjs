@@ -495,6 +495,7 @@ async function main() {
     pl.energy.value = 1; pl.energy.exhausted = false; pl.onGround = true; pl.setState('idle');
     for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; }
     for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; w.cooldown = 99; }
+    if (g.boss && g.boss.state !== 'defeated') g.boss.reset();
   }, tx);
   // trous du chapitre (colonnes sans aucun sol : eau ou vide) : [début, largeur, haut à gauche, haut à droite]
   const holes = await pg.evaluate(() => {
@@ -522,11 +523,11 @@ async function main() {
   };
   const landed = (s, [gs, w, , rt]) => s.tx >= gs + w && s.y === rt * 16 && s.hp === 5 && s.st !== 'death' && s.st !== 'respawn';
 
-  await test('potager : écran titre, puis 8 zones, 3 lanternes, un marchand et une sortie', async () => {
+  await test('potager : écran titre, puis 9 zones, 9 lanternes, un marchand, un boss et une sortie', async () => {
     const shown = await pg.evaluate(() => !document.querySelector('.title-screen').hidden);
     await pg.click('[data-new]'); await pw(200);
-    const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused]; });
-    expect(shown && i.join() === '8,8,true,true,false', `titre ${shown}, ${i.join()}`);
+    const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused, g.boss?.meta.name]; });
+    expect(shown && i.join() === '9,9,true,true,false,KARASU-KASHI', `titre ${shown}, ${i.join()}`);
   });
 
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
@@ -702,7 +703,7 @@ async function main() {
     expect(s && s.checkpoint === k.i && s.checkpointX === k.x && icon, `point de reprise ${s && s.checkpoint} (${s && s.checkpointX}) / attendu ${k.i} (${k.x}), icône ${icon}`);
   });
 
-  await test('potager : un point de reprise au début de chaque zone (2 à 8)', async () => {
+  await test('potager : un point de reprise au début de chaque zone (2 à 9)', async () => {
     const r = await pg.evaluate(() => { const l = window.__kage.level; return l.zones.slice(1).map((z) => [z.id, l.checkpoints.some((c) => c.x >= z.px0 - 4 * 16 && c.x <= z.px0 + 8 * 16)]); });
     const missing = r.filter(([, ok]) => !ok).map(([id]) => id);
     expect(missing.length === 0, `zones sans point de reprise : ${missing.join(', ')}`);
@@ -742,6 +743,85 @@ async function main() {
     await PK.press('Escape'); await pw(200);
     const closed = await pg.evaluate(() => [document.querySelector('.shop').hidden, window.__kage.run.paused]);
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
+  });
+
+  // ---- zone 9 : KARASU-KASHI, le corbeau du potager ----
+  const B = await pg.evaluate(() => { const b = window.__kage.boss; return { a0: b.arena[0] / 16, a1: b.arena[1] / 16, ground: b.groundY }; });
+  const gateOpen = () => pg.evaluate((a1) => { const l = window.__kage.level; return !l.solid(a1, l.boss.y - 1); }, B.a1);
+
+  await test('potager : zone 9 — le corbeau attend sur son épouvantail, la porte du temple est fermée', async () => {
+    await pat(B.a0 + 2); await pw(300);
+    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.state, b.engaged, document.querySelector('.boss').classList.contains('on')]; });
+    expect(r.join() === 'perch,false,false' && !(await gateOpen()), `corbeau ${r.join()}, porte ouverte ${await gateOpen()}`);
+  });
+
+  await test('potager : en entrant dans l\'arène, il croasse et s\'envole ; sa barre de vie apparaît en haut', async () => {
+    await pat(B.a0 + 9); await pw(1600);
+    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.engaged, b.flying, document.querySelector('.boss').classList.contains('on')]; });
+    expect(r.join() === 'true,true,true', `engagé, en vol, barre : ${r.join()}`);
+  });
+
+  await test('potager : plongeon — debout, KAGE est touché (2) ; en glissade, il passe dessous', async () => {
+    const r = await pg.evaluate(() => {
+      const g = window.__kage, b = g.boss, hb = g.player.meta.hitbox, piv = g.player.meta.pivot, out = [];
+      for (const kind of ['default', 'slide']) for (const side of [-1, 1]) for (const dist of [70, 96, 130]) {
+        const h = hb[kind], px = (b.arena[0] + b.arena[1]) / 2;
+        const fake = { x: px, y: b.groundY, vx: 0, state: kind === 'slide' ? 'slide' : 'idle', facing: -side, dmg: 0,
+          box() { const ox = this.facing > 0 ? h.x - piv.x : piv.x - (h.x + h.w); return { x: this.x + ox, y: this.y - piv.y + h.y, w: h.w, h: h.h }; },
+          hurt(d) { this.dmg += d; return true; } };
+        b.reset(); b.engaged = true; b.x = px + side * dist; b.y = b.groundY - 50;
+        b.startDive(fake, 0);
+        for (let n = 0; n < 600 && b.state === 'dive'; n++) { b.update(1 / 120, fake); b.interact(fake); }
+        out.push(`${kind}:${fake.dmg}:${b.state}`);
+      }
+      b.reset();
+      return out;
+    });
+    const bad = r.filter((x) => !(x.startsWith('default') ? x.endsWith(':2:pullup') : x.endsWith(':0:crash')));
+    expect(bad.length === 0, bad.join(' '));
+  });
+
+  await test('potager : en vol, seul le shuriken le touche (lancé au sommet d\'un saut) ; planté dans le sol, le sabre le blesse', async () => {
+    const put = (st) => pg.evaluate(([st, a]) => {
+      const g = window.__kage, b = g.boss, pl = g.player, x = (a[0] + a[1]) * 8;
+      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; g.shurikens.reset();
+      b.reset(); b.engaged = true; b.setState(st); b.salvoLeft = 0; b.dropT = 99; b.windup = 0;
+      if (st === 'bomb') { b.salvoLeft = 9; b.x = x + 10; b.y = b.groundY - 34; } else { b.x = x + 22; b.y = b.groundY; b.play('stuck'); }
+      return b.hp;
+    }, [st, [B.a0, B.a1]]);
+    const hp = () => pg.evaluate(() => window.__kage.boss.hp);
+    const h0 = await put('bomb');
+    await PK.press('KeyX'); await pw(450);
+    const sword = await hp();
+    await put('bomb');
+    await PK.down('Space'); await pw(250); await PK.press('KeyC'); await PK.up('Space'); await pw(500);
+    const shur = await hp();
+    await put('stuck');
+    await PK.press('KeyX'); await pw(450);
+    const stuck = await hp();
+    expect(sword === h0 && shur === h0 - 1 && stuck === h0 - 2, `PV ${h0} : sabre en vol ${sword}, shuriken en vol ${shur}, sabre planté ${stuck}`);
+  });
+
+  await test('potager : vaincu, il s\'affale ; le talisman se déchire et la porte du temple s\'ouvre (sauvegardé)', async () => {
+    await pg.evaluate(([a0, a1]) => {
+      const g = window.__kage, b = g.boss, pl = g.player, x = (a0 + a1) * 8;
+      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.setState('idle'); pl.invuln = 9;
+      b.reset(); b.engaged = true; b.setState('stuck'); b.hp = 2; b.x = x + 22; b.y = b.groundY;
+    }, [B.a0, B.a1]);
+    await PK.press('KeyX'); await pw(300);
+    const st = await pg.evaluate(() => window.__kage.boss.state);
+    const closed = !(await gateOpen());
+    await pw(2200);
+    const s = await SAVE();
+    const bar = await pg.evaluate(() => document.querySelector('.boss').classList.contains('on'));
+    expect(st === 'defeated' && closed && (await gateOpen()) && s.bossDefeated && !bar, `état ${st}, fermée juste après ${closed}, ouverte ensuite ${await gateOpen()}, sauvegarde ${s.bossDefeated}, barre ${bar}`);
+  });
+
+  await test('potager : « Continuer » après sa défaite — il reste vaincu, la porte reste ouverte', async () => {
+    await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
+    await pg.click('[data-continue]'); await pw(300);
+    const st = await pg.evaluate(() => window.__kage.boss.state);
+    expect(st === 'defeated' && (await gateOpen()), `corbeau ${st}, porte ouverte ${await gateOpen()}`);
   });
 
   await test('potager : la sortie termine le chapitre', async () => {

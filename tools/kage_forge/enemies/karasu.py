@@ -35,7 +35,7 @@ PAL = {
     # pattes et serres
     "l": "#2a2729", "L": "#4b4547", "t": "#cfc6b2", "T": "#8f877a",
     # chapeau de paille (sugegasa) et sa cordelette
-    "h": "#6b5430", "H": "#9c7f45", "y": "#c9a862", "Y": "#ead08e", "c": "#3a2416",
+    "h": "#5c5134", "H": "#8c7f57", "y": "#c2ae78", "Y": "#e2d29d", "c": "#3e2c1a",
     # haillons de tissu sombre
     "r": "#231d2a", "R": "#3a3044", "X": "#52465c",
     # ficelles de chanvre
@@ -92,6 +92,11 @@ class Canvas:
 
     def outline(self):
         g = self.g
+        # nettoyage : un pixel orphelin (sans aucun voisin, diagonales comprises) est retiré
+        solid = (g != ".") & ~np.isin(g, list(NO_OUTLINE))
+        pad = np.pad(solid, 1)
+        n = sum(pad[1 + dy:pad.shape[0] - 1 + dy, 1 + dx:pad.shape[1] - 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+        g[solid & (n == 0)] = "."
         solid = (g != ".") & ~np.isin(g, list(NO_OUTLINE)) & (g != "O")
         near = np.zeros_like(solid)
         near[1:, :] |= solid[:-1, :]
@@ -199,7 +204,7 @@ DEFAULT = dict(
     eye="smug", beak=0.0,              # expression, ouverture du bec (0 à 1)
     wings="folded", wing=0.0,          # ailes : folded | spread (wing = angle) | tucked | droop
     tail=0.0, legs="stand",            # queue (angle en plus), pattes : stand | tuck | grab | splay
-    hat="on", hatdx=0, hatdy=0, hatang=-0.32,
+    hat="on", hatdx=0, hatdy=0, hatang=-0.17,
     fx=(),                             # effets : stars, feathers, dust, straw
     puff=0.0,                          # plumage gonflé (surprise, ébrouement)
 )
@@ -318,7 +323,7 @@ def legs(c, P):
             c.p(x, y, "L" if i % 2 else "l")
             c.p(x + 1, y, "l")
         if mode == "stand":
-            for dx, dy in ((4, 0), (2, 1), (-3, 0)):
+            for dx, dy in ((4, 0), (2, 0), (-3, 0)):
                 line(c, fx, fy, fx + dx, fy + dy, "l")
                 c.p(fx + dx + (1 if dx > 0 else -1), fy + dy, "t")
             c.p(fx + 5, fy - 1, "T")
@@ -454,7 +459,7 @@ def head(c, hx, hy, P):
         return ramp(PLUM, lt)
     ellipse(c, hx, hy, r, r * 0.9, tilt, col)
     if P["hat"] == "on":                                 # cordelette du chapeau : derrière la joue, sous le bec
-        x0, y0 = rot(hx - 4 + P["hatdx"], hy - 7 + P["hatdy"], hx, hy, tilt)
+        x0, y0 = rot(hx - 4 + P["hatdx"], hy - 7.5 + P["hatdy"], hx, hy, tilt)
         x1, y1 = rot(hx + 3, hy + 9, hx, hy, tilt)
         line(c, x0, y0, x1, y1, "c")
     beak(c, hx, hy, P)
@@ -536,33 +541,46 @@ def hat(c, hx, hy, P):
     if P["hat"] == "off":
         return
     ang = P["hatang"] + P["tilt"] * 0.7
-    cx, cy = rot(hx - 2 + P["hatdx"], hy - 9.5 + P["hatdy"], hx, hy, P["tilt"])
-    # sugegasa : cône bas et large, trop petit pour lui, posé de travers
-    w2, h = 7.5, 4.2
+    cx, cy = rot(hx - 1 + P["hatdx"], hy - 7.6 + P["hatdy"], hx, hy, P["tilt"])
+    # sugegasa : un grand cône de paille tressée, bien trop grand pour lui,
+    # posé de travers ; la même paille sèche que les WARA
+    w2, h = 14.0, 7.0
 
     def inside(x, y):
         dx, dy = x - cx, y - cy
         u = dx * math.cos(-ang) - dy * math.sin(-ang)
         v = dx * math.sin(-ang) + dy * math.cos(-ang)
-        if v > 1.2 or v < -h:
+        if v > 1.4 or v < -h:
             return None
-        half = w2 * (v + h) / (h + 1.2) if v < 0 else w2 + 0.5
+        half = w2 * (v + h) / (h + 1.4) if v < 0 else w2 + 0.4
+        if v > 0.3 and abs(u) > w2 - 0.5 - h01(int(u), 5) * 1.5:
+            return None                                       # le bord, effiloché
         return (u, v) if abs(u) <= half else None
 
     def col(x, y, q):
         u, v = q
-        if v > 0.2:
-            return "h" if abs(u) > w2 - 1.2 else "H"         # rebord, dans l'ombre
-        weave = (int(u * 1.3 + 30) + int(v * 1.6 + 30)) % 2  # tresse visible
-        lt = 0.5 - u * 0.05 - (v + h) * 0.03 + weave * 0.28
+        if v > 0.35:
+            return "t" if abs(u) > w2 - 2 else "h"           # dessous du rebord, dans l'ombre
+        # brins qui rayonnent de la pointe, recoupés par les rangs de tressage
+        r = math.atan2(u, v + h + 0.01)
+        strand = int(r * 9 + 20) % 2
+        ring = int((v + h) * 1.05) % 2
+        lt = 0.56 - u * 0.025 - (v + h) * 0.025 + (0.24 if strand == ring else -0.1)
+        if int(v + h) % 3 == 2 and int(u * 2) % 3 == 0:
+            lt -= 0.25                                       # mailles plus sombres : la tresse se lit
         return "hHyY"[max(0, min(3, int(lt * 4)))]
-    c.shape(inside, col, (cx - 10, cy - 8, cx + 10, cy + 4))
+    c.shape(inside, col, (cx - 18, cy - 12, cx + 18, cy + 5))
     tx, ty = rot(cx, cy - h - 0.4, cx, cy, ang)
-    c.p(tx, ty, "Y")                                      # le petit nœud de la pointe
-    for k, (dx, dy, L) in enumerate(((-8.2, 1.2, 2), (7.6, 0.4, 1))):   # deux brins qui dépassent du bord
+    c.p(tx, ty, "Y")                                          # le nœud de la pointe
+    c.p(tx, ty - 1, "y")
+    # brins irréguliers qui dépassent du bord, comme sur les chapeaux des WARA
+    for k, (dx, dy, L) in enumerate(((-14.6, 1.2, 3), (14.4, 0.8, 2), (-9, 1.6, 2), (6, 1.8, 3), (11.5, 1.5, 1))):
         for j in range(L):
-            x, y = rot(cx + dx + (-j if dx < 0 else j), cy + dy + j * 0.6, cx, cy, ang)
-            c.p(x, y, "y" if j else "Y")
+            x, y = rot(cx + dx + (-j * 0.7 if dx < 0 else j * 0.7), cy + dy + j * 0.8, cx, cy, ang)
+            c.p(x, y, "y" if j % 2 else "H")
+    # la cordelette : un nœud au rebord
+    kx, ky = rot(cx - 3, cy + 1.2, cx, cy, ang)
+    c.p(kx, ky, "c"); c.p(kx + 1, ky, "c")
 
 
 def effects(c, P, hx, hy):
@@ -895,3 +913,77 @@ def gate(opened=0.0):
     c.p(59, 12, ":"); c.p(60, 14, ":"); c.p(59, 15, ":")
     c.outline()
     return c.g
+
+
+# ---------------------------------------------------------------------------
+# images du jeu (dans l'ordre de la feuille) ; les plumes, la poussière, les
+# épines et la terre sont des particules en jeu, pas des pixels figés ici
+# ---------------------------------------------------------------------------
+def _p(name, clip=False, **kw):
+    base = dict(POSES[name]) if name else {}
+    base.update(kw)
+    base["fx"] = tuple(f for f in base.get("fx", ()) if f in ("stars",))
+
+    def make():
+        g = crow(**base)
+        if clip:                                         # planté dans la terre : coupé net à la surface du sol
+            g[FY + 1:, :] = "."
+            for _ in range(2):                           # les bouts coupés qui restent seuls disparaissent
+                solid = (g != ".") & (g != "O") & ~np.isin(g, list(NO_OUTLINE))
+                pad = np.pad(solid, 1)
+                n = sum(pad[1 + dy:pad.shape[0] - 1 + dy, 1 + dx:pad.shape[1] - 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+                g[solid & (n == 0)] = "."
+            # un contour orphelin (sans pixel plein à côté) disparaît aussi
+            solid = (g != ".") & (g != "O")
+            pad = np.pad(solid, 1)
+            n = sum(pad[1 + dy:pad.shape[0] - 1 + dy, 1 + dx:pad.shape[1] - 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+            g[(g == "O") & (n == 0)] = "."
+        return g
+    return make
+
+
+GAME_FRAMES = [
+    # perché : il respire, cligne, toise KAGE
+    ("idle_1", _p("idle")),
+    ("idle_2", _p("idle", puff=0.5)),
+    ("idle_3", _p("idle", puff=0.5, eye="closed")),
+    ("look_1", _p("curious")),
+    ("look_2", _p("curious", tilt=0.6, hatang=0.0)),
+    ("hatfix_1", _p("idle", tilt=-0.15, hatdy=-3, hatang=0.15, eye="closed")),
+    ("hatfix_2", _p("idle", tilt=0.05, hatdy=-1, hatang=-0.05)),
+    ("croak_1", _p("croak", beak=0.5)),
+    ("croak_2", _p("croak")),
+    # envol, vol, largage
+    ("takeoff_1", _p("idle", puff=0.6, eye="angry", wings="spread", wing=-2.15, hatang=-0.3)),
+    ("takeoff_2", _p("takeoff")),
+    ("fly_1", _p("flight_up")),
+    ("fly_2", _p("flight_mid")),
+    ("fly_3", _p("flight_down")),
+    ("drop_1", _p("flight_mid", bang=0.2, legs="grab", beak=0.4, eye="smug")),
+    ("drop_2", _p("flight_down", bang=0.25, legs="grab", beak=0.8, eye="angry")),
+    # il vise, il plonge
+    ("aim_1", _p("flight_mid", eye="glare", wing=-2.15, bang=0.2)),
+    ("aim_2", _p("flight_up", eye="glare", wing=-1.6, bang=0.3, beak=0.2)),
+    ("dive_1", _p("dive")),
+    ("dive_2", _p("dive", beak=0.5, hatdy=3)),
+    # écrasé, coincé, étourdi, touché
+    ("crash", _p("stunned", clip=True, eye="surprise", puff=1.4, hatdy=-6, hatang=-1.6)),
+    ("stuck_1", _p("stunned", clip=True, eye="dizzy", starphase=0.0)),
+    ("stuck_2", _p("stunned", clip=True, eye="dizzy2", starphase=1.0)),
+    ("stuck_hit", _p("stunned", clip=True, eye="hurt", puff=1.0, tilt=0.75, fx=())),
+    ("hurt", _p("hurt", fx=())),
+    # il s'ébroue, replace son chapeau, repart
+    ("shake_1", _p("idle", puff=2.2, eye="closed", tilt=0.35, hatdy=-3, hatang=0.25)),
+    ("shake_2", _p("idle", puff=1.6, eye="closed", tilt=-0.3, hatdy=-2, hatang=-0.6)),
+    ("shake_3", _p("idle", eye="smug", hatang=-0.17)),
+    # défaite
+    ("defeat_1", _p("hurt", eye="surprise", beak=1.0, hatdy=-8, hatang=-1.2, fx=())),
+    ("defeat_2", _p("defeated", clip=True, bang=-0.95, by=58, tilt=-0.4, hatdy=-2, fx=())),
+    ("defeat_3", _p("defeated", clip=True, fx=())),
+]
+
+PERCH_FRAMES = [(f"perch_{i}", (lambda s: (lambda: scarecrow(s)))(s)) for i, s in enumerate((-1.0, -0.5, 0.0, 0.5, 1.0))]
+ITEM_FRAMES = [
+    ("acorn_1", lambda: acorn(0.0)), ("acorn_2", lambda: acorn(0.5)),
+    ("turnip_1", lambda: turnip(0)), ("turnip_2", lambda: turnip(1)),
+]

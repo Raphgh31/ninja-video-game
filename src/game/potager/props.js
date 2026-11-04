@@ -68,7 +68,7 @@ const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'], orchard_canopy: ['front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
-  bridge_red: ['back'], stall: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
+  bridge_red: ['back'], stall: ['back'], temple_gate: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
   baskets: ['ground'], bridge: ['ground'], reeds: ['ground', 'front'], pots: ['ground'], hay: ['ground'],
   barn_door: ['back', 'front'], signpost: ['ground'], woodpile: ['ground'], cart: ['ground'], bush: ['ground'],
@@ -76,7 +76,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -1284,6 +1284,59 @@ const PAINT = {
     for (let x = x0; x < x0 + w; x += 12) {
       b.r(x, Y - 1, 9, 2, C.STONE[3]).r(x + 1, Y - 2, 7, 1, C.STONE[4]).r(x, Y, 9, 1, C.STONE[1]);
     }
+  },
+
+  // --- zone 9 : la grande porte du temple, au bout du champ du corbeau -------
+  // Ici la partie fixe : seuil de pierre, passage lumineux, piliers vermillon,
+  // traverse, grand toit de tuiles, plaque. Les deux vantaux, le talisman qui
+  // les scelle et la corde sacrée sont animés (live.js) : ils s'ouvrent quand
+  // Karasu-Kashi est vaincu.
+  temple_gate(b, p, X, Y, env, layer) {
+    const R = C.RED;
+    // le passage : la lumière du chemin, derrière les vantaux
+    for (let y = Y - 92; y < Y - 6; y++) {
+      const t = (y - (Y - 92)) / 86;
+      b.r(X - 36, y, 72, 1, t < 0.5 ? mixHex('#fff3c8', '#f2e2b0', t * 2) : mixHex('#f2e2b0', C.STONE[4], (t - 0.5) * 2));
+    }
+    // le seuil de pierre, en deux marches
+    b.r(X - 60, Y - 6, 120, 6, C.STONE[2]).r(X - 60, Y - 6, 120, 1, C.STONE[4]).r(X - 52, Y - 9, 104, 3, C.STONE[3]).r(X - 52, Y - 9, 104, 1, C.STONE[5]);
+    for (let k = 0; k < 120; k += 13) b.r(X - 60 + k, Y - 5, 1, 5, C.STONE[1]);
+    // piliers vermillon, socles de pierre sombre
+    for (const px of [X - 51, X + 38]) {
+      for (let i = 0; i < 13; i++) {
+        const u = i / 12;
+        b.r(px + i, Y - 104, 1, 95, u < 0.15 ? R[4] : u < 0.5 ? R[3] : u < 0.82 ? R[2] : R[1]);
+      }
+      b.r(px - 2, Y - 16, 17, 7, '#2a2420').r(px - 2, Y - 16, 17, 1, C.STONE[1]);
+      b.r(px - 1, Y - 108, 15, 4, R[1]);
+    }
+    // la traverse (nuki) et le linteau
+    b.r(X - 62, Y - 100, 124, 6, R[3]).r(X - 62, Y - 100, 124, 1, R[4]).r(X - 62, Y - 95, 124, 1, R[1]);
+    b.r(X - 58, Y - 110, 116, 5, R[2]).r(X - 58, Y - 110, 116, 1, R[4]);
+    // le grand toit de tuiles grises, bords relevés
+    // toit à quatre pans (trapèze) : le faîtage repose sur le haut, sans jour
+    const top = Y - 136, h = 26, wb = 76, wt = 34;
+    for (let j = 0; j < h; j++) {
+      const half = Math.round(wb - ((wb - wt) * j) / (h - 1)) + (j < 3 ? 8 - j * 3 : 0);
+      const yy = top + h - 1 - j;
+      for (let i = -half; i <= half; i++) {
+        const x = X + i;
+        let v = 0.5 + ((x % 3) === 0 ? -0.18 : (x % 3) === 1 ? 0.12 : 0) - (i / half) * 0.12;
+        if ((yy - top) % 4 === 0) v -= 0.1;
+        if (j === 0) v = 0.1;
+        b.p(x, yy, pick(C.ROOF, clamp01(v), x, yy));
+      }
+    }
+    // faîtage, bouts relevés
+    b.r(X - wt - 4, top - 4, 2 * wt + 8, 4, C.ROOF[1]).r(X - wt - 4, top - 4, 2 * wt + 8, 1, C.ROOF[3]).r(X - wt - 4, top - 1, 2 * wt + 8, 1, C.ROOF[0]);
+    for (const sx of [-1, 1]) {
+      const ex = X + sx * (wt + 4) - (sx > 0 ? 1 : 0);
+      b.r(ex - (sx > 0 ? 0 : 2), top - 7, 3, 4, C.ROOF[1]).r(ex + sx * 2 - (sx > 0 ? 0 : 0), top - 9, 2, 3, C.ROOF[0]);
+    }
+    for (const dx of [-74, 72]) b.r(X + dx, Y - 114, 3, 3, C.ROOF[0]).r(X + dx + (dx < 0 ? -2 : 2), Y - 117, 2, 3, C.ROOF[1]);
+    // la plaque du nom, cerclée d'or
+    b.r(X - 9, Y - 128, 18, 14, '#c9a24a').r(X - 8, Y - 127, 16, 12, '#2a2018');
+    b.r(X - 2, Y - 125, 3, 2, '#c9a24a').r(X - 4, Y - 121, 7, 1, '#c9a24a').r(X - 1, Y - 119, 2, 2, '#c9a24a');
   },
 
   gate(b, p, X, Y, env, layer) {

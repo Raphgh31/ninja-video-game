@@ -15,7 +15,8 @@ export class Level {
     // chapitre (monde continu) : zones, décors, aides contextuelles, thème graphique
     this.theme = def.theme ?? 'ville';
     this.chapter = def.chapter ?? null;
-    this.music = def.music ?? null;   // { src, loopStart, loopEnd } : musique du chapitre
+    this.music = def.music ?? null;
+    this.boss = def.boss ?? null;     // { type, x, y } : le boss du chapitre (et son perchoir)   // { src, loopStart, loopEnd } : musique du chapitre
     this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;
     this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
@@ -173,7 +174,7 @@ export class Level {
     }
     // porte : planches cerclées de fer, qui se lève quand le gong a sonné
     const lift = (this.doorT / DOOR_TIME) * TILE * 4;
-    for (let ty = 0; ty < this.h; ty++) {
+    for (let ty = 0; ty < this.h && !this.art; ty++) {   // (dans un chapitre peint, la porte a son propre dessin)
       for (let tx = 0; tx < this.w; tx++) {
         if (this.rows[ty][tx] !== 'D') continue;
         const sx = tx * TILE - R(cam.x), sy = ty * TILE - R(cam.y) - R(lift);
@@ -186,7 +187,8 @@ export class Level {
         ctx.fillRect(sx + 2, sy + 6, 12, 2);
       }
     }
-    if (this.goal) {
+    // l'arrivée : un petit torii (sauf quand une grande porte de temple marque déjà la sortie)
+    if (this.goal && !this.props?.some((p) => p.type === 'temple_gate')) {
       const sx = R(this.goal.x - cam.x), sy = R(this.goal.y - cam.y);
       ctx.fillStyle = '#a8433a';                             // torii
       ctx.fillRect(sx - 14, sy - 40, 4, 40);
