@@ -508,6 +508,8 @@ const BRANCHES = [
     files: ['CLAUDE.md', 'docs/REPRISE.md', 'docs/MONDE.md', 'docs/MESSAGE_NOUVELLE_CONVERSATION.md', 'README.md'] },
   { id: 'proj-site', t: 'Site du jeu', s: 'fait', d: 'Public, mis à jour automatiquement',
     txt: "La version en ligne du jeu, mise à jour à chaque push sur main.", links: [['Jouer en ligne', 'https://raphgh31.github.io/ninja-video-game/']], see: ['tech-deploy'] },
+  { id: 'proj-jeu', t: 'Jeu jouable (claude.ai)', s: 'fait', d: 'Page privée du projet, version de main',
+    txt: "Le jeu complet en une seule page claude.ai privée, dans les artefacts du projet. Il suit main : après chaque fusion, on le republie avec dist/kage-standalone.html (npm run standalone).", links: [['Jouer sur claude.ai', 'https://claude.ai/artifact/JbC9RVrfV4BsWzRAKKwpab']], see: ['proj-site', 'proj-test', 'tech-standalone'] },
   { id: 'proj-test', t: 'Version de test', s: 'fait', d: 'Page privée, hors main',
     txt: "Page claude.ai privée pour essayer une branche avant la fusion ; on la republie avec dist/kage-standalone.html.", links: [['Ouvrir la version de test', 'https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm']], see: ['tech-standalone'] },
   { id: 'proj-historique', t: 'Grandes étapes', s: 'fait', d: 'De la PR #1 à la PR #20',
