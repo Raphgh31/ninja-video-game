@@ -269,9 +269,10 @@ const BRANCHES = [
     txt: "Coup de pied de côté de karaté d'après des images de Raph : genou armé, hanche qui pivote, pied fléchi orteils vers le haut. L'effort se voit (yeux plissés, bouffée d'expiration, goutte de sueur). Il repousse même TATE qui pare et WARA qui mouline, jusque dans le vide.",
     keys: ['2 dégâts, recul 170 px/s', '0,35 s avant d\'en relancer un', 'Portée équivalente au sabre'],
     files: ['src/game/fall.js', 'tools/kage_forge/rig.py'], see: ['ennemi-chute'] },
-  { id: 'kage-skins', t: 'Skins de KAGE', s: 'afaire', d: 'Mis de côté, système prêt',
-    txt: "Le système de palette par slots reste en place : un skin changera les couleurs, jamais la silhouette. Les exemples Cendre et Minuit ont été supprimés. Les skins seront vendus par le marchand.",
-    files: ['assets/characters/kage/skins/encre.json'], see: ['sys-boutique', 'hab-marchand'] },
+  { id: 'kage-skins', t: 'Skins de KAGE', s: 'encours', d: 'Planches de design en cours',
+    txt: "Un skin = une palette par slots (même animation, même boîte de collision) et, si besoin, un accessoire posé sur la tête (chapeau…) : la tête de profil est retrouvée dans chaque image et l'accessoire y est posé avec son propre contour. Choix de l'utilisateur sur sa planche de skins (9 entourés) ; n° 1, le vagabond (sugegasa de paille, tenue bleu nuit, pièces vert mousse, cordelette dorée) : planche de design à faire valider avant intégration. Les skins seront vendus par le marchand.",
+    files: ['assets/characters/kage/skins/encre.json', 'tools/kage_forge/skin_board.py'],
+    links: [['Planche : le vagabond', 'docs/kage/skins/vagabond_planche.png']], see: ['sys-boutique', 'hab-marchand'] },
 ]},
 { id: 'ennemis', side: 'R', t: 'Les ennemis', sub: 'trois en jeu, dont un mini-boss', color: 'ennemis', leaves: [
   { id: 'ennemi-tate', t: 'TATE', s: 'fait', d: 'Garde de temple au grand bouclier', spr: 'tate',
