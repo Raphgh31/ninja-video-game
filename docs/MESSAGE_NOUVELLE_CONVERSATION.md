@@ -16,7 +16,7 @@ Bonjour ! On reprend mon jeu **The Ninja Game** (le ninja s'appelle KAGE), un je
 **Où on en est** : tout est dans `main` et en ligne (https://raphgh31.github.io/ninja-video-game/). Le chapitre 1, le Potager, est jouable de bout en bout : 9 zones, une lanterne de sauvegarde au début de chaque zone, le marchand, et le mini-boss **KARASU-KASHI** (le corbeau au grand chapeau de paille) dans la zone 9, dont la défaite ouvre la porte du temple et termine le chapitre. 64 tests automatiques passent. Version de test : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (à republier avec `dist/kage-standalone.html`). Carte mentale en ligne : https://raphgh31.github.io/ninja-video-game/carte-mentale/ (page claude.ai : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi).
 
 **Ce qui attend mon avis** :
-- la nouvelle **pose de repos de KAGE** (un bras derrière le dos dont seule la main ressort à la hanche, l'autre armé, poing devant la poitrine) — 3e essai, planche `docs/kage/pose_repos.png` ;
+- la nouvelle **pose de repos de KAGE** (le bras du dos pend le long du dos, main à la ceinture, l'autre armé, poing devant la poitrine) — 4e essai, planche `docs/kage/pose_repos.png` ;
 - est-ce que le **sprint** doit marcher seulement avec **Maj droite** (pour l'instant, les deux Maj) ;
 - le réglage du boss en jouant (vie, cadence, durée de la fenêtre au sabre).
 
