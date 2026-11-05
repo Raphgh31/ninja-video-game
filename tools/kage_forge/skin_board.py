@@ -28,13 +28,13 @@ ENCRE = json.loads((ROOT / "assets/characters/kage/skins/encre.json").read_text(
 HATS = {
     # sugegasa : grand chapeau conique de paille, rayons tressés, petite pointe.
     # (dx, dy) = position du coin haut-gauche par rapport à la tête (hx, hy)
-    "sugegasa": dict(dx=-4, dy=-2, text="""
-.........rQ.........
-.......pPpPQQ.......
-.....pPPPpPPPQQ.....
-...pPpPPPPpPPPPQQ...
-.pPPPpPPPPPpPPPPPQQ.
-rrrrrrrrrrrrrrrrrrrr
+    "sugegasa": dict(dx=-3, dy=-2, text="""
+........rQ........
+......pPpPQQ......
+....pPPpPPPPQQ....
+..pPpPPPPpPPPPQQ..
+pPPPpPPPPPpPPPPPQQ
+rrrrrrrrrrrrrrrrrr
 """),
 }
 
@@ -113,7 +113,9 @@ def with_hat(g, hat):
                 continue
             if any(0 <= x + dx < CW and 0 <= y + dy < CH and mask[y + dy, x + dx]
                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
-                if g[y, x] == "." or y > 0:
+                # contour seulement sur le fond : sous le bord, le chapeau touche la tête
+                # directement (le liseré sombre du bord suffit, pas de double trait noir)
+                if g[y, x] == ".":
                     g[y, x] = "O"
     return g, True
 
