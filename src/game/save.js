@@ -15,6 +15,7 @@ export function emptySave(chapter) {
     ryo: 0,
     coins: [],           // ryō déjà ramassés (identifiants)
     crates: [],          // caisses déjà brisées
+    chests: [],          // coffres déjà ouverts
     merchantMet: false,
     skins: ['encre'],    // skins de KAGE possédés (achetés chez le marchand)
     skin: 'encre',       // skin porté

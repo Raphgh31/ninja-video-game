@@ -671,6 +671,29 @@ async function main() {
     expect(at.top >= 5 && hay.y === at.step.y0 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
   });
 
+  await test('potager : le coffre du grenier s\'ouvre (↑) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {
+    const ch = await pg.evaluate(() => { const c = window.__kage.level.chests[0]; return { id: c.id, x: c.x, y: c.y, open: c.open }; });
+    const put = (x, y) => pg.evaluate(([x, y]) => { const g = window.__kage, pl = g.player; pl.x = x; pl.y = y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 0;
+      for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, [x, y]);
+    await put(ch.x - 12, ch.y); await pw(250);
+    const label = await pg.evaluate(() => !document.querySelector('.talk').hidden && document.querySelector('[data-talk]').textContent);
+    const ryo0 = await pg.evaluate(() => window.__kage.save.ryo);
+    await PK.press('ArrowUp'); await pw(1400);
+    const st = await pg.evaluate((id) => { const l = window.__kage.level, k = l.coins.filter((c) => c.id.startsWith('k' + id)); return { open: l.chests[0].open, n: k.length, flying: k.filter((c) => c.fly).length, talk: document.querySelector('.talk').hidden }; }, ch.id);
+    // on ramasse en passant devant le coffre, d'un bout à l'autre du plancher
+    for (let dx = -70; dx <= 96; dx += 6) { await put(ch.x + dx, ch.y); await pw(25); }
+    const ryo1 = await pg.evaluate(() => window.__kage.save.ryo);
+    const saved = await SAVE();
+    // poutre du milieu de la grange : 3 ryō, ramassés debout dessus
+    const beam = await pg.evaluate(() => { const l = window.__kage.level, gr = l.props.find((p) => p.type === 'grenier');
+      return l.coins.filter((c) => c.x / 16 > gr.gx0 + 20 && c.x / 16 < gr.gx1 && Math.floor(c.y / 16) === 13).map((c) => c.x); });
+    for (const x of beam) { await put(x, 14 * 16); await pw(40); }
+    const beamGot = await pg.evaluate((xs) => window.__kage.level.coins.filter((c) => xs.includes(c.x) && c.taken).length, beam);
+    expect(label === 'Ouvrir le coffre' && st.open && st.n === 10 && st.flying === 0 && st.talk && ryo1 - ryo0 === 10
+      && saved.chests.includes(ch.id) && beam.length === 3 && beamGot === 3,
+      `bouton « ${label} », coffre ${JSON.stringify(st)}, ryō +${ryo1 - ryo0}, sauvegarde ${saved.chests}, poutre ${beam.length} (ramassés ${beamGot})`);
+  });
+
   await test('potager : le toit de la grange cache le grenier, et s\'efface quand KAGE monte sur la mezzanine', async () => {
     const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const pl = window.__kage.player; pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); }, [tx, ty]);
     const alpha = () => pg.evaluate(() => window.__kage.level.art.live.attic.alpha);
@@ -709,13 +732,15 @@ async function main() {
     expect(missing.length === 0, `zones sans point de reprise : ${missing.join(', ')}`);
   });
 
-  await test('potager : « Continuer » reprend à la dernière lanterne, avec les ryō', async () => {
+  await test('potager : « Continuer » reprend à la dernière lanterne, avec les ryō et le coffre ouvert', async () => {
     const before = await SAVE();
     await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
     const cont = await pg.evaluate(() => !document.querySelector('[data-continue]').hidden);
     await pg.click('[data-continue]'); await pw(300);
-    const r = await pg.evaluate((lx) => { const g = window.__kage, l = g.level; return { px: g.player.x, lx, taken: l.coins.filter((c) => c.taken).map((c) => c.id) }; }, before.checkpointX);
-    expect(cont && Math.abs(r.px - r.lx) < 24 && before.coins.every((id) => r.taken.includes(id)), `continuer ${cont}, KAGE ${Math.round(r.px)} / lanterne ${r.lx}`);
+    const r = await pg.evaluate((lx) => { const g = window.__kage, l = g.level; return { px: g.player.x, lx, taken: l.coins.filter((c) => c.taken).map((c) => c.id),
+      chest: l.chests[0].open, chestCoins: l.coins.filter((c) => c.id.startsWith('k')).length }; }, before.checkpointX);
+    expect(cont && Math.abs(r.px - r.lx) < 24 && before.coins.every((id) => r.taken.includes(id)) && r.chest && r.chestCoins === 10,
+      `continuer ${cont}, KAGE ${Math.round(r.px)} / lanterne ${r.lx}, coffre ouvert ${r.chest} (${r.chestCoins} ryō)`);
   });
 
   await test('potager : une sauvegarde d\'avant les nouvelles lanternes reprend à la bonne lanterne', async () => {
@@ -745,7 +770,7 @@ async function main() {
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
   });
 
-  await test('potager : skins — le vagabond (100 ryō) s\'achète chez le marchand, se porte et est sauvegardé', async () => {
+  await test('potager : skins — le vagabond (50 ryō) s\'achète chez le marchand, se porte et est sauvegardé', async () => {
     const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
     await pat(mx - 1); await pw(200);
     const before = await pg.evaluate(() => window.__kage.save.ryo);
@@ -765,9 +790,9 @@ async function main() {
     await pg.click('[data-skin="vagabond"] button'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(rows.join() === 'encre:Porté,vagabond:Acheter · 100 ryō' && poor.join() === '40,encre'
-      && bought.join() === '30,vagabond,30 ryō,Porté' && back.join() === 'encre,Porter'
-      && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 30,
+    expect(rows.join() === 'encre:Porté,vagabond:Acheter · 50 ryō' && poor.join() === '40,encre'
+      && bought.join() === '80,vagabond,80 ryō,Porté' && back.join() === 'encre,Porter'
+      && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 80,
       `rayon ${rows.join()} · pauvre ${poor.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });

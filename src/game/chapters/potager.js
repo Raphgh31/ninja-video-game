@@ -338,6 +338,7 @@ function build() {
   b.on(x + 17, 'W');                                 // il se cachait derrière la caisse
   b.set(x + 21, G - 1, 'B').set(x + 22, G - 1, 'B').set(x + 22, G - 2, 'B');
   b.row(x + 19, 9, G - 5, '=');
+  b.coins([x + 21, x + 23, x + 25], 0);              // trois ryō sur la poutre du milieu
   b.set(x + 26, G - 1, 'B').set(x + 26, G - 2, 'B').set(x + 26, G - 3, 'B').set(x + 26, G - 4, 'B');
   b.prop('hay', x + 1, G);
   b.prop('hay', x + 24, G);
@@ -357,6 +358,7 @@ function build() {
   CEIL.forEach((d, i) => b.set(grange0 + 1 + i, G - d, '%'));
   for (const c of [3, 5, 7, 9, 11]) b.set(grange0 + 1 + c, gFloor - 1, 'o');   // le trésor du grenier
   b.set(grange0 + 2, gFloor - 1, 'B');                // une vieille caisse (un ryō de plus)
+  b.prop('chest', grange0 + 7, gFloor, { id: 'grenier', ryo: 10 });   // le vieux coffre : ↑ / E pour l'ouvrir, 10 ryō
   b.prop('grenier', Math.floor((grange0 + grange1) / 2), gFloor, {
     gx0: grange0, gx1: grange1, eave: G - 9, roofH: 150, floor: gFloor, floorX0: grange0 + 1, floorX1: grange0 + 12,
     collar: G - 14, step: { x: x + 9, w: 2, y0: G - 6, y1: G - 5 },

@@ -172,6 +172,7 @@ const ui = {
   hint: document.querySelector('.hint'),
   saved: document.querySelector('.saved'),
   talk: document.querySelector('.talk'),
+  talkLabel: document.querySelector('[data-talk]'),
 };
 const shop = new Shop(document.querySelector('.shop'), {
   skins, meta, test: TEST_BUILD,
@@ -757,9 +758,32 @@ function updateChapterUi(dt) {
   ui.saved.classList.toggle('on', savedFlash > 0);
   // marchand : « Parler » quand on est devant le comptoir
   const m = level.merchant;
-  const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && player.state !== 'death';
-  ui.talk.hidden = !near;
-  if (near && input.wasPressed('up')) openShop();
+  const alive = player.state !== 'death' && player.state !== 'respawn';
+  const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && alive;
+  // coffre : « Ouvrir le coffre » quand on se tient devant, encore fermé
+  chestHere = !near && alive ? level.chestNear(player.x, player.y) : null;
+  ui.talk.hidden = !near && !chestHere;
+  ui.talkLabel.textContent = chestHere ? 'Ouvrir le coffre' : 'Parler au marchand';
+  if (input.wasPressed('up')) talkAction();
+}
+
+/** ↑ / E ou le bouton : parler au marchand, ou ouvrir le coffre devant soi. */
+function talkAction() {
+  if (chestHere) openChest(chestHere);
+  else if (!ui.talk.hidden) openShop();
+}
+
+let chestHere = null;
+function openChest(ch) {
+  const coins = level.openChest(ch);
+  if (!coins.length) return;
+  chestHere = null;
+  ui.talk.hidden = true;
+  sfx('chestOpen');
+  fx.dust(ch.x, ch.y - 2, 6, { spread: 24, up: 10 });
+  fx.sparks(ch.x, ch.y - 12, 10, { speed: 60 });
+  fx.shake(0.6, 0.15);
+  if (save) { save.chests.push(ch.id); persist(); }
 }
 
 /** Masque les aides posées sur le jeu (boutique ouverte, fin du chapitre). */
@@ -778,7 +802,7 @@ function openShop() {
   shop.open({ firstVisit: !save.merchantMet, save });
   if (!save.merchantMet) { save.merchantMet = true; persist(); }
 }
-ui.talk.addEventListener('click', openShop);
+ui.talk.addEventListener('click', talkAction);
 
 /**
  * Lanterne de reprise d'une sauvegarde : par sa position ; pour une sauvegarde
@@ -803,6 +827,7 @@ function startChapter(resume) {
   if (!resume) clearSave();
   save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
   save.skins ??= ['encre'];   // sauvegarde d'avant les skins
+  save.chests ??= [];        // sauvegarde d'avant les coffres
   save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
   if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);

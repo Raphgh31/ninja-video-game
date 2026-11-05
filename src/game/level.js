@@ -25,6 +25,9 @@ export class Level {
     this.backdrops = def.backdrops ?? [];
     this.coins = [];         // ryō : { id, x, y, taken }
     this.crates = new Map(); // caisses : 'tx,ty' -> { tx, ty } (tant qu'elles ne sont pas brisées)
+    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt }
+    this.chests = this.props.filter((p) => p.type === 'chest')
+      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2, y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
     this.merchant = null;
     this.time = 0;
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
@@ -106,7 +109,17 @@ export class Level {
     // ryō : petite pièce d'or percée d'un trou carré, qui tourne
     for (const c of this.coins) {
       if (c.taken) continue;
-      const sx = R(c.x - cam.x), sy = R(c.y - cam.y + Math.sin(this.time * 3 + c.x) * 1.2);
+      let cx = c.x, cy = c.y + Math.sin(this.time * 3 + c.x) * 1.2;
+      if (c.fly) {
+        // pièce qui jaillit du coffre : arc de sa sortie jusqu'à sa place
+        const k = (this.time - c.fly.t0) / c.fly.dur;
+        if (k < 0) continue;
+        if (k < 1) {
+          cx = c.fly.x0 + (c.x - c.fly.x0) * k;
+          cy = c.fly.y0 + (c.y - c.fly.y0) * k - c.fly.h * 4 * k * (1 - k);
+        } else c.fly = null;
+      }
+      const sx = R(cx - cam.x), sy = R(cy - cam.y);
       const w = [3, 2, 1, 2][Math.floor(this.time * 6 + c.x / 16) % 4];
       ctx.fillStyle = '#7a5a1c';
       ctx.fillRect(sx - w - 1, sy - 4, w * 2 + 2, 8);
@@ -256,7 +269,7 @@ export class Level {
   takeCoins(box) {
     const got = [];
     for (const c of this.coins) {
-      if (c.taken) continue;
+      if (c.taken || c.fly) continue;
       if (box.x < c.x + 4 && box.x + box.w > c.x - 4 && box.y < c.y + 5 && box.y + box.h > c.y - 5) {
         c.taken = true;
         got.push(c);
@@ -280,9 +293,40 @@ export class Level {
     return broken;
   }
 
-  /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées. */
+  /**
+   * Ouvre un coffre : ses ryō jaillissent en gerbe et retombent devant lui, en
+   * deux rangées (ramassées en passant, comme les autres). silent : reprise
+   * d'une sauvegarde (pièces déjà posées, pas d'animation).
+   */
+  openChest(ch, silent = false) {
+    if (ch.open) return [];
+    ch.open = true;
+    ch.openedAt = silent ? -9 : this.time;
+    // places : rangée basse de part et d'autre du coffre, rangée haute au-dessus
+    const spots = [[-64, 8], [-40, 8], [40, 8], [64, 8], [88, 8], [-52, 20], [-28, 20], [0, 22], [28, 20], [52, 20]];
+    const out = [];
+    for (let i = 0; i < ch.ryo; i++) {
+      const [dx, dy] = spots[i % spots.length];
+      const c = { id: `k${ch.id}_${i}`, x: ch.x + dx, y: ch.y - dy, taken: false };
+      if (!silent) c.fly = { x0: ch.x + (i % 5) * 3 - 6, y0: ch.y - 12, t0: this.time + 0.18 + i * 0.045, dur: 0.6, h: 26 + (i % 3) * 8 };
+      this.coins.push(c);
+      out.push(c);
+    }
+    return out;
+  }
+
+  /** Coffre devant lequel se tient KAGE (encore fermé), ou null. */
+  chestNear(x, y) {
+    return this.chests.find((c) => !c.open && Math.abs(x - c.x) < 26 && Math.abs(y - c.y) < 12) ?? null;
+  }
+
+  /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées, coffres ouverts. */
   applySave(save) {
     const taken = new Set(save.coins ?? []);
+    for (const id of save.chests ?? []) {
+      const ch = this.chests.find((c) => c.id === id);
+      if (ch) this.openChest(ch, true);
+    }
     for (const key of save.crates ?? []) {
       const cr = this.crates.get(key);
       if (!cr) continue;

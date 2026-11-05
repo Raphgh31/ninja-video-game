@@ -4,7 +4,7 @@
 import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
-import { hillGeom, atticGeom, paintRoofCover, roofCoverBox } from './props.js';
+import { hillGeom, atticGeom, paintRoofCover, roofCoverBox, chestSprite, CHEST } from './props.js';
 
 const R = Math.round;
 
@@ -26,6 +26,8 @@ export class Live {
     this.gate = { open: 0, last: 0 };
     const gr = P.find((p) => p.type === 'grenier');
     this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1, roof: null, alpha: 1 } : null;
+    // coffres : fermé, entrouvert, ouvert (peints une fois)
+    this.chestImg = level.chests?.length ? [0, 1, 2].map((st) => chestSprite(st, Brush, canvas)) : null;
     this.kappas = P.filter((p) => p.type === 'kappa').map((p) => ({ p, state: 'sit', t: 0 }));
     this.barrels = P.filter((p) => p.type === 'barrel');
     this.hills = P.filter((p) => p.type === 'terraces_bg').map((p) => hillGeom(p));
@@ -121,6 +123,7 @@ export class Live {
     const vis = (x, m = 80) => x - cam.x > -m && x - cam.x < viewW + m;
     if (this.attic && vis(this.attic.p.owl.x)) this.owl(ctx, cam, time);
     if (this.temple && vis(this.temple.x * TILE, 120)) this.templeLeaves(ctx, cam, time);
+    if (this.chestImg) for (const ch of this.level.chests) if (vis(ch.x, 40)) this.chest(ctx, cam, ch);
     // reflets mouvants à la surface de l'eau
     for (const w of this.water) {
       const wx = w.tx * TILE;
@@ -265,6 +268,27 @@ export class Live {
       ctx.fillStyle = '#c9a24a'; ctx.fillRect(sx - 2 + bell, sy - 47, 4, 4);
       ctx.fillStyle = '#e8c76a'; ctx.fillRect(sx - 2 + bell, sy - 47, 1, 2);
       this.merchant(ctx, sx, sy, time);
+    }
+  }
+
+  /** Le vieux coffre : il s'entrouvre, puis le couvercle bascule en arrière ; fermé, sa serrure brille par moments. */
+  chest(ctx, cam, ch) {
+    const t = this.level.time - ch.openedAt;
+    const st = !ch.open ? 0 : t < 0.14 ? 1 : 2;
+    const jolt = ch.open && t < 0.3 ? (t < 0.14 ? -1 : 0) : 0;
+    const sx = R(ch.x - CHEST.cx - cam.x), sy = R(ch.y - CHEST.h - cam.y) + jolt;
+    ctx.drawImage(this.chestImg[st], sx, sy);
+    if (!ch.open) {
+      const k = (this.level.time * 0.6 + ch.x * 0.01) % 2.2;
+      if (k < 0.25) {
+        const a = 1 - Math.abs(k - 0.125) / 0.125;
+        ctx.globalAlpha = Math.max(0, a);
+        ctx.fillStyle = '#fff3c4';
+        const lx = sx + CHEST.cx, ly = sy + CHEST.h - 11;
+        ctx.fillRect(lx, ly - 2, 1, 5);
+        ctx.fillRect(lx - 2, ly, 5, 1);
+        ctx.globalAlpha = 1;
+      }
     }
   }
 

@@ -35,6 +35,58 @@ export function atticGeom(p) {
  * par-dessus le grenier, et le rend presque transparent quand KAGE est monté).
  * gb : le fond « grange ».
  */
+/**
+ * Le vieux coffre du grenier (nagamochi) : bois sombre, ferrures, serrure de
+ * laiton. state : 0 fermé, 1 entrouvert, 2 ouvert (couvercle relevé en
+ * arrière, intérieur sombre où brille l'or). Toile 40×34, sol en bas ;
+ * le coffre est centré (CHEST.cx).
+ */
+export const CHEST = { w: 40, h: 34, cx: 20 };
+export function chestSprite(state, Brush, canvas) {
+  const cv = canvas(CHEST.w, CHEST.h), b = new Brush(cv.getContext('2d')), W = C.WOOD;
+  const IRON = '#55585f', IRON_L = '#8a8e96', BRASS = '#b08a3a', BRASS_L = '#e2c070', DARK = '#120c07';
+  const w = 34, h = 15, cx = 3, fy = CHEST.h;
+  const top = fy - h;
+  const wood = (x, y, j, k = 0) => {
+    const v = 0.4 + (noise2(x * 0.3, y * 0.9, 21) - 0.5) * 0.3 - ((x - cx) / w) * 0.12 + k;
+    return pick(W, clamp01(v), x, j);
+  };
+  // caisse (sous le joint du couvercle)
+  for (let j = 5; j < h; j++) for (let i = 0; i < w; i++) b.p(cx + i, top + j, wood(cx + i, top + j, j));
+  b.r(cx + w - 4, fy - 4, 4, 4, IRON).r(cx, fy - 4, 4, 4, IRON);
+  b.r(cx - 2, fy - 9, 2, 3, IRON).r(cx + w, fy - 9, 2, 3, IRON);                // poignées
+  if (state === 0) {
+    for (let j = 0; j < 5; j++) for (let i = 0; i < w; i++) b.p(cx + i, top + j, wood(cx + i, top + j, j, j === 4 ? -0.3 : 0));
+    b.r(cx, top, w, 1, W[4]);
+    for (const fx of [cx, cx + w - 4]) b.r(fx, top, 4, 4, IRON).p(fx + 1, top + 1, IRON_L);
+    b.r(cx + w / 2 - 2, top + 3, 4, 5, BRASS).p(cx + w / 2 - 1, top + 4, BRASS_L).p(cx + w / 2, top + 6, W[0]);
+    return cv;
+  }
+  // ouvert ou entrouvert : bord de la caisse, intérieur sombre, or qui brille
+  const rim = top + 4;
+  b.r(cx, rim, w, 1, W[1]);
+  b.r(cx + 2, rim + 1, w - 4, 2, DARK);
+  for (const [i, c] of [[6, BRASS_L], [9, BRASS], [13, BRASS_L], [18, BRASS], [21, BRASS_L], [25, BRASS], [28, BRASS_L]]) b.p(cx + i, rim + 1 + (i % 2), c);
+  b.r(cx + w / 2 - 2, rim + 1, 4, 3, BRASS).p(cx + w / 2 - 1, rim + 2, BRASS_L);     // la serrure, ouverte
+  if (state === 1) {
+    // couvercle soulevé de quelques pixels, encore à plat : un rai sombre dessous
+    for (let j = 0; j < 4; j++) for (let i = 0; i < w; i++) b.p(cx + i, top - 3 + j, wood(cx + i, top + j, j));
+    b.r(cx, top - 3, w, 1, W[4]);
+    for (const fx of [cx, cx + w - 4]) b.r(fx, top - 3, 4, 4, IRON).p(fx + 1, top - 2, IRON_L);
+    return cv;
+  }
+  // ouvert : on voit le dessous du couvercle, relevé en arrière au-dessus de la caisse
+  const lh = 10, ly = rim - lh;
+  for (let j = 0; j < lh; j++) {
+    const inset = Math.round((lh - 1 - j) * 0.25);                                  // un peu plus étroit en haut (perspective)
+    for (let i = inset; i < w - inset; i++) b.p(cx + i, ly + j, wood(cx + i, ly + j, j, 0.18 - j * 0.02));
+    b.p(cx + inset, ly + j, IRON).p(cx + w - 1 - inset, ly + j, IRON);
+  }
+  b.r(cx + 3, ly, w - 6, 1, W[1]);
+  for (let i = 4; i < w - 4; i += 6) b.r(cx + i, ly + 2, 1, lh - 3, W[2]);               // planches du couvercle
+  return cv;
+}
+
 export function roofCoverBox(gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
   return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
@@ -1062,19 +1114,7 @@ const PAINT = {
       }
     } else if (layer === 'back') {
       const fy = g.floorY;                                                   // dessus du plancher
-      // vieux coffre (nagamochi) : bois sombre, ferrures, serrure de laiton
-      {
-        const cx = g.floorX0 + 92, w = 34, h = 15;
-        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
-          let v = 0.4 + (noise2((cx + i) * 0.3, (fy - h + j) * 0.9, 21) - 0.5) * 0.3 - (i / w) * 0.12;
-          if (j === 4) v -= 0.3;                                             // joint du couvercle
-          b.p(cx + i, fy - h + j, pick(W, clamp01(v), cx + i, j));
-        }
-        b.r(cx, fy - h, w, 1, W[4]);
-        for (const fx of [cx, cx + w - 4]) b.r(fx, fy - h, 4, 4, '#55585f').r(fx, fy - 4, 4, 4, '#55585f').p(fx + 1, fy - h + 1, '#8a8e96');
-        b.r(cx + w / 2 - 2, fy - h + 3, 4, 5, '#b08a3a').p(cx + w / 2 - 1, fy - h + 4, '#e2c070').p(cx + w / 2, fy - h + 6, W[0]);
-        b.r(cx - 2, fy - 9, 2, 3, '#55585f').r(cx + w, fy - 9, 2, 3, '#55585f');   // poignées
-      }
+      // le vieux coffre (nagamochi) s'ouvre : il est dessiné par live.js (chestSprite)
       // sac de riz affaissé et petite caisse
       PAINT.sacks(b, p, g.floorX0 + 136, fy, true);
       b.r(g.floorX0 + 146, fy - 9, 12, 9, W[2]).r(g.floorX0 + 146, fy - 9, 12, 1, W[4]).r(g.floorX0 + 146, fy - 5, 12, 1, W[1]);

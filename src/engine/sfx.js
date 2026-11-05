@@ -293,6 +293,15 @@ const SOUNDS = {
   },
   paperTear: () => air({ dur: 0.4, vol: 0.09, type: 'highpass', q: 0.9, f: [[0, 2500], [1, 4200]], g: [[0, 0.1], [0.1, 1], [0.8, 0.6], [1, 0.01]], am: { rate: 60, depth: 0.9, type: 'square' } }),
   // la grande porte du temple : bois lourd qui grince en pivotant
+  // vieux coffre : déclic du loquet, charnière qui grince, couvercle qui bascule, éclat de l'or
+  chestOpen: () => {
+    noise({ dur: 0.05, vol: 0.12, type: 'highpass', f: 2500 });
+    tone({ f: 620, dur: 0.04, type: 'square', vol: 0.02 });
+    air({ dur: 0.32, vol: 0.05, q: 7, f: [[0, 520], [0.6, 700], [1, 460]], g: [[0, 0.05], [0.25, 1], [1, 0.02]], am: { rate: 16, depth: 0.7, type: 'sawtooth' }, delay: 0.06 });
+    noise({ dur: 0.16, vol: 0.13, type: 'lowpass', f: 320, to: 120, delay: 0.34 });
+    ring({ f: 1900, vol: 0.022, dur: 0.5, delay: 0.42 });
+    ring({ f: 2550, vol: 0.016, dur: 0.45, delay: 0.52 });
+  },
   gateCreak: () => {
     tone({ f: 95, to: 120, dur: 1.4, type: 'triangle', vol: 0.06, attack: 0.2 });
     air({ dur: 1.5, vol: 0.05, q: 6, f: [[0, 380], [0.5, 520], [1, 300]], g: [[0, 0.05], [0.2, 1], [0.8, 0.8], [1, 0.01]], am: { rate: 11, depth: 0.8, type: 'sawtooth' } });
