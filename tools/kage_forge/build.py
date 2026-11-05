@@ -140,8 +140,8 @@ def main():
         im.save(OUT / "views" / f"kage_view_{k}.png")
     vs.save(OUT / "kage_views.png")
 
-    # projectile : shuriken (cellules 10x10, contour auto, partie enfoncée coupée)
-    SC = 10
+    # projectile : shuriken (cellules 12x12, contour auto, partie enfoncée coupée)
+    SC = 12
     proj = {}
     cells = []
     for name, (text, anchor) in SHURIKEN.items():
@@ -201,7 +201,8 @@ def main():
                 "image": "kage_shuriken.png",
                 "indexImage": "kage_shuriken_index.png",
                 "frames": proj,
-                "spin": ["spin0", "spin1"],
+                "spin": ["fly0", "fly1"],
+                "hud": "spin0",
                 "ground": ["stuck_ground", "stuck_ground_b"],
                 "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface",
             }

@@ -275,10 +275,12 @@ def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
          near_arm=None, far_arm=None, near_leg=None, far_leg=None,
          near_foot="flat", far_foot="flat", tail_long=None, tail_short=None,
          collar=True, hands=True, long_colors="GGFG", short_colors="ffF", blade=None,
-         near_behind=False):
+         near_behind=False, back_arm=None, far_hand="hand_far"):
     """Construit une frame.
 
     near_arm/far_arm : [coude, main] (points absolus, coin haut-gauche 2x2)
+    back_arm : [coude, main] d'un bras passé derrière le dos (part de l'épaule
+               proche, dessiné sous le buste : seule la main dépasse)
     near_leg/far_leg : [genou, cheville]
     tail_long/tail_short : points du foulard, relatifs au nœud (dx, dy)
     Par défaut la tête se pose au-dessus du cou du torse.
@@ -303,7 +305,11 @@ def pose(*, torso, tx, ty, head="head_r", hx=None, hy=None,
     if far_arm:
         c.limb([sf] + far_arm, ["t", "a"])
         if hands:
-            c.stamp("hand_far", *far_arm[-1])
+            c.stamp(far_hand, *far_arm[-1])
+    if back_arm:
+        c.limb([sn] + back_arm, ["t", "a"])
+        if hands:
+            c.stamp("hand", *back_arm[-1])
     if far_leg:
         c.limb([hf] + far_leg, ["t", "t"])
         ax, ay = far_leg[-1]

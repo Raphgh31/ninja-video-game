@@ -1,0 +1,516 @@
+{
+  "name": "KARASU-KASHI",
+  "image": "karasu_sheet.png",
+  "perchImage": "karasu_perch.png",
+  "itemImage": "karasu_items.png",
+  "cell": {
+    "w": 96,
+    "h": 80
+  },
+  "pivot": {
+    "x": 48,
+    "y": 76,
+    "note": "sous les pattes"
+  },
+  "perchCell": {
+    "w": 120,
+    "h": 140
+  },
+  "perchPivot": {
+    "x": 58,
+    "y": 136,
+    "note": "pied du poteau"
+  },
+  "perchTop": {
+    "x": 58,
+    "y": 25,
+    "note": "là où il se pose"
+  },
+  "itemCell": {
+    "w": 14,
+    "h": 18
+  },
+  "facing": "right",
+  "frames": {
+    "idle_1": {
+      "x": 0,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "idle_2": {
+      "x": 98,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "idle_3": {
+      "x": 196,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "look_1": {
+      "x": 294,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "look_2": {
+      "x": 392,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "hatfix_1": {
+      "x": 490,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "hatfix_2": {
+      "x": 588,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "croak_1": {
+      "x": 686,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "croak_2": {
+      "x": 784,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "takeoff_1": {
+      "x": 882,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "takeoff_2": {
+      "x": 980,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "fly_1": {
+      "x": 1078,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "fly_2": {
+      "x": 1176,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "fly_3": {
+      "x": 1274,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "drop_1": {
+      "x": 1372,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "drop_2": {
+      "x": 1470,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "aim_1": {
+      "x": 1568,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "aim_2": {
+      "x": 1666,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "dive_1": {
+      "x": 1764,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "dive_2": {
+      "x": 1862,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "crash": {
+      "x": 1960,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "stuck_1": {
+      "x": 2058,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "stuck_2": {
+      "x": 2156,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "stuck_hit": {
+      "x": 2254,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "hurt": {
+      "x": 2352,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "shake_1": {
+      "x": 2450,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "shake_2": {
+      "x": 2548,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "shake_3": {
+      "x": 2646,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "defeat_1": {
+      "x": 2744,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "defeat_2": {
+      "x": 2842,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "defeat_3": {
+      "x": 2940,
+      "y": 0,
+      "w": 96,
+      "h": 80
+    },
+    "perch_0": {
+      "x": 0,
+      "y": 0,
+      "w": 120,
+      "h": 140
+    },
+    "perch_1": {
+      "x": 122,
+      "y": 0,
+      "w": 120,
+      "h": 140
+    },
+    "perch_2": {
+      "x": 244,
+      "y": 0,
+      "w": 120,
+      "h": 140
+    },
+    "perch_3": {
+      "x": 366,
+      "y": 0,
+      "w": 120,
+      "h": 140
+    },
+    "perch_4": {
+      "x": 488,
+      "y": 0,
+      "w": 120,
+      "h": 140
+    },
+    "acorn_1": {
+      "x": 0,
+      "y": 0,
+      "w": 14,
+      "h": 18
+    },
+    "acorn_2": {
+      "x": 16,
+      "y": 0,
+      "w": 14,
+      "h": 18
+    },
+    "turnip_1": {
+      "x": 32,
+      "y": 0,
+      "w": 14,
+      "h": 18
+    },
+    "turnip_2": {
+      "x": 48,
+      "y": 0,
+      "w": 14,
+      "h": 18
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle_1",
+        "idle_2",
+        "idle_2",
+        "idle_1",
+        "idle_3",
+        "idle_1"
+      ],
+      "durations": [
+        500,
+        380,
+        380,
+        500,
+        110,
+        700
+      ],
+      "loop": true
+    },
+    "look": {
+      "frames": [
+        "look_1",
+        "look_2",
+        "look_2",
+        "look_1"
+      ],
+      "durations": [
+        260,
+        500,
+        300,
+        260
+      ],
+      "loop": false
+    },
+    "hatfix": {
+      "frames": [
+        "hatfix_1",
+        "hatfix_2",
+        "idle_1"
+      ],
+      "durations": [
+        240,
+        240,
+        200
+      ],
+      "loop": false
+    },
+    "croak": {
+      "frames": [
+        "croak_1",
+        "croak_2",
+        "croak_1",
+        "croak_2"
+      ],
+      "durations": [
+        90,
+        220,
+        90,
+        260
+      ],
+      "loop": false
+    },
+    "takeoff": {
+      "frames": [
+        "takeoff_1",
+        "takeoff_2"
+      ],
+      "durations": [
+        200,
+        160
+      ],
+      "loop": false
+    },
+    "fly": {
+      "frames": [
+        "fly_1",
+        "fly_2",
+        "fly_3",
+        "fly_2"
+      ],
+      "durations": [
+        90,
+        70,
+        110,
+        70
+      ],
+      "loop": true
+    },
+    "drop": {
+      "frames": [
+        "drop_1",
+        "drop_2"
+      ],
+      "durations": [
+        120,
+        200
+      ],
+      "loop": false
+    },
+    "aim": {
+      "frames": [
+        "aim_1",
+        "aim_2"
+      ],
+      "durations": [
+        140,
+        140
+      ],
+      "loop": true
+    },
+    "dive": {
+      "frames": [
+        "dive_1",
+        "dive_2"
+      ],
+      "durations": [
+        80,
+        80
+      ],
+      "loop": true
+    },
+    "crash": {
+      "frames": [
+        "crash"
+      ],
+      "loop": false
+    },
+    "stuck": {
+      "frames": [
+        "stuck_1",
+        "stuck_2"
+      ],
+      "durations": [
+        160,
+        160
+      ],
+      "loop": true
+    },
+    "stuckHit": {
+      "frames": [
+        "stuck_hit"
+      ],
+      "loop": false
+    },
+    "hurt": {
+      "frames": [
+        "hurt"
+      ],
+      "loop": false
+    },
+    "shake": {
+      "frames": [
+        "shake_1",
+        "shake_2",
+        "shake_1",
+        "shake_2",
+        "shake_3"
+      ],
+      "durations": [
+        90,
+        90,
+        90,
+        90,
+        260
+      ],
+      "loop": false
+    },
+    "defeated": {
+      "frames": [
+        "defeat_1",
+        "defeat_2",
+        "defeat_3"
+      ],
+      "durations": [
+        260,
+        220,
+        0
+      ],
+      "loop": false
+    },
+    "perch": {
+      "frames": [
+        "perch_0",
+        "perch_1",
+        "perch_2",
+        "perch_3",
+        "perch_4"
+      ],
+      "note": "inclinaison -1 à 1, choisie par le jeu"
+    },
+    "acorn": {
+      "frames": [
+        "acorn_1",
+        "acorn_2"
+      ],
+      "durations": [
+        80,
+        80
+      ],
+      "loop": true
+    },
+    "turnip": {
+      "frames": [
+        "turnip_1",
+        "turnip_2"
+      ],
+      "durations": [
+        90,
+        90
+      ],
+      "loop": true
+    }
+  },
+  "boxes": {
+    "perched": {
+      "x": 26,
+      "y": 22,
+      "w": 43,
+      "h": 49
+    },
+    "flying": {
+      "x": 20,
+      "y": 18,
+      "w": 57,
+      "h": 42
+    },
+    "dive": {
+      "x": 31,
+      "y": 14,
+      "w": 48,
+      "h": 47
+    },
+    "stuck": {
+      "x": 19,
+      "y": 12,
+      "w": 42,
+      "h": 63
+    }
+  }
+}

@@ -1097,61 +1097,82 @@
       "image": "kage_shuriken.png",
       "indexImage": "kage_shuriken_index.png",
       "frames": {
-        "spin0": {
+        "fly0": {
           "x": 0,
           "y": 0,
-          "w": 10,
-          "h": 10,
+          "w": 12,
+          "h": 12,
+          "anchor": {
+            "x": 5,
+            "y": 5
+          }
+        },
+        "fly1": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 12,
+          "anchor": {
+            "x": 5,
+            "y": 5
+          }
+        },
+        "spin0": {
+          "x": 24,
+          "y": 0,
+          "w": 12,
+          "h": 12,
           "anchor": {
             "x": 4,
             "y": 4
           }
         },
         "spin1": {
-          "x": 10,
+          "x": 36,
           "y": 0,
-          "w": 10,
-          "h": 10,
+          "w": 12,
+          "h": 12,
           "anchor": {
             "x": 4,
             "y": 4
           }
         },
         "stuck_wall": {
-          "x": 20,
+          "x": 48,
           "y": 0,
-          "w": 10,
-          "h": 10,
+          "w": 12,
+          "h": 12,
           "anchor": {
             "x": 3,
             "y": 2
           }
         },
         "stuck_ground": {
-          "x": 30,
+          "x": 60,
           "y": 0,
-          "w": 10,
-          "h": 10,
+          "w": 12,
+          "h": 12,
           "anchor": {
             "x": 5,
             "y": 4
           }
         },
         "stuck_ground_b": {
-          "x": 40,
+          "x": 72,
           "y": 0,
-          "w": 10,
-          "h": 10,
+          "w": 12,
+          "h": 12,
           "anchor": {
-            "x": 4,
+            "x": 6,
             "y": 4
           }
         }
       },
       "spin": [
-        "spin0",
-        "spin1"
+        "fly0",
+        "fly1"
       ],
+      "hud": "spin0",
       "ground": [
         "stuck_ground",
         "stuck_ground_b"

@@ -3,6 +3,7 @@
 Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en français.
 
 ## Reprise
+- Message d'introduction pour une nouvelle conversation : `docs/MESSAGE_NOUVELLE_CONVERSATION.md` (à tenir à jour en fin de série).
 - **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
 - **Site du jeu** : https://raphgh31.github.io/ninja-video-game/ — mis en ligne automatiquement par `.github/workflows/deploy.yml` à chaque push sur `main` (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Après une fusion, vérifier que le workflow a réussi et tester le site.
 - Version de test hors `main` : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html`.
@@ -14,6 +15,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 - Interface discrète et lisible ; rendu « jeu indé soigné », jamais générique.
 - Nouveau personnage ou ennemi : présenter une planche de design avant de l'intégrer en jeu.
 - Commits et documentation en français.
+- Fusion des PR et mise en ligne du site : **seulement à la fin d'une série de modifications** (quand l'utilisateur le demande ou change de conversation). Entre-temps : branche, commits, et republication de l'artefact de test.
 
 ## Pile
 - Vite + JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. `npm run dev`, `npm run build`.
@@ -41,6 +43,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Ennemis
 - TATE : dessin dans `tools/kage_forge/enemies/tate.py`, export `build_tate.py` (inclus dans `npm run sprites`), comportement `src/game/tate.js`. Les PNG de `assets/characters/tate/` sont générés.
 - WARA (épouvantail) : dessin dans `tools/kage_forge/enemies/wara.py`, export `build_wara.py` (inclus dans `npm run sprites`, avec contrôles qualité), planches `wara_board.py`, comportement `src/game/wara.js` (constantes `WARA`). Les PNG de `assets/characters/wara/` sont générés.
+- KARASU-KASHI (mini-boss du Potager, zone 9) : dessin dans `tools/kage_forge/enemies/karasu.py`, export `build_karasu.py` (inclus dans `npm run sprites`), planches `karasu_board.py`, comportement `src/game/karasu.js` (constantes `KARASU`). Les PNG de `assets/characters/karasu/` sont générés. Sa défaite ouvre la porte du temple (`level.doorOpen`) et est sauvegardée (`bossDefeated`). Fiche : `docs/enemies/README.md`.
 - Un nouvel ennemi doit aussi être embarqué dans `tools/standalone.mjs` (sinon la version autonome ne démarre pas).
 
 ## Vérifications avant de pousser

@@ -19,6 +19,7 @@ class Builder {
     this.props = [];
     this.hints = [];
     this.backdrops = [];
+    this.bossDef = null;
   }
 
   get x() { return this.cols.length; }
@@ -246,15 +247,17 @@ function build() {
   b.zone('04', 'Le vieux verger');
   x = b.x; b.flat(6);
   b.on(x + 2, 'P'); b.legacy.push(x + 2);            // sauvegarde : entrée du verger
+  // arbres du verger : tailles variées (s), plantés au sol ; les grands d'abord, les petits devant
+  b.prop('tree', x + 1, G, { kind: 'pommier', s: 1.3 });
   b.prop('tree', x + 5, G, { kind: 'cerisier' });
-  b.prop('orchard_canopy', x + 2, G, { w: 54 });   // voûte de branches au-dessus du chemin
   b.hint('kick', x + 7);
   x = b.x; b.flat(18);
   b.prop('baskets', x + 9, G, { stolen: true });     // panier de légumes pillé
   b.on(x + 11, 'W');                                 // le petit nuisible, seul
-  b.prop('tree', x + 3, G, { kind: 'pommier' });
-  b.prop('tree', x + 15, G, { kind: 'poirier' });
-  b.prop('tree', x + 8, G, { kind: 'pommier', s: 0.8 });
+  b.prop('tree', x + 3, G, { kind: 'pommier', s: 1.25 });
+  b.prop('tree', x + 15, G, { kind: 'poirier', s: 1.1 });
+  b.prop('tree', x + 11, G, { kind: 'cerisier', s: 1.4 });
+  b.prop('tree', x + 8, G, { kind: 'pommier', s: 0.75 });
   b.prop('ladder', x + 5, G, { h: 3 });
   b.prop('bush', x + 12, G);
   b.row(x + 13, 4, G - 5, '=');                      // branche basse
@@ -263,9 +266,12 @@ function build() {
   b.flat(24);
   b.on(x + 9, 'W');                                  // deux nuisibles, espacés
   b.on(x + 20, 'W');
+  b.prop('tree', x + 10, G, { kind: 'poirier', s: 1.35 });
+  b.prop('tree', x + 25, G, { kind: 'pommier', s: 1.2 });
   b.prop('tree', x + 6, G, { kind: 'cerisier' });
   b.prop('ladder', x + 14, G, { h: 4 });
-  b.prop('tree', x + 17, G, { kind: 'pommier' });
+  b.prop('tree', x + 17, G, { kind: 'pommier', s: 1.15 });
+  b.prop('tree', x + 13, G, { kind: 'cerisier', s: 0.7 });
   b.prop('lantern_stone', x + 24, G);
   b.prop('tree', x + 1, G, { kind: 'poirier', s: 0.85 });
   b.prop('baskets', x + 11, G);
@@ -281,7 +287,7 @@ function build() {
   b.zone('05', 'La serre de bambou');
   const serre0 = b.x;
   b.flat(6);
-  b.on(serre0 + 1, 'P');                             // point de reprise : début de la zone 5
+  b.on(serre0 - 2, 'P');                             // point de reprise : à l'entrée de la serre, dehors (pas devant ses toiles)
   b.hint('slide', serre0 + 2);
   x = b.x; b.flat(5);                                // 1. sous une structure de bambou
   b.block(x, 5, G - 6, G - 2, '|');
@@ -355,6 +361,7 @@ function build() {
     gx0: grange0, gx1: grange1, eave: G - 9, roofH: 150, floor: gFloor, floorX0: grange0 + 1, floorX1: grange0 + 12,
     collar: G - 14, step: { x: x + 9, w: 2, y0: G - 6, y1: G - 5 },
     owl: { x: (grange0 + 26) * 16 + 4, y: (G - 12) * 16 + 10 },          // la chouette, sur son perchoir
+    revealY: (G - 4) * 16,                                                  // KAGE à hauteur de la mezzanine ou plus haut : le toit s'efface
   });
   b.backdrop('grange', grange0, grange1, G - 7, G, { eave: G - 9, roofH: 150 });
   x = b.x; b.flat(5);
@@ -417,12 +424,30 @@ function build() {
   b.prop('tall_grass', x + 17, G, { w: 2 });
   b.coins([x + 3, x + 15]);
   for (let s = 1; s <= 4; s++) b.flat(4, G - s); // le chemin monte vers les collines
-  x = b.x; b.flat(10, G - 4);
-  b.prop('signpost', x + 2, G - 4);
-  b.prop('bush', x + 5, G - 4);
-  b.prop('stone', x + 9, G - 4);
-  b.on(x + 7, 'G');
-  b.flat(4, G - 4);
+
+  // -------------------------------------------------------------------------
+  // ZONE 09 — Le champ du corbeau : KARASU-KASHI, le mini-boss du chapitre.
+  // Un champ plat, l'épouvantail géant au milieu (son perchoir), des cultures,
+  // et au bout la grande porte du temple, scellée tant que le corbeau règne.
+  // -------------------------------------------------------------------------
+  b.zone('09', 'Le champ du corbeau');
+  const A = G - 4;                                   // sol de l'arène
+  const arena0 = b.x;
+  b.flat(40, A);
+  b.on(arena0 + 2, 'P');                             // point de reprise : avant le combat
+  b.prop('signpost', arena0 + 4, A);
+  b.prop('crops', arena0 + 7, A, { w: 4, kind: 'navets' });
+  b.prop('crops', arena0 + 21, A, { w: 5, kind: 'choux' });
+  b.prop('crops', arena0 + 27, A, { w: 3, kind: 'radis' });
+  b.prop('tall_grass', arena0 + 12, A, { w: 2 });
+  const gx = arena0 + 34;                            // la grande porte du temple
+  // l'épouvantail géant, et le corbeau perché dessus ; il ne quitte pas l'arène
+  b.bossDef = { type: 'karasu', x: arena0 + 16, y: A, arena: [arena0, gx] };
+  b.prop('temple_gate', gx, A);
+  b.block(gx, 1, A - 7, A - 1, 'D');                 // fermée : on ne passe pas (s'ouvre quand il est vaincu)
+  b.prop('bush', arena0 + 38, A);
+  b.on(arena0 + 38, 'G');                            // la sortie, derrière la porte
+  b.flat(6, A);
   b.zones[b.zones.length - 1].x1 = b.x;
   return b;
 }
@@ -436,6 +461,7 @@ export const POTAGER = {
   hints: B.hints,
   backdrops: B.backdrops,
   legacyCheckpoints: B.legacy,
+  boss: B.bossDef,
   theme: 'potager',
   chapter: 1,
   // introduction (25 s) jouée une fois, puis boucle de 90 s (24 mesures à 64 BPM)

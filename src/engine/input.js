@@ -6,13 +6,12 @@ const KEYMAP = {
   ArrowLeft: 'left', KeyA: 'left', KeyQ: 'left',
   ArrowRight: 'right', KeyD: 'right',
   ArrowDown: 'down', KeyS: 'down',
-  ArrowUp: 'up', KeyW: 'up', KeyE: 'up',
+  ArrowUp: 'up', KeyE: 'up',
   Escape: 'escape',
   Space: 'jump', KeyL: 'jump',
-  KeyC: 'slide',
-  KeyK: 'throw', KeyV: 'throw',
-  KeyJ: 'attack', KeyX: 'attack', Enter: 'attack',
-  KeyU: 'kick', KeyZ: 'kick',
+  KeyX: 'attack', KeyW: 'attack', Enter: 'attack',     // sabre : X ou W
+  KeyC: 'throw', KeyV: 'throw',                         // shuriken : C ou V
+  KeyB: 'kick', KeyN: 'kick',                           // coup de pied : B ou N
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyH: 'debug',
   KeyM: 'mute',

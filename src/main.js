@@ -6,6 +6,7 @@ import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
+import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
@@ -147,6 +148,16 @@ const waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
 const waras = level.waras.map((w) => new Wara(waraMeta, waraSheet, w.x, w.y, level));
 shurikens.enemies.push(...waras);
 const enemies = [...tates, ...waras];
+// boss du chapitre : KARASU-KASHI, perché sur son épouvantail géant (zone 9 du Potager)
+let boss = null;
+if (level.boss?.type === 'karasu') {
+  const kbase = './characters/karasu';
+  const kmeta = await loadJson(`${kbase}/karasu.json`);
+  const [sheet, perch, items] = await Promise.all([kmeta.image, kmeta.perchImage, kmeta.itemImage].map((f) => loadImage(`${kbase}/${f}`)));
+  boss = new Karasu(kmeta, { sheet, perch, items }, level.boss, level);
+  enemies.push(boss);
+  shurikens.enemies.push(boss);
+}
 // partie : chronomètre, chutes, arrivée ; dans un chapitre, la partie s'ouvre sur l'écran titre
 const CHAPTER = level.chapter != null;
 const run = { time: 0, falls: 0, won: false, paused: CHAPTER };
@@ -265,6 +276,66 @@ function onWaraEvent(n, d) {
   }
 }
 for (const w of waras) w.onEvent = onWaraEvent;
+// KARASU-KASHI : sons, plumes, terre, et la porte du temple qui s'ouvre à sa défaite
+const gateProp = level.props.find((p) => p.type === 'temple_gate');
+const bossUi = { el: document.querySelector('.boss'), shown: 0, lag: 1, outro: 0 };
+function onKarasuEvent(n, d) {
+  switch (n) {
+    case 'engage': bossUi.shown = 1; break;
+    case 'disengage': bossUi.shown = 0; break;
+    case 'caw': sfxAt('caw', d, { soft: d.soft }); break;
+    case 'straw': fx.sparks(d.x + (Math.random() - 0.5) * 20, d.y, 5, { palette: 'straw', speed: 60 }); fx.drift(d.x, d.y + 10, 3, { palette: 'straw', speed: 30 }); break;
+    case 'flap': sfxAt('flap', d); fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;
+    case 'drop': break;
+    case 'glare': sfxAt('glare', d); break;
+    case 'dive': sfxAt('diveWhistle', d); fx.drift(d.x, d.y - 30, 3, { speed: 50 }); break;
+    case 'diveHit': fx.shake(3, 0.25); fx.drift(d.x, d.y, 4, { speed: 70 }); break;
+    case 'crash':
+      sfxAt('crash', d);
+      fx.shake(3, 0.3);
+      fx.dust(d.x + d.dir * 6, d.y, 8, { dir: d.dir, spread: 50, up: 30, palette: 'dirt', life: 0.6 });
+      fx.dust(d.x - d.dir * 6, d.y, 5, { dir: -d.dir, spread: 35, up: 20 });
+      fx.drift(d.x, d.y - 24, 5, { speed: 60, up: 40 });
+      break;
+    case 'shake': sfxAt('flap', d); fx.dust(d.x, d.y, 5, { spread: 30, palette: 'dirt' }); fx.drift(d.x, d.y - 20, 4, { speed: 45 }); break;
+    case 'acorn': sfxAt('acorn', d); fx.sparks(d.x, d.y - 3, 5, { palette: 'dirt', speed: 60 }); break;
+    case 'turnipLand': sfxAt('turnipLand', d); fx.dust(d.x, d.y, 3, { spread: 20, palette: 'dirt' }); break;
+    case 'boom':
+      sfxAt('boom', d);
+      fx.shake(3, 0.3);
+      fx.sparks(d.x, d.y - 8, 16, { palette: 'fire', speed: 130 });
+      fx.dust(d.x - 8, d.y, 7, { dir: -1, spread: 45, up: 30, palette: 'dirt' });
+      fx.dust(d.x + 8, d.y, 7, { dir: 1, spread: 45, up: 30, palette: 'dirt' });
+      break;
+    case 'hit':
+      if (!swordStrike) sfxAt('hit', d, undefined, 0.6);
+      sfxAt('squawk', d);
+      fx.drift(d.x, d.y, 6, { speed: 70, up: 40 });
+      fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
+      break;
+    case 'defeat':
+      sfx('karasuDefeat');
+      fx.hitStop(0.22);
+      fx.shake(3, 0.4);
+      fx.drift(d.x, d.y - 30, 16, { speed: 90, up: 60, life: 1.6 });
+      bossUi.outro = 1.3;          // puis le talisman se déchire et la porte s'ouvre
+      if (save) { save.bossDefeated = true; persist(); }
+      break;
+    default:
+  }
+}
+if (boss) boss.onEvent = onKarasuEvent;
+/** La porte du temple s'ouvre : le talisman se déchire, les battants pivotent. */
+function openTempleGate(silent = false) {
+  level.doorOpen = true;
+  bossUi.shown = 0;
+  if (silent || !gateProp) return;
+  const gx = gateProp.x * 16 + 8, gy = gateProp.y * 16 - 56;
+  sfx('paperTear');
+  sfx('gateCreak');
+  fx.drift(gx, gy, 14, { palette: 'paper', speed: 70, up: 50, life: 1.8 });
+  fx.shake(1, 0.4);
+}
 level.onEvent = (n, d) => {
   switch (n) {
     case 'gong': sfx('gong'); sfx('door'); fx.shake(1, 0.25); fx.sparks(d.x, d.y, 8, { speed: 70 }); break;
@@ -299,11 +370,13 @@ for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, on
 const kageBar = new HealthBar(HEALTH.max);
 for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
+if (boss) boss.bar = new HealthBar(KARASU.hp);
 player.onRespawn = () => {
   snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
   for (const t of enemies) if (t.state !== 'defeated') { t.reset(); t.bar.reset(); }
+  if (boss && boss.state !== 'defeated') { bossUi.shown = 0; bossUi.lag = 1; }
   kageBar.reset();
 };
 const input = new Input();
@@ -399,6 +472,7 @@ function update(dt) {
   if (player.state !== 'death' && player.state !== 'respawn') shurikens.pickup(player.box());
   kageBar.update(dt, player.hp);
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
+  if (boss) updateBossUi(dt);
   updateCamera(dt);
   input.endFrame();
 }
@@ -494,10 +568,12 @@ function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);
+  boss?.drawBack(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
+  boss?.draw(ctx, cam);
   player.draw(ctx, look.sheet, cam);
   level.drawForeground(ctx, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
@@ -505,7 +581,7 @@ function draw() {
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
-    if (t.gone) continue;
+    if (t.gone || t.noBar) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
     const top = t instanceof Wara ? 29 + Math.round(t.lift) : 32;   // au-dessus du chapeau
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
@@ -535,6 +611,7 @@ function draw() {
     }
     const boxes = [...tates.flatMap((t) => [[t, 'body', '#ff3b3b'], [t, 'shield', '#3bb3ff']]),
       ...waras.flatMap((w) => (w.state === 'spin' ? [[w, 'spin', '#ff9a3b']] : [])).concat(waras.map((w) => [w, 'body', '#ff3b3b']))];
+    if (boss) boxes.push([boss, undefined, boss.flying || boss.state === 'stuck' ? '#ff3b3b' : '#7a7a7a']);
     for (const [name, color] of boxes.map(([t, n, c]) => [[t, n], c])) {
       const tb = name[0].box(name[1]);
       ctx.strokeStyle = color;
@@ -572,8 +649,8 @@ const HINTS = {
   jump: ['Espace : sauter', 'Bouton flèche : sauter'],
   sprint: ['Maj + → : sprinter', 'Joystick poussé hors du cercle : sprinter'],
   dash: ['→ → (double appui) : dash', 'Coup de joystick rapide, relâché : dash'],
-  kick: ['U : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
-  attack: ['J : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
+  kick: ['B : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
+  attack: ['X : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
   slide: ['↓ en courant : glissade', 'Joystick vers le bas en courant : glissade'],
 };
 const HINT_USED = {
@@ -670,6 +747,7 @@ function startChapter(resume) {
     level.checkpoints.forEach((k) => { k.lit = k.x <= c.x; });
     level.spawn = { x: c.x, y: c.y };
   }
+  if (boss && save.bossDefeated) { boss.setDefeated(); openTempleGate(true); }
   player.respawn(true);
   startX = player.x;
   // reprise : les aides des commandes déjà passées ne reviennent pas
@@ -692,6 +770,22 @@ if (CHAPTER) {
   cont.addEventListener('click', () => startChapter(true));
   title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
   (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
+}
+
+// barre de vie du boss : fine, en haut de l'image, avec son nom ; la part perdue
+// s'efface en retard (on voit ce que le coup a coûté)
+function updateBossUi(dt) {
+  if (bossUi.outro > 0) {
+    bossUi.outro -= dt;
+    if (bossUi.outro <= 0) openTempleGate();
+  }
+  const f = Math.max(0, boss.hp) / KARASU.hp;
+  bossUi.lag = bossUi.lag > f ? Math.max(f, bossUi.lag - dt * 0.6) : f;
+  const on = bossUi.shown > 0 && !run.won;
+  bossUi.el.classList.toggle('on', on);
+  document.body.classList.toggle('boss-on', on);
+  bossUi.el.style.setProperty('--hp', f.toFixed(3));
+  bossUi.el.style.setProperty('--lag', bossUi.lag.toFixed(3));
 }
 
 // épouvantails du décor : des WARA immobiles qui se balancent au vent
@@ -782,4 +876,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };

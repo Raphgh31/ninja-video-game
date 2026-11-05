@@ -6,6 +6,10 @@ const COLORS = {
   spark: ['#fff6d8', '#f4e7b8', '#f0c25a'],
   hit: ['#f2ede6', '#e6e0d4'],
   straw: ['#e2d29d', '#c2ae78', '#8c7f57', '#e4d9b2'],   // brins de paille (WARA)
+  feather: ['#0a0b11', '#171b26', '#262c3c', '#33405a'],  // plumes du corbeau
+  dirt: ['#4a3322', '#6b4a2e', '#8a6844', '#3a281a'],     // mottes de terre
+  paper: ['#efe6cf', '#ddd0ad', '#b8322a'],               // talisman déchiré
+  fire: ['#fff3c4', '#f6c453', '#e0782c', '#9b3b22'],     // explosion d'un navet
 };
 
 export class Fx {
@@ -20,7 +24,7 @@ export class Fx {
    * Bouffée de poussière en (x, y) : n grains, poussés dans la direction dir
    * (-1, 0, 1), plus ou moins vers le haut.
    */
-  dust(x, y, n = 4, { dir = 0, spread = 30, up = 25, life = 0.4 } = {}) {
+  dust(x, y, n = 4, { dir = 0, spread = 30, up = 25, life = 0.4, palette = 'dust' } = {}) {
     for (let i = 0; i < n; i++) {
       this.parts.push({
         x: x + (Math.random() - 0.5) * 4, y: y - Math.random() * 2,
@@ -28,7 +32,7 @@ export class Fx {
         vy: -(Math.random() * up), g: 60, drag: 3,
         life: life * (0.6 + Math.random() * 0.6), t: 0,
         size: Math.random() < 0.35 ? 2 : 1,
-        color: COLORS.dust[Math.floor(Math.random() * COLORS.dust.length)],
+        color: COLORS[palette][Math.floor(Math.random() * COLORS[palette].length)],
       });
     }
   }
@@ -41,6 +45,21 @@ export class Fx {
       this.parts.push({
         x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 200, drag: 1,
         life: 0.15 + Math.random() * 0.15, t: 0, size: 1,
+        color: COLORS[palette][Math.floor(Math.random() * COLORS[palette].length)],
+      });
+    }
+  }
+
+  /**
+   * Débris lents (plumes, papier) : ils flottent et retombent en se balançant.
+   */
+  drift(x, y, n = 4, { palette = 'feather', speed = 50, up = 30, life = 1.1, g = 40 } = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      this.parts.push({
+        x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6,
+        vx: Math.cos(a) * speed * (0.4 + Math.random() * 0.6), vy: -Math.random() * up, g, drag: 2.5,
+        life: life * (0.7 + Math.random() * 0.6), t: 0, size: Math.random() < 0.5 ? 2 : 1, sway: 6 + Math.random() * 6,
         color: COLORS[palette][Math.floor(Math.random() * COLORS[palette].length)],
       });
     }
@@ -70,8 +89,9 @@ export class Fx {
       p.t += dt;
       p.vy += p.g * dt;
       p.vx -= p.vx * Math.min(1, p.drag * dt);
-      p.x += p.vx * dt;
+      p.x += (p.vx + (p.sway ? Math.sin(p.t * 7 + p.sway) * p.sway : 0)) * dt;
       p.y += p.vy * dt;
+      if (p.sway) p.vy = Math.min(p.vy, 22);   // plume : elle plane
     }
     this.parts = this.parts.filter((p) => p.t < p.life);
   }

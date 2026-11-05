@@ -45,6 +45,7 @@ def sprites():
         out[key] = uri(im.crop(im.getbbox()))
     out['tate'] = uri(cell('tate', 'walk_1'))
     out['wara'] = uri(cell('wara', 'idle_1'))
+    out['karasu'] = uri(cell('karasu', 'idle_1'))
     return out
 
 

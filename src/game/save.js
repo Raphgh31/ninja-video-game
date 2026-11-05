@@ -16,6 +16,7 @@ export function emptySave(chapter) {
     coins: [],           // ryō déjà ramassés (identifiants)
     crates: [],          // caisses déjà brisées
     merchantMet: false,
+    bossDefeated: false, // KARASU-KASHI vaincu : la porte du temple reste ouverte
     time: 0,             // temps de jeu total (s)
     falls: 0,
     done: false,         // chapitre terminé

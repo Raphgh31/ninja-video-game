@@ -10,7 +10,7 @@ export const SHURIKEN = {
   stock: 3,          // shurikens portés au maximum
   pickupMargin: 4,   // px autour du personnage pour ramasser un shuriken planté
   pickupDelay: 0.3,  // s avant de pouvoir ramasser un shuriken qui vient de se planter
-  spinStep: 0.12,    // s par image de rotation (rotation lente et lisible)
+  spinStep: 0.16,    // s par image de rotation (ralentie : on reconnaît l'étoile)
 };
 
 export class Shurikens {
@@ -140,7 +140,7 @@ export class Shurikens {
 
   /** Compteur en haut à gauche de l'écran (coordonnées écran, coin haut-gauche en x, y). */
   drawHud(ctx, sheet, x = 4, y = 4) {
-    const f = this.meta.frames[this.meta.spin[0]];
+    const f = this.meta.frames[this.meta.hud ?? this.meta.spin[0]];   // petite icône (7×7)
     const blinkOn = this.emptyBlink > 0 && Math.floor(this.emptyBlink * 12) % 2 === 0;
     for (let i = 0; i < SHURIKEN.stock; i++) {
       ctx.globalAlpha = i < this.stock ? 1 : blinkOn ? 0.75 : 0.25;

@@ -29,12 +29,46 @@ export function atticGeom(p) {
   };
 }
 
+/**
+ * Le toit « plein » de la grange, tel qu'on le voit de loin : tout le chaume,
+ * et la grosse poutre sous l'avant-toit. Il est peint à part (live.js le pose
+ * par-dessus le grenier, et le rend presque transparent quand KAGE est monté).
+ * gb : le fond « grange ».
+ */
+export function roofCoverBox(gb) {
+  const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
+  return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
+}
+export function paintRoofCover(b, gb) {
+  const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98;
+  thatchRoof(b, (x0 + x1) / 2, ye - RH + 2, x1 - x0 + 70, RH, 91);
+  // la poutre sous l'avant-toit (comme l'ancienne charpente) : bois veiné, bouts sombres
+  for (let yy = ye; yy < ye + TILE; yy++) {
+    for (let x = x0 + TILE; x < x1 - 6; x++) {
+      const grain = noise2(x * 0.08, yy * 0.9, 61);
+      let v = 0.42 + (grain - 0.5) * 0.5 - ((yy - ye) / 16) * 0.15;
+      if (Math.abs(grain - 0.5) < 0.03) v -= 0.2;
+      if (yy === ye) v = 0.8; else if (yy >= ye + 14) v = 0.05;
+      if (x < x0 + TILE + 2) v -= 0.2;
+      b.p(x, yy, pick(C.WOOD, clamp01(v), x, yy));
+    }
+  }
+  // les poteaux d'angle restent devant (même dessin que la couche avant de la grange)
+  const h = ye + TILE - (ye - 6);
+  b.r(x0 - 4, ye - 6, 8, h, C.WOOD[1]).r(x0 - 4, ye - 6, 2, h, C.WOOD[3]);
+  b.r(x1 - 6, ye - 6, 8, h, C.WOOD[1]).r(x1 - 6, ye - 6, 2, h, C.WOOD[3]);
+}
+
+// cultures des gradins de la colline, du sommet vers le bas (0,2 rizière inondée,
+// 0,5 riz, 0,7 potager, 0,9 théiers) : elles alternent pour que chaque marche se lise
+const TERRACE_KINDS = [0.2, 0.5, 0.9, 0.2, 0.7, 0.5, 0.2, 0.9, 0.7, 0.2, 0.5, 0.7];
+
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
-  house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'], orchard_canopy: ['front'],
+  house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
-  bridge_red: ['back'], stall: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
+  bridge_red: ['back'], stall: ['back'], temple_gate: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
   baskets: ['ground'], bridge: ['ground'], reeds: ['ground', 'front'], pots: ['ground'], hay: ['ground'],
   barn_door: ['back', 'front'], signpost: ['ground'], woodpile: ['ground'], cart: ['ground'], bush: ['ground'],
@@ -42,7 +76,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -478,19 +512,6 @@ const PAINT = {
     }
   },
 
-  orchard_canopy(b, p, X, Y, env) {
-    // voûte de branches au-dessus du chemin du verger : premier plan
-    const x0 = p.x * TILE, w = (p.w ?? 20) * TILE, top = p.top ?? 70;
-    const r = rng(p.x * 3);
-    for (let x = x0; x < x0 + w; x += 18 + r() * 20) {
-      const dep = 30 + r() * 40;
-      limb(b, x, top - 6, x + (r() - 0.5) * 30, top + dep * 0.6, 4, 2, C.WOOD);
-      leaves(b, x + (r() - 0.5) * 20, top + dep * 0.5, 12 + r() * 8, r() < 0.4 ? C.BLOSSOM : C.LEAF, Math.round(x), { light: -0.15 });
-      leaves(b, x + (r() - 0.5) * 20, top + dep * 0.3, 10 + r() * 6, C.LEAF, Math.round(x) + 9, { light: -0.22 });
-      if (r() < 0.5) dots(b, x, top + dep * 0.5, 10, C.VEG.apple, 3, Math.round(x), 2);
-    }
-  },
-
   ladder(b, p, X, Y) {
     const h = (p.h ?? 4) * TILE;
     b.line(X - 6, Y, X + 2, Y - h, C.WOOD[2], 2).line(X + 2, Y, X + 10, Y - h, C.WOOD[2], 2);
@@ -560,40 +581,69 @@ const PAINT = {
         const side = -0.3 * (dx / Math.max(1, W)) * (0.5 + 0.5 * u) - (dx > 0 ? 0.12 * u * u : 0);   // lumière à gauche
         let col;
         if (q.part === 'wall') {
+          // mur de pierres sèches : sous le rebord du replat, une ombre (le replat
+          // avance au-dessus du mur), puis l'arête éclairée ; pied du mur sombre
           const w = worley(x, y, 3.4, 91 + q.tier, 0.6);
-          let v = 0.56 - (w.dx / 3.4) * 0.2 - (w.dy / 2) * 0.2 + side;
-          if (w.d2 - w.d < 0.8) v = 0.08;
-          if (q.f > 0.86) v -= 0.25;
-          if (q.f < 0.16) v += 0.14;                                  // arête du mur, éclairée
+          const wy = Math.floor(q.f * q.t.wall);                       // rang de pixel dans le mur
+          // les murs, verticaux, reçoivent moins de lumière que les replats : plus sombres,
+          // clairs juste sous l'arête puis de plus en plus sombres vers le pied
+          let v = 0.46 - q.f * 0.16 - (w.dx / 3.4) * 0.2 - (w.dy / 2) * 0.22 + side;
+          if (w.d2 - w.d < 0.8) v = 0.04;
+          if (wy === 0) v -= 0.3;                                       // ombre sous le rebord
+          else if (wy === 1) v += 0.2;                                  // arête éclairée
+          if (wy >= q.t.wall - 1) v -= 0.25;                            // pied du mur
           col = pick(C.STONE, clamp01(v), x, y, 0.15);
-          if (q.f < 0.2 && ih(x, q.tier, 13) < 0.25) col = pick(C.GRASS, clamp01(0.55 + side), x, y);   // herbe qui retombe
+          if (wy <= 1 && ih(x, q.tier, 13) < 0.22) col = pick(C.GRASS, clamp01(0.42 + side), x, y);   // herbe qui retombe du rebord
+          if (wy > 1 && wy < q.t.wall - 1 && ih(x >> 1, y >> 1, 40 + q.tier) < 0.05) col = pick(C.MOSS, clamp01(0.5 + side), x, y);   // mousse entre les pierres
         } else {
-          const f = q.f, kind = q.t.kind;
-          // bord herbeux clair à l'avant du replat (au-dessus du mur) ; au fond, au
-          // pied du mur du gradin supérieur, une bande d'herbe dans l'ombre
+          // le replat, vu un peu d'en haut : au fond l'ombre du mur du dessus, à l'avant
+          // une diguette éclairée ; entre les deux, des rangs qui suivent la courbe du
+          // gradin, plus grands au premier rang (la profondeur se lit)
+          // les cultures alternent d'un gradin à l'autre (rizière inondée, riz, potager, théiers)
+          const kind = TERRACE_KINDS[q.tier % TERRACE_KINDS.length], h = Math.max(1, q.h ?? 8);
+          const py = q.f * h, pf = h - py;                              // pixels depuis le fond, depuis l'avant
+          const back = q.edge ? 0 : 2;                                  // bande d'ombre au fond (sauf au sommet)
           if (q.edge && y - q.t.y < 1) col = pick(C.GRASS, clamp01(0.66 + side), x, y);
-          else if (f > 0.86) col = pick(C.GRASS, clamp01(0.78 + side), x, y);
-          else if (f < 0.14) col = pick(C.GRASS, clamp01((q.edge ? 0.6 : 0.36) + side), x, y);
-          else if (kind < 0.42) {                                                    // légumes en rangs
-            const fc = (f - 0.14) / 0.72 * 3, row = Math.floor(fc), ry = fc - row;
-            const px = (x + row * 4 + q.tier * 3) % 6;
-            const plant = ry > 0.25 && px < 4 && !(px === 0 && ry < 0.5) && !(px === 3 && ry < 0.5);
-            col = plant ? pick(C.GRASS, clamp01(0.62 + side + (ry < 0.55 ? 0.12 : -0.08) - (px > 1 ? 0.1 : 0)), x, y) : C.SOIL[3];
-            if (plant && px === 1 && ry > 0.7 && ih(x, q.tier, 6) < 0.35) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][q.tier % 4];
-          } else if (kind < 0.72) {                                                  // rizière inondée : le ciel s'y reflète
-            col = f > 0.8 ? C.GRASS[2] : ih(Math.floor(x / 3), y, q.tier) > 0.9 ? '#eef7f4' : (y + q.tier) % 3 === 0 ? '#a9d0d6' : '#bcdde0';
-            if ((x + y) % 4 === 0 && f < 0.88) col = '#93c46a';
-            if (side < -0.15 && col !== '#93c46a') col = mixHex(col, '#7fa4ae', 0.3);
-          } else {                                                                   // théiers taillés en boules
-            // rangs de buissons (un rang par ~6 px de profondeur), décalés d'un rang à
-            // l'autre, chaque buisson un peu différent ; ombre portée sur la terre
-            const rows = Math.max(1, Math.round((q.h ?? 8) / 6)), ff = (f - 0.14) / 0.72;
-            const row = Math.min(rows - 1, Math.floor(ff * rows)), ry = ff * rows - row;
-            const cx = x + q.tier * 7 + row * 4, cell = Math.floor(cx / 8), bx = (cx % 8) - 3.5;
-            const rad = 2.9 + ih(cell, row, q.tier + 30) * 1.1, by = (ry - 0.5) * 6.5;
-            const d = (bx * bx) / (rad * rad) + (by * by) / 10;
-            if (d < 1) col = pick(C.HEDGE, clamp01(0.62 + side - bx * 0.06 - by * 0.09 + (d < 0.3 ? 0.08 : 0)), x, y);
-            else col = by > 0 && Math.abs(bx) < rad + 1 ? C.SOIL[1] : C.SOIL[2 + (ih(x, y, 31) < 0.2 ? 1 : 0)];
+          else if (pf <= 1) col = pick(C.GRASS, clamp01(0.8 + side), x, y);            // arête de la diguette, au soleil
+          else if (pf <= 2 && kind < 0.62) col = pick(C.SOIL, clamp01(0.42 + side), x, y);   // flanc de la diguette (rizières)
+          else if (py < back) col = py < 1 ? pick(C.SOIL, clamp01(0.18 + side), x, y) : pick(C.GRASS, clamp01(0.26 + side), x, y);   // ombre portée du mur
+          else {
+            const m0 = back, m1 = h - (kind < 0.62 ? 2 : 1), g = Math.min(0.999, Math.max(0, (py - m0) / Math.max(1, m1 - m0)));
+            const n = Math.max(2, Math.round((m1 - m0) / (kind < 0.42 ? 2.6 : 3))), rr = g * n, row = Math.floor(rr), ry = rr - row;
+            const near = row / Math.max(1, n - 1);                      // 0 au fond, 1 au premier rang
+            if (kind < 0.42) {                                          // rizière inondée, jeunes pousses en rangs
+              const wcol = mixHex('#b9dce2', '#78aab4', g);              // le ciel se reflète, plus clair au fond
+              const gap = (x + row * 3 + q.tier * 5) % 5 === 0;          // le rang de pousses, presque continu
+              if (ry > 0.5 - near * 0.15 && !gap) col = ry < 0.75 && near > 0.3 ? '#b4de6c' : '#78b84a';
+              else if (ry > 0.25 && !gap) col = mixHex(wcol, '#4f7f6c', 0.3);   // l'eau assombrie sous le rang
+              else col = ih(x >> 2, y, q.tier + 50) > 0.93 ? '#e8f6f6' : wcol;        // rides claires
+              if (side < -0.15) col = mixHex(col, '#6f95a0', 0.25);
+            } else if (kind < 0.62) {                                   // riz qui a poussé : tiges serrées, en rangs
+              if (ry < 0.22) col = mixHex('#9cc5cf', C.SOIL[2], 0.4);     // l'eau entre les rangs
+              else {
+                const blade = (x * 7 + row * 3 + q.tier) % 3;
+                let v = 0.42 + ry * 0.28 + (blade === 0 ? 0.14 : blade === 1 ? -0.06 : 0) + near * 0.06 + side;
+                col = pick(C.GRASS, clamp01(v), x, y);
+                if (ry > 0.85 && blade === 0 && ih(x, row, q.tier) < 0.3) col = '#d9cf6a';   // épis qui dorent
+              }
+            } else if (kind < 0.84) {                                   // potager : touffes de légumes entre des sillons
+              const cx = (x + row * 2 + q.tier * 3) % 5;
+              if (ry < 0.24) col = pick(C.SOIL, clamp01(0.16 + side), x, y);                // sillon, dans l'ombre
+              else if (cx === 0) col = pick(C.SOIL, clamp01(0.5 + side + (ry > 0.7 ? -0.12 : 0)), x, y);
+              else {
+                let v = 0.46 + (ry < 0.55 ? 0.22 : -0.06) + (cx === 1 ? 0.1 : cx === 4 ? -0.16 : 0) + near * 0.06 + side;
+                col = pick(C.LEAF, clamp01(v), x, y);
+                if (cx === 2 && ry > 0.7 && ih(x >> 2, row, q.tier + 6) < 0.3) col = [C.VEG.carrot[1], C.VEG.cabbage[2], '#e7e1f0', C.VEG.radish[1]][q.tier % 4];
+              }
+            } else {                                                    // théiers taillés en boules
+              const rows = Math.max(1, Math.round(h / 6)), ff = q.f;
+              const trow = Math.min(rows - 1, Math.floor(ff * rows)), ty = ff * rows - trow;
+              const cxx = x + q.tier * 7 + trow * 4, cell = Math.floor(cxx / 8), bx = (cxx % 8) - 3.5;
+              const rad = 2.9 + ih(cell, trow, q.tier + 30) * 1.1, by = (ty - 0.5) * 6.5;
+              const d = (bx * bx) / (rad * rad) + (by * by) / 10;
+              if (d < 1) col = pick(C.HEDGE, clamp01(0.62 + side - bx * 0.06 - by * 0.09 + (d < 0.3 ? 0.08 : 0)), x, y);
+              else col = by > 0 && Math.abs(bx) < rad + 1 ? C.SOIL[1] : C.SOIL[2 + (ih(x, y, 31) < 0.2 ? 1 : 0)];
+            }
           }
         }
         b.p(x, y, veil(col, y));
@@ -1221,6 +1271,59 @@ const PAINT = {
     for (let x = x0; x < x0 + w; x += 12) {
       b.r(x, Y - 1, 9, 2, C.STONE[3]).r(x + 1, Y - 2, 7, 1, C.STONE[4]).r(x, Y, 9, 1, C.STONE[1]);
     }
+  },
+
+  // --- zone 9 : la grande porte du temple, au bout du champ du corbeau -------
+  // Ici la partie fixe : seuil de pierre, passage lumineux, piliers vermillon,
+  // traverse, grand toit de tuiles, plaque. Les deux vantaux, le talisman qui
+  // les scelle et la corde sacrée sont animés (live.js) : ils s'ouvrent quand
+  // Karasu-Kashi est vaincu.
+  temple_gate(b, p, X, Y, env, layer) {
+    const R = C.RED;
+    // le passage : la lumière du chemin, derrière les vantaux
+    for (let y = Y - 92; y < Y - 6; y++) {
+      const t = (y - (Y - 92)) / 86;
+      b.r(X - 36, y, 72, 1, t < 0.5 ? mixHex('#fff3c8', '#f2e2b0', t * 2) : mixHex('#f2e2b0', C.STONE[4], (t - 0.5) * 2));
+    }
+    // le seuil de pierre, en deux marches
+    b.r(X - 60, Y - 6, 120, 6, C.STONE[2]).r(X - 60, Y - 6, 120, 1, C.STONE[4]).r(X - 52, Y - 9, 104, 3, C.STONE[3]).r(X - 52, Y - 9, 104, 1, C.STONE[5]);
+    for (let k = 0; k < 120; k += 13) b.r(X - 60 + k, Y - 5, 1, 5, C.STONE[1]);
+    // piliers vermillon, socles de pierre sombre
+    for (const px of [X - 51, X + 38]) {
+      for (let i = 0; i < 13; i++) {
+        const u = i / 12;
+        b.r(px + i, Y - 104, 1, 95, u < 0.15 ? R[4] : u < 0.5 ? R[3] : u < 0.82 ? R[2] : R[1]);
+      }
+      b.r(px - 2, Y - 16, 17, 7, '#2a2420').r(px - 2, Y - 16, 17, 1, C.STONE[1]);
+      b.r(px - 1, Y - 108, 15, 4, R[1]);
+    }
+    // la traverse (nuki) et le linteau
+    b.r(X - 62, Y - 100, 124, 6, R[3]).r(X - 62, Y - 100, 124, 1, R[4]).r(X - 62, Y - 95, 124, 1, R[1]);
+    b.r(X - 58, Y - 110, 116, 5, R[2]).r(X - 58, Y - 110, 116, 1, R[4]);
+    // le grand toit de tuiles grises, bords relevés
+    // toit à quatre pans (trapèze) : le faîtage repose sur le haut, sans jour
+    const top = Y - 136, h = 26, wb = 76, wt = 34;
+    for (let j = 0; j < h; j++) {
+      const half = Math.round(wb - ((wb - wt) * j) / (h - 1)) + (j < 3 ? 8 - j * 3 : 0);
+      const yy = top + h - 1 - j;
+      for (let i = -half; i <= half; i++) {
+        const x = X + i;
+        let v = 0.5 + ((x % 3) === 0 ? -0.18 : (x % 3) === 1 ? 0.12 : 0) - (i / half) * 0.12;
+        if ((yy - top) % 4 === 0) v -= 0.1;
+        if (j === 0) v = 0.1;
+        b.p(x, yy, pick(C.ROOF, clamp01(v), x, yy));
+      }
+    }
+    // faîtage, bouts relevés
+    b.r(X - wt - 4, top - 4, 2 * wt + 8, 4, C.ROOF[1]).r(X - wt - 4, top - 4, 2 * wt + 8, 1, C.ROOF[3]).r(X - wt - 4, top - 1, 2 * wt + 8, 1, C.ROOF[0]);
+    for (const sx of [-1, 1]) {
+      const ex = X + sx * (wt + 4) - (sx > 0 ? 1 : 0);
+      b.r(ex - (sx > 0 ? 0 : 2), top - 7, 3, 4, C.ROOF[1]).r(ex + sx * 2 - (sx > 0 ? 0 : 0), top - 9, 2, 3, C.ROOF[0]);
+    }
+    for (const dx of [-74, 72]) b.r(X + dx, Y - 114, 3, 3, C.ROOF[0]).r(X + dx + (dx < 0 ? -2 : 2), Y - 117, 2, 3, C.ROOF[1]);
+    // la plaque du nom, cerclée d'or
+    b.r(X - 9, Y - 128, 18, 14, '#c9a24a').r(X - 8, Y - 127, 16, 12, '#2a2018');
+    b.r(X - 2, Y - 125, 3, 2, '#c9a24a').r(X - 4, Y - 121, 7, 1, '#c9a24a').r(X - 1, Y - 119, 2, 2, '#c9a24a');
   },
 
   gate(b, p, X, Y, env, layer) {

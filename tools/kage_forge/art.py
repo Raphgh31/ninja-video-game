@@ -18,9 +18,12 @@ def F(grid, *retouches, **meta):
 # Garde basse : jambe avant fléchie (genou en avant de la cheville), jambe
 # arrière presque tendue vers l'arrière, poing lointain levé devant.
 STANCE = dict(near_leg=[(19, 26), (18, 28)], far_leg=[(11, 26), (9, 28)],
-              near_arm=[(17, 22), (18, 23)], far_arm=[(16, 21), (19, 20)])
+              # au repos (d'après la référence de l'utilisateur) : un bras passé derrière le dos,
+              # coude un peu plié, seule la main dépasse à la hanche ; l'autre armé, coude en
+              # arrière caché par le buste, poing serré juste devant la poitrine
+              near_arm=None, back_arm=[(13, 22), (10, 23)], far_arm=[(13, 23), (19, 21)], far_hand="hand")
 STANCE_LOW = dict(near_leg=[(19, 27), (18, 28)], far_leg=[(11, 27), (9, 28)],
-                  near_arm=[(17, 23), (18, 24)], far_arm=[(16, 22), (19, 21)])
+                  near_arm=None, back_arm=[(13, 23), (10, 24)], far_arm=[(13, 24), (19, 22)], far_hand="hand")
 
 IDLE = [
     F(pose(torso="up", tx=12, ty=19, **STANCE,
@@ -455,11 +458,34 @@ THROW = [
            tail_short=[(-2, 2), (-4, 4), (-4, 8)])),
 ]
 
-# Projectile : cellules 10x10. Rotation (2 images), puis planté dans un mur
+# Projectile : cellules 12x12. En vol : 2 images de 9x9 (fly0, fly1 : droit puis en X) ; spin0 et spin1 (7x7)
+# restent pour l'icône du compteur. Rotation (2 images), puis planté dans un mur
 # (mur à droite) et planté dans le sol en biais (lancé vers la droite : une lame
 # entière ressort vers l'arrière, une demi-lame vers l'avant), en plus petit. L'ancre est le point
 # posé sur la surface touchée.
 SHURIKEN = {
+    "fly0": ("""
+....W....
+....W....
+...WWW...
+...WwW...
+WWWwgwWWW
+...WwW...
+...WWW...
+....W....
+....W....
+""", (5, 5)),
+    "fly1": ("""
+W.......W
+.WW...WW.
+.WWW.WWW.
+..WWwWW..
+...wgw...
+..WWwWW..
+.WWW.WWW.
+.WW...WW.
+W.......W
+""", (5, 5)),
     "spin0": ("""
 ...W...
 ...W...

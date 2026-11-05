@@ -92,6 +92,21 @@ body.mobile .mute {
 /* --- chapitre : interface discrète posée sur le jeu ------------------------- */
 /* placée par rapport à l'image de jeu (--gw × --gh, centrée dans .stage), pas à la page */
 .zone-banner, .hint, .saved, .talk { position: absolute; z-index: 2; pointer-events: none; }
+.boss {
+  position: absolute; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .6s;
+  top: calc(50% - var(--gh, 100%) / 2 + .8rem); left: 50%; transform: translateX(-50%);
+  width: calc(var(--gw, 100%) * .34); display: grid; justify-items: center; gap: .3rem;
+}
+.boss.on { opacity: 1; }
+.boss__name {
+  font-size: .62rem; line-height: 1; letter-spacing: .34em; padding-left: .34em; text-transform: uppercase;
+  color: #e9e5da; text-shadow: 0 1px 0 #06070a, 0 0 4px rgba(6, 7, 10, .6);
+}
+.boss__bar { position: relative; justify-self: stretch; height: 3px; background: rgba(6, 7, 10, .72); outline: 1px solid rgba(233, 229, 218, .28); }
+.boss__bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+.boss__lag { width: calc(var(--lag, 1) * 100%); background: #e9e5da; opacity: .55; }
+.boss__hp { width: calc(var(--hp, 1) * 100%); background: #b8322a; }
+body.boss-on .saved { top: calc(50% - var(--gh, 100%) / 2 + 2.4rem); }
 .zone-banner {
   top: calc(50% - var(--gh, 100%) * .42); left: 50%; transform: translate(-50%, -6px); opacity: 0;
   display: grid; justify-items: center; gap: .15rem; text-align: center;

@@ -111,7 +111,7 @@ async function main() {
   await test('sabre de face : bloqué par TATE', async () => {
     await reset(440, 192, 480);
     await ev(() => { window.__kage.tate.facing = -1; window.__kage.player.facing = 1; });
-    await k.press('KeyJ'); await wait(200);
+    await k.press('KeyX'); await wait(200);
     const s = await S();
     expect(s.tateHp === 5, `vie TATE ${s.tateHp}`);
   });
@@ -119,10 +119,10 @@ async function main() {
   await test('sabre dans le dos : -2 ; shuriken dans le dos : -1', async () => {
     await reset(500, 192, 480);
     await ev(() => { const g = window.__kage; g.tate.facing = -1; g.tate.setState('stunned'); g.tate.timer = -5; g.player.facing = -1; });
-    await k.press('KeyJ'); await wait(500);
+    await k.press('KeyX'); await wait(500);
     const a = await S();
     await ev(() => { const g = window.__kage; g.player.x = 560; g.player.facing = -1; });
-    await wait(50); await k.press('KeyK'); await wait(500);
+    await wait(50); await k.press('KeyV'); await wait(500);
     const b = await S();
     expect(a.tateHp === 3 && b.tateHp === 2, `vie TATE ${a.tateHp} puis ${b.tateHp}`);
   });
@@ -139,7 +139,7 @@ async function main() {
 
   await test('shuriken : portée de 10 carreaux sur sol plat, puis ramassé', async () => {
     await reset(300);
-    await k.press('KeyK'); await wait(1000);
+    await k.press('KeyV'); await wait(1000);
     const st = await ev(() => window.__kage.shurikens.stuck[0]);
     expect(st && near(st.x - 312, 160, 3), `planté à ${st && st.x - 312} px`);
     expect((await S()).stock === 2, 'stock non décrémenté');
@@ -150,7 +150,7 @@ async function main() {
 
   await test('délai entre deux lancers de shuriken', async () => {
     await reset(300);
-    await k.press('KeyK'); await wait(380); await k.press('KeyK'); await wait(60);
+    await k.press('KeyV'); await wait(380); await k.press('KeyV'); await wait(60);
     const s = await S();
     expect(s.stock === 2, `stock ${s.stock} (deux lancers trop rapprochés)`);
   });
@@ -189,10 +189,10 @@ async function main() {
 
   await test('sabre et shuriken en l\'air', async () => {
     await reset(300);
-    await k.press('Space'); await wait(120); await k.press('KeyJ'); await wait(30);
+    await k.press('Space'); await wait(120); await k.press('KeyX'); await wait(30);
     const a = await S();
     await reset(300);
-    await k.press('Space'); await wait(120); await k.press('KeyK'); await wait(30);
+    await k.press('Space'); await wait(120); await k.press('KeyV'); await wait(30);
     const b = await S();
     expect(a.state === 'air_attack' && b.state === 'air_throw', `${a.state} / ${b.state}`);
   });
@@ -200,7 +200,7 @@ async function main() {
   await test('coup aérien : 3 dégâts dans le dos', async () => {
     await reset(500, 192, 480);
     await ev(() => { const g = window.__kage; g.tate.facing = -1; g.tate.setState('stunned'); g.tate.timer = -5; g.player.facing = -1; });
-    await k.press('Space'); await wait(110); await k.press('KeyJ');
+    await k.press('Space'); await wait(110); await k.press('KeyX');
     let hp = 5;
     for (let i = 0; i < 60; i++) { hp = (await S()).tateHp; if (hp < 5) break; await wait(10); }
     expect(hp === 2, `vie TATE ${hp} (attendu 5 - 3 = 2)`);
@@ -211,7 +211,7 @@ async function main() {
     await reset(440, 192, 470);
     await ev(() => { const g = window.__kage; g.tate.facing = -1; g.player.facing = 1; });
     const x0 = await ev(() => window.__kage.tate.x);
-    await k.press('KeyU');
+    await k.press('KeyB');
     let s, x1 = x0;
     for (let i = 0; i < 60; i++) { x1 = await ev(() => window.__kage.tate.x); if (x1 > x0 + 4) break; await wait(15); }
     s = await S();
@@ -220,15 +220,15 @@ async function main() {
 
   await test('coup de pied : plus cher que le sabre, et pas deux d\'affilée trop vite', async () => {
     await reset();
-    await k.press('KeyU'); await wait(40);
+    await k.press('KeyB'); await wait(40);
     const a = await S();
-    await wait(60); await k.press('KeyU'); await wait(40);
+    await wait(60); await k.press('KeyB'); await wait(40);
     const b = await S();
     expect(near(1 - a.energy, 0.1275, 0.01) && a.state === 'kick', `coût ${(1 - a.energy).toFixed(3)}, état ${a.state}`);
     expect(near(b.energy, a.energy, 0.005), `second coup accepté trop tôt (énergie ${a.energy.toFixed(3)} -> ${b.energy.toFixed(3)})`);
     for (let i = 0; i < 80; i++) { if ((await S()).state !== 'kick') break; await wait(15); }
     await wait(450);   // délai de 0,35 s après la fin du coup
-    await k.press('KeyU'); await wait(40);
+    await k.press('KeyB'); await wait(40);
     const c = await S();
     expect(c.state === 'kick', `après le délai : état ${c.state}`);
   });
@@ -256,7 +256,7 @@ async function main() {
   await test('WARA : un coup de sabre l\'abat (2 PV)', async () => {
     await reset(400); await wara(424);
     await ev(() => { window.__kage.player.facing = 1; });
-    await k.press('KeyJ');
+    await k.press('KeyX');
     const w = await until((x) => x.st === 'defeated');
     expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
   });
@@ -264,7 +264,7 @@ async function main() {
   await test('WARA : un shuriken -1, il passe abîmé', async () => {
     await reset(400); await wara(470);
     await ev(() => { window.__kage.player.facing = 1; });
-    await k.press('KeyK');
+    await k.press('KeyV');
     const w = await until((x) => x.hp < 2);
     expect(w.hp === 1 && w.f.endsWith('_torn'), `vie ${w.hp}, image ${w.f}`);
   });
@@ -283,12 +283,12 @@ async function main() {
     // KAGE invincible AVANT le moulinet : sinon le moulinet peut le repousser hors de portée
     await ev(() => { const g = window.__kage; g.player.facing = 1; g.player.invuln = 99; });
     await wara(424, { state: 'spin' });
-    await k.press('KeyJ'); await swingDone();
+    await k.press('KeyX'); await swingDone();
     const a = await W();
     await wait(200);
     await ev(() => { const pl = window.__kage.player; pl.x = 400; pl.vx = 0; pl.facing = 1; });
     await wara(424, { state: 'dizzy' });
-    await k.press('KeyJ');
+    await k.press('KeyX');
     const b = await until((x) => x.st === 'defeated');
     await ev(() => { window.__kage.player.invuln = 0; });
     expect(a.hp === 2 && b.st === 'defeated', `moulinet : vie ${a.hp} ; tournis : ${b.st}`);
@@ -297,7 +297,7 @@ async function main() {
   await test('WARA : un coup de pied l\'abat (2 dégâts)', async () => {
     await reset(400); await wara(424);
     await ev(() => { window.__kage.player.facing = 1; });
-    await k.press('KeyU');
+    await k.press('KeyB');
     const w = await until((x) => x.st === 'defeated');
     expect(w.st === 'defeated' && w.hp <= 0, `état ${w.st}, vie ${w.hp}`);
   });
@@ -404,7 +404,7 @@ async function main() {
       g.player.x = t.x - 26; g.player.facing = 1;
     });
     await lw(50);
-    await L.press('KeyU');
+    await L.press('KeyB');
     let r;
     for (let i = 0; i < 120; i++) {
       r = await lv.evaluate(() => { const t = window.__kage.tates[0]; return { st: t.state, gone: t.gone, y: t.y, falling: t.falling }; });
@@ -453,7 +453,7 @@ async function main() {
 
   await test('niveau 1 : le gong au shuriken ouvre la porte', async () => {
     await at(112, 144); await lv.evaluate(() => { window.__kage.player.facing = 1; window.__kage.player.x += 2; });
-    await lw(150); await L.press('KeyK'); await lw(900);
+    await lw(150); await L.press('KeyV'); await lw(900);
     await at(132, 304); await lw(700);
     await L.down('ArrowRight'); await lw(700); await L.up('ArrowRight');
     const s = await LS();
@@ -495,6 +495,7 @@ async function main() {
     pl.energy.value = 1; pl.energy.exhausted = false; pl.onGround = true; pl.setState('idle');
     for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; }
     for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; w.cooldown = 99; }
+    if (g.boss && g.boss.state !== 'defeated') g.boss.reset();
   }, tx);
   // trous du chapitre (colonnes sans aucun sol : eau ou vide) : [début, largeur, haut à gauche, haut à droite]
   const holes = await pg.evaluate(() => {
@@ -522,11 +523,11 @@ async function main() {
   };
   const landed = (s, [gs, w, , rt]) => s.tx >= gs + w && s.y === rt * 16 && s.hp === 5 && s.st !== 'death' && s.st !== 'respawn';
 
-  await test('potager : écran titre, puis 8 zones, 3 lanternes, un marchand et une sortie', async () => {
+  await test('potager : écran titre, puis 9 zones, 9 lanternes, un marchand, un boss et une sortie', async () => {
     const shown = await pg.evaluate(() => !document.querySelector('.title-screen').hidden);
     await pg.click('[data-new]'); await pw(200);
-    const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused]; });
-    expect(shown && i.join() === '8,8,true,true,false', `titre ${shown}, ${i.join()}`);
+    const i = await pg.evaluate(() => { const g = window.__kage, l = g.level; return [l.zones.length, l.checkpoints.length, !!l.merchant, !!l.goal, g.run.paused, g.boss?.meta.name]; });
+    expect(shown && i.join() === '9,9,true,true,false,KARASU-KASHI', `titre ${shown}, ${i.join()}`);
   });
 
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
@@ -645,7 +646,7 @@ async function main() {
   await test('potager : une caisse de la grange se brise au sabre et lâche un ryō', async () => {
     const before = await pg.evaluate(() => { const l = window.__kage.level; const [k, c] = [...l.crates.entries()].find(([, c]) => c.ty === l.h - 4); return { k, tx: c.tx, n: l.crates.size, coins: l.coins.length }; });
     await pat(before.tx - 2); await pg.evaluate(() => { window.__kage.player.facing = 1; });
-    await pw(80); await PK.press('KeyJ');
+    await pw(80); await PK.press('KeyX');
     // attend que la lame atteigne la caisse (au plus 1,5 s), sans dépendre d'un délai fixe
     await pg.waitForFunction((n) => window.__kage.level.crates.size < n, before.n, { timeout: 1500 }).catch(() => {});
     await pw(100);
@@ -668,6 +669,15 @@ async function main() {
     await PK.down('ArrowLeft'); await pw(1600); await PK.up('ArrowLeft'); await pw(200);
     const got = await pg.evaluate((gr) => window.__kage.level.coins.filter((c) => c.taken && Math.floor(c.y / 16) === gr.floor - 1 && c.x / 16 >= gr.x0 && c.x / 16 <= gr.x1 + 1).length, at);
     expect(at.top >= 5 && hay.y === at.step.y0 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
+  });
+
+  await test('potager : le toit de la grange cache le grenier, et s\'efface quand KAGE monte sur la mezzanine', async () => {
+    const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const pl = window.__kage.player; pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); }, [tx, ty]);
+    const alpha = () => pg.evaluate(() => window.__kage.level.art.live.attic.alpha);
+    await put(362, 19); await pw(700); const sol = await alpha();
+    await put(361, 15); await pw(700); const haut = await alpha();
+    await put(362, 19); await pw(700); const retour = await alpha();
+    expect(sol > 0.95 && haut < 0.2 && retour > 0.95, `opacité du toit : au sol ${sol.toFixed(2)}, sur la mezzanine ${haut.toFixed(2)}, de retour au sol ${retour.toFixed(2)}`);
   });
 
   await test('potager : un ryō ramassé est compté et enregistré', async () => {
@@ -693,7 +703,7 @@ async function main() {
     expect(s && s.checkpoint === k.i && s.checkpointX === k.x && icon, `point de reprise ${s && s.checkpoint} (${s && s.checkpointX}) / attendu ${k.i} (${k.x}), icône ${icon}`);
   });
 
-  await test('potager : un point de reprise au début de chaque zone (2 à 8)', async () => {
+  await test('potager : un point de reprise au début de chaque zone (2 à 9)', async () => {
     const r = await pg.evaluate(() => { const l = window.__kage.level; return l.zones.slice(1).map((z) => [z.id, l.checkpoints.some((c) => c.x >= z.px0 - 4 * 16 && c.x <= z.px0 + 8 * 16)]); });
     const missing = r.filter(([, ok]) => !ok).map(([id]) => id);
     expect(missing.length === 0, `zones sans point de reprise : ${missing.join(', ')}`);
@@ -733,6 +743,85 @@ async function main() {
     await PK.press('Escape'); await pw(200);
     const closed = await pg.evaluate(() => [document.querySelector('.shop').hidden, window.__kage.run.paused]);
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
+  });
+
+  // ---- zone 9 : KARASU-KASHI, le corbeau du potager ----
+  const B = await pg.evaluate(() => { const b = window.__kage.boss; return { a0: b.arena[0] / 16, a1: b.arena[1] / 16, ground: b.groundY }; });
+  const gateOpen = () => pg.evaluate((a1) => { const l = window.__kage.level; return !l.solid(a1, l.boss.y - 1); }, B.a1);
+
+  await test('potager : zone 9 — le corbeau attend sur son épouvantail, la porte du temple est fermée', async () => {
+    await pat(B.a0 + 2); await pw(300);
+    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.state, b.engaged, document.querySelector('.boss').classList.contains('on')]; });
+    expect(r.join() === 'perch,false,false' && !(await gateOpen()), `corbeau ${r.join()}, porte ouverte ${await gateOpen()}`);
+  });
+
+  await test('potager : en entrant dans l\'arène, il croasse et s\'envole ; sa barre de vie apparaît en haut', async () => {
+    await pat(B.a0 + 9); await pw(1600);
+    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.engaged, b.flying, document.querySelector('.boss').classList.contains('on')]; });
+    expect(r.join() === 'true,true,true', `engagé, en vol, barre : ${r.join()}`);
+  });
+
+  await test('potager : plongeon — debout, KAGE est touché (2) ; en glissade, il passe dessous', async () => {
+    const r = await pg.evaluate(() => {
+      const g = window.__kage, b = g.boss, hb = g.player.meta.hitbox, piv = g.player.meta.pivot, out = [];
+      for (const kind of ['default', 'slide']) for (const side of [-1, 1]) for (const dist of [70, 96, 130]) {
+        const h = hb[kind], px = (b.arena[0] + b.arena[1]) / 2;
+        const fake = { x: px, y: b.groundY, vx: 0, state: kind === 'slide' ? 'slide' : 'idle', facing: -side, dmg: 0,
+          box() { const ox = this.facing > 0 ? h.x - piv.x : piv.x - (h.x + h.w); return { x: this.x + ox, y: this.y - piv.y + h.y, w: h.w, h: h.h }; },
+          hurt(d) { this.dmg += d; return true; } };
+        b.reset(); b.engaged = true; b.x = px + side * dist; b.y = b.groundY - 50;
+        b.startDive(fake, 0);
+        for (let n = 0; n < 600 && b.state === 'dive'; n++) { b.update(1 / 120, fake); b.interact(fake); }
+        out.push(`${kind}:${fake.dmg}:${b.state}`);
+      }
+      b.reset();
+      return out;
+    });
+    const bad = r.filter((x) => !(x.startsWith('default') ? x.endsWith(':2:pullup') : x.endsWith(':0:crash')));
+    expect(bad.length === 0, bad.join(' '));
+  });
+
+  await test('potager : en vol, seul le shuriken le touche (lancé au sommet d\'un saut) ; planté dans le sol, le sabre le blesse', async () => {
+    const put = (st) => pg.evaluate(([st, a]) => {
+      const g = window.__kage, b = g.boss, pl = g.player, x = (a[0] + a[1]) * 8;
+      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; g.shurikens.reset();
+      b.reset(); b.engaged = true; b.setState(st); b.salvoLeft = 0; b.dropT = 99; b.windup = 0;
+      if (st === 'bomb') { b.salvoLeft = 9; b.x = x + 10; b.y = b.groundY - 34; } else { b.x = x + 22; b.y = b.groundY; b.play('stuck'); }
+      return b.hp;
+    }, [st, [B.a0, B.a1]]);
+    const hp = () => pg.evaluate(() => window.__kage.boss.hp);
+    const h0 = await put('bomb');
+    await PK.press('KeyX'); await pw(450);
+    const sword = await hp();
+    await put('bomb');
+    await PK.down('Space'); await pw(250); await PK.press('KeyC'); await PK.up('Space'); await pw(500);
+    const shur = await hp();
+    await put('stuck');
+    await PK.press('KeyX'); await pw(450);
+    const stuck = await hp();
+    expect(sword === h0 && shur === h0 - 1 && stuck === h0 - 2, `PV ${h0} : sabre en vol ${sword}, shuriken en vol ${shur}, sabre planté ${stuck}`);
+  });
+
+  await test('potager : vaincu, il s\'affale ; le talisman se déchire et la porte du temple s\'ouvre (sauvegardé)', async () => {
+    await pg.evaluate(([a0, a1]) => {
+      const g = window.__kage, b = g.boss, pl = g.player, x = (a0 + a1) * 8;
+      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.setState('idle'); pl.invuln = 9;
+      b.reset(); b.engaged = true; b.setState('stuck'); b.hp = 2; b.x = x + 22; b.y = b.groundY;
+    }, [B.a0, B.a1]);
+    await PK.press('KeyX'); await pw(300);
+    const st = await pg.evaluate(() => window.__kage.boss.state);
+    const closed = !(await gateOpen());
+    await pw(2200);
+    const s = await SAVE();
+    const bar = await pg.evaluate(() => document.querySelector('.boss').classList.contains('on'));
+    expect(st === 'defeated' && closed && (await gateOpen()) && s.bossDefeated && !bar, `état ${st}, fermée juste après ${closed}, ouverte ensuite ${await gateOpen()}, sauvegarde ${s.bossDefeated}, barre ${bar}`);
+  });
+
+  await test('potager : « Continuer » après sa défaite — il reste vaincu, la porte reste ouverte', async () => {
+    await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
+    await pg.click('[data-continue]'); await pw(300);
+    const st = await pg.evaluate(() => window.__kage.boss.state);
+    expect(st === 'defeated' && (await gateOpen()), `corbeau ${st}, porte ouverte ${await gateOpen()}`);
   });
 
   await test('potager : la sortie termine le chapitre', async () => {
