@@ -601,7 +601,7 @@ function updateCamera(dt) {
   if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
   // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
   const y = camV.t < 1 ? camV.to : camera.y;
-  if (alive && player.y - 26 < y + VIEW_H * CAM.top) retargetY(player.y - 26 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
+  if (alive && player.y - 31 < y + VIEW_H * CAM.top) retargetY(player.y - 31 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
   else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
   if (camV.t < 1) {
     camV.t = Math.min(1, camV.t + dt / camV.dur);
@@ -647,11 +647,11 @@ function draw() {
   for (const t of enemies) {
     if (t.gone || t.noBar) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
-    const top = t instanceof Wara ? 29 + Math.round(t.lift) : 32;   // au-dessus du chapeau
+    const top = t instanceof Wara ? 34 + Math.round(t.lift) : 38;   // au-dessus du chapeau (personnages agrandis de 20 %)
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 27);
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31);
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });

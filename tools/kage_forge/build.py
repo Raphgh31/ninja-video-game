@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from art import ANIMS, SHURIKEN, VIEWS  # noqa: E402
 from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
-from accessories import find_head, overlay  # noqa: E402
+from accessories import dress, find_head  # noqa: E402
+import scale  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/characters/kage"
@@ -80,6 +81,7 @@ def qa(name, grids):
 
 
 def main():
+    global CW, CH
     skins = load_skins()
     ref = skins["encre"]["colors"]
     order = list(ANIMS)
@@ -94,6 +96,14 @@ def main():
     if problems:
         print("\n".join(problems))
         raise SystemExit("Contrôle qualité : échec")
+
+    # agrandissement de 20 % (scale.py) : les poses sont dessinées en 48×32, le
+    # jeu reçoit des cellules plus grandes ; les contrôles se font sur le dessin
+    small = rendered
+    plans = {k: [scale.plan(g) for g in v] for k, v in small.items()}
+    rendered = {k: [scale.grow(g, p) for g, p in zip(small[k], plans[k])] for k in order}
+    views = {k: scale.big(g) for k, g in views.items()}
+    CW, CH = scale.BIG_W, scale.BIG_H
 
     for d in ("anims", "frames", "layers", "views"):
         shutil.rmtree(OUT / d, ignore_errors=True)
@@ -125,7 +135,15 @@ def main():
         if nohead:
             raise SystemExit(f"Accessoires du skin {sid} : tête introuvable dans {', '.join(nohead)}")
         f = f"kage_acc_{sid}_index.png"
-        sheet(lambda g, names=names: to_index(overlay(g, names))).save(OUT / f)
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        for r, k in enumerate(order):
+            for c, (g0, p) in enumerate(zip(small[k], plans[k])):
+                # même agrandissement que l'image nue : seuls les pixels qui changent
+                dg, bg = scale.grow(dress(g0, names), p), rendered[k][c]
+                ov = np.full(bg.shape, ".", dtype="<U1")
+                ov[dg != bg] = dg[dg != bg]
+                im.paste(to_index(ov), (c * sx, r * sy))
+        im.save(OUT / f)
         acc_sheets[sid] = f
     for part in PARTS:
         slots = {s for s, (p, _) in SLOTS.items() if p == part}
@@ -191,10 +209,10 @@ def main():
         "cell": {"w": CW, "h": CH},
         "spacing": SPACING,
         "margin": 0,
-        "pivot": {"x": PIVOT[0], "y": PIVOT[1], "note": "milieu bas de la cellule, sous les pieds"},
+        "pivot": {"x": scale.BIG_PIVOT[0], "y": scale.BIG_PIVOT[1], "note": "sous les pieds (cellule agrandie de 20 %, scale.py)"},
         "facing": "right",
         "flipForLeft": True,
-        "hitbox": {
+        "hitbox": {k: scale.box(v, body=k in ("default", "slide", "dash")) for k, v in {
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 13, "y": 17, "w": 15, "h": 14},
             "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
@@ -204,7 +222,7 @@ def main():
                      "note": "coup de pied de côté (détente et impact)"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
-        },
+        }.items()},
         "slots": [{"index": i + 1, "slot": s, "part": SLOTS[s][0], "role": SLOTS[s][1]}
                   for i, s in enumerate(SLOT_ORDER)],
         "animations": {},
@@ -235,7 +253,8 @@ def main():
             "loopStart": a.get("loop_start", 0),
             "state": a["state"],
             "strip": f"anims/kage_{k}.png",
-            **({"release": a["release"]} if "release" in a else {}),
+            **({"release": {**a["release"], **dict(zip("xy", scale.point(a["release"]["x"], a["release"]["y"])))}}
+               if "release" in a else {}),
             "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],

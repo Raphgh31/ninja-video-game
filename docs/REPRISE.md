@@ -120,6 +120,10 @@ idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3 · dash 5 ·
 - **Shuriken** : stock de **3** (affiché à côté de l'énergie), vitesse 260 px/s, touche un sol plat à **10 carreaux**, 0,35 s entre deux lancers. Il se **plante** dans les murs et le sol (au sol : deux inclinaisons tirées au hasard), puis se **ramasse** en passant dessus (après 0,3 s). Sorti du niveau, il revient dans le stock.
 - **Joystick (dash)** : 85 % de la course en moins de 0,08 s, puis relâcher en moins de 0,15 s, geste horizontal.
 
+### Agrandissement de 20 % (novembre 2026, demande de l'utilisateur)
+- KAGE, TATE et WARA sont **20 % plus grands** à l'écran (pas le corbeau). Pas de zoom (un pixel sur cinq doublé au hasard) : comme pour l'agrandissement de TATE, on **double quelques lignes et colonnes** du dessin fini, puis on retrace le contour. KAGE : `tools/kage_forge/scale.py` (lignes repérées sur la tête dans chaque image : capuche, menton, buste, cuisses, jamais les yeux ; colonnes fixes, trois de chaque côté des pieds et trois pour la lame) ; les poses restent dessinées en 48×32, le jeu reçoit des cellules 57×36, ancrage (19, 35). TATE et WARA : `tools/kage_forge/enemies/grow20.py` (lignes et colonnes choisies sur leur dessin, `GROW` dans `build_tate.py` et `build_wara.py`). Les accessoires des skins suivent le même agrandissement.
+- **Collisions** : les boîtes du corps de KAGE (`default`, `slide`, `dash`) gardent leur taille (les passages d'une case et les sauts du niveau sont faits pour elles) ; ses zones de frappe (sabre, coup de pied) et le point de lâcher du shuriken grandissent de 20 % comme l'arme dessinée ; les boîtes de TATE et WARA grandissent de 20 %. Barres de vie remontées (KAGE 31 px, TATE 38, WARA 34). Planche : `docs/kage/taille_plus_20.png`.
+
 ## 5. L'ennemi TATE
 
 - **Garde de temple au grand bouclier** : chapeau conique laqué à liseré rouge, masque de fer aux yeux ambrés, armure rouge sourd, vêtements indigo, jambes courtes (pas lourd), **talisman de papier dans le dos** (cordon de paille en bandoulière, papier qui ondule, **halo** qui pulse quand le dos est exposé).

@@ -14,6 +14,12 @@ from PIL import Image
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from wara import GAME_FRAMES, H, NO_OUTLINE, PAL, W  # noqa: E402
+from grow20 import Grower  # noqa: E402
+
+# +20 % (demande de l'utilisateur) : chapeau (2), robe (2), pieu ; colonnes de
+# part et d'autre du pieu (x = 15-16), jamais sur les yeux
+GROW = Grower(W, H, (16, 31), rows=(7, 11, 21, 24, 28), cols=(7, 11, 13, 19, 23, 27), no_outline=NO_OUTLINE, eyes="k")
+SW, SH = GROW.W, GROW.H
 
 ROOT = HERE.parents[2]
 OUT = ROOT / "assets/characters/wara"
@@ -27,10 +33,11 @@ def rgb(h):
 
 
 def to_img(grid):
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    h, w = grid.shape
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = im.load()
-    for y in range(H):
-        for x in range(W):
+    for y in range(h):
+        for x in range(w):
             c = grid[y, x]
             if c != ".":
                 px[x, y] = rgb(PAL[c]) + (255,)
@@ -56,20 +63,21 @@ def check(name, grid):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     n = len(GAME_FRAMES)
-    sheet = Image.new("RGBA", (n * (W + SPACING) - SPACING, H), (0, 0, 0, 0))
+    sheet = Image.new("RGBA", (n * (SW + SPACING) - SPACING, SH), (0, 0, 0, 0))
     frames = {}
     for i, (name, fn) in enumerate(GAME_FRAMES):
         grid = fn()
         check(name, grid)
-        x = i * (W + SPACING)
+        grid = GROW.grow(grid)
+        x = i * (SW + SPACING)
         sheet.paste(to_img(grid), (x, 0))
-        frames[name] = {"x": x, "y": 0, "w": W, "h": H}
+        frames[name] = {"x": x, "y": 0, "w": SW, "h": SH}
     sheet.save(OUT / "wara_sheet.png")
     meta = {
         "name": "WARA",
         "image": "wara_sheet.png",
-        "cell": {"w": W, "h": H},
-        "pivot": {"x": 16, "y": 31, "note": "sous le pieu, comme KAGE"},
+        "cell": {"w": SW, "h": SH},
+        "pivot": {"x": GROW.PIVOT[0], "y": GROW.PIVOT[1], "note": "sous le pieu, comme KAGE (agrandi de 20 %, grow20.py)"},
         "facing": "right",
         "frames": frames,
         "animations": {
@@ -85,10 +93,10 @@ def main():
                          "note": "tranché, pouf, en tas, le talisman s'envole ; 0 = jusqu'à la fin"},
         },
         "tornSuffix": "_torn",
-        "boxes": {
+        "boxes": {k: GROW.box(v) for k, v in {
             "body": {"x": 10, "y": 10, "w": 12, "h": 21, "note": "corps (touché par le sabre et les shurikens)"},
             "spin": {"x": -5, "y": 12, "w": 42, "h": 16, "note": "traverse en hélice : touche des deux côtés"},
-        },
+        }.items()},
     }
     (OUT / "wara.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     print(f"OK — WARA : {n} images")
