@@ -3,6 +3,7 @@
 Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en français.
 
 ## Reprise
+- Message d'introduction pour une nouvelle conversation : `docs/MESSAGE_NOUVELLE_CONVERSATION.md` (à tenir à jour en fin de série).
 - **Lire d'abord `docs/REPRISE.md`** : état du projet, décisions de design, valeurs de réglage, carte des fichiers, préférences de l'utilisateur, pistes restantes.
 - **Site du jeu** : https://raphgh31.github.io/ninja-video-game/ — mis en ligne automatiquement par `.github/workflows/deploy.yml` à chaque push sur `main` (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Après une fusion, vérifier que le workflow a réussi et tester le site.
 - Version de test hors `main` : artefact claude.ai `5f0bb94d-1fa1-48d5-b9b9-f829586682e6` (https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm), à republier avec `dist/kage-standalone.html`.

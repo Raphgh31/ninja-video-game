@@ -4,9 +4,11 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 
 > **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et écrire :
 > « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE. »
-> Puis dire ce qu'on veut faire : poursuivre les retouches du décor du Potager, ou passer à la planche de design du marchand (direction choisie : le sage voyageur), voir § 9.
+> Puis dire ce qu'on veut faire (voir § 9). Message d'introduction prêt à coller : `docs/MESSAGE_NOUVELLE_CONVERSATION.md`.
 >
-> Tout est dans `main`, y compris la refonte visuelle du Potager (PR #11 fusionnée) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 3 novembre 2026 (sons de KAGE revus, musique du Potager).
+> Tout est dans `main` (série « Potager » fusionnée par la PR #19 : sons, musique, lanternes, grenier, rizières, touches, titre, boss KARASU-KASHI, verger, shuriken, pose de repos) ; aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 5 novembre 2026.
+>
+> **À faire valider en premier** : la **nouvelle pose de repos de KAGE** (§ 9, 3e essai, pas encore vue en jeu par l'utilisateur) et la question en suspens du **sprint sur Maj droite seulement**.
 
 ---
 
@@ -27,7 +29,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA + KARASU) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : jeu complet en un seul fichier
-npm test             # build + version autonome + 58 tests de bout en bout dans Chromium
+npm test             # build + version autonome + 64 tests de bout en bout dans Chromium
 ```
 
 Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -64,7 +66,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 | `tools/kage_forge/enemies/` | TATE : `tate.py` (poses), `build_tate.py` (export jeu), `tate_board.py` (planche de design) ; WARA : `wara.py`, `build_wara.py`, `wara_board.py` ; KARASU-KASHI : `karasu.py`, `build_karasu.py`, `karasu_board.py` |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
 | `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
-| `tests/e2e.cjs` | 58 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tests/e2e.cjs` | 64 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/`, `karasu/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/MONDE.md`, `tools/monde_carte.py` | plan du monde (7 chapitres) et carte schématique `docs/monde/carte_du_monde.png` |
@@ -76,7 +78,7 @@ Avant de pousser : `npm run sprites` puis `npm test` sans échec, et vérifier d
 - Ninja noir, minimaliste, agile ; pixel art net, cellule **48×32** (le personnage occupe 32 colonnes, les 16 de droite servent au sabre), ancrage **(16, 31)** sous les pieds, orientation droite et retournement pour la gauche.
 - **Visage et mains visibles** : bande de peau autour des yeux (yeux sombres) et mains couleur peau, demandés d'après une image de référence.
 - **Pas de capuche pointue** (« chapeau de lutin » refusé) : capuche arrondie, **bandeau de foulard au front noué en papillon derrière la tête**, les deux pans (un long, un court, de longueur fixe) partent de ce nœud.
-- **Garde basse** : jambe avant fléchie (genou devant la cheville), jambe arrière presque tendue, poing lointain levé. La version d'avant donnait des jambes tendues et cambrées.
+- **Garde basse** : jambe avant fléchie (genou devant la cheville), jambe arrière presque tendue. La version d'avant donnait des jambes tendues et cambrées. **Bras au repos** (novembre 2026, d'après une référence) : un bras derrière le dos, seule la main ressort à la hanche ; l'autre armé, poing devant la poitrine (§ 9).
 - Palette unique « Encre » (`skins/encre.json`). Le système de palette par « slots » reste en place, mais **les skins sont mis de côté** (les exemples Cendre et Minuit ont été supprimés).
 
 ### Animations (20)
@@ -177,7 +179,7 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
   - **Collision** : plafond invisible `%` qui suit la pente du toit (calculé sur sa forme), marche de foin `%` ; `%` = bloc invisible (légende dans `maps.js`). Test : on rejoint le grenier par le foin et on ramasse ses ryō. Planche : `docs/potager/grenier_grange.png`.
 - **Ce qui bouge** (`potager/live.js`) : roue à eau (derrière la berge, elle plonge dans le canal), eau du bief, cascade et écume, reflets et nénuphars, poissons qui sautent, tonneaux qui flottent, **kappa pêcheur** qui plonge quand KAGE approche, koïs, fumées, pluie sur la serre et gouttes qui tombent par les déchirures, rais de lumière, pénombre de la grange avec halos de lanternes et poussières, lanternes et clochette de l'échoppe, papillons, pétales, feuilles, libellules, poussières dorées. Les lanternes de sauvegarde sont des lanternes de papier sur poteau.
 - **Performances** : tout est peint une fois (~0,8 s au chargement), le terrain par tranches de 512 px peintes à la demande ; 60 images/s.
-- Planche des 8 zones : `docs/potager/potager_zones.png` ; course : `docs/potager/potager_course.gif`.
+- Planche des 8 premières zones (avant la zone 9) : `docs/potager/potager_zones.png` ; course : `docs/potager/potager_course.gif`.
 - Tests ajoutés : cadrage 448×252 et sol en bas de l'image, stabilité (une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d'un seul mouvement), caméra immobile pendant un saut, zone morte.
 
 ## 6 ter. Historique des grandes étapes (toutes fusionnées dans `main`)
@@ -190,6 +192,7 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 6. **Chapitre 1, le Potager**, en greybox jouable (PR #9).
 7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
 8. **Refonte visuelle du Potager** (PR #11) : cadrage 448×252, caméra posée à paliers, paysage sur son propre calque, terrain retravaillé (terre et murets), colline en terrasses avec cascade, décor peint et animé (§ 6 quater).
+9. **Série « Potager »** (PR #19, branche `claude/serie-potager`, novembre 2026) : sons de KAGE revus et volumes baissés, musique du Potager (intro + boucle), une lanterne au début de chaque zone, grenier de la grange (3e étage) et toit qui s'efface, rizières repeintes, touches X/W, C/V, B/N, titre « The Ninja Game », **mini-boss KARASU-KASHI** (zone 9 et porte du temple), verger sans branches flottantes, shuriken en vol plus grand et plus lent, pose de repos de KAGE refaite.
 
 ## 7. Effets et sons
 
@@ -224,6 +227,11 @@ Demande de l'utilisateur : un Potager « riche et paisible », au niveau des jeu
 - Il préfère qu'on lui présente les choix importants (ordre des chapitres, mécaniques) avant de coder, et qu'on avance par phases : greybox jouable, puis planches de design, puis art définitif.
 
 ## 9. Ce qui reste à faire (pistes discutées)
+
+- **En attente de l'avis de l'utilisateur** :
+  - **Pose de repos de KAGE** : 3e essai (`STANCE` / `STANCE_LOW` dans `tools/kage_forge/art.py`, `back_arm` et `far_hand` dans `rig.py`). Référence fournie : un ninja de trois quarts, un bras passé derrière le dos dont seule la main ressort à la hanche (coude un peu plié, caché), l'autre armé, coude en arrière, poing juste devant la poitrine. Les deux premiers essais ont été refusés (« bras emmêlés » : bras dessinés par-dessus le buste ; puis bras tendus). Planche avant / après / référence : `docs/kage/pose_repos.png`. S'il faut encore ajuster : déplacer la main (`back_arm[-1]`) ou le poing (`far_arm[-1]`) d'un pixel, régénérer (`npm run sprites`), montrer la planche.
+  - **Sprint sur Maj droite seulement ?** Évoqué dans un message interrompu, jamais confirmé : les deux Maj fonctionnent.
+  - **KARASU-KASHI à régler en jouant** : 24 PV, cadence des salves, durée de la fenêtre au sabre (`KARASU` dans `src/game/karasu.js`).
 
 - **Méthode pour une retouche du décor** : modifier `src/game/potager/…` ou `src/game/chapters/potager.js`, puis `npm run standalone`, `node tools/capture.cjs <dossier>/vue 110 121` (colonnes en cases ; la zone 2 commence vers la colonne 100) ou `node tools/capture.cjs --colline <fichier.png>`, regarder et zoomer, ajuster ; enfin `npm run sprites`, `npm test`, mise à jour de ce fichier, commit, push, republication de l'artefact et capture envoyée à l'utilisateur.
 - **Sons** : faire valider à l'oreille les nouveaux bruitages et la musique (banc d'écoute) ; volume de la musique réglable par `MUSIC.volume` (`src/engine/music.js`). Ensuite : sons d'ambiance par zone.
