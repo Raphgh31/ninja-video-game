@@ -772,6 +772,18 @@ async function main() {
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 
+  await test('cabine des skins : le Potager s\'ouvre sans écran titre, la barre change le skin (clic et touches 1, 2…)', async () => {
+    const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-skins.html')); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
+    const r0 = await lp.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.run.paused, window.__kage.skin, document.querySelectorAll('.skinlab button').length]);
+    await lp.click('.skinlab [data-skin="encre"]'); await lp.waitForTimeout(100);
+    const r1 = await lp.evaluate(() => window.__kage.skin);
+    await lp.keyboard.press('2'); await lp.waitForTimeout(100);
+    const r2 = await lp.evaluate(() => window.__kage.skin);
+    await lp.close();
+    expect(r0.join() === 'true,false,vagabond,2' && r1 === 'encre' && r2 === 'vagabond', `ouverture ${r0.join()}, clic ${r1}, touche 2 ${r2}`);
+  });
+
   await test('version de test : tous les skins se portent sans achat', async () => {
     const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);

@@ -123,6 +123,8 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
+// cabine d'essayage des skins (artefact de test dédié, window.__KAGE_SKINLAB) : le Potager sans écran titre + barre des skins
+const SKIN_LAB = !!globalThis.__KAGE_SKINLAB;
 const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
 if (level.art) {
@@ -413,6 +415,47 @@ let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
 for (const a of document.querySelectorAll('.levels a')) if (a.dataset.level === LEVEL_ID) a.setAttribute('aria-current', 'page');
+if (SKIN_LAB) setupSkinLab();
+
+/** Cabine d'essayage : une vignette par skin en haut de l'image ; clic ou touches 1, 2… */
+function setupSkinLab() {
+  document.querySelector('.levels').style.display = 'none';
+  document.title = 'The Ninja Game — cabine des skins';
+  const bar = document.createElement('div');
+  bar.className = 'skinlab';
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', 'Skins');
+  const f = meta.animations.idle.frames[0];
+  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
+  const buttons = ids.map((id, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.skin = id;
+    b.title = `${skins[id].name} (touche ${i + 1})`;
+    const cv = document.createElement('canvas');
+    cv.width = 32; cv.height = 26;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.drawImage(skins[id].sheet, f.x, f.y + 6, 32, 26, 0, 0, 32, 26);
+    const name = document.createElement('span');
+    name.textContent = skins[id].name;
+    b.append(cv, name);
+    b.addEventListener('click', () => pick(id));
+    b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    bar.append(b);
+    return b;
+  });
+  function pick(id) {
+    wearSkin(id);
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
+  }
+  addEventListener('keydown', (e) => {
+    const n = Number(e.key);
+    if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
+  });
+  document.querySelector('.stage').append(bar);
+  pick(ids.find((id) => id !== 'encre') ?? 'encre');
+}
 
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
@@ -761,7 +804,7 @@ function startChapter(resume) {
   save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
   save.skins ??= ['encre'];   // sauvegarde d'avant les skins
   save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
-  wearSkin(save.skin);
+  if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);
   run.time = save.time;
   run.falls = save.falls;
@@ -793,6 +836,7 @@ if (CHAPTER) {
   cont.addEventListener('click', () => startChapter(true));
   title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
   (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
+  if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
 }
 
 // barre de vie du boss : fine, en haut de l'image, avec son nom ; la part perdue

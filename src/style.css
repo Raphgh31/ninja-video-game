@@ -196,3 +196,14 @@ body.mobile .shop { gap: .45rem; padding: .7rem 1rem; }
 body.mobile .shop__item { padding: .15rem .4rem .15rem .2rem; gap: .6rem; }
 body.mobile .shop__thumb { width: 48px; height: 39px; }
 body.mobile .shop__items { padding-top: .35rem; gap: .25rem; }
+
+/* cabine d'essayage des skins (artefact de test dédié) */
+.skinlab { position: absolute; z-index: 3; top: calc(50% - var(--gh, 100%) / 2 + .5rem); right: calc(50% - var(--gw, 100%) / 2 + .5rem);
+  display: flex; gap: .35rem; padding: .3rem; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
+.skinlab button { display: grid; justify-items: center; gap: .15rem; font: inherit; font-size: .62rem; color: #d8cdb4;
+  background: transparent; border: 1px solid transparent; padding: .25rem .45rem; cursor: pointer; }
+.skinlab button:hover { border-color: rgba(233, 229, 218, .3); }
+.skinlab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
+.skinlab canvas { width: 48px; height: 39px; image-rendering: pixelated; }
+body.mobile .skinlab canvas { width: 32px; height: 26px; }
+body.mobile .skinlab { top: calc(50% - var(--gh, 100%) / 2 + 2.6rem); }
