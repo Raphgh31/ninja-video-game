@@ -10,9 +10,10 @@ Bonjour ! On reprend mon jeu **The Ninja Game** (le ninja s'appelle KAGE), un je
 1. `CLAUDE.md` (règles du projet et façon de travailler),
 2. `docs/REPRISE.md` (état complet du jeu, décisions, valeurs de réglage, carte des fichiers, mes préférences, ce qui reste à faire — surtout le § 9),
 3. `docs/MONDE.md` (plan du monde : 7 chapitres),
-4. `docs/enemies/README.md` (TATE, WARA et le mini-boss KARASU-KASHI).
+4. `docs/enemies/README.md` (TATE, WARA et le mini-boss KARASU-KASHI),
+5. `docs/carte-mentale/README.md` : la carte mentale de tout le jeu (`docs/carte-mentale/index.html`). **Règle : chaque modification du jeu la met aussi à jour, dans le même commit** (`npm run carte` le vérifie, et `npm test` le lance).
 
-**Où on en est** : tout est dans `main` et en ligne (https://raphgh31.github.io/ninja-video-game/). Le chapitre 1, le Potager, est jouable de bout en bout : 9 zones, une lanterne de sauvegarde au début de chaque zone, le marchand, et le mini-boss **KARASU-KASHI** (le corbeau au grand chapeau de paille) dans la zone 9, dont la défaite ouvre la porte du temple et termine le chapitre. 64 tests automatiques passent. Version de test : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (à republier avec `dist/kage-standalone.html`).
+**Où on en est** : tout est dans `main` et en ligne (https://raphgh31.github.io/ninja-video-game/). Le chapitre 1, le Potager, est jouable de bout en bout : 9 zones, une lanterne de sauvegarde au début de chaque zone, le marchand, et le mini-boss **KARASU-KASHI** (le corbeau au grand chapeau de paille) dans la zone 9, dont la défaite ouvre la porte du temple et termine le chapitre. 64 tests automatiques passent. Version de test : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (à republier avec `dist/kage-standalone.html`). Carte mentale en ligne : https://raphgh31.github.io/ninja-video-game/carte-mentale/ (page claude.ai : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi).
 
 **Ce qui attend mon avis** :
 - la nouvelle **pose de repos de KAGE** (un bras derrière le dos dont seule la main ressort à la hanche, l'autre armé, poing devant la poitrine) — 3e essai, planche `docs/kage/pose_repos.png` ;
