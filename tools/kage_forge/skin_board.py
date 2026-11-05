@@ -2,7 +2,7 @@
 
 usage : python3 skin_board.py <id> <sortie.png> [référence.png x0 y0 x1 y1]
 
-Un skin = une palette (slot -> couleur) + éventuellement un accessoire posé
+Un skin (assets/characters/kage/skins/<id>.json) = une palette + des accessoires (accessories.py).
 sur la tête (chapeau…), dessiné ici par-dessus chaque image : la tête de
 profil a toujours la même forme, on la retrouve dans l'image et on y pose
 l'accessoire, puis on lui ajoute son propre contour.
@@ -21,129 +21,25 @@ from core import CH, CW, render  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 ENCRE = json.loads((ROOT / "assets/characters/kage/skins/encre.json").read_text())["colors"]
 
-# ---------------------------------------------------------------------------
-# Accessoires (tampons ASCII) : slots du chapeau
-#   r  dessous du bord (ombre) · p paille ombre · P paille · Q paille éclairée
-# ---------------------------------------------------------------------------
-HATS = {
-    # sugegasa : grand chapeau conique de paille, rayons tressés, petite pointe.
-    # (dx, dy) = position du coin haut-gauche par rapport à la tête (hx, hy)
-    "sugegasa": dict(dx=-2, dy=-1, text="""
-.......rQ.......
-......pPPQ......
-....pPpPPPQQ....
-..pPPpPPPPpPQQ..
-pPpPPPPpPPPPPPQQ
-rrrrrrrrrrrrrrrr
-"""),
-}
+from accessories import accessory  # noqa: E402
 
-SKINS = {
-    "vagabond": dict(
-        name="Le vagabond",
-        rarity="Commun",
-        hat="sugegasa",
-        cord=True,
-        colors={**ENCRE,
-                # capuche, tenue : bleu nuit au lieu du noir
-                "h": "#141824", "H": "#1f2636", "I": "#3a4661",
-                "M": "#0b0d13",
-                "t": "#141925", "T": "#212939", "U": "#3a4559",
-                # pièces vert mousse : avant-bras, pan de ceinture
-                "a": "#3a4931", "A": "#5e7246",
-                "l": "#2c3826", "L": "#4b5d3c",
-                "d": "#0d0f15", "D": "#252a35",
-                # foulard ardoise
-                "f": "#181c26", "F": "#2b313f", "G": "#485164",
-                "k": "#2b313f", "K": "#485164",
-                # chapeau de paille
-                "c": "#c9a246", "C": "#8e6d2a", "r": "#3e2c1a", "p": "#8d6a38", "P": "#b88f4f", "Q": "#dcbc7c"},
-    ),
-}
-
-HEAD_TOP = ["...hhHHHHI..", "..hHHHHHHHI.", ".hhHHHHHHHHI"]   # lignes 1-3 des têtes de profil
+SKINS_DIR = ROOT / "assets/characters/kage/skins"
 
 
-def parse(text):
-    rows = [r for r in text.strip("\n").splitlines() if r.strip()]
-    return rows
-
-
-def find_head(g):
-    """(hx, hy) de la tête de profil dans la grille, ou None."""
-    for y in range(CH - 3):
-        for x in range(-1, CW - 11):
-            ok = True
-            for k, row in enumerate(HEAD_TOP):
-                for i, c in enumerate(row):
-                    if c == ".":
-                        continue
-                    gx = x + i
-                    if not (0 <= gx < CW) or g[y + k, gx] != c:
-                        ok = False
-                        break
-                if not ok:
-                    break
-            if ok:
-                return x, y - 1
-    return None
-
-
-def with_hat(g, hat):
-    g = g.copy()
-    pos = find_head(g)
-    if pos is None:
-        return g, False
-    hx, hy = pos
-    H = HATS[hat]
-    rows = parse(H["text"])
-    mask = np.zeros(g.shape, bool)
-    for j, row in enumerate(rows):
-        for i, c in enumerate(row):
-            if c == ".":
-                continue
-            x, y = hx + H["dx"] + i, hy + H["dy"] + j
-            if 0 <= x < CW and 0 <= y < CH:
-                g[y, x] = c
-                mask[y, x] = True
-    # contour propre au chapeau (voisinage 4), par-dessus le reste
-    for y in range(CH):
-        for x in range(CW):
-            if mask[y, x]:
-                continue
-            if any(0 <= x + dx < CW and 0 <= y + dy < CH and mask[y + dy, x + dx]
-                   for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
-                # contour seulement sur le fond : sous le bord, le chapeau touche la tête
-                # directement (le liseré sombre du bord suffit, pas de double trait noir)
-                if g[y, x] == ".":
-                    g[y, x] = "O"
-    return g, True
-
-
-BELT = "lLLLLLl"
-
-
-def with_cord(g):
-    """Cordelette dorée en bandoulière (de l'épaule avant à la hanche arrière),
-    posée seulement sur la tunique (jamais sur un bras ou une main)."""
-    g = g.copy()
-    for y in range(CH):
-        row = "".join(g[y])
-        x = row.find("lLL")      # bord arrière de la ceinture
-        if x < 0:
-            continue
-        for k in range(4):        # de l'épaule avant à la hanche arrière
-            cx, cy = x + 5 - k, y - 4 + k
-            if 0 <= cy and g[cy, cx] in "tTU":
-                g[cy, cx] = "c" if k % 2 else "C"
-        return g
-    return g
+def load_skin(sid):
+    d = json.loads((SKINS_DIR / f"{sid}.json").read_text())
+    return dict(name=d["name"], rarity=d.get("rarity", "").capitalize(),
+                acc=d.get("accessories", []), colors=d["colors"])
 
 
 def dress(g, S):
-    if S.get("cord"):
-        g = with_cord(g)
-    return with_hat(g, S["hat"])
+    """(grille habillée, chapeau bien posé ?)"""
+    ok = True
+    for n in S["acc"]:
+        g, found = accessory(n)(g)
+        if n != "cord":
+            ok &= found
+    return g, ok
 
 
 def to_img(g, colors, bg=None):
@@ -173,7 +69,7 @@ def main():
     if len(sys.argv) > 3:
         x0, y0, x1, y1 = map(int, sys.argv[4:8])
         ref = Image.open(sys.argv[3]).convert("RGB").crop((x0, y0, x1, y1))
-    S = SKINS[sid]
+    S = load_skin(sid)
     PAPER, INK = (243, 236, 224), (40, 36, 32)
     poses = [("idle", 0), ("idle", 2), ("run", 0), ("run", 3), ("sprint", 1), ("jump", 1),
              ("fall", 1), ("dash", 2), ("attack", 3), ("kick", 3), ("throw", 3), ("slide", 1),
@@ -183,7 +79,7 @@ def main():
     img = Image.new("RGB", (W, 1130), PAPER)
     d = ImageDraw.Draw(img)
     d.text((40, 28), f"Skin — {S['name']}", fill=INK, font=font(30))
-    d.text((40, 70), f"{S['rarity']} · palette + chapeau ({S['hat']}) · même animation, même boîte de collision",
+    d.text((40, 70), f"{S['rarity']} · palette + accessoires ({', '.join(S['acc'])}) · même animation, même boîte de collision",
             fill=(110, 100, 90), font=font(16))
 
     # 1. grand : avant (Encre) / après / référence

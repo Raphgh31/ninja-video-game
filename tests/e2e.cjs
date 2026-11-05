@@ -745,6 +745,52 @@ async function main() {
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
   });
 
+  await test('potager : skins — le vagabond (100 ryō) s\'achète chez le marchand, se porte et est sauvegardé', async () => {
+    const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
+    await pat(mx - 1); await pw(200);
+    const before = await pg.evaluate(() => window.__kage.save.ryo);
+    await pg.evaluate(() => { window.__kage.save.ryo = 40; });
+    await PK.press('ArrowUp'); await pw(200);
+    const rows = await pg.evaluate(() => [...document.querySelectorAll('.shop__item')].map((r) => r.dataset.skin + ':' + r.querySelector('button').textContent));
+    // trop pauvre : rien ne change
+    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    const poor = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin]);
+    await pg.evaluate(() => { window.__kage.save.ryo = 130; });
+    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    const bought = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin, document.querySelector('[data-purse]').textContent,
+      document.querySelector('[data-skin="vagabond"] button').textContent]);
+    // retour à Encre puis de nouveau le vagabond, sans payer
+    await pg.click('[data-skin="encre"] button'); await pw(100);
+    const back = await pg.evaluate(() => [window.__kage.skin, document.querySelector('[data-skin="vagabond"] button').textContent]);
+    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    await PK.press('Escape'); await pw(200);
+    const saved = await SAVE();
+    expect(rows.join() === 'encre:Porté,vagabond:Acheter · 100 ryō' && poor.join() === '40,encre'
+      && bought.join() === '30,vagabond,30 ryō,Porté' && back.join() === 'encre,Porter'
+      && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 30,
+      `rayon ${rows.join()} · pauvre ${poor.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
+    await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
+  });
+
+  await test('version de test : tous les skins se portent sans achat', async () => {
+    const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
+    await tp.evaluate(() => localStorage.clear()); await tp.reload(); await tp.waitForFunction(() => window.__kage); await tp.waitForTimeout(300);
+    await tp.click('[data-new]'); await tp.waitForTimeout(200);
+    await tp.evaluate(() => {
+      const g = window.__kage, pl = g.player, l = g.level, tx = Math.floor(l.merchant.x / 16) - 1;
+      let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;
+      pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle');
+    });
+    await tp.waitForTimeout(300);
+    await tp.keyboard.press('ArrowUp'); await tp.waitForTimeout(200);
+    const label = await tp.evaluate(() => document.querySelector('[data-skin="vagabond"] button')?.textContent);
+    await tp.click('[data-skin="vagabond"] button'); await tp.waitForTimeout(100);
+    const r = await tp.evaluate(() => [window.__kage.skin, window.__kage.save.ryo]);
+    await tp.close();
+    expect(label === 'Porter' && r.join() === 'vagabond,0', `bouton ${label}, skin ${r.join()}`);
+  });
+
   // ---- zone 9 : KARASU-KASHI, le corbeau du potager ----
   const B = await pg.evaluate(() => { const b = window.__kage.boss; return { a0: b.arena[0] / 16, a1: b.arena[1] / 16, ground: b.groundY }; });
   const gateOpen = () => pg.evaluate((a1) => { const l = window.__kage.level; return !l.solid(a1, l.boss.y - 1); }, B.a1);

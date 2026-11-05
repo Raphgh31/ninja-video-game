@@ -251,6 +251,42 @@
       "slot": "q",
       "part": "fx",
       "role": "spark"
+    },
+    {
+      "index": 31,
+      "slot": "r",
+      "part": "hat",
+      "role": "rim"
+    },
+    {
+      "index": 32,
+      "slot": "p",
+      "part": "hat",
+      "role": "shadow"
+    },
+    {
+      "index": 33,
+      "slot": "P",
+      "part": "hat",
+      "role": "base"
+    },
+    {
+      "index": 34,
+      "slot": "Q",
+      "part": "hat",
+      "role": "light"
+    },
+    {
+      "index": 35,
+      "slot": "c",
+      "part": "cord",
+      "role": "light"
+    },
+    {
+      "index": 36,
+      "slot": "C",
+      "part": "cord",
+      "role": "shadow"
     }
   ],
   "animations": {
@@ -1090,8 +1126,12 @@
     }
   },
   "skins": [
-    "encre"
+    "encre",
+    "vagabond"
   ],
+  "accessorySheets": {
+    "vagabond": "kage_acc_vagabond_index.png"
+  },
   "projectiles": {
     "shuriken": {
       "image": "kage_shuriken.png",

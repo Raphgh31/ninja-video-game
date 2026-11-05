@@ -170,6 +170,17 @@ body.mobile .talk__key { display: none; }
 .shop__tabs button[aria-pressed="true"] { background: #8e6a44; border-color: #8e6a44; color: #fff7e6; }
 .shop__items { min-height: 4rem; border-top: 1px solid #4a382a; padding-top: .6rem; }
 .shop__empty { margin: 0; font-size: .75rem; color: #a99a80; }
+.shop__items { display: grid; gap: .5rem; }
+.shop__item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem;
+  padding: .35rem .5rem .35rem .3rem; border-bottom: 1px solid #3a2a1e; }
+.shop__item:last-of-type { border-bottom: 0; }
+.shop__thumb { width: 64px; height: 52px; image-rendering: pixelated; background: #2e221a; }
+.shop__text { display: grid; gap: .15rem; }
+.shop__text strong { font-size: .8rem; font-weight: 600; letter-spacing: .03em; }
+.shop__text span { font-size: .7rem; color: #a99a80; line-height: 1.35; }
+.shop button:disabled { opacity: .55; cursor: default; }
+.shop button.shop__poor { color: #a99a80; border-color: rgba(233, 229, 218, .2); }
+.shop__item button { white-space: nowrap; }
 .shop__close { justify-self: end; }
 .win__next { margin: -.4rem 0 .8rem; font-size: .75rem; color: #c9c3b4; max-width: 18rem; }
 .win__next:empty { display: none; }
@@ -179,3 +190,9 @@ body.mobile .zone-banner strong { font-size: .8rem; }
 /* calque des commandes tactiles : au-dessus du jeu, sous l'interface du chapitre */
 body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touch-action: none;
   image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* boutique sur téléphone : plus compacte, pour tenir dans la hauteur en paysage */
+body.mobile .shop { gap: .45rem; padding: .7rem 1rem; }
+body.mobile .shop__item { padding: .15rem .4rem .15rem .2rem; gap: .6rem; }
+body.mobile .shop__thumb { width: 48px; height: 39px; }
+body.mobile .shop__items { padding-top: .35rem; gap: .25rem; }

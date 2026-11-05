@@ -118,7 +118,10 @@ addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
-const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
+let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à la boutique du marchand
+// version de test (artefact privé) : tous les skins sont disponibles sans achat
+const TEST_BUILD = !!globalThis.__KAGE_TEST;
+function wearSkin(id) { look = skins[id] ?? skins.encre; }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
@@ -168,7 +171,24 @@ const ui = {
   saved: document.querySelector('.saved'),
   talk: document.querySelector('.talk'),
 };
-const shop = new Shop(document.querySelector('.shop'));
+const shop = new Shop(document.querySelector('.shop'), {
+  skins, meta, test: TEST_BUILD,
+  buy(id) {
+    const sk = skins[id];
+    if (!save || save.skins.includes(id) || save.ryo < sk.price) return false;
+    save.ryo -= sk.price;
+    save.skins.push(id);
+    sfx('coin');
+    this.wear(id);
+    return true;
+  },
+  wear(id) {
+    if (!save) return;
+    save.skin = id;
+    wearSkin(id);
+    persist();
+  },
+});
 shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
@@ -712,7 +732,7 @@ function openShop() {
   music.setLevel(MUSIC.duck, 0.4);
   hideChapterUi();
   sfx('bell');
-  shop.open({ firstVisit: !save.merchantMet, ryo: save.ryo });
+  shop.open({ firstVisit: !save.merchantMet, save });
   if (!save.merchantMet) { save.merchantMet = true; persist(); }
 }
 ui.talk.addEventListener('click', openShop);
@@ -739,6 +759,9 @@ function startChapter(resume) {
   const s = resume ? loadSave() : null;
   if (!resume) clearSave();
   save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
+  save.skins ??= ['encre'];   // sauvegarde d'avant les skins
+  save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
+  wearSkin(save.skin);
   level.applySave(save);
   run.time = save.time;
   run.falls = save.falls;
@@ -876,4 +899,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; } };

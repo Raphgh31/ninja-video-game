@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from art import ANIMS, SHURIKEN, VIEWS  # noqa: E402
 from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
+from accessories import find_head, overlay  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/characters/kage"
@@ -112,6 +113,20 @@ def main():
     # planche de référence + carte d'index + calques
     sheet(lambda g: to_rgba(g, ref)).save(OUT / "kage_sheet.png")
     sheet(to_index).save(OUT / "kage_sheet_index.png")
+    # calques d'accessoires des skins (chapeau, cordelette…), posés par le jeu
+    # par-dessus la planche du skin ; même disposition que la carte d'index
+    acc_sheets = {}
+    for sid, sk in skins.items():
+        names = sk.get("accessories") or []
+        if not names:
+            continue
+        nohead = [f"{k}[{i}]" for k in order for i, g in enumerate(rendered[k])
+                  if k not in ("death", "respawn") and find_head(g) is None]
+        if nohead:
+            raise SystemExit(f"Accessoires du skin {sid} : tête introuvable dans {', '.join(nohead)}")
+        f = f"kage_acc_{sid}_index.png"
+        sheet(lambda g, names=names: to_index(overlay(g, names))).save(OUT / f)
+        acc_sheets[sid] = f
     for part in PARTS:
         slots = {s for s, (p, _) in SLOTS.items() if p == part}
         sheet(lambda g, slots=slots: to_rgba(g, ref, only=slots)).save(OUT / "layers" / f"kage_{part}.png")
@@ -196,6 +211,7 @@ def main():
         "views": {k: {"x": i * sx, "y": 0, "w": CW, "h": CH, "image": "kage_views.png"}
                   for i, k in enumerate(vorder)},
         "skins": sorted(skins),
+        "accessorySheets": acc_sheets,
         "projectiles": {
             "shuriken": {
                 "image": "kage_shuriken.png",
