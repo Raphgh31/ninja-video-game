@@ -66,7 +66,7 @@ const TERRACE_KINDS = [0.2, 0.5, 0.9, 0.2, 0.7, 0.5, 0.2, 0.9, 0.7, 0.2, 0.5, 0.
 // couches de chaque type de décor (dans l'ordre de peinture)
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
-  house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'], orchard_canopy: ['front'],
+  house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
   bridge_red: ['back'], stall: ['back'], temple_gate: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
@@ -76,7 +76,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 70, orchard_canopy: 600, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -509,19 +509,6 @@ const PAINT = {
     } else if (layer === 'front' && (p.front ?? true)) {
       // quelques feuilles basses passent devant KAGE (haut du feuillage seulement)
       leaves(b, top.x + 16 * s, top.y + 8, 6 * s, ramp, p.x + 50, { light: -0.1 });
-    }
-  },
-
-  orchard_canopy(b, p, X, Y, env) {
-    // voûte de branches au-dessus du chemin du verger : premier plan
-    const x0 = p.x * TILE, w = (p.w ?? 20) * TILE, top = p.top ?? 70;
-    const r = rng(p.x * 3);
-    for (let x = x0; x < x0 + w; x += 18 + r() * 20) {
-      const dep = 30 + r() * 40;
-      limb(b, x, top - 6, x + (r() - 0.5) * 30, top + dep * 0.6, 4, 2, C.WOOD);
-      leaves(b, x + (r() - 0.5) * 20, top + dep * 0.5, 12 + r() * 8, r() < 0.4 ? C.BLOSSOM : C.LEAF, Math.round(x), { light: -0.15 });
-      leaves(b, x + (r() - 0.5) * 20, top + dep * 0.3, 10 + r() * 6, C.LEAF, Math.round(x) + 9, { light: -0.22 });
-      if (r() < 0.5) dots(b, x, top + dep * 0.5, 10, C.VEG.apple, 3, Math.round(x), 2);
     }
   },
 

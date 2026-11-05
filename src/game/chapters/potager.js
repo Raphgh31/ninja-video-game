@@ -247,15 +247,17 @@ function build() {
   b.zone('04', 'Le vieux verger');
   x = b.x; b.flat(6);
   b.on(x + 2, 'P'); b.legacy.push(x + 2);            // sauvegarde : entrée du verger
+  // arbres du verger : tailles variées (s), plantés au sol ; les grands d'abord, les petits devant
+  b.prop('tree', x + 1, G, { kind: 'pommier', s: 1.3 });
   b.prop('tree', x + 5, G, { kind: 'cerisier' });
-  b.prop('orchard_canopy', x + 2, G, { w: 54 });   // voûte de branches au-dessus du chemin
   b.hint('kick', x + 7);
   x = b.x; b.flat(18);
   b.prop('baskets', x + 9, G, { stolen: true });     // panier de légumes pillé
   b.on(x + 11, 'W');                                 // le petit nuisible, seul
-  b.prop('tree', x + 3, G, { kind: 'pommier' });
-  b.prop('tree', x + 15, G, { kind: 'poirier' });
-  b.prop('tree', x + 8, G, { kind: 'pommier', s: 0.8 });
+  b.prop('tree', x + 3, G, { kind: 'pommier', s: 1.25 });
+  b.prop('tree', x + 15, G, { kind: 'poirier', s: 1.1 });
+  b.prop('tree', x + 11, G, { kind: 'cerisier', s: 1.4 });
+  b.prop('tree', x + 8, G, { kind: 'pommier', s: 0.75 });
   b.prop('ladder', x + 5, G, { h: 3 });
   b.prop('bush', x + 12, G);
   b.row(x + 13, 4, G - 5, '=');                      // branche basse
@@ -264,9 +266,12 @@ function build() {
   b.flat(24);
   b.on(x + 9, 'W');                                  // deux nuisibles, espacés
   b.on(x + 20, 'W');
+  b.prop('tree', x + 10, G, { kind: 'poirier', s: 1.35 });
+  b.prop('tree', x + 25, G, { kind: 'pommier', s: 1.2 });
   b.prop('tree', x + 6, G, { kind: 'cerisier' });
   b.prop('ladder', x + 14, G, { h: 4 });
-  b.prop('tree', x + 17, G, { kind: 'pommier' });
+  b.prop('tree', x + 17, G, { kind: 'pommier', s: 1.15 });
+  b.prop('tree', x + 13, G, { kind: 'cerisier', s: 0.7 });
   b.prop('lantern_stone', x + 24, G);
   b.prop('tree', x + 1, G, { kind: 'poirier', s: 0.85 });
   b.prop('baskets', x + 11, G);
