@@ -28,10 +28,11 @@ ENCRE = json.loads((ROOT / "assets/characters/kage/skins/encre.json").read_text(
 HATS = {
     # sugegasa : grand chapeau conique de paille, rayons tressés, petite pointe.
     # (dx, dy) = position du coin haut-gauche par rapport à la tête (hx, hy)
-    "sugegasa": dict(dx=-2, dy=0, text="""
+    "sugegasa": dict(dx=-2, dy=-1, text="""
 .......rQ.......
+......pPPQ......
 ....pPpPPPQQ....
-..pPPpPPPPPPQQ..
+..pPPpPPPPpPQQ..
 pPpPPPPpPPPPPPQQ
 rrrrrrrrrrrrrrrr
 """),
