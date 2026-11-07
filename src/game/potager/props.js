@@ -91,6 +91,9 @@ export function roofCoverBox(gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
   return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
 }
+// haut des poteaux d'angle de la grange, par rapport à l'avant-toit : juste sous le bord du chaume
+const POST_TOP = 2;
+
 export function paintRoofCover(b, gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98;
   thatchRoof(b, (x0 + x1) / 2, ye - RH + 2, x1 - x0 + 70, RH, 91);
@@ -105,10 +108,11 @@ export function paintRoofCover(b, gb) {
       b.p(x, yy, pick(C.WOOD, clamp01(v), x, yy));
     }
   }
-  // les poteaux d'angle restent devant (même dessin que la couche avant de la grange)
-  const h = ye + TILE - (ye - 6);
-  b.r(x0 - 4, ye - 6, 8, h, C.WOOD[1]).r(x0 - 4, ye - 6, 2, h, C.WOOD[3]);
-  b.r(x1 - 6, ye - 6, 8, h, C.WOOD[1]).r(x1 - 6, ye - 6, 2, h, C.WOOD[3]);
+  // les poteaux d'angle restent devant la poutre (même dessin que la couche avant de la
+  // grange), mais passent SOUS le chaume : ils partent juste sous son bord (POST_TOP)
+  const top = ye + POST_TOP, h = ye + TILE - top;
+  b.r(x0 - 4, top, 8, h, C.WOOD[1]).r(x0 - 4, top, 2, h, C.WOOD[3]);
+  b.r(x1 - 6, top, 8, h, C.WOOD[1]).r(x1 - 6, top, 2, h, C.WOOD[3]);
 }
 
 // cultures des gradins de la colline, du sommet vers le bas (0,2 rizière inondée,
@@ -983,9 +987,11 @@ const PAINT = {
         }
       }
     } else if (layer === 'front') {
-      // encadrement de la porte et poteau d'angle, au premier plan
-      b.r(x0 - 4, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x0 - 4, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
-      b.r(x1 - 6, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x1 - 6, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
+      // encadrement de la porte et poteau d'angle, au premier plan ; ils partent sous le
+      // bord du chaume (le toit les recouvre, il ne passe pas derrière eux)
+      const top = ye + POST_TOP;
+      b.r(x0 - 4, top, 8, y1 - top, C.WOOD[1]).r(x0 - 4, top, 2, y1 - top, C.WOOD[3]);
+      b.r(x1 - 6, top, 8, y1 - top, C.WOOD[1]).r(x1 - 6, top, 2, y1 - top, C.WOOD[3]);
     }
   },
 
