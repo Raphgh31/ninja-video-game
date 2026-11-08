@@ -912,60 +912,138 @@ const PAINT = {
 
   // --- zone 5 : la serre de bambou ----------------------------------------
   serre(b, p, X, Y, env, layer) {
+    // grande serre de bambou (13 cases de haut) : voûte en arceaux, toiles
+    // translucides déchirées, hautes étagères, établi, semis, plantes suspendues
     const x0 = p.x0 * TILE, x1 = p.x1 * TILE, y0 = p.y0 * TILE, y1 = p.y1 * TILE;
+    const BAY = 48, top = y0 + 8;                     // haut des murs (sous le faîtage)
+    const arch = (x) => { const u = ((x - x0) % BAY) / BAY; return Math.round(Math.sin(u * Math.PI) * 9); };
     if (layer === 'backdrop') {
-      // toiles de protection tendues, translucides, déchirées par endroits
-      for (let x = x0; x < x1; x++) for (let y = y0 - 34; y < y1; y++) {
-        const u = (x - x0) % 48;
-        const sag = y < y0 ? Math.round(Math.sin((u / 48) * Math.PI) * 10) : 0;
-        if (y < y0 - 24 + sag) continue;
-        const torn = noise2(x * 0.08, y * 0.12, 71) > 0.72 && y > y0 + 6;
-        if (torn) { if (noise2(x * 0.08, y * 0.12, 71) < 0.74) b.p(x, y, 'rgba(240, 244, 228, 0.7)'); continue; }
-        const fold = Math.sin((x - x0) * 0.4) * 0.5 + 0.5;
-        const v = 0.55 + fold * 0.15 - (y - y0) / 300;
-        b.p(x, y, `rgba(${Math.round(222 + v * 20)}, ${Math.round(232 + v * 15)}, ${Math.round(205 + v * 20)}, ${y < y0 ? 0.92 : 0.66})`);
+      // 1. toiles : panneaux translucides, plus clairs en haut, coutures, déchirures
+      for (let x = x0; x < x1; x++) for (let y = top - 14; y < y1; y++) {
+        if (y < top - arch(x)) continue;
+        const n = noise2(x * 0.06, y * 0.09, 71);
+        if (n > 0.73 && y > top + 10 && y < y1 - 30) {                // déchirure : on voit dehors
+          if (n < 0.745) b.p(x, y, 'rgba(244, 246, 232, 0.8)');       // bord effiloché
+          continue;
+        }
+        const fold = Math.sin((x - x0) * 0.33) * 0.5 + 0.5;
+        const v = 0.62 + fold * 0.12 - (y - top) / 520;
+        const a = y < top ? 0.92 : 0.6 + (y - top) / (y1 - top) * 0.12;
+        b.p(x, y, `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, ${a.toFixed(2)})`);
+        if ((y - top) % 44 === 0 && y > top) b.p(x, y, 'rgba(150, 168, 120, 0.55)');   // ligne de couture
       }
-      // structure : arceaux et poteaux de bambou, étagères, pots, plantes grimpantes
-      for (let x = x0; x <= x1; x += 48) {
-        for (let y = y0 - 26; y < y1; y++) { b.p(x, y, C.BAMBOO[4]); b.p(x + 1, y, C.BAMBOO[2]); b.p(x + 2, y, C.BAMBOO[1]); }
-        for (let n = y0; n < y1; n += 14) b.r(x - 1, n, 5, 1, C.BAMBOO[0]);
-        // liane qui s'enroule
-        for (let y = y0; y < y1 - 2; y++) {
-          const vx = x + 1 + Math.round(Math.sin(y * 0.35 + x) * 3);
+      // 2. voûte : un arceau de bambou par travée, pannes, faîtage peint par les tuiles
+      for (let x = x0; x < x1; x++) {
+        const y = top - arch(x);
+        b.p(x, y, C.BAMBOO[4]).p(x, y + 1, C.BAMBOO[2]).p(x, y + 2, C.BAMBOO[1]);
+      }
+      for (const py of [top + 34, top + 78]) for (let x = x0; x < x1; x++) b.p(x, py, (x % 17) === 0 ? C.BAMBOO[0] : C.BAMBOO[2]).p(x, py + 1, C.BAMBOO[1]);
+      // 3. poteaux de bambou (un par travée), nœuds, liens, contrefiches, lianes
+      for (let x = x0; x <= x1; x += BAY) {
+        for (let y = top - 2; y < y1; y++) { b.p(x, y, C.BAMBOO[4]); b.p(x + 1, y, C.BAMBOO[2]); b.p(x + 2, y, C.BAMBOO[1]); }
+        for (let n = top; n < y1; n += 14) b.r(x - 1, n, 5, 1, C.BAMBOO[0]);
+        b.line(x + 3, top + 18, x + 18, top + 3, C.BAMBOO[2], 2).line(x - 1, top + 18, x - 16, top + 3, C.BAMBOO[2], 2);
+        for (const ly of [top + 34, top + 78]) b.r(x - 2, ly - 1, 7, 3, '#2a2420');
+        for (let y = top + 20; y < y1 - 2; y++) {
+          if (ih(x, 7, 72) < 0.35) break;
+          const vx = x + 1 + Math.round(Math.sin(y * 0.32 + x) * 3);
           b.p(vx, y, C.LEAF[2]);
           if (y % 5 === 0) b.r(vx - 1, y, 3, 2, C.LEAF[3]).p(vx - 1, y, C.LEAF[4]);
         }
       }
-      for (let x = x0; x < x1; x++) {
-        const u = (x - x0) % 48;
-        b.p(x, y0 - 24 + Math.round(Math.sin((u / 48) * Math.PI) * 10), C.BAMBOO[2]);
-      }
-      // étagères de graines contre la toile
-      for (let k = 0; k < 4; k++) {
-        const sx = x0 + 70 + k * 150, sy = y1 - 50;
-        if (sx > x1 - 40) continue;
-        for (const dy of [0, 18]) {
-          b.r(sx, sy + dy, 40, 3, C.WOOD[3]).r(sx, sy + dy, 40, 1, C.WOOD[5]);
-          for (let j = 0; j < 5; j++) {
-            const kind = Math.floor(ih(sx + j, dy, 4) * 3);
-            const jx = sx + 3 + j * 8;
-            b.r(jx, sy + dy - 7, 6, 7, [C.TERRACOTTA[3], C.PAPER[2], '#8aa074'][kind]).r(jx, sy + dy - 8, 6, 1, C.WOOD[1]).p(jx, sy + dy - 6, '#ffffff');
+      // 4. hautes étagères contre la toile : bocaux de graines, pots, bottes d'herbes
+      for (let k = 0; ; k++) {
+        const sx = x0 + 22 + k * 132, w = 46;
+        if (sx + w > x1 - 20) break;
+        if (ih(k, 2, 73) < 0.25) continue;
+        const sh = 4, h = 26;
+        for (let l = 0; l < sh; l++) {
+          const ly = y1 - 12 - l * h;
+          b.r(sx, ly, w, 3, C.WOOD[3]).r(sx, ly, w, 1, C.WOOD[5]).r(sx, ly + 3, w, 1, C.WOOD[0]);
+          for (let j = 0; j < 6; j++) {
+            const kind = ih(sx + j, l, 74), jx = sx + 2 + j * 7 + Math.floor(ih(j, l, 75) * 2);
+            if (kind < 0.18) continue;
+            if (kind < 0.55) {                                       // bocal de graines
+              const col = [C.TERRACOTTA[3], C.PAPER[2], '#8aa074', '#c9a46c'][Math.floor(ih(j, l, 76) * 4)];
+              b.r(jx, ly - 8, 5, 8, col).r(jx, ly - 9, 5, 1, C.WOOD[1]).p(jx, ly - 7, '#ffffff').r(jx + 1, ly - 5, 3, 2, C.PAPER[0]);
+            } else if (kind < 0.85) {                                // petit pot et sa pousse
+              b.r(jx, ly - 5, 5, 5, C.TERRACOTTA[2]).r(jx, ly - 5, 5, 1, C.TERRACOTTA[4]);
+              b.r(jx + 2, ly - 9, 1, 4, C.LEAF[2]).p(jx + 1, ly - 9, C.LEAF[3]).p(jx + 3, ly - 8, C.LEAF[3]);
+            } else {                                                 // botte d'herbes sèches suspendue
+              b.r(jx + 2, ly + 4, 1, 3, '#5b4a36');
+              for (let q = 0; q < 4; q++) b.r(jx + q, ly + 7, 1, 7 + (q % 2) * 2, q % 2 ? '#8a7f4a' : '#a39553');
+            }
           }
         }
-        b.r(sx, sy, 2, 50, C.WOOD[2]).r(sx + 38, sy, 2, 50, C.WOOD[2]);
+        b.r(sx - 1, y1 - 12 - (sh - 1) * h - 4, 3, (sh - 1) * h + 16, C.WOOD[2]).r(sx + w - 2, y1 - 12 - (sh - 1) * h - 4, 3, (sh - 1) * h + 16, C.WOOD[1]);
       }
-      // plantes suspendues
-      for (let x = x0 + 30; x < x1 - 20; x += 96) {
-        rope(b, x, y0, x, y0 + 14, 0, C.WOOD[1]);
-        b.r(x - 4, y0 + 14, 9, 5, C.TERRACOTTA[2]).r(x - 4, y0 + 14, 9, 1, C.TERRACOTTA[4]);
-        for (let k = 0; k < 5; k++) b.r(x - 5 + k * 3, y0 + 18, 1, 4 + (k % 3) * 3, C.LEAF[2 + (k % 2)]);
-        leaves(b, x, y0 + 12, 5, C.LEAF, x, { light: 0.05 });
+      // 5. bacs de semis le long du mur du fond, et un établi avec ses outils
+      for (let x = x0 + 8; x < x1 - 30; x += 70) {
+        if (ih(x, 4, 77) < 0.4) continue;
+        b.r(x, y1 - 9, 30, 9, C.WOOD[2]).r(x, y1 - 9, 30, 1, C.WOOD[4]).r(x, y1 - 1, 30, 1, C.WOOD[0]);
+        for (let k = 0; k < 9; k++) b.r(x + 2 + k * 3, y1 - 12 - (k % 2), 1, 3 + (k % 2), C.LEAF[2 + (k % 2)]);
+      }
+      {
+        const wx = x0 + Math.round((x1 - x0) * 0.42), wy = y1 - 20;
+        b.r(wx, wy, 44, 3, C.WOOD[3]).r(wx, wy, 44, 1, C.WOOD[5]);
+        b.r(wx + 2, wy + 3, 2, 17, C.WOOD[1]).r(wx + 40, wy + 3, 2, 17, C.WOOD[1]).r(wx + 2, wy + 12, 40, 1, C.WOOD[1]);
+        b.r(wx + 4, wy - 5, 12, 5, C.TERRACOTTA[1]).r(wx + 4, wy - 5, 12, 1, C.TERRACOTTA[3]);                     // pot à rempoter
+        b.r(wx + 20, wy - 7, 8, 7, '#7d8c96').r(wx + 28, wy - 6, 5, 1, '#7d8c96').r(wx + 22, wy - 9, 4, 2, '#7d8c96');   // arrosoir
+        b.line(wx + 34, wy - 1, wx + 40, wy - 7, C.WOOD[1]).r(wx + 39, wy - 9, 3, 3, '#8e939c');                       // transplantoir
+      }
+      // 6. plantes suspendues, gourdes sur une liane tendue sous la panne
+      for (let x = x0 + 30; x < x1 - 20; x += 72) {
+        const hy = top + 34 + Math.floor(ih(x, 1, 78) * 20);
+        rope(b, x, top + 35, x, hy, 0, C.WOOD[1]);
+        b.r(x - 4, hy, 9, 5, C.TERRACOTTA[2]).r(x - 4, hy, 9, 1, C.TERRACOTTA[4]);
+        for (let k = 0; k < 5; k++) b.r(x - 5 + k * 3, hy + 4, 1, 5 + (k % 3) * 4, C.LEAF[2 + (k % 2)]);
+        leaves(b, x, hy - 2, 5, C.LEAF, x, { light: 0.05 });
+      }
+      for (let x = x0 + 60; x < x1 - 40; x += 150) {
+        for (let k = 0; k < 40; k++) b.p(x + k, top + 80 + Math.round(Math.sin(k * 0.3) * 2), C.LEAF[2]);
+        for (const gx of [x + 10, x + 26]) b.r(gx, top + 83, 4, 7, '#c9b45a').r(gx + 1, top + 90, 2, 1, '#a08a3a').p(gx + 1, top + 84, '#e6d690');
+      }
+      // 7. rais de lumière par les déchirures du toit
+      for (let k = 0; k < 4; k++) {
+        const lx = x0 + 60 + k * 120 + Math.floor(ih(k, 5, 79) * 40);
+        if (lx > x1 - 30) break;
+        for (let y = top; y < y1 - 4; y++) {
+          const off = Math.round((y - top) * 0.35);
+          for (let w = 0; w < 10; w++) if (((lx + w + off) + y) % 3 === 0) b.p(lx + w + off, y, 'rgba(255, 250, 220, 0.08)');
+        }
       }
     } else if (layer === 'front') {
-      // poteaux du premier plan, plus sombres
+      // poteaux du premier plan, plus sombres, et feuilles qui pendent du haut
       for (let x = x0 + 24; x < x1; x += 160) {
-        for (let y = y0 - 26; y < y1; y++) { b.p(x, y, C.BAMBOO[1]); b.p(x + 1, y, C.BAMBOO[0]); b.p(x + 2, y, '#2d401c'); }
-        for (let n = y0; n < y1; n += 14) b.r(x - 1, n, 5, 1, '#2a2420');
+        for (let y = top - 4; y < y1; y++) { b.p(x, y, C.BAMBOO[1]); b.p(x + 1, y, C.BAMBOO[0]); b.p(x + 2, y, '#2d401c'); }
+        for (let n = top; n < y1; n += 14) b.r(x - 1, n, 5, 1, '#2a2420');
+      }
+      for (let x = x0; x < x1; x += 6) {
+        if (ih(x, 9, 80) < 0.5) continue;
+        const len = 6 + Math.floor(ih(x, 10, 80) * 14);
+        for (let j = 0; j < len; j++) b.p(x + Math.round(Math.sin(j * 0.4) * 1.5), top - 4 + j, j > len - 3 ? '#4d6b2c' : '#2f4a1e');
+      }
+    }
+  },
+
+  // pots et semis posés sur une étagère de la serre (passerelle « - ») ; montants
+  // jusqu'au sol aux deux bouts
+  shelf_pots(b, p, X, Y, env) {
+    const x0 = p.x * TILE, w = p.w * TILE, top = p.y * TILE;
+    let bot = p.y + 1; while (bot < env.map.h && !env.map.solid(p.x, bot)) bot++;
+    for (const lx of [x0 + 1, x0 + w - 3]) b.r(lx, top + 6, 2, bot * TILE - top - 6, C.WOOD[2]).r(lx, top + 6, 1, bot * TILE - top - 6, C.WOOD[4]);
+    b.line(x0 + 3, top + 6, x0 + 10, top + 13, C.WOOD[1]).line(x0 + w - 4, top + 6, x0 + w - 11, top + 13, C.WOOD[1]);   // équerres
+    for (let k = 0; k < p.w * 2; k++) {
+      const px = x0 + 3 + k * 8 + Math.floor(ih(k, p.x, 61) * 2), kind = ih(k, p.y, 62);
+      if (kind < 0.15) continue;
+      const pw = 5 + Math.floor(ih(k, 3, 63) * 2), ph = 4 + Math.floor(ih(k, 4, 63) * 2);
+      b.r(px, top - ph, pw, ph, C.TERRACOTTA[2]).r(px, top - ph, pw, 1, C.TERRACOTTA[4]).r(px + pw - 1, top - ph, 1, ph, C.TERRACOTTA[0]);
+      if (kind < 0.55) {                                             // semis
+        for (let j = 0; j < 3; j++) b.r(px + 1 + j * 2, top - ph - 2 - (j % 2) * 2, 1, 2 + (j % 2) * 2, C.LEAF[2 + (j % 2)]);
+      } else if (kind < 0.8) {                                       // plante feuillue
+        leaves(b, px + pw / 2, top - ph - 3, 3.5, C.LEAF, px, { light: 0.06 });
+      } else {                                                       // fleur
+        b.r(px + 2, top - ph - 5, 1, 5, C.LEAF[1]).p(px + 1, top - ph - 6, C.FLOWER.pink).p(px + 3, top - ph - 6, C.FLOWER.pink).p(px + 2, top - ph - 7, C.FLOWER.yellow);
       }
     }
   },
@@ -1583,7 +1661,24 @@ export function autoDecor(b, map, tx0, tx1) {
     // poteaux de soutien
     for (let ty = 0; ty < map.h - 1; ty++) {
       const st = map.styleAt(tx, ty);
-      if (st !== 'deck' && st !== 'beam' && st !== 'plank') continue;
+      if (st === 'canopy' && !map.solid(tx, ty + 1)) {
+        // feuillage suspendu : des tiges de bambou montent du sol jusqu'à lui (il
+        // est porté par ses bambous, il ne flotte pas) ; aux bouts du massif
+        const lE = map.styleAt(tx - 1, ty) !== 'canopy', rE = map.styleAt(tx + 1, ty) !== 'canopy';
+        if (!lE && !rE) continue;
+        let bot = ty + 1; while (bot < map.h && !map.solid(tx, bot)) bot++;
+        const y0 = (ty + 1) * TILE - 6, y1 = bot * TILE;
+        for (let k = 0; k < 3; k++) {
+          const xb = tx * TILE + (lE ? 1 + k * 5 : 12 - k * 5), lean = (lE ? -1 : 1) * (1 + k * 2);
+          for (let y = y0; y < y1; y++) {
+            const t = (y1 - y) / (y1 - y0), x = Math.round(xb + lean * t * t);
+            const node = (y - y0 + k * 5) % 13 === 0;
+            b.r(x, y, 3, 1, node ? '#2d401c' : C.BAMBOO[1 + (k % 2)]).p(x, y, node ? C.BAMBOO[4] : C.BAMBOO[3]).p(x + 2, y, C.BAMBOO[0]);
+          }
+        }
+        continue;
+      }
+      if (st !== 'deck' && st !== 'beam' && st !== 'plank' && st !== 'shelf') continue;
       if (map.solid(tx, ty + 1)) continue;
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
@@ -1638,7 +1733,8 @@ export function autoDecor(b, map, tx0, tx1) {
 export function groveLeaves(b, map, tx0, tx1) {
   for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
     for (let ty = 0; ty < map.h; ty++) {
-      if (map.styleAt(tx, ty) !== 'grove') continue;
+      const st = map.styleAt(tx, ty);
+      if (st !== 'grove' && st !== 'canopy') continue;
       // bas d'un bosquet suspendu (feuillage bas) : des feuilles pendent dans le passage
       if (!map.solid(tx, ty + 1) && ty + 1 < map.h) {
         for (let x = tx * TILE; x < tx * TILE + TILE; x++) {

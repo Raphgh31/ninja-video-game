@@ -60,7 +60,11 @@ export class TileMap {
       // bambous serrés en bosquet (murs pour le saut mural, feuillage bas) ; une
       // rangée seule (toit de la serre) reste une traverse de bambou ligaturé
       const vert = this.at(tx, ty - 1) === '|' || this.at(tx, ty + 1) === '|';
-      return vert ? 'grove' : 'bamboo_h';
+      if (!vert) return 'bamboo_h';
+      // bas du massif : posé sur le sol, ce sont des tiges serrées (un mur pour le
+      // saut mural) ; suspendu, c'est une masse de feuillage (feuillage bas)
+      let bot = ty; while (this.at(tx, bot + 1) === '|') bot++;
+      return SOLID.has(this.at(tx, bot + 1)) && this.at(tx, bot + 1) !== '-' ? 'grove' : 'canopy';
     }
     if (t !== '#') return 'soil';
     // roche en surplomb (falaise de la grue, zone 3) : de la pierre, pas de la terre
@@ -264,6 +268,33 @@ function groveColor(map, tx, ty, px, py, wx, wy) {
   const depth = !map.solid(tx, ty + 1) ? 0.25 : 0;
   const v = [0.78, 0.55, 0.36][lane] + (ih(stalk, 1, 85) - 0.5) * 0.3 - depth;
   return pick(C.BAMBOO, clamp01(v), wx, wy);
+}
+
+function canopyColor(map, tx, ty, px, py, wx, wy) {
+  // massif de feuillage de bambou (feuillage bas) : feuilles effilées en couches,
+  // claires en haut et sur le devant, sombres au cœur ; bords déchiquetés
+  const L = C.BAMBOO, edgeL = !map.solid(tx - 1, ty), edgeR = !map.solid(tx + 1, ty), top = !map.solid(tx, ty - 1);
+  const ragged = (d) => ih(Math.floor(wx / 2), Math.floor(wy / 3), 88) * 5 > d;
+  if (edgeL && ragged(px)) return null;
+  if (edgeR && ragged(15 - px)) return null;
+  if (top && ih(Math.floor(wx / 3), 0, 89) * 6 > py) return null;
+  // une feuille = un trait oblique de 6 à 9 px ; on cherche la feuille la plus proche
+  const cell = 5, cx = Math.floor(wx / cell), cy = Math.floor(wy / cell);
+  let best = 9, shade = 0.3;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const kx = cx + i, ky = cy + j, ox = kx * cell + ih(kx, ky, 90) * cell, oy = ky * cell + ih(kx, ky, 91) * cell;
+    const ang = (ih(kx, ky, 92) - 0.5) * 1.6 + 0.6, ca = Math.cos(ang), sa = Math.sin(ang);
+    const u = (wx - ox) * ca + (wy - oy) * sa, v = -(wx - ox) * sa + (wy - oy) * ca;
+    const len = 4 + ih(kx, ky, 93) * 3;
+    const d = Math.abs(v) - Math.max(0, 1.4 - (Math.abs(u) / len) * 1.4);
+    if (Math.abs(u) < len && d < best) { best = d; shade = ih(kx, ky, 94); }
+  }
+  // profondeur : plus sombre loin des bords et vers le bas
+  const inner = Math.min(px, 15 - px, py) / 16;
+  let v = best < 0.4 ? 0.55 + shade * 0.4 : 0.18 + shade * 0.15;
+  v -= inner * 0.12 + (ty % 3) * 0.02;
+  if (top && py < 6 && best < 0.4) v += 0.12;
+  return pick(L, clamp01(v), wx, wy);
 }
 
 function plankColor(map, tx, ty, px, py, wx, wy) {
@@ -479,6 +510,7 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
               case 'bamboo_v': col = bambooColor(true, wx, wy, tx, ty); break;
               case 'bamboo_h': col = bambooColor(false, wx, wy, tx, ty); break;
               case 'grove': col = groveColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
+              case 'canopy': col = canopyColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'plank': col = plankColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'rafter': col = rafterColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               default: col = soilColor(wx, wy, depthBelowAir(map, tx, ty, py), C.SOIL, map.zone[tx] === '05' ? 0.08 : 0);

@@ -215,7 +215,7 @@ def main():
         "hitbox": {k: scale.box(v, body=k in ("default", "slide", "dash")) for k, v in {
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 13, "y": 17, "w": 15, "h": 14},
-            "dash": {"x": 10, "y": 15, "w": 13, "h": 15},   # un passage bas d'une case (16 px) se franchit au dash
+            "dash": {"x": 10, "y": 15, "w": 13, "h": 16},   # un passage bas d'une case (16 px) se franchit au dash
             "air_attack": {"x": 18, "y": 0, "w": 22, "h": 32, "frames": [2, 3, 4],
                            "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"},
             "kick": {"x": 18, "y": 11, "w": 21, "h": 13, "frames": [1, 2],

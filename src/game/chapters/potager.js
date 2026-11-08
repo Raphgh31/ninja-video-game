@@ -130,14 +130,22 @@ function build() {
   // ZONE 01 — Le chemin des premières pousses : avancer, sauter, sprinter
   // -------------------------------------------------------------------------
   b.zone('01', 'Le chemin des premières pousses');
-  b.flat(12);
+  // un long chemin plat pour commencer : le hameau, ses champs, on prend la route
+  b.flat(34);
   b.on(3, 'S');
   b.hint('move', 2);
   b.prop('sign', 0, G);                              // l'entrée du potager
-  b.prop('house', 9, G, { far: true });
   b.prop('tall_grass', 1, G, { w: 2 });
-  b.coins([7, 9, 11]);
-  b.hint('jump', 11);
+  b.prop('house', 9, G, { far: true });
+  b.prop('woodpile', 14, G);
+  b.prop('crops', 16, G, { w: 4, kind: 'choux' });
+  b.prop('tree', 21, G, { kind: 'cerisier', s: 0.95 });
+  b.prop('well', 24, G);
+  b.prop('house', 29, G, { far: true });
+  b.prop('baskets', 26, G);
+  b.prop('bush', 33, G, { flowers: 'white' });
+  b.coins([8, 12, 17, 22, 27, 31, 33]);
+  b.hint('jump', 33);
   x = b.x; b.flat(6, G - 1);                         // petite marche
   b.prop('crops', x, G - 1, { w: 6, kind: 'carottes' });
   x = b.x; b.flat(1, G - 2);                         // clôture basse en bambou
@@ -351,39 +359,62 @@ function build() {
   // ZONE 05 — La serre de bambou : la glissade, puis tout s'enchaîne
   // -------------------------------------------------------------------------
   b.zone('05', 'La serre de bambou');
+  // Une grande serre (13 cases de haut) : on entre par le bas ; dedans, des
+  // bambous en pot ont envahi le passage. Feuillage bas : on passe au dash (ou en
+  // glissade). La sortie est bouchée par un mur de bambous très serrés : on se
+  // glisse dans un puits de bambous, on y monte en sauts muraux, on traverse la
+  // poutre de charpente par-dessous (« - ») et on sort par le haut de la serre.
   const serre0 = b.x;
   b.flat(6);
   b.on(serre0 - 2, 'P');                             // point de reprise : à l'entrée de la serre, dehors (pas devant ses toiles)
-  b.hint('slide', serre0 + 2);
-  x = b.x; b.flat(5);                                // 1. sous une structure de bambou
-  b.block(x, 5, G - 6, G - 2, '|');
-  b.flat(6);
-  b.coins([b.x - 3]);
-  x = b.x; b.flat(4);                                // 2. sous une étagère renversée
+  b.hint('dash', serre0 + 3);
+  b.prop('pots', serre0 + 1, G);
+  b.prop('tools', serre0 + 4, G);
+  x = b.x; b.flat(4);                                // 1. feuillage bas : dash (ou glissade)
+  b.block(x, 4, G - 8, G - 2, '|');
+  b.flat(7);                                         // 2. étagères de pots (passerelles) et ryō
+  b.row(x + 5, 3, G - 3, '-');
+  b.row(x + 8, 3, G - 4, '-');
+  b.prop('shelf_pots', x + 5, G - 3, { w: 3 });
+  b.prop('shelf_pots', x + 8, G - 4, { w: 3 });
+  b.coins([x + 6, x + 9, x + 10], 0);
+  b.prop('pots', x + 4, G);
+  b.coins([x + 7]);
+  x = b.x; b.flat(4);                                // 3. sous une étagère renversée : glissade
   b.block(x, 4, G - 6, G - 2, '=');
-  b.prop('pots', x - 3, G);
-  b.prop('tools', x - 10, G);
-  b.flat(6);
-  b.prop('pots', b.x - 2, G);
+  b.flat(4);
+  b.prop('pots', b.x - 3, G);
   b.coins([b.x - 4, b.x - 2]);
-  x = b.x; b.flat(6);                                // 3. tunnel de racines et de branches
-  b.block(x, 6, G - 6, G - 2, '#');
-  b.flat(5);
+  b.hint('slide', x - 6);
+  x = b.x; b.flat(2);                                // 4. le puits de bambous et la sortie par le toit
+  b.block(x, 2, G - 9, G - 2, '|');                  // massif de feuillage : on se glisse dessous
+  b.flat(3);                                         // le puits (3 cases de large)
+  b.hint('wall', x + 2);
+  b.flat(3);
+  b.block(x + 5, 3, G - 9, G - 1, '|');              // mur de bambous très serrés : la sortie est bouchée
   const serre1 = b.x;
-  b.block(serre0, serre1 - serre0, G - 7, G - 7, '|');   // toit de la serre
-  b.backdrop('serre', serre0, serre1, G - 7, G);
-  // sortie : sprint, saut, dash, glissade
-  x = b.x; b.flat(14);
-  b.coins([x + 4, x + 8, x + 12]);
-  b.prop('bamboo_grove', x + 4, G, { w: 5 });
-  b.prop('trellis', x + 9, G, { w: 3 });
+  b.flat(4);
+  b.row(x + 2, serre1 - x, G - 10, '-');             // la poutre de charpente (on la traverse par-dessous)
+  b.row(serre1, 2, G - 10, '-');                     // elle dépasse de la serre : on se laisse tomber dehors
+  b.coins([x + 3, x + 4], 0);
+  b.block(serre0, serre1 - serre0, G - 13, G - 13, '|');   // faîtage de la serre
+  b.backdrop('serre', serre0, serre1, G - 13, G);
+  // dehors : une bande de bambous (feuillage bas, puits) remplace l'ancien bloc
+  x = b.x; b.flat(10);
+  b.coins([x + 3, x + 7]);
+  b.prop('trellis', x + 5, G, { w: 3 });
   b.prop('tall_grass', x + 1, G, { w: 2 });
   x = b.x; b.flat(6, G - 2);                         // un saut pour monter sur la butte
   b.gap(6);                                          // dash
-  x = b.x; b.flat(9, G - 2);
-  b.block(x + 3, 4, G - 7, G - 4, '|');              // glissade sous un auvent bas
-  b.prop('bamboo_grove', x + 5, G - 2, { w: 6 });
-  b.coins([x + 4, x + 5]);
+  // le bosquet : feuillage bas (dash), puis un mur de bambous serrés qu'on
+  // franchit en sauts muraux entre lui et le feuillage
+  x = b.x; b.flat(18, G - 2);
+  b.block(x + 4, 3, G - 9, G - 4, '|');              // feuillage bas : dash dessous
+  b.block(x + 10, 2, G - 10, G - 3, '|');            // mur de bambous (on grimpe entre lui et le feuillage)
+  b.coins([x + 8], 3);
+  b.set(x + 8, G - 9, 'o');
+  b.prop('bamboo_grove', x + 15, G - 2, { w: 3 });
+  b.coins([x + 1, x + 14, x + 16]);
   b.flat(3, G - 1);
   b.flat(3);
 
@@ -466,9 +497,16 @@ function build() {
   b.prop('reeds', b.x - 7, G, { w: 1 });
   x = b.x; b.flat(6);
   b.on(x + 3, 'P'); b.legacy.push(x + 3);            // sauvegarde : avant la dernière partie
-  x = b.x; b.flat(4);                                // bosquet de bambous couchés : glissade
-  b.block(x, 4, G - 12, G - 2, '|');
-  b.prop('bamboo_grove', x + 2, G - 12, { w: 3 });
+  // le bosquet des sentinelles : un feuillage bas (dash), puis deux bouquets de
+  // bambous serrés plantés en travers du chemin, qu'on franchit en sauts muraux
+  // (entre le feuillage et le premier, puis entre les deux)
+  x = b.x; b.flat(15);
+  b.block(x + 1, 4, G - 7, G - 2, '|');              // feuillage bas
+  b.block(x + 7, 1, G - 7, G - 1, '|');              // premier bouquet (7 cases)
+  b.block(x + 11, 2, G - 8, G - 1, '|');             // second, plus haut (8 cases)
+  b.coins([x + 9], 2);
+  b.set(x + 12, G - 9, 'o').set(x + 7, G - 8, 'o');
+  b.prop('fox', x + 14, G);
   x = b.x; b.flat(18);                               // allée dégagée : sprint
   b.coins([b.x - 15, b.x - 11, b.x - 7]);
   b.prop('fox', b.x - 4, G);

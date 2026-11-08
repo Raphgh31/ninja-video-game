@@ -555,18 +555,29 @@ async function main() {
     expect(still === 0 && running >= 3 && after[0] === 0 && after[1] === 0, `sons à l'arrêt ${still}, pas en 1 s de course ${running}, après l'arrêt : pas ${after[0]}, sons ${after[1]}`);
   });
 
+  // repères de terrain (le chapitre s'allonge : on les cherche au lieu de fixer des colonnes)
+  const spots = await pg.evaluate(() => {
+    const l = window.__kage.level, G = 19, top = (x) => { let y = 0; while (y < l.h && !l.solid(x, y)) y++; return y; };
+    const z1 = l.zones.find((z) => z.id === '01'), z2 = l.zones.find((z) => z.id === '02');
+    let wall = -1;
+    for (let x = z1.x0; x < z1.x1 - 3 && wall < 0; x++) if ([0, 1, 2].every((k) => top(x + k) === G - 2)) wall = x + 1;
+    let terrace = -1;
+    for (let x = z2.x0; x < z2.x1 - 3 && terrace < 0; x++) if ([0, 1, 2].every((k) => top(x + k) === G - 4)) terrace = x + 1;
+    return { flat: z1.x0 + 20, wall, terrace };
+  });
+
   await test('potager : cadrage 448×252, sol en bas de l\'image', async () => {
-    await pat(60); await pw(1500);
+    await pat(spots.flat); await pw(1500);
     const r = await pg.evaluate(() => { const g = window.__kage, v = g.view(); return { w: v.w, h: v.h, feet: g.player.y - g.camera.y }; });
     expect(r.w === 448 && r.h === 252 && r.feet > 252 * 0.8 && r.feet < 252 * 0.92, `vue ${r.w}×${r.h}, pieds à ${Math.round(r.feet)} px`);
   });
 
   await test('potager : stabilité — une marche ne bouge pas la caméra, un vrai changement de niveau la recadre d\'un seul mouvement', async () => {
-    await pat(29); await pw(1500);                       // sol de référence (zone 1)
+    await pat(spots.wall - 4); await pw(1500);           // sol de référence (zone 1)
     const y0 = await pg.evaluate(() => window.__kage.camera.y);
-    await pat(34); await pw(900);                        // sur le muret, deux cases plus haut
+    await pat(spots.wall); await pw(900);                // sur le muret, deux cases plus haut
     const y1 = await pg.evaluate(() => window.__kage.camera.y);
-    await pat(95); await pw(120);                        // terrasse, quatre cases plus haut
+    await pat(spots.terrace); await pw(120);             // terrasse, quatre cases plus haut
     const ys = [];
     for (let i = 0; i < 14; i++) { ys.push(await pg.evaluate(() => window.__kage.camera.y)); await pw(70); }
     // un seul mouvement : la caméra va toujours dans le même sens, puis s'arrête
@@ -579,7 +590,7 @@ async function main() {
   });
 
   await test('potager : la caméra ne suit pas les sauts', async () => {
-    await pat(60); await pw(1500);
+    await pat(spots.flat); await pw(1500);
     const y0 = await pg.evaluate(() => window.__kage.camera.y);
     await PK.down('Space');
     let dev = 0;
@@ -589,7 +600,7 @@ async function main() {
   });
 
   await test('potager : zone morte — un petit pas ne déplace pas la caméra, une longue course si', async () => {
-    await pat(60); await pw(300);
+    await pat(spots.flat); await pw(300);
     await pg.evaluate(() => { const g = window.__kage; g.camera.x = g.player.x - g.view().w * 0.4; });
     await pw(100);
     const x0 = await pg.evaluate(() => window.__kage.camera.x);
@@ -673,6 +684,28 @@ async function main() {
     const saved = await SAVE();
     expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
       `bloqué ${blocked}, marche ${walk - s0}, dash ${dashed - s0}, en haut y=${up.y} (${up.tx - s0}), grue ${JSON.stringify(cr)}, après ${past - s0}, sauvegarde ${saved.cranes}`);
+  });
+
+  await test('potager : la serre se quitte par la charpente — sortie au sol bouchée par les bambous, sauts muraux dans le puits, on traverse la poutre par-dessous', async () => {
+    const z = await pg.evaluate(() => { const l = window.__kage.level, z = l.zones.find((z) => z.id === '05'), sr = l.backdrops.find((b) => b.type === 'serre'); return { x0: sr.x0, x1: sr.x1 }; });
+    const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [tx, ty]);
+    // dans le puits, contre le mur de bambous de la sortie : on ne passe pas en marchant
+    await put(z.x1 - 4, 19); await PK.down('ArrowRight'); await pw(900); await PK.up('ArrowRight'); await pw(100);
+    const blocked = (await PS()).tx < z.x1 - 3;
+    let dir = 'ArrowRight';
+    await PK.down(dir); await PK.down('Space'); await pw(200); await PK.up('Space');
+    for (let i = 0; i < 16; i++) {
+      for (let t = 0; t < 40; t++) { const s = await PS(); if (s.st === 'wall_slide' || s.ground) break; await pw(15); }
+      const s = await PS();
+      if (s.ground && s.y <= 9 * 16) break;
+      await PK.press('Space'); await PK.up(dir); dir = dir === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight'; await PK.down(dir); await pw(60);
+    }
+    await PK.up(dir); await pw(400);
+    const beam = await PS();
+    await PK.down('ArrowRight'); await pw(1600); await PK.up('ArrowRight'); await pw(700);
+    const out = await PS();
+    expect(blocked && beam.y === 9 * 16 && beam.ground && out.tx > z.x1 && out.y === 19 * 16 && out.hp === 5,
+      `bloqué ${blocked}, sur la poutre y=${beam.y} (${beam.ground}), dehors colonne ${out.tx - z.x1} après la serre, y=${out.y}`);
   });
 
   // les tests suivants repartent d'une partie neuve
