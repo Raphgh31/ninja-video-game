@@ -171,7 +171,12 @@ export class Player {
           // freinage : on revient vers la vitesse de course pendant la dernière frame
           const target = dir * P.run;
           this.vx += Math.sign(target - this.vx) * Math.min(Math.abs(target - this.vx), P.dashBrake * dt);
-          if (this.anim.finished) this.endSpecial();
+          // fin du dash sous un plafond bas (feuillage de bambou) : il enchaîne en
+          // glissade jusqu'à en sortir, au lieu de se relever dans le feuillage
+          if (this.anim.finished) {
+            if (this.onGround && this.ceilingAbove()) this.setState('slide');
+            else this.endSpecial();
+          }
         }
         break;
       case 'hurt':

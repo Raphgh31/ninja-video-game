@@ -9,7 +9,7 @@ export const TILE = 16;
 export const G = 19;                          // haut du sol de référence
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
-const SOLID = new Set(['#', '=', '|']);
+const SOLID = new Set(['#', '=', '|', '-']);   // « - » : passerelle (traversable par-dessous), peinte comme le reste
 
 /** Analyse du terrain : style de chaque tuile, haut des colonnes, zones. */
 export class TileMap {
@@ -20,6 +20,9 @@ export class TileMap {
     this.zone = new Array(this.w).fill('01');
     for (const z of level.zones) for (let x = z.x0; x < z.x1 && x < this.w; x++) this.zone[x] = z.id;
     this.style = new Map();
+    // fosses des grues : ce ne sont pas des canaux (pas de berge ni d'eau peintes)
+    this.pitCols = new Set();
+    for (const c of level.cranes ?? []) for (let x = c.x0; x < c.x0 + c.w; x++) this.pitCols.add(x);
     for (let tx = 0; tx < this.w; tx++) {
       for (let ty = 0; ty < this.h; ty++) {
         const t = level.rows[ty][tx];
@@ -46,6 +49,7 @@ export class TileMap {
 
   classify(tx, ty, t) {
     const z = this.zone[tx];
+    if (t === '-') return z === '05' ? 'rafter' : 'plank';
     if (t === '=') {
       if (z === '05') return 'shelf';
       if (z === '06') return 'beam';
@@ -53,12 +57,14 @@ export class TileMap {
       return 'deck';
     }
     if (t === '|') {
+      // bambous serrés en bosquet (murs pour le saut mural, feuillage bas) ; une
+      // rangée seule (toit de la serre) reste une traverse de bambou ligaturé
       const vert = this.at(tx, ty - 1) === '|' || this.at(tx, ty + 1) === '|';
-      if (vert && z === '07') return 'grove';
-      return vert ? 'bamboo_v' : 'bamboo_h';
+      return vert ? 'grove' : 'bamboo_h';
     }
     if (t !== '#') return 'soil';
-    if (!this.grounded(tx, ty)) return z === '05' ? 'roots' : 'soil';
+    // roche en surplomb (falaise de la grue, zone 3) : de la pierre, pas de la terre
+    if (!this.grounded(tx, ty)) return z === '05' ? 'roots' : z === '03' ? 'stone' : 'soil';
     if (ty < G) {
       // poteau isolé de la zone 1 : la clôture basse, en bambou
       if (z === '01' && !this.solid(tx - 1, ty) && !this.solid(tx + 1, ty)) {
@@ -260,6 +266,29 @@ function groveColor(map, tx, ty, px, py, wx, wy) {
   return pick(C.BAMBOO, clamp01(v), wx, wy);
 }
 
+function plankColor(map, tx, ty, px, py, wx, wy) {
+  // passerelle légère sur pilotis : un plateau de planches de 5 px, rien dessous
+  if (py > 5) return null;
+  const lEnd = map.at(tx - 1, ty) !== '-', rEnd = map.at(tx + 1, ty) !== '-';
+  if ((lEnd && px === 0 && py > 3) || (rEnd && px === 15 && py > 3)) return null;   // bouts arrondis
+  if (py === 0) return (wx + 1) % 7 === 0 ? C.WOOD[3] : C.WOOD[5];
+  if (py === 5) return C.WOOD[0];
+  if ((wx + 1) % 7 === 0) return C.WOOD[1];                         // joints des planches
+  if (py === 3 && (wx % 7 === 3) && ih(Math.floor(wx / 7), ty, 13) < 0.5) return C.WOOD[1];   // clous
+  const v = 0.55 + (ih(Math.floor(wx / 7), ty, 12) - 0.5) * 0.25 + (noise2(wx * 0.3, wy * 0.9, 14) - 0.5) * 0.2 - py * 0.05;
+  return pick(C.WOOD, clamp01(v), wx, wy);
+}
+
+function rafterColor(map, tx, ty, px, py, wx, wy) {
+  // poutre de charpente de la serre : un gros bambou couché, ligaturé aux poteaux
+  if (py > 6) return null;
+  if (py === 0 || py === 6) return C.BAMBOO[0];
+  const node = (wx + Math.floor(ih(tx, ty, 9) * 23)) % 23;
+  if (node === 0 || node === 1) return py < 3 ? C.BAMBOO[4] : C.BAMBOO[1];
+  if (tx % 3 === 0 && px >= 6 && px <= 8) return '#2a2420';           // ligature de corde
+  return pick(C.BAMBOO, clamp01([0.82, 0.88, 0.7, 0.55, 0.4][py - 1] + (noise2(wx * 0.2, 1, 3) - 0.5) * 0.1), wx, wy);
+}
+
 // ---------------------------------------------------------------------------
 // la masse de terre et de pierre : de grosses pierres taillées en facettes,
 // séparées par des joints sombres. La silhouette des flancs suit les pierres :
@@ -379,7 +408,7 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
   // canaux, fossés, bassins : la berge d'en face (en retrait, plus sombre) et l'eau
   for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
     // colonne sans sol au niveau de référence (une passerelle de bois ne compte pas)
-    if (map.at(tx, G) === '#' || map.at(tx, G + 1) === '#') continue;
+    if (map.at(tx, G) === '#' || map.at(tx, G + 1) === '#' || map.pitCols.has(tx)) continue;
     let top = G + 1; while (top < map.h && map.at(tx, top) !== '~' && map.at(tx, top) !== '#') top++;
     const z = map.zone[tx];
     const stone = z === '03' || z === '07' || z === '02';
@@ -450,6 +479,8 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
               case 'bamboo_v': col = bambooColor(true, wx, wy, tx, ty); break;
               case 'bamboo_h': col = bambooColor(false, wx, wy, tx, ty); break;
               case 'grove': col = groveColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
+              case 'plank': col = plankColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
+              case 'rafter': col = rafterColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               default: col = soilColor(wx, wy, depthBelowAir(map, tx, ty, py), C.SOIL, map.zone[tx] === '05' ? 0.08 : 0);
             }
             // flancs à l'air libre : un liseré d'ombre (ou de lumière à gauche)

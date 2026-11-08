@@ -87,6 +87,65 @@ export function chestSprite(state, Brush, canvas) {
   return cv;
 }
 
+/**
+ * Grue de bambou (zone 3) : le mur de blocs de pierre bruts, ficelés d'une corde
+ * en croix (toile w × h cases), et la paroi de la fosse qui l'attend.
+ */
+export function craneBundle(c, Brush, canvas) {
+  const W = c.w * TILE, H = c.h * TILE;
+  const cv = canvas(W, H), b = new Brush(cv.getContext('2d'));
+  const ST = C.STONE, ROPE = ['#3b2a1c', '#6a4a2c', '#9a7448', '#c9a46c'];
+  // grosses pierres irrégulières, empilées (cellules de Voronoï), joints sombres
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const w = worley(x + c.x0 * 37, y, 9.5, 41, 0.8);
+    let v = 0.62 - (w.dx / 9) * 0.18 - (w.dy / 9) * 0.3 + (w.id - 0.5) * 0.28;
+    if (w.d2 - w.d < 1.1) v = 0.05;                                  // joint entre deux pierres
+    else if (w.d2 - w.d < 2) v -= 0.2;
+    if (noise2(x * 0.25, y * 0.25, 44) > 0.72 && w.dy < 0) v = Math.max(v, 0.35);
+    let col = pick(ST, clamp01(v), x, y, 0.15);
+    if (w.dy < -3 && noise2(x * 0.2, y * 0.3, 45) > 0.62) col = pick(C.MOSS, 0.55, x, y);   // mousse sur le haut des pierres
+    b.p(x, y, col);
+  }
+  // contour : bords du mur un peu grignotés
+  for (let y = 0; y < H; y++) for (const x of [0, W - 1]) if (ih(x, y, 46) < 0.4) b.p(x, y, ST[0]);
+  b.r(0, H - 1, W, 1, ST[0]);
+  // la corde en croix et les deux bandes horizontales qui serrent le tas
+  const rope = (x0, y0, x1, y1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n), y = Math.round(y0 + ((y1 - y0) * i) / n);
+      b.p(x, y, ROPE[2]).p(x + 1, y, ROPE[1]).p(x, y + 1, ROPE[0]);
+      if (i % 3 === 0) b.p(x, y, ROPE[3]);                           // torsion de la corde
+    }
+  };
+  rope(1, 2, W - 3, H - 4);
+  rope(W - 3, 2, 1, H - 4);
+  for (const yy of [5, H - 9]) rope(0, yy, W - 2, yy);
+  // le nœud au croisement, et l'anneau du haut où s'accroche la corde de la grue
+  const mx = Math.round(W / 2), my = Math.round(H / 2);
+  b.r(mx - 2, my - 2, 4, 4, ROPE[1]).r(mx - 1, my - 2, 2, 1, ROPE[3]);
+  b.r(mx - 3, 0, 6, 2, ROPE[1]).r(mx - 2, 0, 4, 1, ROPE[3]);
+  return cv;
+}
+
+/** Paroi de la fosse de la grue (terre sombre, racines), peinte derrière les blocs. */
+export function cranePit(c, Brush, canvas) {
+  const W = c.w * TILE, H = c.h * TILE;
+  const cv = canvas(W, H), b = new Brush(cv.getContext('2d'));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const w = worley(x + 300, y, 6, 51, 0.7);
+    let v = 0.32 - (y / H) * 0.22 - (w.dy / 6) * 0.08 + (noise2(x * 0.3, y * 0.3, 52) - 0.5) * 0.15;
+    if (w.d2 - w.d < 0.6) v -= 0.1;
+    b.p(x, y, pick(C.SOIL, clamp01(v), x, y));
+  }
+  for (let k = 0; k < 5; k++) {                                      // racines qui pendent
+    const x = Math.floor(ih(k, 3, 53) * W), len = 4 + Math.floor(ih(k, 4, 53) * 10);
+    for (let j = 0; j < len; j++) b.p(x + (j % 4 === 3 ? 1 : 0), j, C.SOIL[1]);
+  }
+  b.r(0, 0, 1, H, C.SOIL[0]).r(W - 1, 0, 1, H, C.SOIL[0]);
+  return cv;
+}
+
 export function roofCoverBox(gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
   return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
@@ -1524,7 +1583,7 @@ export function autoDecor(b, map, tx0, tx1) {
     // poteaux de soutien
     for (let ty = 0; ty < map.h - 1; ty++) {
       const st = map.styleAt(tx, ty);
-      if (st !== 'deck' && st !== 'beam') continue;
+      if (st !== 'deck' && st !== 'beam' && st !== 'plank') continue;
       if (map.solid(tx, ty + 1)) continue;
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
@@ -1580,6 +1639,13 @@ export function groveLeaves(b, map, tx0, tx1) {
   for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
     for (let ty = 0; ty < map.h; ty++) {
       if (map.styleAt(tx, ty) !== 'grove') continue;
+      // bas d'un bosquet suspendu (feuillage bas) : des feuilles pendent dans le passage
+      if (!map.solid(tx, ty + 1) && ty + 1 < map.h) {
+        for (let x = tx * TILE; x < tx * TILE + TILE; x++) {
+          const len = 2 + Math.floor(ih(x, ty, 505) * 5);
+          for (let j = 0; j < len; j++) b.p(x + (j > 2 && ih(x, j, 506) < 0.5 ? 1 : 0), (ty + 1) * TILE + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
+        }
+      }
       for (let k = 0; k < 3; k++) {
         if (ih(tx, ty * 3 + k, 501) < 0.35) continue;
         const x = tx * TILE + Math.floor(ih(tx, ty * 3 + k, 502) * 16), y = ty * TILE + Math.floor(ih(tx, ty * 3 + k, 503) * 14);

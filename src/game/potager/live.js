@@ -4,7 +4,7 @@
 import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
-import { hillGeom, atticGeom, paintRoofCover, roofCoverBox, chestSprite, CHEST } from './props.js';
+import { hillGeom, atticGeom, paintRoofCover, roofCoverBox, chestSprite, CHEST, craneBundle, cranePit } from './props.js';
 
 const R = Math.round;
 
@@ -28,6 +28,8 @@ export class Live {
     this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1, roof: null, alpha: 1 } : null;
     // coffres : fermé, entrouvert, ouvert (peints une fois)
     this.chestImg = level.chests?.length ? [0, 1, 2].map((st) => chestSprite(st, Brush, canvas)) : null;
+    // grues de bambou : le mur de blocs ficelés et sa fosse (peints une fois)
+    this.cranes = (level.cranes ?? []).map((c) => ({ c, bundle: craneBundle(c, Brush, canvas), pit: cranePit(c, Brush, canvas) }));
     this.kappas = P.filter((p) => p.type === 'kappa').map((p) => ({ p, state: 'sit', t: 0 }));
     this.barrels = P.filter((p) => p.type === 'barrel');
     this.hills = P.filter((p) => p.type === 'terraces_bg').map((p) => hillGeom(p));
@@ -124,6 +126,7 @@ export class Live {
     if (this.attic && vis(this.attic.p.owl.x)) this.owl(ctx, cam, time);
     if (this.temple && vis(this.temple.x * TILE, 120)) this.templeLeaves(ctx, cam, time);
     if (this.chestImg) for (const ch of this.level.chests) if (vis(ch.x, 40)) this.chest(ctx, cam, ch);
+    for (const k of this.cranes) if (vis(k.c.ropeX, 200)) this.crane(ctx, cam, k, time);
     // reflets mouvants à la surface de l'eau
     for (const w of this.water) {
       const wx = w.tx * TILE;
@@ -290,6 +293,90 @@ export class Live {
         ctx.globalAlpha = 1;
       }
     }
+  }
+
+  /**
+   * La grue de bambou : mât planté dans le plateau, flèche qui avance au-dessus du
+   * mur de blocs, treuil et contrepoids ; la corde descend jusqu'au joug posé sur
+   * les blocs. Coupée, son bout remonte en se balançant et les blocs tombent dans
+   * la fosse (level.updateCranes), qu'ils comblent à ras du sol.
+   */
+  crane(ctx, cam, k, time) {
+    const c = k.c, lv = this.level;
+    const ox = R(-cam.x), oy = R(-cam.y);
+    const bx = c.x0 * TILE + ox, topY = c.top * TILE + oy, pitY = (c.top + c.h) * TILE + oy;
+    // la fosse (sa paroi du fond), sous les blocs
+    if (!c.landed) ctx.drawImage(k.pit, bx, pitY);
+    const B = C.BAMBOO;
+    const pole = (x, y0, y1, w = 4) => {                     // bambou vertical, nœuds tous les 14 px
+      ctx.fillStyle = B[2]; ctx.fillRect(x, y0, w, y1 - y0);
+      ctx.fillStyle = B[4]; ctx.fillRect(x, y0, 1, y1 - y0);
+      ctx.fillStyle = B[0]; ctx.fillRect(x + w - 1, y0, 1, y1 - y0);
+      for (let y = y0 + 6; y < y1; y += 14) { ctx.fillStyle = B[0]; ctx.fillRect(x, y, w, 1); ctx.fillStyle = B[5]; ctx.fillRect(x, y + 1, w, 1); }
+    };
+    const beam = (x0, x1, y, h = 4) => {                     // bambou couché
+      ctx.fillStyle = B[2]; ctx.fillRect(x0, y, x1 - x0, h);
+      ctx.fillStyle = B[4]; ctx.fillRect(x0, y, x1 - x0, 1);
+      ctx.fillStyle = B[0]; ctx.fillRect(x0, y + h - 1, x1 - x0, 1);
+      for (let x = x0 + 9; x < x1; x += 17) { ctx.fillStyle = B[0]; ctx.fillRect(x, y, 1, h); ctx.fillStyle = B[5]; ctx.fillRect(x + 1, y, 1, h); }
+    };
+    const lash = (x, y) => { ctx.fillStyle = '#2a2420'; ctx.fillRect(x - 3, y - 1, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); };
+    const mx = R(c.mastX - 2) + ox, ground = (c.top + c.h) * TILE + oy, by = R(c.boomY) + oy;
+    const tipX = R(c.ropeX) + ox;
+    // mât (deux bambous liés), haubans vers le sol, flèche et bras du contrepoids
+    pole(mx, by - 6, ground);
+    pole(mx - 5, by + 10, ground, 3);
+    ctx.fillStyle = '#5b4a36';
+    for (let i = 0; i < 26; i++) ctx.fillRect(mx - 6 - i, by + 6 + i * 4, 1, 1);   // hauban (corde)
+    beam(mx - 28, tipX + 8, by, 4);
+    lash(mx + 2, by + 2); lash(mx + 2, by + 30); lash(mx - 3, by + 60);
+    // jambe de force sous la flèche
+    ctx.fillStyle = B[1];
+    for (let i = 0; i < 20; i++) ctx.fillRect(mx + 4 + i, by + 24 - i, 2, 2);
+    // contrepoids : panier de pierres au bout du bras court
+    const cwx = mx - 26, swing = Math.sin(time * 1.3) * 1.2;
+    ctx.fillStyle = '#5b4a36'; ctx.fillRect(cwx + 1, by + 4, 1, 12);
+    ctx.fillStyle = '#7a6040'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 9);
+    ctx.fillStyle = '#5b4a36'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 1); ctx.fillRect(R(cwx - 5 + swing), by + 20, 13, 1);
+    ctx.fillStyle = C.STONE[3]; ctx.fillRect(R(cwx - 3 + swing), by + 13, 4, 3); ctx.fillRect(R(cwx + 2 + swing), by + 14, 4, 2);
+    // treuil sur le mât, à hauteur de la plateforme, avec la corde enroulée
+    const wy = (c.top - 1) * TILE + oy - 8;
+    ctx.fillStyle = '#6a4a2c'; ctx.fillRect(mx - 8, wy, 10, 7);
+    ctx.fillStyle = '#9a7448'; for (let y = wy + 1; y < wy + 7; y += 2) ctx.fillRect(mx - 8, y, 10, 1);
+    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(mx - 11, wy + 2, 3, 3); ctx.fillRect(mx - 13, wy + 5, 2, 5);   // manivelle
+    // poulie au bout de la flèche
+    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(tipX - 3, by + 3, 6, 6);
+    ctx.fillStyle = C.WOOD[4]; ctx.fillRect(tipX - 2, by + 4, 4, 1);
+    ctx.fillStyle = '#2a2420'; ctx.fillRect(tipX - 1, by + 5, 2, 2);
+    // la corde : tendue tant qu'elle tient (légère oscillation), sinon un bout qui remonte
+    const ROPE = ['#3b2a1c', '#9a7448', '#c9a46c'];
+    const ropeLine = (x0, y0, x1, y1, sway) => {
+      const n = Math.max(1, Math.abs(y1 - y0));
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, x = R(x0 + (x1 - x0) * t + Math.sin(t * Math.PI) * sway), y = R(y0 + (y1 - y0) * t);
+        ctx.fillStyle = ROPE[1]; ctx.fillRect(x, y, 1, 1);
+        ctx.fillStyle = ROPE[0]; ctx.fillRect(x + 1, y, 1, 1);
+        if (i % 4 === 0) { ctx.fillStyle = ROPE[2]; ctx.fillRect(x, y, 1, 1); }
+      }
+    };
+    const drop = R(c.drop ?? 0);
+    const yokeY = topY - 6 + drop;
+    if (!c.cut) {
+      ropeLine(tipX, by + 8, tipX, yokeY, Math.sin(time * 1.1) * 0.6);
+    } else {
+      const t = lv.time - c.cutAt, rec = Math.min(1, t / 0.5);
+      const len = (yokeY - drop - by - 8) * (0.55 - 0.25 * rec);
+      const sway = Math.sin(t * 7) * 6 * Math.exp(-t * 1.6);
+      ropeLine(tipX, by + 8, tipX + sway, by + 8 + len, sway * 0.4);
+      // bout resté sur les blocs : il retombe sur le tas
+      const tail = Math.max(4, 14 - t * 30);
+      ropeLine(tipX, yokeY - tail, tipX + 2, yokeY, 1);
+    }
+    // joug de bois posé sur les blocs, et les deux brins vers les coins
+    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(bx + 3, yokeY, c.w * TILE - 6, 3);
+    ctx.fillStyle = C.WOOD[4]; ctx.fillRect(bx + 3, yokeY, c.w * TILE - 6, 1);
+    // les blocs
+    ctx.drawImage(k.bundle, bx, topY + drop);
   }
 
   drawWheel(ctx, cx, cy, r, time) {

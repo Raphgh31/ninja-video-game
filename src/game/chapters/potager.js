@@ -10,6 +10,7 @@
 
 const H = 22;          // hauteur de la carte (carreaux)
 const G = 19;          // ligne du haut du sol de référence
+const TILE = 16;
 
 class Builder {
   constructor() {
@@ -19,6 +20,7 @@ class Builder {
     this.props = [];
     this.hints = [];
     this.backdrops = [];
+    this.cranes = [];
     this.bossDef = null;
   }
 
@@ -96,6 +98,15 @@ class Builder {
 
   hint(kind, x = this.x) {
     this.hints.push({ kind, x });
+    return this;
+  }
+
+  /** Grue de bambou : un mur de blocs suspendu (w × h cases, haut à la ligne top)
+   *  au-dessus d'une fosse de même taille, qu'il comble quand on coupe la corde. */
+  crane(id, x0, w, top, h, extra = {}) {
+    for (let i = 0; i < w; i++) for (let y = top + h; y < top + 2 * h; y++) this.cols[x0 + i][y] = '.';   // la fosse
+    const ropeX = (x0 + w / 2) * TILE;
+    this.cranes.push({ id, x0, w, top, h, ropeX, ropeY0: (top - 5) * TILE, ropeY1: top * TILE - 6, ...extra });
     return this;
   }
 
@@ -240,6 +251,61 @@ function build() {
   b.coins([x + 2, x + 3], 2);
   b.prop('reeds', x, G - 2, { w: 1 });
   b.flat(3, G - 1);
+
+  // Le jardin sur pilotis : un grand canal, des plateformes de bois légères
+  // (« - », traversables par-dessous) à plusieurs niveaux, cultivées, reliées par
+  // des échelles. Le chemin du bas suffit ; les ryō sont en haut.
+  x = b.x; b.flat(6);
+  b.prop('house', x + 2, G, { near: true });         // une chaumière au bord de l'eau
+  b.prop('reeds', x + 5, G, { w: 1 });
+  const c0 = b.x; b.gap(15);
+  b.row(c0, 4, G - 1, '-');                          // A : bas, au ras de l'eau
+  b.row(c0 + 5, 4, G - 3, '-');                      // B : plus haut, cultivé
+  b.row(c0 + 10, 5, G - 1, '-');                     // D : bas, vers l'autre rive
+  b.row(c0 + 1, 3, G - 5, '-');                      // C : au-dessus de A (ryō)
+  b.row(c0 + 7, 4, G - 7, '-');                      // E : le plus haut, au-dessus de B
+  b.row(c0 + 12, 2, G - 5, '-');                     // F : au-dessus de D
+  b.prop('crops', c0 + 5, G - 3, { w: 4, kind: 'choux' });
+  b.prop('crops', c0 + 1, G - 5, { w: 3, kind: 'poireaux+choux' });
+  b.prop('crops', c0 + 7, G - 7, { w: 4, kind: 'carottes' });
+  b.prop('crops', c0 + 11, G - 1, { w: 3, kind: 'navets+radis' });
+  b.prop('ladder', c0 + 3, G - 1, { h: 4 });         // de A à C
+  b.prop('ladder', c0 + 8, G - 3, { h: 4 });         // de B à E
+  b.prop('ladder', c0 + 13, G - 1, { h: 4 });        // de D à F
+  b.prop('baskets', c0 + 1, G - 1);
+  b.coins([c0 + 2, c0 + 3], 0);
+  b.coins([c0 + 8, c0 + 9, c0 + 10], 0);
+  b.set(c0 + 12, G - 6, 'o').set(c0 + 13, G - 6, 'o');
+  b.prop('koi', c0 + 4, G + 1, { w: 6 });
+  x = b.x; b.flat(4);
+  b.prop('reeds', x, G, { w: 2 });
+
+  // LA GRUE DE BAMBOU (énigme) : un mur de blocs de pierre ficelés pend à une
+  // grue et bouche le passage sous la falaise ; une fosse l'attend dessous. On
+  // grimpe par sauts muraux entre deux murs de bambous serrés (on entre dans le
+  // puits en se glissant sous le premier) jusqu'à la plateforme de la grue, d'où
+  // un shuriken coupe la corde : les blocs tombent et comblent la fosse.
+  b.flat(2, G - 1).flat(2, G - 2);
+  const s0 = b.x; b.flat(23, G - 3);                 // plateau (haut à la ligne 16)
+  b.on(s0 + 1, 'P');                                 // lanterne : avant l'énigme
+  b.hint('wall', s0 + 4);
+  b.block(s0 + 3, 1, G - 10, G - 5, '|');            // mur de bambous de gauche : on se glisse dessous
+  b.block(s0 + 7, 1, G - 8, G - 4, '|');             // mur de droite (le puits fait 3 cases de large)
+  b.row(s0 + 4, 7, G - 9, '-');                      // la plateforme de la grue, en haut du puits
+  b.hint('rope', s0 + 8);
+  b.crane('canal', s0 + 11, 2, G - 8, 5, { mastX: (s0 + 10) * TILE + 8, boomY: (G - 14) * TILE + 6 });
+  b.coins([s0 + 5, s0 + 6], 0);
+  for (const c of [s0 + 14, s0 + 16]) b.set(c, G - 4, 'o');
+  b.prop('stone', s0 + 20, G - 3);
+  b.prop('tall_grass', s0 + 21, G - 3, { w: 2 });
+  b.flat(2, G - 2).flat(2, G - 1);
+  b.flat(5);
+  // le surplomb rocheux (le pied d'une paroi qui monte hors de l'image) : on ne
+  // passe que dessous ; au-delà du mur de blocs, il remonte en biais vers le haut
+  for (let i = 0; i < 18; i++) {
+    const bot = i < 6 ? G - 9 : Math.max(1, Math.round(G - 9 - (i - 5) * 0.75));
+    b.block(s0 + 13 + i, 1, 0, bot, '#');
+  }
 
   // -------------------------------------------------------------------------
   // ZONE 04 — Le vieux verger : les premiers ennemis, le coup de pied
@@ -468,6 +534,7 @@ export const POTAGER = {
   props: B.props,
   hints: B.hints,
   backdrops: B.backdrops,
+  cranes: B.cranes,
   legacyCheckpoints: B.legacy,
   boss: B.bossDef,
   theme: 'potager',

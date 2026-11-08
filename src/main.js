@@ -740,6 +740,9 @@ const HINTS = {
   kick: ['B : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
   attack: ['X : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
   slide: ['↓ en courant : glissade', 'Joystick vers le bas en courant : glissade'],
+  wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
+  rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
+  airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
@@ -749,6 +752,9 @@ const HINT_USED = {
   kick: () => player.state === 'kick',
   attack: () => player.state === 'attack' || player.state === 'air_attack',
   slide: () => player.state === 'slide',
+  wall: () => player.state === 'wall_jump',
+  rope: () => level.cranes.some((c) => c.cut),
+  airAttack: () => player.state === 'air_attack',
 };
 
 function updateChapterUi(dt) {
