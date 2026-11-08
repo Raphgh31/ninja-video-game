@@ -235,6 +235,10 @@ L'utilisateur a trouvé le portail « magnifique » et demandé six retouches de
 5. **Échelles** : elles partent du bout de la plateforme du dessous et s'accrochent au début de celle du dessus (`Builder.ladder(bx, tx, rangée, hauteur)`, échelle penchée dessinée par `ladder` avec `bx`/`tx`) : jardin sur pilotis, plateformes de cueillette, pépinière. Image : `docs/potager/echelles_pepiniere.png`.
 6. **Toit de la serre** : 7 ryō sur le faîtage (on y monte depuis le bout de la poutre de charpente), pour pousser à s'aventurer tout en haut.
 
+### L'intérieur de la porte : la forêt du chapitre 2
+
+L'utilisateur refait l'organisation des chapitres : **le chapitre 2 sera une forêt dense et mystérieuse** (`docs/MONDE.md`, § 3). Il a donc demandé qu'on aperçoive cet univers par la porte du temple, d'après une image de référence (bandes de forêt en pixel art : sapins étagés dans une brume bleu-vert, troncs droits à perte de vue, grands troncs moussus à l'écorce rousse, rais de lumière, sous-bois de fougères et de rochers). Nouvel intérieur `foret` (`paintInterior` dans `temple.js`), devenu `DEFAULT_INTERIOR` : deux grands troncs moussus en cadre, deux rangs de troncs dans la brume, trois rangs de sapins, bancs de brume, rais de lumière, sous-bois de fougères, rochers et un tronc couché, un sentier qui s'enfonce et une petite lueur tout au fond. Les quatre autres scènes restent essayables avec `?porte=`. Image : `docs/potager/porte_foret.png`.
+
 ## 6 ter. Historique des grandes étapes (toutes fusionnées dans `main`)
 
 1. **PR #1** : KAGE (forge des sprites, 18 animations d'origine), TATE, niveau 1, terrain d'essai, tactile.
@@ -284,7 +288,7 @@ L'utilisateur a trouvé le portail « magnifique » et demandé six retouches de
 ## 9. Ce qui reste à faire (pistes discutées)
 
 - **En attente de l'avis de l'utilisateur** :
-  - **L'intérieur de la porte du temple** (§ 6 sexies, n° 5) : choisir parmi les quatre propositions (planche `docs/potager/porte_interieurs.png`), puis changer `DEFAULT_INTERIOR` dans `src/game/potager/temple.js` (et, si l'utilisateur le souhaite, retirer les autres).
+  - **La nouvelle organisation des chapitres** : l'utilisateur la refait entièrement ; seul le chapitre 2 est connu (une forêt dense et mystérieuse, déjà visible par la porte du temple). Mettre `docs/MONDE.md` à jour quand il la donnera.
   - **Le nouveau combat contre KARASU-KASHI** (§ 6 quinquies, n° 6) : à jouer et régler (`KARASU` dans `src/game/karasu.js` : 24 PV, pierres par sortie, attente avant le lâcher, durée planté, vitesse du plongeon).
   - **Les énigmes et bosquets** (grue, serre, bosquets) : vérifier en jouant qu'ils sont lisibles et pas trop durs.
   - **Skins** (lancés en novembre 2026, d'après une planche de skins fournie par l'utilisateur, 9 entourés et numérotés) : n° 1, **le vagabond**, **intégré** : sugegasa de paille, tenue bleu nuit, pièces vert mousse aux avant-bras et à la ceinture, cordelette dorée. Vendu **50 ryō** au rayon Apparences du marchand (d'abord 100, baissé à la demande de l'utilisateur). Dans la version de test, tous les skins se portent sans achat. **Suivants** : n° 2 à 9 de sa planche (une planche de design pour chacun avant intégration).

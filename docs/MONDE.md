@@ -21,6 +21,8 @@ Proposition : les **talismans** déjà présents (sur TATE, sur WARA) deviennent
 
 ## 3. Les sept chapitres
 
+> **Novembre 2026 : l'utilisateur va refaire entièrement l'organisation des chapitres et les chapitres eux-mêmes.** Seule décision connue : **le chapitre 2 sera une forêt dense et mystérieuse** (image de référence : sapins étagés dans une brume bleu-vert, grands troncs moussus à l'écorce rousse, rais de lumière, sous-bois de fougères ; on l'aperçoit déjà par la porte du temple, à la fin du Potager). Le tableau ci-dessous est l'ancien plan, à revoir avec lui.
+
 | # | Chapitre | Ambiance | Ennemis (pistes) | Cabane du marchand |
 |---|---|---|---|---|
 | 1 | **Le potager** | jour, champs, paille, montagnes au loin | WARA, TATE, le petit nuisible voleur de légumes | le comptoir du voyageur, à la sortie |

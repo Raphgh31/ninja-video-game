@@ -33,12 +33,13 @@ const LEAF = { w: 36, v0: SILL, v1: 90 };
 const OPEN_ANGLE = 62;               // degrés : les vantaux ne s'ouvrent pas en grand
 
 export const INTERIORS = {
-  bambous: 'Le sentier des bambous (un avant-goût du chapitre 2)',
+  foret: 'La forêt dense et mystérieuse (le chapitre 2)',
+  bambous: 'Le sentier des bambous',
   escalier: "L'escalier de pierre, entre deux lanternes",
   torii: 'Les mille torii, jusqu\'à la lumière',
   brume: 'Le voile de brume dorée',
 };
-export const DEFAULT_INTERIOR = 'bambous';
+export const DEFAULT_INTERIOR = 'foret';   // choisi par l'utilisateur : le chapitre 2 sera une forêt
 
 // ---------------------------------------------------------------------------
 // l'intérieur : un tableau de 72 × 92 px (vu au fond du passage)
@@ -102,6 +103,82 @@ function paintInterior(kind) {
     for (let y = 40; y < 80; y++) for (let x = 0; x < PW; x++) {
       const m = fbm2(x * 0.06, y * 0.18, 3, 21);
       if (m > 0.58 && ih(x, y, 13) < (m - 0.58) * 4) b.p(x, y, 'rgba(250, 250, 236, 0.55)');
+    }
+  } else if (kind === 'foret') {
+    // la forêt du chapitre 2 : brume bleu-vert, conifères étagés, grands troncs
+    // moussus à l'écorce rousse, rais de lumière, sous-bois de fougères, sentier
+    for (let y = 0; y < PH; y++) b.r(0, y, PW, 1, y < 50 ? mixHex('#d6e6df', '#8fbcb4', y / 50) : mixHex('#8fbcb4', '#3f6f63', (y - 50) / 42));
+    // des troncs droits à perte de vue, noyés dans la brume (deux profondeurs)
+    for (const [n, col, edge, w0, seed] of [[16, '#a3c8c0', '#93bcb3', 2, 51], [10, '#6c9d93', '#5a8a80', 3, 52]]) {
+      for (let i = 0; i < n; i++) {
+        const x = Math.floor(ih(i, seed, 53) * PW), w = w0 + Math.floor(ih(i, seed, 54) * 2);
+        if (Math.abs(x - 36) < 3) continue;
+        b.r(x, 0, w, 74, col).r(x + w - 1, 0, 1, 74, edge);
+        for (let y = 6 + (i % 5) * 4; y < 70; y += 17) b.r(x - 2, y, 2, 1, edge).r(x + w, y + 3, 2, 1, edge);   // branches mortes
+      }
+    }
+    // trois rangs de sapins, de plus en plus sombres et nets vers l'avant
+    const firs = [
+      { n: 16, col: '#a9cdc6', dark: '#98c1b9', base: 62, h: [26, 44], w: 5 },
+      { n: 12, col: '#6fa39b', dark: '#5f9189', base: 70, h: [34, 54], w: 7 },
+      { n: 8, col: '#3f7468', dark: '#2f5d52', base: 78, h: [40, 62], w: 9 },
+    ];
+    firs.forEach((f, k) => {
+      for (let i = 0; i < f.n; i++) {
+        const cx = Math.floor(ih(i, k, 31) * (PW + 10)) - 5, h = f.h[0] + Math.floor(ih(i, k, 32) * (f.h[1] - f.h[0]));
+        if (Math.abs(cx - 36) < 6 + k * 2) continue;                         // le sentier reste dégagé
+        b.r(cx, f.base - h, 1, h, f.dark);                                     // le tronc
+        for (let j = 0; j < h - 4; j++) {                                      // le feuillage en étages
+          const half = Math.round((j / h) * f.w * (0.75 + ((j % 6) / 6) * 0.35));
+          b.r(cx - half, f.base - h + j, 2 * half + 1, 1, j % 6 === 5 ? f.dark : f.col);
+        }
+      }
+      for (let x = 0; x < PW; x++) {                                         // la brume entre deux rangs
+        const m = fbm2(x * 0.08, k * 3.1, 3, 41);
+        for (let y = f.base - 6; y < f.base + 2; y++) if (ih(x, y, 42 + k) < m * 0.7) b.p(x, y, k < 2 ? '#c7ddd6' : '#9cc3b9');
+      }
+    });
+    // les rais de lumière, en biais depuis le haut
+    for (let k = 0; k < 3; k++) {
+      const x0 = 20 + k * 14;
+      for (let y = 0; y < 70; y++) for (let w = 0; w < 4; w++) if (((x0 + w + y * 0.35) | 0) % 2 === 0 && ih(w, y, 43 + k) < 0.45) b.p(Math.round(x0 + w + y * 0.35), y, 'rgba(250, 248, 210, 0.45)');
+    }
+    // le sous-bois : mousse, fougères, rochers, le sentier qui s'enfonce
+    for (let y = 70; y < PH; y++) {
+      const t = (y - 70) / (PH - 70), half = 2 + t * 22;
+      for (let x = 0; x < PW; x++) {
+        const path = Math.abs(x - 36) < half;
+        const v = path ? 0.45 + t * 0.15 + (ih(x >> 1, y, 44) - 0.5) * 0.2 : 0.25 + t * 0.2 + (fbm2(x * 0.2, y * 0.3, 2, 45) - 0.5) * 0.4;
+        b.p(x, y, path ? pick(['#5a6b4a', '#6f7d55', '#86915f', '#9aa36b'], v, x, y) : pick(['#1f3d2c', '#2c5638', '#3e7340', '#58913f', '#7cb04a'], v, x, y));
+      }
+    }
+    for (let k = 0; k < 14; k++) {                                           // fougères en éventail
+      const fx = Math.floor(ih(k, 1, 46) * PW), fy = 74 + Math.floor(ih(k, 2, 46) * 16);
+      if (Math.abs(fx - 36) < 4 + (fy - 70) * 0.9) continue;
+      for (let a = 0; a < 5; a++) {
+        const ang = -Math.PI / 2 + (a - 2) * 0.45;
+        for (let j = 0; j < 5; j++) b.p(Math.round(fx + Math.cos(ang) * j), Math.round(fy + Math.sin(ang) * j + j * j * 0.08), j > 3 ? '#9ccc5a' : '#5f9a3a');
+      }
+    }
+    for (const [rx, ry] of [[10, 86], [58, 83], [47, 76]]) b.r(rx, ry, 4, 2, '#7b8a92').r(rx + 1, ry - 1, 2, 1, '#a5b3b8').r(rx, ry + 2, 4, 1, '#3f4a4f');
+    b.r(44, 79, 13, 3, '#6b4a30').r(44, 79, 13, 1, '#8c6440').r(55, 79, 2, 3, '#c8a070').p(56, 80, '#8c6440');   // un tronc couché
+    for (let x = 44; x < 57; x += 3) b.p(x, 78, '#6fae45');
+    // une lueur, tout au fond du sentier : quelque chose vous y attend
+    b.p(36, 63, '#fff6c8').p(35, 63, 'rgba(255, 240, 180, 0.6)').p(37, 63, 'rgba(255, 240, 180, 0.6)').p(36, 62, 'rgba(255, 240, 180, 0.6)');
+    // les deux grands troncs du premier plan, moussus, à l'écorce rousse
+    for (const [tx, tw, side] of [[-2, 13, 1], [61, 13, -1]]) {
+      for (let y = 0; y < PH; y++) {
+        const flare = y > 74 ? Math.round((y - 74) * 0.5) : 0;                 // le pied s'évase en racines
+        for (let i = -flare * (side < 0 ? 1 : 0); i < tw + flare * (side > 0 ? 1 : 0); i++) {
+          const x = tx + i, u = (i + flare) / (tw + flare);
+          if (x < 0 || x >= PW) continue;
+          const groove = (x * 3 + Math.floor(y / 5)) % 5 === 0;
+          const moss = fbm2(x * 0.25, y * 0.08, 3, 47 + side) > 0.56 - (side > 0 ? u : 1 - u) * 0.15;
+          const lit = side > 0 ? u : 1 - u;
+          b.p(x, y, moss ? pick(['#2f5a26', '#4a8030', '#6fae45', '#9ccc5a'], 0.3 + lit * 0.6, x, y)
+            : groove ? '#3a1f14' : pick(['#4a2618', '#6b3a24', '#8a4a2c', '#a65d34'], 0.2 + lit * 0.7, x, y));
+        }
+      }
     }
   } else if (kind === 'escalier') {
     // un escalier de pierre moussue qui monte vers une lumière chaude ; un torii
