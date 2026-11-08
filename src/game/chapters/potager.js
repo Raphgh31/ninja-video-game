@@ -544,21 +544,42 @@ function build() {
   // -------------------------------------------------------------------------
   b.zone('09', 'Le champ du corbeau');
   const A = G - 4;                                   // sol de l'arène
-  const arena0 = b.x;
-  b.flat(40, A);
-  b.on(arena0 + 2, 'P');                             // point de reprise : avant le combat
-  b.prop('signpost', arena0 + 4, A);
-  b.prop('crops', arena0 + 7, A, { w: 4, kind: 'navets' });
-  b.prop('crops', arena0 + 21, A, { w: 5, kind: 'choux' });
-  b.prop('crops', arena0 + 27, A, { w: 3, kind: 'radis' });
-  b.prop('tall_grass', arena0 + 12, A, { w: 2 });
-  const gx = arena0 + 34;                            // la grande porte du temple
+  const a = b.x;
+  b.flat(66, A);
+  b.on(a + 2, 'P');                                  // point de reprise : avant le combat
+  b.prop('signpost', a + 4, A);
+  // le potager du corbeau : rangs de cultures, arbres fruitiers, treillis
+  b.prop('tree', a + 9, A, { kind: 'pommier', s: 1.2 });
+  b.prop('tree', a + 26, A, { kind: 'cerisier', s: 1.3 });
+  b.prop('tree', a + 37, A, { kind: 'poirier', s: 1.15 });
+  b.prop('tree', a + 54, A, { kind: 'pommier', s: 1.05 });
+  b.prop('crops', a + 6, A, { w: 4, kind: 'navets' });
+  b.prop('crops', a + 13, A, { w: 5, kind: 'choux' });
+  b.prop('crops', a + 23, A, { w: 4, kind: 'radis' });
+  b.prop('crops', a + 34, A, { w: 3, kind: 'carottes' });
+  b.prop('crops', a + 44, A, { w: 5, kind: 'poireaux+choux' });
+  b.prop('trellis', a + 29, A, { w: 2 });
+  b.prop('baskets', a + 49, A);
+  b.prop('tall_grass', a + 11, A, { w: 2 });
+  b.prop('lantern_stone', a + 56, A);
+  // les tas de pierres où le corbeau se sert (il les lâche sur KAGE)
+  b.prop('rock_pile', a + 11, A);
+  b.prop('rock_pile', a + 51, A);
+  // plateformes de bois fragiles, sur pilotis : depuis elles, un saut + sabre
+  // atteint le corbeau en vol ; sa chute les fait toutes s'effondrer
+  const scaffolds = [
+    { x0: a + 15, w: 4, row: A - 3 }, { x0: a + 20, w: 3, row: A - 5 },
+    { x0: a + 40, w: 4, row: A - 3 }, { x0: a + 45, w: 3, row: A - 5 },
+  ];
+  for (const sc of scaffolds) { b.row(sc.x0, sc.w, sc.row, '_'); sc.ground = A; }
+  b.hint('airAttack', a + 13);
+  const gx = a + 60;                                 // la grande porte du temple
   // l'épouvantail géant, et le corbeau perché dessus ; il ne quitte pas l'arène
-  b.bossDef = { type: 'karasu', x: arena0 + 16, y: A, arena: [arena0, gx] };
+  b.bossDef = { type: 'karasu', x: a + 31, y: A, arena: [a, gx], piles: [a + 11, a + 51], scaffolds };
   b.prop('temple_gate', gx, A);
   b.block(gx, 1, A - 7, A - 1, 'D');                 // fermée : on ne passe pas (s'ouvre quand il est vaincu)
-  b.prop('bush', arena0 + 38, A);
-  b.on(arena0 + 38, 'G');                            // la sortie, derrière la porte
+  b.prop('bush', a + 64, A);
+  b.on(a + 64, 'G');                                 // la sortie, derrière la porte
   b.flat(6, A);
   b.zones[b.zones.length - 1].x1 = b.x;
   return b;

@@ -1306,6 +1306,30 @@ const PAINT = {
     }
   },
 
+  // tas de pierres de l'arène du corbeau : il vient s'y servir avec ses serres
+  rock_pile(b, p, X, Y) {
+    const stones = [];
+    for (let k = 0; k < 14; k++) {
+      const r = 3 + Math.floor(ih(k, p.x, 41) * 5), row = k < 7 ? 0 : k < 11 ? 1 : 2;
+      const span = [26, 18, 10][row];
+      stones.push({ x: X - span + ih(k, p.x, 42) * span * 2, y: Y - r * 0.8 - row * 6, r });
+    }
+    stones.sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const st of stones.reverse()) {
+      for (let j = -st.r; j <= st.r; j++) for (let i = -st.r - 1; i <= st.r + 1; i++) {
+        const q = (i * i) / ((st.r + 1) * (st.r + 1)) + (j * j) / (st.r * st.r * 0.75);
+        if (q > 1) continue;
+        let v = 0.6 - (i / st.r) * 0.2 - (j / st.r) * 0.28 + (noise2((st.x + i) * 0.5, (st.y + j) * 0.5, 43) - 0.5) * 0.3;
+        if (q > 0.78) v = 0.08;
+        let col = pick(C.STONE, clamp01(v), st.x + i, st.y + j);
+        if (j < -st.r * 0.4 && noise2((st.x + i) * 0.3, (st.y + j) * 0.3, 44) > 0.66) col = pick(C.MOSS, 0.5, st.x + i, j);
+        b.p(Math.round(st.x + i), Math.round(st.y + j), col);
+      }
+    }
+    // cailloux épars et herbe autour
+    for (let k = 0; k < 10; k++) b.r(Math.round(X - 34 + ih(k, 7, 45) * 68), Y - 2, 2, 2, C.STONE[1 + (k % 3)]);
+  },
+
   // bottes de foin empilées, calées sur leurs cases de collision (« % ») : des
   // marches qu'on ne peut pas briser. p.x = colonne de gauche, p.y = haut du sol,
   // p.cols = hauteur (en cases) de chaque colonne, de gauche à droite

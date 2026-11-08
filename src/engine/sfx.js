@@ -293,6 +293,29 @@ const SOUNDS = {
   },
   paperTear: () => air({ dur: 0.4, vol: 0.09, type: 'highpass', q: 0.9, f: [[0, 2500], [1, 4200]], g: [[0, 0.1], [0.1, 1], [0.8, 0.6], [1, 0.01]], am: { rate: 60, depth: 0.9, type: 'square' } }),
   // la grande porte du temple : bois lourd qui grince en pivotant
+  // le corbeau saisit une pierre : cailloux qui raclent, petit choc
+  grabRock: () => {
+    noise({ dur: 0.12, vol: 0.09, type: 'bandpass', f: 1500, q: 1.2 });
+    for (let i = 0; i < 3; i++) noise({ dur: 0.03, vol: 0.05, type: 'bandpass', f: 2200 + i * 400, q: 3, delay: 0.05 + i * 0.05 });
+  },
+  // une pierre lâchée touche le sol (plus grave pour les grosses)
+  rockThud: ({ size = 1 } = {}) => {
+    tone({ f: 120 - size * 25, to: 50, dur: 0.18 + size * 0.06, type: 'triangle', vol: 0.09 + size * 0.03 });
+    noise({ dur: 0.14 + size * 0.05, vol: 0.12 + size * 0.04, type: 'lowpass', f: 600, to: 150 });
+    noise({ dur: 0.05, vol: 0.05, type: 'bandpass', f: 2400, q: 2, delay: 0.03 });
+  },
+  // le bois des plateformes craque (le corbeau vient de s'écraser)
+  woodCreak: () => {
+    air({ dur: 0.5, vol: 0.06, q: 8, f: [[0, 300], [0.5, 520], [1, 260]], g: [[0, 0.1], [0.3, 1], [1, 0.05]], am: { rate: 18, depth: 0.8, type: 'sawtooth' } });
+    noise({ dur: 0.08, vol: 0.08, type: 'bandpass', f: 900, q: 2, delay: 0.3 });
+  },
+  // une plateforme s'effondre : planches qui cassent, chute, fracas
+  woodCollapse: () => {
+    for (let i = 0; i < 4; i++) noise({ dur: 0.05, vol: 0.1, type: 'bandpass', f: 1100 + i * 250, q: 2.5, delay: i * 0.05 });
+    noise({ dur: 0.35, vol: 0.14, type: 'lowpass', f: 700, to: 160, delay: 0.18 });
+    tone({ f: 95, to: 50, dur: 0.25, type: 'triangle', vol: 0.08, delay: 0.2 });
+    for (let i = 0; i < 3; i++) tone({ f: 180 + i * 40, to: 120, dur: 0.05, type: 'triangle', vol: 0.04, delay: 0.42 + i * 0.09 });
+  },
   // caisse qui retombe lourdement : choc sourd de bois, petit rebond, craquement
   crateLand: () => {
     tone({ f: 110, to: 55, dur: 0.16, type: 'triangle', vol: 0.11 });

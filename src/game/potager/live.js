@@ -127,6 +127,7 @@ export class Live {
     if (this.temple && vis(this.temple.x * TILE, 120)) this.templeLeaves(ctx, cam, time);
     if (this.chestImg) for (const ch of this.level.chests) if (vis(ch.x, 40)) this.chest(ctx, cam, ch);
     for (const k of this.cranes) if (vis(k.c.ropeX, 200)) this.crane(ctx, cam, k, time);
+    for (const sc of this.level.scaffolds ?? []) if (vis((sc.x0 + sc.w / 2) * TILE, 120)) this.scaffold(ctx, cam, sc, time);
     // reflets mouvants à la surface de l'eau
     for (const w of this.water) {
       const wx = w.tx * TILE;
@@ -377,6 +378,93 @@ export class Live {
     ctx.fillStyle = C.WOOD[4]; ctx.fillRect(bx + 3, yokeY, c.w * TILE - 6, 1);
     // les blocs
     ctx.drawImage(k.bundle, bx, topY + drop);
+  }
+
+  /**
+   * Plateforme fragile de l'arène du corbeau : planches mal jointes, liens de
+   * corde, pilotis un peu de travers, pots de semis. Quand le corbeau s'écrase,
+   * elle s'effondre : les planches tombent en tournant, les pilotis basculent,
+   * puis le tout reste en tas au pied (jusqu'à la prochaine tentative).
+   */
+  scaffold(ctx, cam, sc, time) {
+    const W = C.WOOD, ox = -Math.round(cam.x), oy = -Math.round(cam.y);
+    const x0 = sc.x0 * TILE, w = sc.w * TILE, top = sc.row * TILE, ground = sc.ground * TILE;
+    const lv = this.level;
+    if (sc.up || lv.time < sc.fallAt) {
+      // tremblement juste avant la chute
+      const shake = !sc.up ? Math.round(Math.sin(lv.time * 70) * 1) : 0;
+      const X = x0 + ox + shake, T = top + oy;
+      // pilotis (légèrement penchés), croisillon de corde
+      const posts = [[2, -1], [w / 2 - 1, 1], [w - 4, 1]];
+      for (const [px, lean] of posts) {
+        for (let y = T + 4; y < ground + oy; y++) {
+          const t = (y - T) / (ground - top), x = Math.round(X + px + lean * t * 2);
+          ctx.fillStyle = W[2]; ctx.fillRect(x, y, 2, 1);
+          ctx.fillStyle = W[0]; ctx.fillRect(x + 2, y, 1, 1);
+        }
+      }
+      ctx.fillStyle = '#6a5038';
+      for (let i = 0; i < w - 6; i += 2) { ctx.fillRect(X + 3 + i, T + 6 + Math.round(i * 0.45), 1, 1); ctx.fillRect(X + w - 4 - i, T + 6 + Math.round(i * 0.45), 1, 1); }
+      // plateau : planches inégales, quelques jours entre elles
+      for (let i = 0; i < w; i += 6) {
+        const pw = Math.min(5, w - i), dy = (i / 6) % 2 === 0 ? 0 : 1;
+        ctx.fillStyle = W[4]; ctx.fillRect(X + i, T + dy, pw, 1);
+        ctx.fillStyle = W[3]; ctx.fillRect(X + i, T + 1 + dy, pw, 2);
+        ctx.fillStyle = W[1]; ctx.fillRect(X + i, T + 3 + dy, pw, 1);
+      }
+      ctx.fillStyle = '#2a2420';
+      for (const px of [3, w / 2, w - 3]) ctx.fillRect(X + px - 1, T + 1, 3, 2);   // ligatures
+      // échelle de bambou contre la plateforme basse (elle tombe avec elle)
+      if (ground - top <= 3 * TILE) {
+        const lx = X + 4, lt = T + 1, lb = ground + oy;
+        ctx.fillStyle = C.BAMBOO[1]; ctx.fillRect(lx - 3, lt, 2, lb - lt); ctx.fillRect(lx + 5, lt, 2, lb - lt);
+        ctx.fillStyle = C.BAMBOO[3]; ctx.fillRect(lx - 3, lt, 1, lb - lt); ctx.fillRect(lx + 5, lt, 1, lb - lt);
+        for (let y = lt + 5; y < lb - 2; y += 7) { ctx.fillStyle = C.BAMBOO[2]; ctx.fillRect(lx - 1, y, 6, 2); ctx.fillStyle = C.BAMBOO[4]; ctx.fillRect(lx - 1, y, 6, 1); }
+      }
+      // pots et semis
+      for (let k = 0; k < sc.w; k++) {
+        if ((k + sc.x0) % 2) continue;
+        const px = X + k * TILE + 6;
+        ctx.fillStyle = C.TERRACOTTA[2]; ctx.fillRect(px, T - 5, 6, 5);
+        ctx.fillStyle = C.TERRACOTTA[4]; ctx.fillRect(px, T - 5, 6, 1);
+        ctx.fillStyle = C.LEAF[3]; ctx.fillRect(px + 1, T - 9, 1, 4); ctx.fillRect(px + 4, T - 8, 1, 3);
+        ctx.fillStyle = C.LEAF[2]; ctx.fillRect(px + 2, T - 10, 2, 2);
+      }
+      return;
+    }
+    // effondrement : planches et pilotis qui tombent, puis un tas au sol
+    if (!sc.debris || sc.debris.at !== sc.fallAt) {
+      const r = rng(sc.x0 * 31 + Math.round(sc.fallAt * 100));
+      sc.debris = { at: sc.fallAt, bits: [] };
+      for (let i = 0; i < w; i += 6) sc.debris.bits.push({ x: x0 + i, y: top, vx: (r() - 0.5) * 70, vy: -30 - r() * 40, rot: 0, vr: (r() - 0.5) * 12, len: 5 + Math.floor(r() * 3), kind: 'plank' });
+      for (const px of [2, w / 2, w - 4]) sc.debris.bits.push({ x: x0 + px, y: top + 4, vx: (r() - 0.5) * 30, vy: 0, rot: 0, vr: (px < w / 2 ? -1 : 1) * (2 + r() * 2), len: Math.round((ground - top) * 0.7), kind: 'post' });
+      for (let k = 0; k < sc.w; k += 2) sc.debris.bits.push({ x: x0 + k * TILE + 8, y: top - 3, vx: (r() - 0.5) * 50, vy: -40, rot: 0, vr: 6, len: 4, kind: 'pot' });
+      if (ground - top <= 3 * TILE) sc.debris.bits.push({ x: x0 + 5, y: (top + ground) / 2, vx: -25, vy: 0, rot: 0, vr: -2.2, len: ground - top, kind: 'ladder' });
+      sc.debris.last = lv.time;
+    }
+    const dt = Math.min(0.05, Math.max(0, lv.time - sc.debris.last));
+    sc.debris.last = lv.time;
+    for (const bt of sc.debris.bits) {
+      if (!bt.rest) {
+        bt.vy += 600 * dt; bt.x += bt.vx * dt; bt.y += bt.vy * dt; bt.rot += bt.vr * dt;
+        if (bt.y >= ground - 2) { bt.y = ground - 2; bt.rest = true; bt.rot = Math.round(bt.rot / (Math.PI / 2)) * (Math.PI / 2) + (bt.kind === 'post' ? 0 : 0); }
+      }
+      ctx.save();
+      ctx.translate(Math.round(bt.x + ox), Math.round(bt.y + oy));
+      ctx.rotate(bt.rest ? (bt.kind === 'pot' ? 0 : Math.PI / 2) : Math.round(bt.rot / (Math.PI / 4)) * (Math.PI / 4));
+      if (bt.kind === 'ladder') {
+        const h = bt.len, y0 = -Math.round(h / 2);
+        ctx.fillStyle = C.BAMBOO[1]; ctx.fillRect(-4, y0, 2, h); ctx.fillRect(4, y0, 2, h);
+        ctx.fillStyle = C.BAMBOO[2]; for (let y = y0 + 4; y < y0 + h - 2; y += 7) ctx.fillRect(-2, y, 6, 2);
+      } else if (bt.kind === 'pot') {
+        ctx.fillStyle = C.TERRACOTTA[bt.rest ? 1 : 2]; ctx.fillRect(-3, -2, bt.rest ? 2 : 6, 4);
+        if (bt.rest) { ctx.fillRect(1, -1, 3, 3); ctx.fillStyle = C.SOIL[2]; ctx.fillRect(-1, 0, 2, 2); }
+      } else {
+        ctx.fillStyle = W[bt.kind === 'post' ? 2 : 3]; ctx.fillRect(-1, -Math.round(bt.len / 2), 3, bt.len);
+        ctx.fillStyle = W[1]; ctx.fillRect(1, -Math.round(bt.len / 2), 1, bt.len);
+      }
+      ctx.restore();
+    }
   }
 
   drawWheel(ctx, cx, cy, r, time) {

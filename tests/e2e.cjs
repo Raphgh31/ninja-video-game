@@ -954,25 +954,63 @@ async function main() {
     expect(bad.length === 0, bad.join(' '));
   });
 
-  await test('potager : en vol, seul le shuriken le touche (lancé au sommet d\'un saut) ; planté dans le sol, le sabre le blesse', async () => {
-    const put = (st) => pg.evaluate(([st, a]) => {
-      const g = window.__kage, b = g.boss, pl = g.player, x = (a[0] + a[1]) * 8;
-      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; g.shurikens.reset();
-      b.reset(); b.engaged = true; b.setState(st); b.salvoLeft = 0; b.dropT = 99; b.windup = 0;
-      if (st === 'bomb') { b.salvoLeft = 9; b.x = x + 10; b.y = b.groundY - 34; } else { b.x = x + 22; b.y = b.groundY; b.play('stuck'); }
+  await test('potager : en vol (2× plus haut), hors de portée depuis le sol ; d\'une plateforme, saut + sabre : il tombe bec planté et les plateformes s\'effondrent ; planté, le sabre le blesse', async () => {
+    // le corbeau, une pierre dans les serres, au-dessus de KAGE (au sol ou sur une plateforme)
+    const put = (onScaffold) => pg.evaluate(([onScaffold, a]) => {
+      const g = window.__kage, b = g.boss, pl = g.player, l = g.level, sc = l.scaffolds[0];
+      b.reset(); b.engaged = true;
+      const x = onScaffold ? (sc.x0 + 1) * 16 + 8 : (a[0] + a[1]) * 8, y = onScaffold ? sc.row * 16 : b.groundY;
+      pl.x = x; pl.y = y; pl.facing = 1; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; pl.energy.value = 1; g.shurikens.reset();
+      b.setState('carry'); b.carry = { size: 0 }; b.rocksLeft = 3; b.x = x + 4; b.y = b.groundY - 76; b.facing = -1;
       return b.hp;
-    }, [st, [B.a0, B.a1]]);
-    const hp = () => pg.evaluate(() => window.__kage.boss.hp);
-    const h0 = await put('bomb');
-    await PK.press('KeyX'); await pw(450);
-    const sword = await hp();
-    await put('bomb');
+    }, [onScaffold, [B.a0, B.a1]]);
+    const st = () => pg.evaluate(() => { const b = window.__kage.boss; return { hp: b.hp, st: b.state, up: window.__kage.level.scaffolds.map((s) => s.up).join('') }; });
+    // depuis le sol : saut + sabre, puis saut + shuriken
+    const h0 = await put(false);
+    await PK.down('Space'); await pw(230); await PK.press('KeyX'); await pw(60); await PK.up('Space'); await pw(500);
+    const sword = await st();
+    await put(false);
     await PK.down('Space'); await pw(250); await PK.press('KeyC'); await PK.up('Space'); await pw(500);
-    const shur = await hp();
-    await put('stuck');
+    const shur = await st();
+    // depuis la plateforme basse : saut + sabre
+    await put(true);
+    await PK.down('Space'); await pw(230); await PK.press('KeyX'); await pw(60); await PK.up('Space'); await pw(250);
+    const knock = await st();
+    await pw(1800);
+    const after = await st();
+    // planté dans le sol : le sabre le blesse
+    await pg.evaluate(([a0, a1]) => { const g = window.__kage, b = g.boss, pl = g.player, x = (a0 + a1) * 8;
+      pl.x = x; pl.y = b.groundY; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.invuln = 9; b.setState('stuck'); b.x = x + 22; b.y = b.groundY; b.play('stuck'); }, [B.a0, B.a1]);
+    const before = (await st()).hp;
     await PK.press('KeyX'); await pw(450);
-    const stuck = await hp();
-    expect(sword === h0 && shur === h0 - 1 && stuck === h0 - 2, `PV ${h0} : sabre en vol ${sword}, shuriken en vol ${shur}, sabre planté ${stuck}`);
+    const stuck = (await st()).hp;
+    expect(sword.hp === h0 && shur.hp === h0 && knock.st === 'knocked' && knock.hp < h0 && ['crash', 'stuck'].includes(after.st) && after.up === 'falsefalsefalsefalse' && stuck === before - 2,
+      `sol : sabre ${sword.hp}/${sword.st}, shuriken ${shur.hp} ; plateforme : ${JSON.stringify(knock)} puis ${JSON.stringify(after)} ; planté ${before} → ${stuck}`);
+    await pg.evaluate(() => window.__kage.boss.reset());
+  });
+
+  await test('potager : les plateformes restent debout tant qu\'il ne s\'est pas écrasé ; il ne plonge qu\'une fois elles tombées, en arc', async () => {
+    const r = await pg.evaluate(([a0, a1]) => {
+      const g = window.__kage, b = g.boss, l = g.level, x = (a0 + a1) * 8;
+      const fake = { x, y: b.groundY, vx: 0, state: 'idle', box() { return { x: this.x - 4, y: this.y - 22, w: 9, h: 22 }; }, hurt() { return true; } };
+      const run = (secs) => { const seen = new Set(); for (let n = 0; n < secs * 120; n++) { b.update(1 / 120, fake); l.update(1 / 120); seen.add(b.state); } return seen; };
+      b.reset(); b.engaged = true; b.setState('taunt');
+      const withUp = run(25);
+      l.collapseScaffolds(x); run(1);
+      b.reset(); l.collapseScaffolds(x); b.engaged = true; b.setState('taunt');
+      // reset() les a relevées : on les refait tomber pour la suite
+      for (const s of l.scaffolds) { s.up = false; s.fallAt = -9; }
+      l.update(1 / 120);
+      const ys = [];
+      let dove = false;
+      for (let n = 0; n < 40 * 120 && !dove; n++) { b.update(1 / 120, fake); if (b.state === 'dive') { ys.push(b.y); } else if (ys.length) dove = true; }
+      // l'arc : il remonte d'abord un peu, puis descend jusqu'au sol
+      const minY = Math.min(...ys), riseFirst = ys.length > 3 && minY < ys[0] - 2;
+      const out = { grabbed: withUp.has('grab'), thrown: withUp.has('release'), noDiveWhileUp: !withUp.has('dive'), dove: ys.length > 0, riseFirst, ends: b.state };
+      b.reset();
+      return out;
+    }, [B.a0, B.a1]);
+    expect(r.grabbed && r.thrown && r.noDiveWhileUp && r.dove && r.riseFirst && ['crash', 'stuck'].includes(r.ends), JSON.stringify(r));
   });
 
   await test('potager : vaincu, il s\'affale ; le talisman se déchire et la porte du temple s\'ouvre (sauvegardé)', async () => {

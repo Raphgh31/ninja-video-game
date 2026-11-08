@@ -315,20 +315,26 @@ function onKarasuEvent(n, d) {
     case 'diveHit': fx.shake(3, 0.25); fx.drift(d.x, d.y, 4, { speed: 70 }); break;
     case 'crash':
       sfxAt('crash', d);
-      fx.shake(3, 0.3);
+      fx.shake(d.heavy ? 4 : 3, d.heavy ? 0.45 : 0.3);
       fx.dust(d.x + d.dir * 6, d.y, 8, { dir: d.dir, spread: 50, up: 30, palette: 'dirt', life: 0.6 });
       fx.dust(d.x - d.dir * 6, d.y, 5, { dir: -d.dir, spread: 35, up: 20 });
       fx.drift(d.x, d.y - 24, 5, { speed: 60, up: 40 });
       break;
     case 'shake': sfxAt('flap', d); fx.dust(d.x, d.y, 5, { spread: 30, palette: 'dirt' }); fx.drift(d.x, d.y - 20, 4, { speed: 45 }); break;
-    case 'acorn': sfxAt('acorn', d); fx.sparks(d.x, d.y - 3, 5, { palette: 'dirt', speed: 60 }); break;
-    case 'turnipLand': sfxAt('turnipLand', d); fx.dust(d.x, d.y, 3, { spread: 20, palette: 'dirt' }); break;
-    case 'boom':
-      sfxAt('boom', d);
-      fx.shake(3, 0.3);
-      fx.sparks(d.x, d.y - 8, 16, { palette: 'fire', speed: 130 });
-      fx.dust(d.x - 8, d.y, 7, { dir: -1, spread: 45, up: 30, palette: 'dirt' });
-      fx.dust(d.x + 8, d.y, 7, { dir: 1, spread: 45, up: 30, palette: 'dirt' });
+    // les pierres : il les saisit sur un tas, les lâche, elles s'écrasent
+    case 'grab': sfxAt('grabRock', d); fx.dust(d.x, d.y, 5, { spread: 26, up: 14, palette: 'dirt' }); break;
+    case 'throw': sfxAt('flap', d); break;
+    case 'rockLand':
+      sfxAt('rockThud', d, { size: d.size });
+      fx.dust(d.x, d.y, 3 + d.size * 2, { spread: 22 + d.size * 8, up: 12 + d.size * 5, palette: 'dirt' });
+      if (d.size === 2) fx.shake(1.4, 0.15);
+      if (d.size < 2) fx.sparks(d.x, d.y - 3, 4 + d.size * 2, { palette: 'dirt', speed: 70 });
+      break;
+    case 'rockBreak': fx.sparks(d.x, d.y - 3, 6, { palette: 'dirt', speed: 80 }); break;
+    case 'knocked':
+      sfxAt('squawk', d);
+      fx.drift(d.x, d.y, 10, { speed: 80, up: 50 });
+      fx.hitStop(0.09);
       break;
     case 'hit':
       if (!swordStrike) sfxAt('hit', d, undefined, 0.6);
@@ -387,6 +393,14 @@ level.onEvent = (n, d) => {
       sfx('ropeSnap');
       fx.sparks(d.x, d.y, 6, { palette: 'straw', speed: 70 });
       if (save && !save.cranes.includes(d.id)) { save.cranes.push(d.id); persist(); }
+      break;
+    // arène du corbeau : sa chute fait trembler puis s'effondrer les plateformes
+    case 'scaffoldsShake': sfx('woodCreak'); break;
+    case 'scaffoldFall':
+      sfx('woodCollapse');
+      fx.dust(d.x, d.ground, 8, { spread: d.w * 0.6, up: 24, life: 0.7 });
+      fx.drift(d.x, d.y, 4, { palette: 'straw', speed: 40 });
+      fx.shake(1.2, 0.2);
       break;
     case 'craneLand':
       sfx('boulderLand');

@@ -69,6 +69,8 @@ export class Level {
     // grues de bambou : un mur de blocs ficelés suspendu au-dessus d'une fosse ;
     // un shuriken dans la corde le fait tomber dans la fosse, qu'il comble (voir cutRope)
     this.cranes = (def.cranes ?? []).map((c) => ({ ...c, cut: false, cutAt: -9, drop: 0, landed: false }));
+    // plateformes fragiles de l'arène du boss : { x0, w, row (cases), ground (ligne du sol dessous) }
+    this.scaffolds = (def.boss?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
     for (const c of this.cranes) this.fillCrane(c, c.top);
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
@@ -102,6 +104,7 @@ export class Level {
     this.time += dt;
     this.updateCrates(dt);
     this.updateCranes(dt);
+    this.updateScaffolds();
     for (const t of this.targets) if (t.broken) t.t += dt;
     for (const g of this.gongs) g.t += dt;
     for (const c of this.checkpoints) c.t += dt;
@@ -273,7 +276,39 @@ export class Level {
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la
    *  traverse en sautant par-dessous, on se pose dessus en retombant. */
   ledge(tx, ty) {
-    return this.at(tx, ty) === '-';
+    const c = this.at(tx, ty);
+    return c === '-' || c === '_';      // « _ » : plateforme fragile de l'arène du boss (elle peut s'effondrer)
+  }
+
+  // --- plateformes fragiles de l'arène du boss (« _ ») -------------------------
+  /** Toutes debout (début du combat, et après une chute de KAGE). */
+  restoreScaffolds() {
+    for (const s of this.scaffolds) {
+      s.up = true;
+      s.fallAt = -9;
+      for (let i = 0; i < s.w; i++) this.setTile(s.x0 + i, s.row, '_');
+    }
+  }
+
+  /** Le corbeau s'est écrasé : elles s'effondrent, les plus proches d'abord. */
+  collapseScaffolds(fromX) {
+    for (const s of this.scaffolds) {
+      if (!s.up) continue;
+      s.up = false;
+      const cx = (s.x0 + s.w / 2) * TILE;
+      s.fallAt = this.time + Math.min(0.5, Math.abs(cx - fromX) / 600);
+      s.fallen = false;
+    }
+    this.onEvent?.('scaffoldsShake', { x: fromX });
+  }
+
+  updateScaffolds() {
+    for (const s of this.scaffolds) {
+      if (s.up || s.fallen || this.time < s.fallAt) continue;
+      s.fallen = true;
+      for (let i = 0; i < s.w; i++) this.setTile(s.x0 + i, s.row, '.');
+      this.onEvent?.('scaffoldFall', { x: (s.x0 + s.w / 2) * TILE, y: s.row * TILE, w: s.w * TILE, ground: s.ground * TILE });
+    }
   }
 
   setTile(tx, ty, ch) {
