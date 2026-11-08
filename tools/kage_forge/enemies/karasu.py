@@ -302,10 +302,52 @@ def tail(c, P):
     c.p(tx + nxv * 3 + 1, ty + nyv * 3 + 2, "S")
 
 
+def grip(P):
+    """Là où ses serres tiennent une pierre (le haut de la pierre), sous le ventre."""
+    gx, gy = axis(P, 3, BODY_T + 6)
+    return int(round(gx)), int(round(gy))
+
+
+def carry_legs(c, P, opened):
+    """Pattes tendues sous le ventre, serres refermées sur une pierre (opened : elles
+    s'écartent juste avant de la lâcher). La pierre est dessinée par le jeu, sous les doigts."""
+    gx, gy = grip(P)
+    for k, side in enumerate((-1, 1)):
+        hipx, hipy = axis(P, 2 + side * 4, BODY_T - 2)
+        fx, fy = gx + side * (5 if opened else 3), gy - (1 if opened else 0)
+        n = int(max(abs(fx - hipx), abs(fy - hipy)))
+        for i in range(n + 1):
+            t = i / max(1, n)
+            x, y = hipx + (fx - hipx) * t, hipy + (fy - hipy) * t
+            c.p(x, y, "L" if i % 2 else "l")
+            c.p(x + 1, y, "l")
+        if opened:                                       # doigts écartés vers le bas et l'extérieur
+            for dx, dy in ((side * 3, 2), (side * 1, 3), (-side * 2, 2)):
+                line(c, fx, fy, fx + dx, fy + dy, "l")
+                c.p(fx + dx, fy + dy + 1, "t")
+                c.p(fx + dx, fy + dy + 2, "T")
+        else:                                            # doigts refermés : ils enserrent le haut de la pierre
+            line(c, fx, fy, fx + side * 2, fy + 2, "l")
+            c.p(fx + side * 2, fy + 3, "t"); c.p(fx + side * 1, fy + 4, "T")
+            line(c, fx, fy, fx - side * 1, fy + 2, "l")
+            c.p(fx - side * 1, fy + 3, "T")
+        # le talisman de papier, noué haut sur la patte
+        tx, ty = hipx + (fx - hipx) * 0.25, hipy + (fy - hipy) * 0.25
+        c.p(tx, ty, "s"); c.p(tx + 1, ty, "S"); c.p(tx - 1, ty, "s")
+        px0 = tx - 3 if side < 0 else tx + 2
+        for j in range(1, 7):
+            o = -(j // 3)
+            c.p(px0 + o, ty + j, "W" if j in (1, 6) else "w")
+            c.p(px0 + 1 + o, ty + j, "w" if j < 6 else "W")
+        c.p(px0, ty + 3, "x"); c.p(px0 + 1, ty + 3, "x"); c.p(px0 - 1, ty + 5, "x")
+
+
 def legs(c, P):
     mode = P["legs"]
     if mode == "tuck":
         return
+    if mode in ("carry", "open"):
+        return carry_legs(c, P, mode == "open")
     for k, side in enumerate((-1, 1)):
         hipx, hipy = axis(P, 2 + side * 4, BODY_T - (4 if mode == "splay" else 2))
         if mode == "stand":
@@ -926,6 +968,7 @@ def _p(name, clip=False, **kw):
 
     def make():
         g = crow(**base)
+        make.grip = grip(dict(DEFAULT, **base))
         if clip:                                         # planté dans la terre : coupé net à la surface du sol
             g[FY + 1:, :] = "."
             for _ in range(2):                           # les bouts coupés qui restent seuls disparaissent
@@ -961,6 +1004,12 @@ GAME_FRAMES = [
     ("fly_3", _p("flight_down")),
     ("drop_1", _p("flight_mid", bang=0.2, legs="grab", beak=0.4, eye="smug")),
     ("drop_2", _p("flight_down", bang=0.25, legs="grab", beak=0.8, eye="angry")),
+    # il porte une pierre dans ses serres, puis les ouvre pour la lâcher
+    ("carry_1", _p("flight_up", legs="carry", bang=-0.04)),
+    ("carry_2", _p("flight_mid", legs="carry", bang=-0.02)),
+    ("carry_3", _p("flight_down", legs="carry", bang=0.02)),
+    ("open_1", _p("flight_mid", legs="open", bang=0.05, beak=0.4, eye="smug")),
+    ("open_2", _p("flight_down", legs="open", bang=0.08, beak=0.8, eye="angry")),
     # il vise, il plonge
     ("aim_1", _p("flight_mid", eye="glare", wing=-2.15, bang=0.2)),
     ("aim_2", _p("flight_up", eye="glare", wing=-1.6, bang=0.3, beak=0.2)),

@@ -183,7 +183,7 @@ const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'],
   ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
-  bridge_red: ['back'], stall: ['back'], temple_gate: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
+  bridge_red: ['back'], stall: ['back'], temple_gate: [], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
   baskets: ['ground'], bridge: ['ground'], reeds: ['ground', 'front'], pots: ['ground'], hay: ['ground'],
   barn_door: ['back', 'front'], signpost: ['ground'], woodpile: ['ground'], cart: ['ground'], bush: ['ground'],
@@ -932,6 +932,49 @@ const PAINT = {
         b.p(x, y, `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, ${a.toFixed(2)})`);
         if ((y - top) % 44 === 0 && y > top) b.p(x, y, 'rgba(150, 168, 120, 0.55)');   // ligne de couture
       }
+      // 1 bis. le toit : une toile en pointes (façon chapiteau), tendue au-dessus du
+      // faîtage par de fines perches de bambou ; elle retombe en triangle entre deux
+      // perches, coutures rayonnantes, pièces rapiécées, fanions délavés
+      const PEAK = 28, VAL = 5;                       // hauteur des pointes et du creux, au-dessus du faîtage
+      const tentTop = (x) => {
+        const u = ((x - x0) % BAY) / BAY, t = Math.abs(u - 0.5) * 2;      // 1 contre une perche, 0 au milieu
+        return y0 - VAL - Math.round((PEAK - VAL) * Math.pow(t, 1.7));
+      };
+      for (let x = x0 - 2; x < x1 + 3; x++) {
+        const yt = tentTop(Math.min(Math.max(x, x0), x1)), u = ((x - x0) % BAY + BAY) % BAY;
+        const side = u < BAY / 2 ? 1 : -1;                                 // pan éclairé (à droite d'une perche) ou à l'ombre
+        for (let y = yt; y < y0 + 3; y++) {
+          const d = (y - yt) / (y0 + 3 - yt);
+          let v = 0.66 + side * 0.08 - d * 0.1 + (noise2(x * 0.1, y * 0.2, 81) - 0.5) * 0.08;
+          if (y === yt) v += 0.16;                                         // liseré de lumière sur l'arête
+          const seam = ((u + 7) % 12 === 0) && y > yt + 2;                 // coutures : elles descendent de la pointe
+          const col = seam ? 'rgba(160, 176, 132, 0.95)'
+            : `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, 0.95)`;
+          b.p(x, y, col);
+        }
+        b.p(x, yt + 1, 'rgba(255, 255, 246, 0.9)');
+      }
+      for (let k = 0; ; k++) {                                             // pièces cousues sur la toile
+        const px = x0 + 20 + k * 86 + Math.floor(ih(k, 3, 82) * 20);
+        if (px > x1 - 20) break;
+        const py = tentTop(px) + 6;
+        b.r(px, py, 7, 5, 'rgba(196, 204, 170, 0.95)').r(px, py, 7, 1, 'rgba(150, 160, 120, 0.9)').r(px, py + 4, 7, 1, 'rgba(150, 160, 120, 0.9)');
+        for (let i = 1; i < 7; i += 2) b.p(px + i, py + 2, 'rgba(140, 150, 110, 0.9)');
+      }
+      // les perches : de fins bambous qui montent du mur jusqu'à la pointe, un nœud, un fanion
+      const FLAGS = ['#a8473a', '#3f5a7a', '#c9a24a'];
+      for (let x = x0, k = 0; x <= x1; x += BAY, k++) {
+        const ty = y0 - PEAK - 6;
+        for (let y = ty; y < top; y++) b.p(x, y, C.BAMBOO[4]).p(x + 1, y, C.BAMBOO[1]);
+        for (let n = ty + 5; n < y0; n += 11) b.r(x - 1, n, 4, 1, C.BAMBOO[0]);
+        b.r(x - 1, y0 - PEAK - 1, 4, 2, '#2a2420');                       // ligature sous la pointe
+        b.r(x, ty - 1, 2, 1, C.BAMBOO[5]);
+        if (k % 2 === 0) {                                                 // petit fanion délavé
+          const fc = FLAGS[(k / 2) % FLAGS.length];
+          for (let j = 0; j < 4; j++) b.r(x + 2, ty + 1 + j, 6 - j * 1.5, 1, fc);
+          b.p(x + 2, ty + 1, '#e8dcc0');
+        }
+      }
       // 2. voûte : un arceau de bambou par travée, pannes, faîtage peint par les tuiles
       for (let x = x0; x < x1; x++) {
         const y = top - arch(x);
@@ -1116,8 +1159,9 @@ const PAINT = {
         for (let a = 0; a < 5; a++) b.line(cx, cy, cx + Math.cos(a * 0.35 + 0.1) * 12, cy + Math.sin(a * 0.35 + 0.1) * 12, 'rgba(220, 220, 210, 0.35)');
         for (const rr of [4, 8]) for (let a = 0; a < 5; a++) b.p(Math.round(cx + Math.cos(a * 0.35) * rr), Math.round(cy + Math.sin(a * 0.35) * rr), 'rgba(230, 230, 220, 0.5)');
       }
-      // meules de foin contre le mur
-      for (let x = x0 + 110; x < x1 - 60; x += 240) {
+      // meules de foin contre le mur (sous la mezzanine : pas derrière la botte-marche,
+      // qu'elles noyaient dans la paille)
+      for (const x of [x0 + 110, x0 + 200]) {
         for (let j = 0; j < 28; j++) for (let i = -26 + j * 0.4; i < 26 - j * 0.4; i++) {
           const v = 0.55 - (i / 26) * 0.2 - j * 0.004 + (noise2((x + i) * 0.6, (y1 - j) * 0.3, 4) - 0.5) * 0.5;
           b.p(Math.round(x + i), y1 - 1 - j, pick(C.STRAW, clamp01(v - 0.1), x + i, j));
@@ -1349,6 +1393,20 @@ const PAINT = {
         for (let q = 0; q < TILE; q += 2) if (ih(q, by, seed) < 0.55) b.p(bx + q, by - 1 - Math.floor(ih(q, bx, seed) * 2), C.STRAW[3]);
       }
     });
+    // une botte-marche seule : contour net, ficelles sombres, ombre au sol (elle se
+    // lit comme un bloc où poser le pied, pas comme de la paille du décor)
+    if (p.step) {
+      p.cols.forEach((h, i) => {
+        const bx = x0 + i * TILE, top = base - h * TILE;
+        const hl = i === 0 ? 0 : p.cols[i - 1], hr = p.cols[i + 1] ?? 0;
+        if (hl < h) b.r(bx - 1, top + 1, 1, base - top - 1, C.STRAW[0]);
+        if (hr < h) b.r(bx + TILE, base - (h - hr) * TILE + 1, 1, (h - hr) * TILE - 1, C.STRAW[0]);
+        b.r(bx, top, TILE, 1, C.STRAW[4]);
+        for (const lx of [bx + 4, bx + TILE - 5]) b.r(lx, top, 1, base - top, '#5b4a36').p(lx, top + 1, '#7a6444');
+        for (let k = 1; k < h; k++) b.r(bx, base - k * TILE, TILE, 1, C.STRAW[0]);     // joint entre deux bottes
+      });
+      b.r(x0 - 3, base - 1, p.cols.length * TILE + 6, 1, 'rgba(20, 12, 6, 0.45)');
+    }
     // brins éparpillés au pied
     for (let x = x0 - 6; x < x0 + p.cols.length * TILE + 6; x++) if (ih(x, 9, 31) < 0.3) b.p(x, base - 1, C.STRAW[ih(x, 2, 31) < 0.5 ? 2 : 3]);
   },
@@ -1707,7 +1765,8 @@ export function autoDecor(b, map, tx0, tx1) {
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
       let bot = ty + 1; while (bot < map.h && !map.solid(tx, bot) && map.at(tx, bot) !== '~') bot++;
-      const x = tx * TILE + (lEnd ? 2 : rEnd ? 11 : 6), y0 = (ty + 1) * TILE, y1 = bot * TILE + (map.at(tx, bot) === '~' ? 10 : 0);
+      // une passerelle (« - ») n'a que 6 px d'épaisseur : ses poteaux montent jusque sous ses planches
+      const x = tx * TILE + (lEnd ? 2 : rEnd ? 11 : 6), y0 = ty * TILE + (st === 'plank' ? 6 : TILE), y1 = bot * TILE + (map.at(tx, bot) === '~' ? 10 : 0);
       b.r(x, y0, 3, y1 - y0, C.WOOD[2]).r(x, y0, 1, y1 - y0, C.WOOD[4]).r(x + 2, y0, 1, y1 - y0, C.WOOD[0]);
       if (lEnd && y1 - y0 > 20) b.line(x + 3, y0 + 14, x + 12, y0 + 1, C.WOOD[1], 2);
       if (rEnd && y1 - y0 > 20) b.line(x, y0 + 14, x - 9, y0 + 1, C.WOOD[1], 2);

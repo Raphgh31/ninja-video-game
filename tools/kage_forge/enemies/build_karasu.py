@@ -114,6 +114,8 @@ def main():
             "takeoff": {"frames": ["takeoff_1", "takeoff_2"], "durations": [200, 160], "loop": False},
             "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [90, 70, 110, 70], "loop": True},
             "drop": {"frames": ["drop_1", "drop_2"], "durations": [120, 200], "loop": False},
+            "carry": {"frames": ["carry_1", "carry_2", "carry_3", "carry_2"], "durations": [100, 80, 120, 80], "loop": True},
+            "open": {"frames": ["open_1", "open_2"], "durations": [110, 400], "loop": False},
             "aim": {"frames": ["aim_1", "aim_2"], "durations": [140, 140], "loop": True},
             "dive": {"frames": ["dive_1", "dive_2"], "durations": [80, 80], "loop": True},
             "crash": {"frames": ["crash"], "loop": False},
@@ -126,6 +128,8 @@ def main():
             "acorn": {"frames": ["acorn_1", "acorn_2"], "durations": [80, 80], "loop": True},
             "turnip": {"frames": ["turnip_1", "turnip_2"], "durations": [90, 90], "loop": True},
         },
+        # le haut de la pierre tenue dans les serres, dans la cellule (images carry_ et open_)
+        "grip": {n: {"x": fn.grip[0], "y": fn.grip[1]} for n, fn in GAME_FRAMES if hasattr(fn, "grip") and n.startswith(("carry", "open"))},
         "boxes": {
             "perched": box("idle_1", (0.3, 0.12, 0.12, 0.08)),
             "flying": box("fly_2", (0.2, 0.2, 0.15, 0.0)),   # les pattes pendantes comptent : à portée d'un saut

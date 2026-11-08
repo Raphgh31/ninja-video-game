@@ -358,6 +358,7 @@ if (boss) boss.onEvent = onKarasuEvent;
 function openTempleGate(silent = false) {
   level.doorOpen = true;
   bossUi.shown = 0;
+  if (silent) level.doorT = level.doorTime;      // reprise d'une partie : la porte est déjà grande ouverte
   if (silent || !gateProp) return;
   const gx = gateProp.x * 16 + 8, gy = gateProp.y * 16 - 56;
   sfx('paperTear');

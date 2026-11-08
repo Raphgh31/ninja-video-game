@@ -737,11 +737,25 @@ async function main() {
     const after = await pg.evaluate((tx) => [...window.__kage.level.crates.values()].filter((c) => c.tx === tx).map((c) => `${c.ty}${c.fall ? '+' : ''}`), st.tx);
     // les marches de foin (« % ») : un coup de sabre n'y fait rien
     const hay = await pg.evaluate(() => {
-      const l = window.__kage.level, h = l.props.find((p) => p.type === 'hay_stack' && p.y === 19);
+      const l = window.__kage.level, h = l.props.find((p) => p.type === 'hay_stack' && p.y === 19 && !p.step);
       const n = l.breakCrates({ x: h.x * 16, y: 17 * 16, w: 32, h: 32 }).length;
       return { n, solid: l.solid(h.x + 1, 17) && l.solid(h.x + 1, 18) && l.solid(h.x, 18) };
     });
     expect(st.rows.join() === '15,16,17,18' && after.join() === '18' && hay.n === 0 && hay.solid, `pile ${st.rows}, après ${after}, foin ${JSON.stringify(hay)}`);
+  });
+
+  await test('potager : grange — l\'escalier de foin (incassable) mène de la marche haute à la mezzanine', async () => {
+    const st = await pg.evaluate(() => {
+      const l = window.__kage.level, h = l.props.find((p) => p.type === 'hay_stack' && p.step);
+      return { x: h.x, n: l.breakCrates({ x: h.x * 16, y: 17 * 16, w: 32, h: 32 }).length, solid: l.solid(h.x, 17) && l.solid(h.x + 1, 18) };
+    });
+    await pg.evaluate((x) => { const g = window.__kage, pl = g.player; pl.x = x * 16 + 8; pl.y = 17 * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.energy.value = 1;
+      for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, st.x);
+    await pw(200);
+    // un saut en diagonale vers la gauche, comme un joueur
+    await PK.down('Space'); await PK.down('ArrowLeft'); await pw(300); await PK.up('Space'); await pw(250); await PK.up('ArrowLeft'); await pw(450);
+    const s = await PS();
+    expect(st.n === 0 && st.solid && s.ground && s.y === 15 * 16, `foin brisé ${st.n}, plein ${st.solid}, KAGE y=${s.y} (${s.ground})`);
   });
 
   await test('potager : le grenier de la grange (3e étage) se rejoint par les bottes de foin, avec ses ryō', async () => {
@@ -1022,7 +1036,8 @@ async function main() {
     await PK.press('KeyX'); await pw(300);
     const st = await pg.evaluate(() => window.__kage.boss.state);
     const closed = !(await gateOpen());
-    await pw(2200);
+    // le talisman se déchire (1,3 s), puis les vantaux s'ouvrent lentement (4,2 s) : on passe aux trois cinquièmes
+    await pw(4200);
     const s = await SAVE();
     const bar = await pg.evaluate(() => document.querySelector('.boss').classList.contains('on'));
     expect(st === 'defeated' && closed && (await gateOpen()) && s.bossDefeated && !bar, `état ${st}, fermée juste après ${closed}, ouverte ensuite ${await gateOpen()}, sauvegarde ${s.bossDefeated}, barre ${bar}`);

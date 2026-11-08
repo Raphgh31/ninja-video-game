@@ -421,6 +421,7 @@ function build() {
   b.row(serre1, 2, G - 10, '-');                     // elle dépasse de la serre : on se laisse tomber dehors
   b.coins([x + 3, x + 4], 0);
   b.block(serre0, serre1 - serre0, G - 13, G - 13, '|');   // faîtage de la serre
+  for (const c of [x + 6, x + 7, x + 8]) b.set(c, G - 11, 'o');   // encore des ryō tout au long de la poutre
   b.backdrop('serre', serre0, serre1, G - 13, G);
   // dehors : une bande de bambous (feuillage bas, puits) remplace l'ancien bloc
   x = b.x; b.flat(10);
@@ -454,8 +455,13 @@ function build() {
   b.row(x + 3, 10, G - 4, '=');                      // mezzanine : on ne passe pas par-dessus
   b.set(x + 6, G - 1, 'B').set(x + 6, G - 2, 'B').set(x + 6, G - 3, 'B');   // caisses empilées
   b.coins([x + 5, x + 7], 0);                        // deux ryō sur la mezzanine
-  b.set(x + 15, G - 1, 'B');
-  b.on(x + 17, 'W');                                 // il se cachait derrière la caisse
+  // les marches vers la mezzanine : des bottes de foin incassables (« % »), pas une
+  // caisse (au premier passage, on la brisait au lieu de monter dessus) ; une
+  // seule botte ne suffisait pas (la mezzanine est à 3 cases au-dessus d'elle) :
+  // un petit escalier (2 cases, puis 1) qui monte vers la mezzanine
+  b.block(x + 15, 1, G - 2, G - 1, '%').block(x + 16, 1, G - 1, G - 1, '%');
+  b.prop('hay_stack', x + 15, G, { cols: [2, 1], step: true });
+  b.on(x + 17, 'W');                                 // il se cachait derrière la botte
   // marches de foin vers la poutre du milieu : incassables (« % »), contrairement
   // aux caisses (le joueur les brisait et ne pouvait plus monter)
   b.block(x + 21, 1, G - 1, G - 1, '%').block(x + 22, 1, G - 2, G - 1, '%');
@@ -590,7 +596,6 @@ function build() {
   b.prop('tree', a + 9, A, { kind: 'pommier', s: 1.2 });
   b.prop('tree', a + 26, A, { kind: 'cerisier', s: 1.3 });
   b.prop('tree', a + 37, A, { kind: 'poirier', s: 1.15 });
-  b.prop('tree', a + 54, A, { kind: 'pommier', s: 1.05 });
   b.prop('crops', a + 6, A, { w: 4, kind: 'navets' });
   b.prop('crops', a + 13, A, { w: 5, kind: 'choux' });
   b.prop('crops', a + 23, A, { w: 4, kind: 'radis' });
@@ -599,7 +604,7 @@ function build() {
   b.prop('trellis', a + 29, A, { w: 2 });
   b.prop('baskets', a + 49, A);
   b.prop('tall_grass', a + 11, A, { w: 2 });
-  b.prop('lantern_stone', a + 56, A);
+  b.prop('lantern_stone', a + 52, A);
   // les tas de pierres où le corbeau se sert (il les lâche sur KAGE)
   b.prop('rock_pile', a + 11, A);
   b.prop('rock_pile', a + 51, A);
@@ -611,14 +616,15 @@ function build() {
   ];
   for (const sc of scaffolds) { b.row(sc.x0, sc.w, sc.row, '_'); sc.ground = A; }
   b.hint('airAttack', a + 13);
-  const gx = a + 60;                                 // la grande porte du temple
+  // la grande porte du temple, au bout du monde : un pavillon vu de trois quarts
+  // (temple.js), tourné vers KAGE ; son mur d'enceinte ferme l'image à droite
+  const gx = a + 60;
   // l'épouvantail géant, et le corbeau perché dessus ; il ne quitte pas l'arène
   b.bossDef = { type: 'karasu', x: a + 31, y: A, arena: [a, gx], piles: [a + 11, a + 51], scaffolds };
   b.prop('temple_gate', gx, A);
   b.block(gx, 1, A - 7, A - 1, 'D');                 // fermée : on ne passe pas (s'ouvre quand il est vaincu)
-  b.prop('bush', a + 64, A);
-  b.on(a + 64, 'G');                                 // la sortie, derrière la porte
-  b.flat(6, A);
+  b.on(gx + 1, 'G');                                 // la sortie : on entre dans le passage
+  b.block(gx + 2, 4, 0, A - 1, '%');                 // le bout du monde : rien derrière la porte
   b.zones[b.zones.length - 1].x1 = b.x;
   return b;
 }
