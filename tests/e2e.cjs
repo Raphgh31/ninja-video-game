@@ -715,10 +715,13 @@ async function main() {
   await test('potager : la grue — un escalier de bois raide ramène du sol à la plateforme', async () => {
     const st = await pg.evaluate(() => { const p = window.__kage.level.props.find((q) => q.type === 'stair'); return { foot: p.foot, top: p.top }; });
     await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [st.foot[0] + 2, st.foot[1]]);
-    await pw(250);
-    for (let i = 0; i < 4; i++) {
+    await pw(400);
+    for (let i = 0; i < 6; i++) {
+      for (let t = 0; t < 40 && !(await PS()).ground; t++) await pw(15);   // posé avant chaque saut
       await PK.down('ArrowLeft'); await pw(60); await PK.down('Space'); await pw(230); await PK.up('Space'); await pw(120); await PK.up('ArrowLeft'); await pw(450);
-      if ((await PS()).y === st.top[1] * 16) break;
+      const s = await PS();
+      if (s.y === st.top[1] * 16) break;
+      if (s.ground && s.tx < st.top[0]) await pg.evaluate(([tx, ty]) => { const p = window.__kage.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; }, [st.foot[0] + 2, st.foot[1]]);   // passé sous l'escalier : on recommence
     }
     const s = await PS();
     expect(s.ground && s.y === st.top[1] * 16, `KAGE y=${s.y} (plateforme : ${st.top[1] * 16}), colonne ${s.tx}`);

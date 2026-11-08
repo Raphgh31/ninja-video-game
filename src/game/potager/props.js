@@ -646,6 +646,17 @@ const PAINT = {
         b.r(x - 1, y, 4, 1, light ? C.WOOD[2] : C.WOOD[1]).p(x - 1, y, light ? C.WOOD[4] : C.WOOD[2]).p(x + 2, y, C.WOOD[0]);
       }
     };
+    // main courante de corde, des deux côtés : des poteaux plantés sur la plateforme
+    // (posés sur ses planches) et au pied ; celle du fond d'abord, derrière tout
+    const footX = Math.round(foot[0]);
+    const handrail = (ox, oy, dark) => {
+      const tx = Math.round(top[0]) + ox - 1, ty = top[1] + oy, fx = footX + ox + 4, fy = footY + oy;
+      // (les poteaux descendent jusqu'aux planches et jusqu'au sol, même celui du fond)
+      b.r(tx, ty - 18, 2, top[1] + 1 - (ty - 18), dark ? C.WOOD[0] : C.WOOD[1]).p(tx, ty - 18, C.WOOD[dark ? 2 : 4]);
+      b.r(fx, fy - 24, 2, footY - (fy - 24), dark ? C.WOOD[0] : C.WOOD[1]).p(fx, fy - 24, C.WOOD[dark ? 2 : 4]);
+      rope(b, tx + 1, ty - 17, fx + 1, fy - 23, 8, dark ? '#6b5230' : '#8a6a3a');
+    };
+    handrail(D[0], D[1], true);
     rail(D[0], D[1], false);                                              // le limon du fond
     // les marches : des planches qui vont d'un limon à l'autre (dessus clair, chant, ombre)
     for (const [x0, y0] of P) {
@@ -659,12 +670,9 @@ const PAINT = {
     }
     rail(0, 0, true);                                                     // le limon de devant, par-dessus le bout des marches
     for (const [x0, y0] of P) b.p(x0, y0 + 1, '#a9aeb6');                 // clous sur le limon de devant
-    // pied : une pierre plate ; main courante de corde, d'un poteau à l'autre
-    b.r(Math.round(foot[0]) - 5, footY - 2, 22, 2, C.STONE[2]).r(Math.round(foot[0]) - 5, footY - 2, 22, 1, C.STONE[4]);
-    const px = Math.round(foot[0]) + D[0] + 4, tx0 = Math.round(top[0]) + D[0] - 3;
-    b.r(px, footY - 26, 2, 26, C.WOOD[1]).p(px, footY - 26, C.WOOD[4]);
-    b.r(tx0, top[1] - 20, 2, 18, C.WOOD[1]).p(tx0, top[1] - 20, C.WOOD[4]);
-    rope(b, tx0 + 1, top[1] - 19, px + 1, footY - 25, 8, '#8a6a3a');
+    // pied : une pierre plate ; puis la main courante de devant
+    b.r(footX - 5, footY - 2, 22, 2, C.STONE[2]).r(footX - 5, footY - 2, 22, 1, C.STONE[4]);
+    handrail(0, 0, false);
   },
 
   ladder(b, p, X, Y) {
