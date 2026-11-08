@@ -313,7 +313,9 @@ function build() {
   b.hint('wall', s0 + 4);
   b.block(s0 + 3, 1, G - 10, G - 5, '|');            // mur de bambous de gauche : on se glisse dessous
   b.block(s0 + 7, 1, G - 8, G - 4, '|');             // mur de droite (le puits fait 3 cases de large)
-  b.row(s0 + 4, 7, G - 9, '-');                      // la plateforme de la grue, en haut du puits
+  // la plateforme de la grue, en haut du puits : elle s'arrête à trois cases de la
+  // corde (le sabre ne l'atteint pas, il faut le shuriken)
+  b.row(s0 + 4, 5, G - 9, '-');
   b.hint('rope', s0 + 8);
   // le mât de la grue, juste après la fosse : une tour de bambou infranchissable
   // en haut (on ne passe pas par-dessus les blocs) ; en bas, entre ses montants,

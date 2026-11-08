@@ -676,21 +676,23 @@ async function main() {
     }
     await K.up(dir); await pw(500);
     const up = await PS();
-    await K.down('ArrowRight'); await pw(260); await K.up('ArrowRight'); await pw(200);
-    await pg.evaluate(() => { window.__kage.player.facing = 1; }); await K.press('KeyC'); await pw(1500);
+    // au bout de la plateforme, la corde est à trois cases : le sabre ne l'atteint pas, le shuriken oui
+    await pg.evaluate((c) => { const p = window.__kage.player; p.x = (c.x0 - 3) * 16 + 12; p.facing = 1; }, c); await pw(100);
+    const reach = await pg.evaluate((c) => c.ropeX - window.__kage.player.x, c);
+    await K.press('KeyC'); await pw(1500);
     const cr = await pg.evaluate(() => { const c = window.__kage.level.cranes[0], l = window.__kage.level; return { cut: c.cut, landed: c.landed, filled: l.solid(c.x0, c.top + c.h) && l.solid(c.x0, c.top + 2 * c.h - 1), open: !l.solid(c.x0, c.top) }; });
     await K.down('ArrowRight'); await pw(2200); await K.up('ArrowRight'); await pw(200);
     const past = (await PS()).tx;
     const saved = await SAVE();
-    expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
-      `bloqué ${blocked}, marche ${walk - s0}, dash ${dashed - s0}, en haut y=${up.y} (${up.tx - s0}), grue ${JSON.stringify(cr)}, après ${past - s0}, sauvegarde ${saved.cranes}`);
+    expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && reach > 40 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
+      `bloqué ${blocked}, marche ${walk - s0}, dash ${dashed - s0}, en haut y=${up.y} (${up.tx - s0}), corde à ${reach} px, grue ${JSON.stringify(cr)}, après ${past - s0}, sauvegarde ${saved.cranes}`);
   });
 
   await test('potager : la grue — par le haut, le mât (tour de bambou) bloque : on ne passe pas par-dessus les blocs', async () => {
     const c = await pg.evaluate(() => window.__kage.level.cranes[0]);
     // la grue a déjà été coupée par le test précédent : on la remet en place pour ce test
     await pg.evaluate(() => { const l = window.__kage.level, c = l.cranes[0]; c.cut = false; c.landed = false; c.drop = 0; l.fillCrane(c, c.top); });
-    await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [c.x0 - 2, c.top - 1]);
+    await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [c.x0 - 3, c.top - 1]);
     await pw(200);
     await PK.down('ArrowRight'); await pw(300); await PK.press('Space'); await pw(500); await PK.press('Space'); await pw(600); await PK.up('ArrowRight'); await pw(400);
     const s = await PS();
