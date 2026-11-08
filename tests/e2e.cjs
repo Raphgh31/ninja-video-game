@@ -655,7 +655,7 @@ async function main() {
 
   await test('potager : la grue de bambou — mur de blocs infranchissable ; dash sous les bambous, sauts muraux jusqu\'à la plateforme, shuriken dans la corde : les blocs comblent la fosse', async () => {
     const c = await pg.evaluate(() => window.__kage.level.cranes[0]);
-    const s0 = c.x0 - 11, K = PK;
+    const s0 = c.x0 - 20, K = PK;               // début du plateau de l'énigme (la grue est 20 cases plus loin)
     const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; g.shurikens.stock = 3; }, [tx, ty]);
     // le mur de blocs bouche le passage (on est arrêté devant, même en sautant)
     await put(s0 + 9, 16); await K.down('ArrowRight'); await K.down('Space'); await pw(300); await K.up('Space'); await pw(900); await K.up('ArrowRight'); await pw(150);
@@ -677,27 +677,39 @@ async function main() {
     await K.up(dir); await pw(500);
     const up = await PS();
     // au bout de la plateforme, la corde est à trois cases : le sabre ne l'atteint pas, le shuriken oui
-    await pg.evaluate((c) => { const p = window.__kage.player; p.x = (c.x0 - 3) * 16 + 12; p.facing = 1; }, c); await pw(100);
+    await pg.evaluate(() => { const l = window.__kage.level, c = l.cranes[0], p = window.__kage.player; let tx = c.x0 - 1; while (tx > 0 && l.rows[c.top - 1][tx] !== '-') tx--; p.x = tx * 16 + 12; p.facing = 1; }); await pw(100);
     const reach = await pg.evaluate((c) => c.ropeX - window.__kage.player.x, c);
     await K.press('KeyC'); await pw(1500);
     const cr = await pg.evaluate(() => { const c = window.__kage.level.cranes[0], l = window.__kage.level; return { cut: c.cut, landed: c.landed, filled: l.solid(c.x0, c.top + c.h) && l.solid(c.x0, c.top + 2 * c.h - 1), open: !l.solid(c.x0, c.top) }; });
-    await K.down('ArrowRight'); await pw(2200); await K.up('ArrowRight'); await pw(200);
+    await K.down('ArrowRight'); await pw(3600); await K.up('ArrowRight'); await pw(200);   // 11 cases de vide, la fosse comblée, puis sous le mât
     const past = (await PS()).tx;
     const saved = await SAVE();
-    expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && reach > 40 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
+    expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && reach > 150 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
       `bloqué ${blocked}, marche ${walk - s0}, dash ${dashed - s0}, en haut y=${up.y} (${up.tx - s0}), corde à ${reach} px, grue ${JSON.stringify(cr)}, après ${past - s0}, sauvegarde ${saved.cranes}`);
   });
 
-  await test('potager : la grue — par le haut, le mât (tour de bambou) bloque : on ne passe pas par-dessus les blocs', async () => {
+  await test('potager : la grue — loin de la plateforme : sprint, saut et dash ne mènent pas sur les blocs ; sur eux, le mât bloque', async () => {
     const c = await pg.evaluate(() => window.__kage.level.cranes[0]);
     // la grue a déjà été coupée par le test précédent : on la remet en place pour ce test
     await pg.evaluate(() => { const l = window.__kage.level, c = l.cranes[0]; c.cut = false; c.landed = false; c.drop = 0; l.fillCrane(c, c.top); });
-    await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [c.x0 - 3, c.top - 1]);
-    await pw(200);
+    const edge = await pg.evaluate(() => { const l = window.__kage.level, c = l.cranes[0]; let tx = c.x0 - 1; while (tx > 0 && l.rows[c.top - 1][tx] !== '-') tx--; return tx; });
+    const place = (tx) => pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [tx, c.top - 1]);
+    // le meilleur élan : sprint, saut au bord, dash en l'air
+    await place(edge - 4); await pw(150);
+    await PK.down('ShiftLeft'); await PK.down('ArrowRight');
+    for (let i = 0; i < 80; i++) { const s = await PS(); if (s.tx >= edge) break; await pw(10); }
+    await PK.down('Space'); await pw(250); await PK.up('ArrowRight'); await PK.press('ArrowRight'); await PK.press('ArrowRight'); await PK.down('ArrowRight');
+    let far = 0;
+    for (let i = 0; i < 80; i++) { const s = await PS(); if (s.y <= c.top * 16) far = Math.max(far, s.x); if (s.ground && i > 10) break; await pw(15); }
+    await PK.up('Space'); await PK.up('ArrowRight'); await PK.up('ShiftLeft'); await pw(200);
+    const landed = await PS();
+    // posé sur les blocs (on ne peut pas y aller, mais au cas où) : le mât empêche de passer
+    await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); }, [c.x0, c.top]);
+    await pw(150);
     await PK.down('ArrowRight'); await pw(300); await PK.press('Space'); await pw(500); await PK.press('Space'); await pw(600); await PK.up('ArrowRight'); await pw(400);
     const s = await PS();
-    const mast = await pg.evaluate(() => { const l = window.__kage.level, c = l.cranes[0], tx = Math.floor(c.mastX / 16); return l.solid(tx, c.top - 1) && l.solid(tx, 2) && !l.solid(tx, c.top + 2); });
-    expect(s.tx <= c.x0 + c.w - 1 && mast, `KAGE colonne ${s.tx - c.x0} après la fosse, mât plein en haut et ouvert en bas ${mast}`);
+    expect(far < c.x0 * 16 - 16 && landed.y > c.top * 16 && s.tx <= c.x0 + c.w - 1,
+      `portée à hauteur des blocs ${Math.round(far / 16 * 10) / 10} (blocs en ${c.x0}), posé y=${landed.y}, sur les blocs puis vers la droite : colonne ${s.tx - c.x0}`);
   });
 
   await test('potager : la serre se quitte par la charpente — sortie au sol bouchée par les bambous, sauts muraux dans le puits, on traverse la poutre par-dessous', async () => {

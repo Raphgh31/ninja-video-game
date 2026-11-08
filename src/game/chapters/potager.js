@@ -320,12 +320,14 @@ function build() {
   // le mât de la grue, juste après la fosse : une tour de bambou infranchissable
   // en haut (on ne passe pas par-dessus les blocs) ; en bas, entre ses montants,
   // le passage s'ouvre quand les blocs ont comblé la fosse
-  b.crane('canal', s0 + 11, 2, G - 8, 5, { mastX: (s0 + 13) * TILE + 8, boomY: (G - 14) * TILE + 6, towerY: (G - 8) * TILE });
-  b.block(s0 + 13, 1, 0, G - 9, '%');
+  // la grue est loin de la plateforme (11 cases de vide) : ni un saut ni un dash
+  // ne mènent sur les blocs ; seul le shuriken (portée 10 cases) atteint la corde
+  const cx = s0 + 20;
+  b.crane('canal', cx, 2, G - 8, 5, { mastX: (cx + 2) * TILE + 8, boomY: (G - 14) * TILE + 6, towerY: (G - 8) * TILE });
+  b.block(cx + 2, 1, 0, G - 9, '%');
   b.coins([s0 + 5, s0 + 6], 0);
-  for (const c of [s0 + 14, s0 + 16]) b.set(c, G - 4, 'o');
-  b.prop('stone', s0 + 20, G - 3);
-  b.prop('tall_grass', s0 + 21, G - 3, { w: 2 });
+  for (const c of [s0 + 13, s0 + 16]) b.set(c, G - 4, 'o');
+  b.prop('tall_grass', s0 + 22, G - 3, { w: 1 });
   b.flat(2, G - 2).flat(2, G - 1);
   b.flat(5);
 
