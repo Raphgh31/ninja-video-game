@@ -6,7 +6,7 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 > « Lis `CLAUDE.md`, `docs/REPRISE.md` et `docs/MONDE.md`, puis on continue le jeu KAGE. »
 > Puis dire ce qu'on veut faire (voir § 9). Message d'introduction prêt à coller : `docs/MESSAGE_NOUVELLE_CONVERSATION.md`.
 >
-> Tout est dans `main` : la série « Potager » (PR #19), puis la série **« Fin du chapitre 1 »** (PR #PRNUM, novembre 2026 : pose de repos, skins et cabine des skins, coffre du grenier, KAGE/TATE/WARA +20 %, et les 13 demandes de l'utilisateur pour terminer le Potager — voir § 6 quinquies). Aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 8 novembre 2026.
+> Tout est dans `main` : la série « Potager » (PR #19), puis la série **« Fin du chapitre 1 »** (PR #23, novembre 2026 : pose de repos, skins et cabine des skins, coffre du grenier, KAGE/TATE/WARA +20 %, et les 13 demandes de l'utilisateur pour terminer le Potager — voir § 6 quinquies). Aucune PR ouverte, aucune tâche planifiée en cours. Dernière mise à jour : 8 novembre 2026.
 >
 > **À faire valider en premier** : le **nouveau combat contre KARASU-KASHI** (pierres, plateformes fragiles, plongeon en arc — § 6 quinquies), à régler en jouant ; puis les **skins suivants** (8 restants sur la planche de l'utilisateur, § 9).
 
@@ -224,6 +224,7 @@ Aussi pendant cette série : aides contextuelles `wall` (saut mural), `rope` (co
 7. **Plan du monde** avec les réponses de l'utilisateur (PR #3).
 8. **Refonte visuelle du Potager** (PR #11) : cadrage 448×252, caméra posée à paliers, paysage sur son propre calque, terrain retravaillé (terre et murets), colline en terrasses avec cascade, décor peint et animé (§ 6 quater).
 9. **Série « Potager »** (PR #19, branche `claude/serie-potager`, novembre 2026) : sons de KAGE revus et volumes baissés, musique du Potager (intro + boucle), une lanterne au début de chaque zone, grenier de la grange (3e étage) et toit qui s'efface, rizières repeintes, touches X/W, C/V, B/N, titre « The Ninja Game », **mini-boss KARASU-KASHI** (zone 9 et porte du temple), verger sans branches flottantes, shuriken en vol plus grand et plus lent, pose de repos de KAGE refaite.
+10. **Série « Fin du chapitre 1 »** (PR #23, branche `claude/pose-repos-bras`, novembre 2026) : pose de repos, skins (vagabond, cabine des skins), coffre du grenier, KAGE/TATE/WARA +20 %, puis les 13 demandes pour terminer le Potager (§ 6 quinquies).
 
 ## 7. Effets et sons
 
