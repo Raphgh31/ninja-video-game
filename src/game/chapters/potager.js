@@ -3,7 +3,8 @@
 // modulaire : chaque zone ajoute ses colonnes de terrain et déclare ses éléments.
 // Légende des tuiles (voir aussi maps.js) :
 //   # terre / pierre   = bois   | bambou   ~ eau (fait perdre 1 vie, retour au sol sûr)
-//   B caisse (se brise au sabre ou au coup de pied, lâche un ryō)
+//   B caisse (se brise au sabre ou au coup de pied, lâche un ryō ; tombe quand rien ne la porte)
+//   - passerelle (traversable par-dessous)   _ plateforme fragile de l'arène   % bloc invisible
 //   o ryō   W WARA   E TATE   P lanterne (sauvegarde)   M marchand   S départ   G sortie
 // Les décors (épouvantail, moulin, arbres, serre, grange, jardin…) et les aides
 // contextuelles sont des listes à part : ils ne gênent jamais les collisions.

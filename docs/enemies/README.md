@@ -1,5 +1,7 @@
 # Ennemis
 
+> **Taille** : TATE et WARA sont agrandis de 20 % à l'export (novembre 2026 ; lignes et colonnes doublées, `tools/kage_forge/enemies/grow20.py`), boîtes comprises ; KARASU-KASHI garde sa taille.
+
 ## TATE — garde au bouclier
 
 ![Planche de design](tate_design.png)
@@ -58,7 +60,7 @@ Petit épouvantail réveillé par un talisman cloué sur sa poitrine, mignon et 
 
 ![Planche de design](karasu_design.png)
 
-Grand corbeau d'encre aux reflets pétrole, coiffé d'un **sugegasa de paille beaucoup trop grand** (paille comme celle des WARA, peu dorée : c'est son trait de caractère), haillons, talismans de papier aux pattes. Il règne sur le champ du corbeau (zone 9), perché sur un **épouvantail géant**. Vaincu, il ouvre la **grande porte du temple** : la sortie du chapitre.
+Grand corbeau d'encre aux reflets pétrole, coiffé d'un **sugegasa de paille beaucoup trop grand** (paille comme celle des WARA, peu dorée : c'est son trait de caractère), haillons, talismans de papier aux pattes. Il règne sur le champ du corbeau (zone 9), perché sur un **épouvantail géant**, au milieu d'un potager avec deux tas de pierres et quatre plateformes de bois fragiles. Vaincu, il ouvre la **grande porte du temple** : la sortie du chapitre.
 
 ![Combat](karasu_combat.gif)
 
@@ -67,18 +69,21 @@ Grand corbeau d'encre aux reflets pétrole, coiffé d'un **sugegasa de paille be
 - Export jeu : `tools/kage_forge/enemies/build_karasu.py` → `assets/characters/karasu/` (`karasu_sheet.png` 31 images en cellules 96×80, ancrage (48, 76) sous les pattes ; `karasu_perch.png` l'épouvantail en 5 inclinaisons, 120×140 ; `karasu_items.png` gland et navet ; `karasu.json` animations et boîtes). Lancé par `npm run sprites`, avec contrôles qualité (couleurs, pattes au sol, pixels isolés).
 - Comportement : `src/game/karasu.js` (réglages dans `KARASU`) ; arène : zone 9 de `src/game/chapters/potager.js` (`bossDef`) ; porte : `temple_gate` dans `src/game/potager/props.js` (peinture) et `live.js` (`templeLeaves` : battants, corde sacrée, talisman).
 
-**Combat**
+**Combat** (refondu en novembre 2026, à la demande de l'utilisateur)
 | | |
 |---|---|
 | Attente | perché, il toise KAGE : petites animations de caractère (penche la tête, redresse son chapeau, croasse) |
 | Début | KAGE avance de 7 cases dans l'arène : croassement, il s'envole (l'épouvantail tangue et perd de la paille) ; sa barre de vie apparaît en haut |
-| Bombardement | il vole bas au-dessus de KAGE et lâche une salve (3, 4 puis 5 projectiles) ; une ombre au sol annonce chaque point de chute. **Gland piquant** : éclate en deux épines qui filent au sol (sauter). **Navet** : mèche de 0,75 s, puis explosion (rayon 26 px). 1 dégât chacun |
-| En vol | seul le **shuriken** le touche — lancé au sommet d'un saut |
-| Plongeon | il se place à 96 px, plisse le regard (0,85 → 0,55 s selon la phase), replie les ailes et fond en ligne droite vers le sol, juste au-delà de KAGE. Debout : 2 dégâts. **En glissade, on passe dessous** (sa boîte passe à 17 px du sol) |
-| Fenêtre | manqué, il s'écrase le bec dans la terre et reste **planté 2,9 → 2,3 s** : le sabre (2), le sabre en l'air (3), le coup de pied (2) et le shuriken le blessent |
+| Les pierres | il va chercher une pierre sur l'un des **deux tas** de l'arène (le plus proche qui reste à bonne distance de KAGE), descend presque au sol, la **saisit dans ses serres** (poussière), remonte et se place au-dessus de KAGE ; il ouvre les serres (0,42 → 0,28 s, lisible) et la lâche. Une **ombre** annonce la chute ; les pierres tombent moins vite que les anciens projectiles. Petite, moyenne ou grosse (la grosse roule un peu). 1 dégât. 2, 3 puis 3 pierres par sortie |
+| Altitude | pattes à **76 px** du sol (34 avant) : hors de portée depuis le sol, ni au sabre ni au shuriken lancé au sommet d'un saut |
+| Les plateformes | **quatre plateformes de bois fragiles** sur pilotis (deux hauteurs, échelles, pots ; tuile `_`). De là, un **saut + sabre** l'atteint : il **tombe, bec planté** dans la terre (et lâche sa pierre). **Sa chute fait s'effondrer toutes les plateformes** (planches, pilotis, échelles, pots, puis un tas au sol) : on ne refait pas le coup. Le shuriken le blesse aussi en vol (1), sans le faire tomber |
+| Plongeon | **seulement une fois les plateformes tombées** : après sa sortie de pierres, il **prend de la hauteur** (34 px de plus), plisse le regard (0,85 → 0,55 s), décrit un **arc** puis fond sur le sol juste au-delà de KAGE (la fin du plongeon est droite). Debout : 2 dégâts. **En glissade, on passe dessous** (sa boîte passe à 17 px du sol) |
+| Fenêtre | manqué (ou tombé), il reste **planté 2,9 → 2,3 s** : le sabre (2), le sabre en l'air (3), le coup de pied (2) et le shuriken le blessent |
 | Reprise | il s'ébroue, remet son chapeau, regagne son perchoir, puis recommence |
-| Phases | 24 PV ; au-dessous de 66 % puis de 33 %, salves plus longues, lâchers plus rapides, visée plus courte, plongeon plus rapide ; à la fin, il enchaîne deux plongeons quand le premier touche |
-| Équité | si KAGE quitte l'arène, il regagne son perchoir et attend ; il ne s'écrase jamais hors de l'arène ; KAGE encore invulnérable (il clignote) : il ne remonte pas, il s'écrase |
-| Vaincu | il s'affale ; plumes, cri qui retombe ; 1,3 s plus tard le talisman de la porte se déchire et les deux battants pivotent (1,6 s). La défaite est **sauvegardée** (`bossDefeated`) ; si KAGE meurt avant, le corbeau reprend toute sa vie |
+| Phases | 24 PV ; au-dessous de 66 % puis de 33 %, plus de pierres, lâchers plus rapides, plus de grosses pierres, visée plus courte, plongeon plus rapide ; à la fin, il enchaîne deux plongeons quand le premier touche |
+| Équité | si KAGE quitte l'arène, il regagne son perchoir et attend ; il ne s'écrase jamais hors de l'arène ; si KAGE meurt, le corbeau reprend toute sa vie et les plateformes se relèvent |
+| Vaincu | il s'affale ; plumes, cri qui retombe ; 1,3 s plus tard le talisman de la porte se déchire et les deux battants pivotent (1,6 s). La défaite est **sauvegardée** (`bossDefeated`) |
+
+Réglages : `KARASU` dans `src/game/karasu.js` (`altitude`, `rocks`, `releaseWindup`, `rock`, `aim`, `diveRise`, `stuck`…). Arène : zone 9 de `src/game/chapters/potager.js` (`bossDef` : `piles`, `scaffolds`) ; plateformes : `Level.restoreScaffolds` / `collapseScaffolds`, dessin `Live.scaffold` ; tas de pierres : `rock_pile` (`props.js`). Les anciennes images des glands et navets restent dans la planche (`karasu_items.png`) mais ne servent plus.
 
 ![Porte ouverte](karasu_porte_ouverte.png)

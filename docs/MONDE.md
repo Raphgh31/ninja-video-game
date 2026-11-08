@@ -1,6 +1,6 @@
 # KAGE — le monde (plan de conception)
 
-> **Statut** : direction validée par l'utilisateur. Le **chapitre 1, le Potager**, est jouable et entièrement peint (voir `docs/REPRISE.md`, § 6 bis et § 6 quater). Les chapitres suivants restent à concevoir ; leurs ennemis sont des pistes, chacun passera d'abord par une planche de design.
+> **Statut** : direction validée par l'utilisateur. Le **chapitre 1, le Potager**, est **terminé** (novembre 2026 : plus long, énigme de la grue de bambou, serre à quitter par la charpente, bosquets de bambous, plateformes sur pilotis, boss refondu ; voir `docs/REPRISE.md`, § 6 quinquies), jouable et entièrement peint (voir `docs/REPRISE.md`, § 6 bis et § 6 quater). Les chapitres suivants restent à concevoir ; leurs ennemis sont des pistes, chacun passera d'abord par une planche de design.
 
 ![Carte schématique du monde](monde/carte_du_monde.png)
 
@@ -31,7 +31,7 @@ Proposition : les **talismans** déjà présents (sur TATE, sur WARA) deviennent
 | 6 | **Le temple de pierre** | pierre, mousse, or terni | Ishi (sumo de pierre) | devant le temple |
 | 7 | **Le dojo final** | l'épreuve ultime | tous, combinés | à la porte du dojo |
 
-Chaque chapitre est découpé en **zones** (8 pour le Potager), chacune avec une idée de gameplay, séparées par des lanternes ; environ **20 minutes par chapitre** pour une première partie.
+Chaque chapitre est découpé en **zones** (9 pour le Potager), chacune avec une idée de gameplay, séparées par des lanternes ; environ **20 minutes par chapitre** pour une première partie.
 
 ## 4. Comment la difficulté monte
 
@@ -78,7 +78,7 @@ Chaque chapitre est découpé en **zones** (8 pour le Potager), chacune avec une
 
 ## 8. Ordre de construction
 
-1. ~~**Chapitre 1, le Potager, en greybox jouable**~~ : fait (écran titre, sauvegarde, zones, aides, ryō, caisses, marchand et boutique en coquille).
+1. ~~**Chapitre 1, le Potager, en greybox jouable**~~ puis ~~**terminé**~~ (novembre 2026) : fait (écran titre, sauvegarde, zones, aides, ryō, caisses, marchand et boutique en coquille).
 2. ~~**Décor du Potager**~~ : fait (refonte visuelle : cadrage 448×252, caméra posée à paliers, montagnes, décors peints et animés ; voir `docs/REPRISE.md`, § 6 quater).
 3. **Planches de design du Potager** : le marchand (le sage voyageur) d'abord, puis le petit nuisible ; ensuite sons d'ambiance et musique.
 4. **Expérience et paliers**, contenu de la boutique (premiers skins).
