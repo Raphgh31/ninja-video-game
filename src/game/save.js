@@ -15,7 +15,11 @@ export function emptySave(chapter) {
     ryo: 0,
     coins: [],           // ryō déjà ramassés (identifiants)
     crates: [],          // caisses déjà brisées
+    chests: [],          // coffres déjà ouverts
+    cranes: [],          // grues dont la corde a été coupée (blocs dans la fosse)
     merchantMet: false,
+    skins: ['encre'],    // skins de KAGE possédés (achetés chez le marchand)
+    skin: 'encre',       // skin porté
     bossDefeated: false, // KARASU-KASHI vaincu : la porte du temple reste ouverte
     time: 0,             // temps de jeu total (s)
     falls: 0,

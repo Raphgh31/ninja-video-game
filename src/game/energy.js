@@ -1,9 +1,10 @@
 // Énergie de KAGE (endurance), affichée en anneau en haut à gauche de l'écran,
 // à côté du stock de shurikens (façon Breath of the Wild en simplifié).
 
-// Toutes les dépenses sont multipliées par COST (85 % : un peu moins coûteux
-// qu'avant, en gardant les mêmes proportions entre les actions).
-const COST = 0.85;
+// Toutes les dépenses sont multipliées par COST, en gardant les mêmes proportions
+// entre les actions : 85 % d'abord, puis encore −20 % à la demande de l'utilisateur
+// (plus d'endurance) : 0,85 × 0,8 = 0,68.
+const COST = 0.68;
 export const ENERGY = {
   runDrain: 0.04 * COST,     // par seconde de course (≈ 29 s pour vider la barre)
   sprintDrain: 0.16 * COST,  // par seconde de sprint (≈ 7 s pour vider la barre)

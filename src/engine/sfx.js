@@ -5,7 +5,7 @@
 let ac = null;
 let master = null;
 let noiseBuf = null;
-const SFX_VOLUME = 0.125;  // volume général des bruitages (0,35 à l'origine, puis −2, −3 et −4 dB à la demande de l'utilisateur)
+const SFX_VOLUME = 0.2223; // volume général des bruitages (0,35 à l'origine, puis −2, −3 et −4 dB, puis +5 dB à la demande de l'utilisateur)
 let muted = false;
 let out = null;
 let musicBus = null;   // la musique a son propre circuit (même bouton « Son »)   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
@@ -293,6 +293,59 @@ const SOUNDS = {
   },
   paperTear: () => air({ dur: 0.4, vol: 0.09, type: 'highpass', q: 0.9, f: [[0, 2500], [1, 4200]], g: [[0, 0.1], [0.1, 1], [0.8, 0.6], [1, 0.01]], am: { rate: 60, depth: 0.9, type: 'square' } }),
   // la grande porte du temple : bois lourd qui grince en pivotant
+  // le corbeau saisit une pierre : cailloux qui raclent, petit choc
+  grabRock: () => {
+    noise({ dur: 0.12, vol: 0.09, type: 'bandpass', f: 1500, q: 1.2 });
+    for (let i = 0; i < 3; i++) noise({ dur: 0.03, vol: 0.05, type: 'bandpass', f: 2200 + i * 400, q: 3, delay: 0.05 + i * 0.05 });
+  },
+  // une pierre lâchée touche le sol (plus grave pour les grosses)
+  rockThud: ({ size = 1 } = {}) => {
+    tone({ f: 120 - size * 25, to: 50, dur: 0.18 + size * 0.06, type: 'triangle', vol: 0.09 + size * 0.03 });
+    noise({ dur: 0.14 + size * 0.05, vol: 0.12 + size * 0.04, type: 'lowpass', f: 600, to: 150 });
+    noise({ dur: 0.05, vol: 0.05, type: 'bandpass', f: 2400, q: 2, delay: 0.03 });
+  },
+  // le bois des plateformes craque (le corbeau vient de s'écraser)
+  woodCreak: () => {
+    air({ dur: 0.5, vol: 0.06, q: 8, f: [[0, 300], [0.5, 520], [1, 260]], g: [[0, 0.1], [0.3, 1], [1, 0.05]], am: { rate: 18, depth: 0.8, type: 'sawtooth' } });
+    noise({ dur: 0.08, vol: 0.08, type: 'bandpass', f: 900, q: 2, delay: 0.3 });
+  },
+  // une plateforme s'effondre : planches qui cassent, chute, fracas
+  woodCollapse: () => {
+    for (let i = 0; i < 4; i++) noise({ dur: 0.05, vol: 0.1, type: 'bandpass', f: 1100 + i * 250, q: 2.5, delay: i * 0.05 });
+    noise({ dur: 0.35, vol: 0.14, type: 'lowpass', f: 700, to: 160, delay: 0.18 });
+    tone({ f: 95, to: 50, dur: 0.25, type: 'triangle', vol: 0.08, delay: 0.2 });
+    for (let i = 0; i < 3; i++) tone({ f: 180 + i * 40, to: 120, dur: 0.05, type: 'triangle', vol: 0.04, delay: 0.42 + i * 0.09 });
+  },
+  // caisse qui retombe lourdement : choc sourd de bois, petit rebond, craquement
+  crateLand: () => {
+    tone({ f: 110, to: 55, dur: 0.16, type: 'triangle', vol: 0.11 });
+    noise({ dur: 0.12, vol: 0.16, type: 'lowpass', f: 700, to: 180 });
+    noise({ dur: 0.05, vol: 0.06, type: 'bandpass', f: 1800, q: 2, delay: 0.02 });
+    tone({ f: 90, to: 60, dur: 0.07, type: 'triangle', vol: 0.04, delay: 0.13 });
+  },
+  // corde de la grue tranchée : claquement sec, fibres qui fouettent l'air
+  ropeSnap: () => {
+    noise({ dur: 0.04, vol: 0.16, type: 'highpass', f: 2200 });
+    tone({ f: 420, to: 140, dur: 0.09, type: 'sawtooth', vol: 0.03 });
+    air({ dur: 0.22, vol: 0.06, q: 4, f: [[0, 2600], [1, 900]], g: [[0, 1], [0.3, 0.6], [1, 0]] });
+    noise({ dur: 0.3, vol: 0.05, type: 'lowpass', f: 500, to: 300, delay: 0.1 });   // le bois de la grue qui gémit
+  },
+  // blocs de pierre qui tombent dans la fosse : grondement, cailloux qui roulent
+  boulderLand: () => {
+    tone({ f: 70, to: 32, dur: 0.6, type: 'triangle', vol: 0.16, attack: 0.002 });
+    noise({ dur: 0.5, vol: 0.22, type: 'lowpass', f: 420, to: 90 });
+    noise({ dur: 0.2, vol: 0.08, type: 'bandpass', f: 1400, q: 1.5, delay: 0.04 });
+    for (let i = 0; i < 5; i++) noise({ dur: 0.04, vol: 0.05, type: 'bandpass', f: 1800 + i * 300, q: 3, delay: 0.18 + i * 0.07 });
+  },
+  // vieux coffre : déclic du loquet, charnière qui grince, couvercle qui bascule, éclat de l'or
+  chestOpen: () => {
+    noise({ dur: 0.05, vol: 0.12, type: 'highpass', f: 2500 });
+    tone({ f: 620, dur: 0.04, type: 'square', vol: 0.02 });
+    air({ dur: 0.32, vol: 0.05, q: 7, f: [[0, 520], [0.6, 700], [1, 460]], g: [[0, 0.05], [0.25, 1], [1, 0.02]], am: { rate: 16, depth: 0.7, type: 'sawtooth' }, delay: 0.06 });
+    noise({ dur: 0.16, vol: 0.13, type: 'lowpass', f: 320, to: 120, delay: 0.34 });
+    ring({ f: 1900, vol: 0.022, dur: 0.5, delay: 0.42 });
+    ring({ f: 2550, vol: 0.016, dur: 0.45, delay: 0.52 });
+  },
   gateCreak: () => {
     tone({ f: 95, to: 120, dur: 1.4, type: 'triangle', vol: 0.06, attack: 0.2 });
     air({ dur: 1.5, vol: 0.05, q: 6, f: [[0, 380], [0.5, 520], [1, 300]], g: [[0, 0.05], [0.2, 1], [0.8, 0.8], [1, 0.01]], am: { rate: 11, depth: 0.8, type: 'sawtooth' } });

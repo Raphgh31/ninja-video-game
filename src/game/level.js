@@ -25,6 +25,9 @@ export class Level {
     this.backdrops = def.backdrops ?? [];
     this.coins = [];         // ryō : { id, x, y, taken }
     this.crates = new Map(); // caisses : 'tx,ty' -> { tx, ty } (tant qu'elles ne sont pas brisées)
+    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt }
+    this.chests = this.props.filter((p) => p.type === 'chest')
+      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2, y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
     this.merchant = null;
     this.time = 0;
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
@@ -57,12 +60,18 @@ export class Level {
         else if (c === 'G') this.goal = { x: px, y: py };
         else if (c === 'o') this.coins.push({ id: `o${x}_${y}`, x: px, y: py - TILE / 2, taken: false });
         else if (c === 'M') this.merchant = { x: px, y: py };
-        else if (c === 'B') this.crates.set(`${x},${y}`, { tx: x, ty: y });
+        else if (c === 'B') this.crates.set(`${x},${y}`, { key: `${x},${y}`, tx: x, ty: y, fall: null });
       }
       this.rows[y] = this.rows[y].replace(/[TEWCPGoM]/g, '.');
     }
     // lanternes dans l'ordre du parcours (de gauche à droite)
     this.checkpoints.sort((a, b) => a.x - b.x);
+    // grues de bambou : un mur de blocs ficelés suspendu au-dessus d'une fosse ;
+    // un shuriken dans la corde le fait tomber dans la fosse, qu'il comble (voir cutRope)
+    this.cranes = (def.cranes ?? []).map((c) => ({ ...c, cut: false, cutAt: -9, drop: 0, landed: false }));
+    // plateformes fragiles de l'arène du boss : { x0, w, row (cases), ground (ligne du sol dessous) }
+    this.scaffolds = (def.boss?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
+    for (const c of this.cranes) this.fillCrane(c, c.top);
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
     this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
@@ -93,6 +102,9 @@ export class Level {
 
   update(dt) {
     this.time += dt;
+    this.updateCrates(dt);
+    this.updateCranes(dt);
+    this.updateScaffolds();
     for (const t of this.targets) if (t.broken) t.t += dt;
     for (const g of this.gongs) g.t += dt;
     for (const c of this.checkpoints) c.t += dt;
@@ -106,7 +118,17 @@ export class Level {
     // ryō : petite pièce d'or percée d'un trou carré, qui tourne
     for (const c of this.coins) {
       if (c.taken) continue;
-      const sx = R(c.x - cam.x), sy = R(c.y - cam.y + Math.sin(this.time * 3 + c.x) * 1.2);
+      let cx = c.x, cy = c.y + Math.sin(this.time * 3 + c.x) * 1.2;
+      if (c.fly) {
+        // pièce qui jaillit du coffre : arc de sa sortie jusqu'à sa place
+        const k = (this.time - c.fly.t0) / c.fly.dur;
+        if (k < 0) continue;
+        if (k < 1) {
+          cx = c.fly.x0 + (c.x - c.fly.x0) * k;
+          cy = c.fly.y0 + (c.y - c.fly.y0) * k - c.fly.h * 4 * k * (1 - k);
+        } else c.fly = null;
+      }
+      const sx = R(cx - cam.x), sy = R(cy - cam.y);
       const w = [3, 2, 1, 2][Math.floor(this.time * 6 + c.x / 16) % 4];
       ctx.fillStyle = '#7a5a1c';
       ctx.fillRect(sx - w - 1, sy - 4, w * 2 + 2, 8);
@@ -248,7 +270,160 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+  }
+
+  /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la
+   *  traverse en sautant par-dessous, on se pose dessus en retombant. */
+  ledge(tx, ty) {
+    const c = this.at(tx, ty);
+    return c === '-' || c === '_';      // « _ » : plateforme fragile de l'arène du boss (elle peut s'effondrer)
+  }
+
+  // --- plateformes fragiles de l'arène du boss (« _ ») -------------------------
+  /** Toutes debout (début du combat, et après une chute de KAGE). */
+  restoreScaffolds() {
+    for (const s of this.scaffolds) {
+      s.up = true;
+      s.fallAt = -9;
+      for (let i = 0; i < s.w; i++) this.setTile(s.x0 + i, s.row, '_');
+    }
+  }
+
+  /** Le corbeau s'est écrasé : elles s'effondrent, les plus proches d'abord. */
+  collapseScaffolds(fromX) {
+    for (const s of this.scaffolds) {
+      if (!s.up) continue;
+      s.up = false;
+      const cx = (s.x0 + s.w / 2) * TILE;
+      s.fallAt = this.time + Math.min(0.5, Math.abs(cx - fromX) / 600);
+      s.fallen = false;
+    }
+    this.onEvent?.('scaffoldsShake', { x: fromX });
+  }
+
+  updateScaffolds() {
+    for (const s of this.scaffolds) {
+      if (s.up || s.fallen || this.time < s.fallAt) continue;
+      s.fallen = true;
+      for (let i = 0; i < s.w; i++) this.setTile(s.x0 + i, s.row, '.');
+      this.onEvent?.('scaffoldFall', { x: (s.x0 + s.w / 2) * TILE, y: s.row * TILE, w: s.w * TILE, ground: s.ground * TILE });
+    }
+  }
+
+  setTile(tx, ty, ch) {
+    if (ty < 0 || ty >= this.h || tx < 0 || tx >= this.w) return;
+    this.rows[ty] = this.rows[ty].slice(0, tx) + ch + this.rows[ty].slice(tx + 1);
+  }
+
+  // --- caisses : elles tombent quand plus rien ne les porte --------------------
+  /** Une caisse est portée par une tuile pleine, une passerelle ou une autre caisse. */
+  crateSupported(cr) {
+    return this.solid(cr.tx, cr.ty + 1) || this.ledge(cr.tx, cr.ty + 1) || cr.ty + 1 >= this.h;
+  }
+
+  updateCrates(dt) {
+    for (const cr of this.crates.values()) {
+      if (!cr.fall) {
+        if (this.crateSupported(cr)) continue;
+        this.setTile(cr.tx, cr.ty, '.');
+        cr.fall = { y: cr.ty * TILE, vy: 0 };
+      }
+      const f = cr.fall;
+      f.vy = Math.min(560, f.vy + 1100 * dt);
+      f.y += f.vy * dt;
+      // la caisse qui tombe sur KAGE le blesse (une fois) et le repousse
+      const pl = this.player;
+      if (pl && !f.hitPlayer && pl.state !== 'death' && pl.state !== 'respawn') {
+        const b = pl.box(), x = cr.tx * TILE;
+        if (b.x < x + TILE - 2 && b.x + b.w > x + 2 && b.y < f.y + TILE && b.y + b.h > f.y + 4) {
+          f.hitPlayer = true;
+          this.onEvent?.('crateHit', { x: x + TILE / 2, y: f.y + TILE });
+        }
+      }
+      const below = Math.floor((f.y + TILE) / TILE);
+      if (this.solid(cr.tx, below) || this.ledge(cr.tx, below) || below >= this.h) {
+        cr.ty = below - 1;
+        cr.fall = null;
+        this.setTile(cr.tx, cr.ty, 'B');
+        this.onEvent?.('crateLand', { x: cr.tx * TILE + TILE / 2, y: below * TILE, speed: f.vy });
+      } else {
+        cr.ty = Math.floor(f.y / TILE);
+      }
+    }
+  }
+
+  /** Pose les caisses sans support directement à leur place (reprise d'une sauvegarde). */
+  settleCrates() {
+    for (let moved = true; moved;) {
+      moved = false;
+      for (const cr of this.crates.values()) {
+        if (this.crateSupported(cr)) continue;
+        this.setTile(cr.tx, cr.ty, '.');
+        cr.ty++;
+        this.setTile(cr.tx, cr.ty, 'B');
+        moved = true;
+      }
+    }
+  }
+
+  /** Haut du premier sol sous (tx, ty) : où retombe une pièce. */
+  floorBelow(tx, ty) {
+    let y = ty;
+    while (y < this.h && !this.solid(tx, y) && !this.ledge(tx, y)) y++;
+    return y;
+  }
+
+  // --- grues de bambou -----------------------------------------------------------
+  /** Écrit les blocs de la grue c dans la grille, haut à la ligne top (et efface le reste). */
+  fillCrane(c, top) {
+    for (let x = c.x0; x < c.x0 + c.w; x++) {
+      for (let y = c.top; y < c.top + 2 * c.h; y++) if (this.at(x, y) === 'K') this.setTile(x, y, '.');
+      if (top == null) continue;
+      for (let y = top; y < top + c.h; y++) this.setTile(x, y, 'K');
+    }
+  }
+
+  /** Un shuriken (boîte box) coupe-t-il la corde d'une grue ? */
+  cutRope(box) {
+    for (const c of this.cranes) {
+      if (c.cut) continue;
+      if (box.x < c.ropeX + 3 && box.x + box.w > c.ropeX - 3 && box.y < c.ropeY1 && box.y + box.h > c.ropeY0) {
+        c.cut = true;
+        c.cutAt = this.time;
+        c.drop = 0;
+        c.vy = 0;
+        this.fillCrane(c, null);                  // les blocs tombent : ils ne bloquent plus rien
+        this.onEvent?.('ropeCut', { x: c.ropeX, y: (c.ropeY0 + c.ropeY1) / 2, id: c.id });
+        return c;
+      }
+    }
+    return null;
+  }
+
+  updateCranes(dt) {
+    for (const c of this.cranes) {
+      if (!c.cut || c.landed) continue;
+      if (this.time - c.cutAt < 0.12) continue;   // la corde claque, un temps, puis la chute
+      c.vy = Math.min(620, c.vy + 1300 * dt);
+      c.drop += c.vy * dt;
+      if (c.drop >= c.h * TILE) {
+        c.drop = c.h * TILE;
+        c.landed = true;
+        this.fillCrane(c, c.top + c.h);           // la fosse est comblée, à ras du sol
+        this.onEvent?.('craneLand', { x: (c.x0 + c.w / 2) * TILE, y: (c.top + 2 * c.h) * TILE, id: c.id, w: c.w * TILE });
+      }
+    }
+  }
+
+  /** Grue coupée lors d'une partie précédente : blocs déjà dans la fosse. */
+  dropCrane(id) {
+    const c = this.cranes.find((k) => k.id === id);
+    if (!c || c.cut) return;
+    c.cut = true;
+    c.landed = true;
+    c.drop = c.h * TILE;
+    this.fillCrane(c, c.top + c.h);
   }
 
   // --- ryō et caisses --------------------------------------------------------
@@ -256,7 +431,7 @@ export class Level {
   takeCoins(box) {
     const got = [];
     for (const c of this.coins) {
-      if (c.taken) continue;
+      if (c.taken || c.fly) continue;
       if (box.x < c.x + 4 && box.x + box.w > c.x - 4 && box.y < c.y + 5 && box.y + box.h > c.y - 5) {
         c.taken = true;
         got.push(c);
@@ -269,27 +444,67 @@ export class Level {
   breakCrates(box) {
     const broken = [];
     for (const [key, cr] of this.crates) {
-      const x = cr.tx * TILE, y = cr.ty * TILE;
+      const x = cr.tx * TILE, y = cr.fall ? cr.fall.y : cr.ty * TILE;
       if (box.x < x + TILE && box.x + box.w > x && box.y < y + TILE && box.y + box.h > y) {
         this.crates.delete(key);
-        this.rows[cr.ty] = this.rows[cr.ty].slice(0, cr.tx) + '.' + this.rows[cr.ty].slice(cr.tx + 1);
-        this.coins.push({ id: `c${cr.tx}_${cr.ty}`, x: x + TILE / 2, y: y + TILE / 2, taken: false });
+        if (!cr.fall) this.setTile(cr.tx, cr.ty, '.');
+        // identifiant tiré de la place d'origine de la caisse (même si elle est tombée depuis)
+        this.coins.push({ id: `c${key.replace(',', '_')}`, x: x + TILE / 2, y: y + TILE / 2, taken: false });
         broken.push({ key, x: x + TILE / 2, y: y + TILE / 2 });
       }
     }
     return broken;
   }
 
-  /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées. */
+  /**
+   * Ouvre un coffre : ses ryō jaillissent en gerbe et retombent devant lui, en
+   * deux rangées (ramassées en passant, comme les autres). silent : reprise
+   * d'une sauvegarde (pièces déjà posées, pas d'animation).
+   */
+  openChest(ch, silent = false) {
+    if (ch.open) return [];
+    ch.open = true;
+    ch.openedAt = silent ? -9 : this.time;
+    // places : rangée basse de part et d'autre du coffre, rangée haute au-dessus
+    const spots = [[-64, 8], [-40, 8], [40, 8], [64, 8], [88, 8], [-52, 20], [-28, 20], [0, 22], [28, 20], [52, 20]];
+    const out = [];
+    for (let i = 0; i < ch.ryo; i++) {
+      const [dx, dy] = spots[i % spots.length];
+      const c = { id: `k${ch.id}_${i}`, x: ch.x + dx, y: ch.y - dy, taken: false };
+      if (!silent) c.fly = { x0: ch.x + (i % 5) * 3 - 6, y0: ch.y - 12, t0: this.time + 0.18 + i * 0.045, dur: 0.6, h: 26 + (i % 3) * 8 };
+      this.coins.push(c);
+      out.push(c);
+    }
+    return out;
+  }
+
+  /** Coffre devant lequel se tient KAGE (encore fermé), ou null. */
+  chestNear(x, y) {
+    return this.chests.find((c) => !c.open && Math.abs(x - c.x) < 26 && Math.abs(y - c.y) < 12) ?? null;
+  }
+
+  /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées, coffres ouverts. */
   applySave(save) {
     const taken = new Set(save.coins ?? []);
+    for (const id of save.chests ?? []) {
+      const ch = this.chests.find((c) => c.id === id);
+      if (ch) this.openChest(ch, true);
+    }
     for (const key of save.crates ?? []) {
       const cr = this.crates.get(key);
       if (!cr) continue;
       this.crates.delete(key);
-      this.rows[cr.ty] = this.rows[cr.ty].slice(0, cr.tx) + '.' + this.rows[cr.ty].slice(cr.tx + 1);
-      this.coins.push({ id: `c${cr.tx}_${cr.ty}`, x: cr.tx * TILE + TILE / 2, y: cr.ty * TILE + TILE / 2, taken: false });
+      this.setTile(cr.tx, cr.ty, '.');
     }
+    // les caisses restantes retombent d'un coup ; le ryō d'une caisse brisée est posé au sol sous elle
+    this.settleCrates();
+    for (const key of save.crates ?? []) {
+      const [tx, ty] = key.split(',').map(Number);
+      if (Number.isNaN(tx)) continue;
+      const fy = this.floorBelow(tx, ty);
+      this.coins.push({ id: `c${tx}_${ty}`, x: tx * TILE + TILE / 2, y: (fy - 1) * TILE + TILE / 2, taken: false });
+    }
+    for (const id of save.cranes ?? []) this.dropCrane(id);
     for (const c of this.coins) if (taken.has(c.id)) c.taken = true;
   }
 

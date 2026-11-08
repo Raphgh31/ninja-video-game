@@ -35,10 +35,124 @@ export function atticGeom(p) {
  * par-dessus le grenier, et le rend presque transparent quand KAGE est monté).
  * gb : le fond « grange ».
  */
+/**
+ * Le vieux coffre du grenier (nagamochi) : bois sombre, ferrures, serrure de
+ * laiton. state : 0 fermé, 1 entrouvert, 2 ouvert (couvercle relevé en
+ * arrière, intérieur sombre où brille l'or). Toile 40×34, sol en bas ;
+ * le coffre est centré (CHEST.cx).
+ */
+export const CHEST = { w: 40, h: 34, cx: 20 };
+export function chestSprite(state, Brush, canvas) {
+  const cv = canvas(CHEST.w, CHEST.h), b = new Brush(cv.getContext('2d')), W = C.WOOD;
+  const IRON = '#55585f', IRON_L = '#8a8e96', BRASS = '#b08a3a', BRASS_L = '#e2c070', DARK = '#120c07';
+  const w = 34, h = 15, cx = 3, fy = CHEST.h;
+  const top = fy - h;
+  const wood = (x, y, j, k = 0) => {
+    const v = 0.4 + (noise2(x * 0.3, y * 0.9, 21) - 0.5) * 0.3 - ((x - cx) / w) * 0.12 + k;
+    return pick(W, clamp01(v), x, j);
+  };
+  // caisse (sous le joint du couvercle)
+  for (let j = 5; j < h; j++) for (let i = 0; i < w; i++) b.p(cx + i, top + j, wood(cx + i, top + j, j));
+  b.r(cx + w - 4, fy - 4, 4, 4, IRON).r(cx, fy - 4, 4, 4, IRON);
+  b.r(cx - 2, fy - 9, 2, 3, IRON).r(cx + w, fy - 9, 2, 3, IRON);                // poignées
+  if (state === 0) {
+    for (let j = 0; j < 5; j++) for (let i = 0; i < w; i++) b.p(cx + i, top + j, wood(cx + i, top + j, j, j === 4 ? -0.3 : 0));
+    b.r(cx, top, w, 1, W[4]);
+    for (const fx of [cx, cx + w - 4]) b.r(fx, top, 4, 4, IRON).p(fx + 1, top + 1, IRON_L);
+    b.r(cx + w / 2 - 2, top + 3, 4, 5, BRASS).p(cx + w / 2 - 1, top + 4, BRASS_L).p(cx + w / 2, top + 6, W[0]);
+    return cv;
+  }
+  // ouvert ou entrouvert : bord de la caisse, intérieur sombre, or qui brille
+  const rim = top + 4;
+  b.r(cx, rim, w, 1, W[1]);
+  b.r(cx + 2, rim + 1, w - 4, 2, DARK);
+  for (const [i, c] of [[6, BRASS_L], [9, BRASS], [13, BRASS_L], [18, BRASS], [21, BRASS_L], [25, BRASS], [28, BRASS_L]]) b.p(cx + i, rim + 1 + (i % 2), c);
+  b.r(cx + w / 2 - 2, rim + 1, 4, 3, BRASS).p(cx + w / 2 - 1, rim + 2, BRASS_L);     // la serrure, ouverte
+  if (state === 1) {
+    // couvercle soulevé de quelques pixels, encore à plat : un rai sombre dessous
+    for (let j = 0; j < 4; j++) for (let i = 0; i < w; i++) b.p(cx + i, top - 3 + j, wood(cx + i, top + j, j));
+    b.r(cx, top - 3, w, 1, W[4]);
+    for (const fx of [cx, cx + w - 4]) b.r(fx, top - 3, 4, 4, IRON).p(fx + 1, top - 2, IRON_L);
+    return cv;
+  }
+  // ouvert : on voit le dessous du couvercle, relevé en arrière au-dessus de la caisse
+  const lh = 10, ly = rim - lh;
+  for (let j = 0; j < lh; j++) {
+    const inset = Math.round((lh - 1 - j) * 0.25);                                  // un peu plus étroit en haut (perspective)
+    for (let i = inset; i < w - inset; i++) b.p(cx + i, ly + j, wood(cx + i, ly + j, j, 0.18 - j * 0.02));
+    b.p(cx + inset, ly + j, IRON).p(cx + w - 1 - inset, ly + j, IRON);
+  }
+  b.r(cx + 3, ly, w - 6, 1, W[1]);
+  for (let i = 4; i < w - 4; i += 6) b.r(cx + i, ly + 2, 1, lh - 3, W[2]);               // planches du couvercle
+  return cv;
+}
+
+/**
+ * Grue de bambou (zone 3) : le mur de blocs de pierre bruts, ficelés d'une corde
+ * en croix (toile w × h cases), et la paroi de la fosse qui l'attend.
+ */
+export function craneBundle(c, Brush, canvas) {
+  const W = c.w * TILE, H = c.h * TILE;
+  const cv = canvas(W, H), b = new Brush(cv.getContext('2d'));
+  const ST = C.STONE, ROPE = ['#3b2a1c', '#6a4a2c', '#9a7448', '#c9a46c'];
+  // grosses pierres irrégulières, empilées (cellules de Voronoï), joints sombres
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const w = worley(x + c.x0 * 37, y, 9.5, 41, 0.8);
+    let v = 0.62 - (w.dx / 9) * 0.18 - (w.dy / 9) * 0.3 + (w.id - 0.5) * 0.28;
+    if (w.d2 - w.d < 1.1) v = 0.05;                                  // joint entre deux pierres
+    else if (w.d2 - w.d < 2) v -= 0.2;
+    if (noise2(x * 0.25, y * 0.25, 44) > 0.72 && w.dy < 0) v = Math.max(v, 0.35);
+    let col = pick(ST, clamp01(v), x, y, 0.15);
+    if (w.dy < -3 && noise2(x * 0.2, y * 0.3, 45) > 0.62) col = pick(C.MOSS, 0.55, x, y);   // mousse sur le haut des pierres
+    b.p(x, y, col);
+  }
+  // contour : bords du mur un peu grignotés
+  for (let y = 0; y < H; y++) for (const x of [0, W - 1]) if (ih(x, y, 46) < 0.4) b.p(x, y, ST[0]);
+  b.r(0, H - 1, W, 1, ST[0]);
+  // la corde en croix et les deux bandes horizontales qui serrent le tas
+  const rope = (x0, y0, x1, y1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n), y = Math.round(y0 + ((y1 - y0) * i) / n);
+      b.p(x, y, ROPE[2]).p(x + 1, y, ROPE[1]).p(x, y + 1, ROPE[0]);
+      if (i % 3 === 0) b.p(x, y, ROPE[3]);                           // torsion de la corde
+    }
+  };
+  rope(1, 2, W - 3, H - 4);
+  rope(W - 3, 2, 1, H - 4);
+  for (const yy of [5, H - 9]) rope(0, yy, W - 2, yy);
+  // le nœud au croisement, et l'anneau du haut où s'accroche la corde de la grue
+  const mx = Math.round(W / 2), my = Math.round(H / 2);
+  b.r(mx - 2, my - 2, 4, 4, ROPE[1]).r(mx - 1, my - 2, 2, 1, ROPE[3]);
+  b.r(mx - 3, 0, 6, 2, ROPE[1]).r(mx - 2, 0, 4, 1, ROPE[3]);
+  return cv;
+}
+
+/** Paroi de la fosse de la grue (terre sombre, racines), peinte derrière les blocs. */
+export function cranePit(c, Brush, canvas) {
+  const W = c.w * TILE, H = c.h * TILE;
+  const cv = canvas(W, H), b = new Brush(cv.getContext('2d'));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const w = worley(x + 300, y, 6, 51, 0.7);
+    let v = 0.32 - (y / H) * 0.22 - (w.dy / 6) * 0.08 + (noise2(x * 0.3, y * 0.3, 52) - 0.5) * 0.15;
+    if (w.d2 - w.d < 0.6) v -= 0.1;
+    b.p(x, y, pick(C.SOIL, clamp01(v), x, y));
+  }
+  for (let k = 0; k < 5; k++) {                                      // racines qui pendent
+    const x = Math.floor(ih(k, 3, 53) * W), len = 4 + Math.floor(ih(k, 4, 53) * 10);
+    for (let j = 0; j < len; j++) b.p(x + (j % 4 === 3 ? 1 : 0), j, C.SOIL[1]);
+  }
+  b.r(0, 0, 1, H, C.SOIL[0]).r(W - 1, 0, 1, H, C.SOIL[0]);
+  return cv;
+}
+
 export function roofCoverBox(gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98, w = x1 - x0 + 70;
   return { x: Math.floor((x0 + x1) / 2 - w / 2) - 2, y: ye - RH - 8, w: w + 4, h: RH + 8 + TILE };
 }
+// haut des poteaux d'angle de la grange, par rapport à l'avant-toit : juste sous le bord du chaume
+const POST_TOP = 2;
+
 export function paintRoofCover(b, gb) {
   const x0 = gb.x0 * TILE, x1 = gb.x1 * TILE, ye = (gb.eave ?? gb.y0) * TILE, RH = gb.roofH ?? 98;
   thatchRoof(b, (x0 + x1) / 2, ye - RH + 2, x1 - x0 + 70, RH, 91);
@@ -53,10 +167,11 @@ export function paintRoofCover(b, gb) {
       b.p(x, yy, pick(C.WOOD, clamp01(v), x, yy));
     }
   }
-  // les poteaux d'angle restent devant (même dessin que la couche avant de la grange)
-  const h = ye + TILE - (ye - 6);
-  b.r(x0 - 4, ye - 6, 8, h, C.WOOD[1]).r(x0 - 4, ye - 6, 2, h, C.WOOD[3]);
-  b.r(x1 - 6, ye - 6, 8, h, C.WOOD[1]).r(x1 - 6, ye - 6, 2, h, C.WOOD[3]);
+  // les poteaux d'angle restent devant la poutre (même dessin que la couche avant de la
+  // grange), mais passent SOUS le chaume : ils partent juste sous son bord (POST_TOP)
+  const top = ye + POST_TOP, h = ye + TILE - top;
+  b.r(x0 - 4, top, 8, h, C.WOOD[1]).r(x0 - 4, top, 2, h, C.WOOD[3]);
+  b.r(x1 - 6, top, 8, h, C.WOOD[1]).r(x1 - 6, top, 2, h, C.WOOD[3]);
 }
 
 // cultures des gradins de la colline, du sommet vers le bas (0,2 rizière inondée,
@@ -797,60 +912,138 @@ const PAINT = {
 
   // --- zone 5 : la serre de bambou ----------------------------------------
   serre(b, p, X, Y, env, layer) {
+    // grande serre de bambou (13 cases de haut) : voûte en arceaux, toiles
+    // translucides déchirées, hautes étagères, établi, semis, plantes suspendues
     const x0 = p.x0 * TILE, x1 = p.x1 * TILE, y0 = p.y0 * TILE, y1 = p.y1 * TILE;
+    const BAY = 48, top = y0 + 8;                     // haut des murs (sous le faîtage)
+    const arch = (x) => { const u = ((x - x0) % BAY) / BAY; return Math.round(Math.sin(u * Math.PI) * 9); };
     if (layer === 'backdrop') {
-      // toiles de protection tendues, translucides, déchirées par endroits
-      for (let x = x0; x < x1; x++) for (let y = y0 - 34; y < y1; y++) {
-        const u = (x - x0) % 48;
-        const sag = y < y0 ? Math.round(Math.sin((u / 48) * Math.PI) * 10) : 0;
-        if (y < y0 - 24 + sag) continue;
-        const torn = noise2(x * 0.08, y * 0.12, 71) > 0.72 && y > y0 + 6;
-        if (torn) { if (noise2(x * 0.08, y * 0.12, 71) < 0.74) b.p(x, y, 'rgba(240, 244, 228, 0.7)'); continue; }
-        const fold = Math.sin((x - x0) * 0.4) * 0.5 + 0.5;
-        const v = 0.55 + fold * 0.15 - (y - y0) / 300;
-        b.p(x, y, `rgba(${Math.round(222 + v * 20)}, ${Math.round(232 + v * 15)}, ${Math.round(205 + v * 20)}, ${y < y0 ? 0.92 : 0.66})`);
+      // 1. toiles : panneaux translucides, plus clairs en haut, coutures, déchirures
+      for (let x = x0; x < x1; x++) for (let y = top - 14; y < y1; y++) {
+        if (y < top - arch(x)) continue;
+        const n = noise2(x * 0.06, y * 0.09, 71);
+        if (n > 0.73 && y > top + 10 && y < y1 - 30) {                // déchirure : on voit dehors
+          if (n < 0.745) b.p(x, y, 'rgba(244, 246, 232, 0.8)');       // bord effiloché
+          continue;
+        }
+        const fold = Math.sin((x - x0) * 0.33) * 0.5 + 0.5;
+        const v = 0.62 + fold * 0.12 - (y - top) / 520;
+        const a = y < top ? 0.92 : 0.6 + (y - top) / (y1 - top) * 0.12;
+        b.p(x, y, `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, ${a.toFixed(2)})`);
+        if ((y - top) % 44 === 0 && y > top) b.p(x, y, 'rgba(150, 168, 120, 0.55)');   // ligne de couture
       }
-      // structure : arceaux et poteaux de bambou, étagères, pots, plantes grimpantes
-      for (let x = x0; x <= x1; x += 48) {
-        for (let y = y0 - 26; y < y1; y++) { b.p(x, y, C.BAMBOO[4]); b.p(x + 1, y, C.BAMBOO[2]); b.p(x + 2, y, C.BAMBOO[1]); }
-        for (let n = y0; n < y1; n += 14) b.r(x - 1, n, 5, 1, C.BAMBOO[0]);
-        // liane qui s'enroule
-        for (let y = y0; y < y1 - 2; y++) {
-          const vx = x + 1 + Math.round(Math.sin(y * 0.35 + x) * 3);
+      // 2. voûte : un arceau de bambou par travée, pannes, faîtage peint par les tuiles
+      for (let x = x0; x < x1; x++) {
+        const y = top - arch(x);
+        b.p(x, y, C.BAMBOO[4]).p(x, y + 1, C.BAMBOO[2]).p(x, y + 2, C.BAMBOO[1]);
+      }
+      for (const py of [top + 34, top + 78]) for (let x = x0; x < x1; x++) b.p(x, py, (x % 17) === 0 ? C.BAMBOO[0] : C.BAMBOO[2]).p(x, py + 1, C.BAMBOO[1]);
+      // 3. poteaux de bambou (un par travée), nœuds, liens, contrefiches, lianes
+      for (let x = x0; x <= x1; x += BAY) {
+        for (let y = top - 2; y < y1; y++) { b.p(x, y, C.BAMBOO[4]); b.p(x + 1, y, C.BAMBOO[2]); b.p(x + 2, y, C.BAMBOO[1]); }
+        for (let n = top; n < y1; n += 14) b.r(x - 1, n, 5, 1, C.BAMBOO[0]);
+        b.line(x + 3, top + 18, x + 18, top + 3, C.BAMBOO[2], 2).line(x - 1, top + 18, x - 16, top + 3, C.BAMBOO[2], 2);
+        for (const ly of [top + 34, top + 78]) b.r(x - 2, ly - 1, 7, 3, '#2a2420');
+        for (let y = top + 20; y < y1 - 2; y++) {
+          if (ih(x, 7, 72) < 0.35) break;
+          const vx = x + 1 + Math.round(Math.sin(y * 0.32 + x) * 3);
           b.p(vx, y, C.LEAF[2]);
           if (y % 5 === 0) b.r(vx - 1, y, 3, 2, C.LEAF[3]).p(vx - 1, y, C.LEAF[4]);
         }
       }
-      for (let x = x0; x < x1; x++) {
-        const u = (x - x0) % 48;
-        b.p(x, y0 - 24 + Math.round(Math.sin((u / 48) * Math.PI) * 10), C.BAMBOO[2]);
-      }
-      // étagères de graines contre la toile
-      for (let k = 0; k < 4; k++) {
-        const sx = x0 + 70 + k * 150, sy = y1 - 50;
-        if (sx > x1 - 40) continue;
-        for (const dy of [0, 18]) {
-          b.r(sx, sy + dy, 40, 3, C.WOOD[3]).r(sx, sy + dy, 40, 1, C.WOOD[5]);
-          for (let j = 0; j < 5; j++) {
-            const kind = Math.floor(ih(sx + j, dy, 4) * 3);
-            const jx = sx + 3 + j * 8;
-            b.r(jx, sy + dy - 7, 6, 7, [C.TERRACOTTA[3], C.PAPER[2], '#8aa074'][kind]).r(jx, sy + dy - 8, 6, 1, C.WOOD[1]).p(jx, sy + dy - 6, '#ffffff');
+      // 4. hautes étagères contre la toile : bocaux de graines, pots, bottes d'herbes
+      for (let k = 0; ; k++) {
+        const sx = x0 + 22 + k * 132, w = 46;
+        if (sx + w > x1 - 20) break;
+        if (ih(k, 2, 73) < 0.25) continue;
+        const sh = 4, h = 26;
+        for (let l = 0; l < sh; l++) {
+          const ly = y1 - 12 - l * h;
+          b.r(sx, ly, w, 3, C.WOOD[3]).r(sx, ly, w, 1, C.WOOD[5]).r(sx, ly + 3, w, 1, C.WOOD[0]);
+          for (let j = 0; j < 6; j++) {
+            const kind = ih(sx + j, l, 74), jx = sx + 2 + j * 7 + Math.floor(ih(j, l, 75) * 2);
+            if (kind < 0.18) continue;
+            if (kind < 0.55) {                                       // bocal de graines
+              const col = [C.TERRACOTTA[3], C.PAPER[2], '#8aa074', '#c9a46c'][Math.floor(ih(j, l, 76) * 4)];
+              b.r(jx, ly - 8, 5, 8, col).r(jx, ly - 9, 5, 1, C.WOOD[1]).p(jx, ly - 7, '#ffffff').r(jx + 1, ly - 5, 3, 2, C.PAPER[0]);
+            } else if (kind < 0.85) {                                // petit pot et sa pousse
+              b.r(jx, ly - 5, 5, 5, C.TERRACOTTA[2]).r(jx, ly - 5, 5, 1, C.TERRACOTTA[4]);
+              b.r(jx + 2, ly - 9, 1, 4, C.LEAF[2]).p(jx + 1, ly - 9, C.LEAF[3]).p(jx + 3, ly - 8, C.LEAF[3]);
+            } else {                                                 // botte d'herbes sèches suspendue
+              b.r(jx + 2, ly + 4, 1, 3, '#5b4a36');
+              for (let q = 0; q < 4; q++) b.r(jx + q, ly + 7, 1, 7 + (q % 2) * 2, q % 2 ? '#8a7f4a' : '#a39553');
+            }
           }
         }
-        b.r(sx, sy, 2, 50, C.WOOD[2]).r(sx + 38, sy, 2, 50, C.WOOD[2]);
+        b.r(sx - 1, y1 - 12 - (sh - 1) * h - 4, 3, (sh - 1) * h + 16, C.WOOD[2]).r(sx + w - 2, y1 - 12 - (sh - 1) * h - 4, 3, (sh - 1) * h + 16, C.WOOD[1]);
       }
-      // plantes suspendues
-      for (let x = x0 + 30; x < x1 - 20; x += 96) {
-        rope(b, x, y0, x, y0 + 14, 0, C.WOOD[1]);
-        b.r(x - 4, y0 + 14, 9, 5, C.TERRACOTTA[2]).r(x - 4, y0 + 14, 9, 1, C.TERRACOTTA[4]);
-        for (let k = 0; k < 5; k++) b.r(x - 5 + k * 3, y0 + 18, 1, 4 + (k % 3) * 3, C.LEAF[2 + (k % 2)]);
-        leaves(b, x, y0 + 12, 5, C.LEAF, x, { light: 0.05 });
+      // 5. bacs de semis le long du mur du fond, et un établi avec ses outils
+      for (let x = x0 + 8; x < x1 - 30; x += 70) {
+        if (ih(x, 4, 77) < 0.4) continue;
+        b.r(x, y1 - 9, 30, 9, C.WOOD[2]).r(x, y1 - 9, 30, 1, C.WOOD[4]).r(x, y1 - 1, 30, 1, C.WOOD[0]);
+        for (let k = 0; k < 9; k++) b.r(x + 2 + k * 3, y1 - 12 - (k % 2), 1, 3 + (k % 2), C.LEAF[2 + (k % 2)]);
+      }
+      {
+        const wx = x0 + Math.round((x1 - x0) * 0.42), wy = y1 - 20;
+        b.r(wx, wy, 44, 3, C.WOOD[3]).r(wx, wy, 44, 1, C.WOOD[5]);
+        b.r(wx + 2, wy + 3, 2, 17, C.WOOD[1]).r(wx + 40, wy + 3, 2, 17, C.WOOD[1]).r(wx + 2, wy + 12, 40, 1, C.WOOD[1]);
+        b.r(wx + 4, wy - 5, 12, 5, C.TERRACOTTA[1]).r(wx + 4, wy - 5, 12, 1, C.TERRACOTTA[3]);                     // pot à rempoter
+        b.r(wx + 20, wy - 7, 8, 7, '#7d8c96').r(wx + 28, wy - 6, 5, 1, '#7d8c96').r(wx + 22, wy - 9, 4, 2, '#7d8c96');   // arrosoir
+        b.line(wx + 34, wy - 1, wx + 40, wy - 7, C.WOOD[1]).r(wx + 39, wy - 9, 3, 3, '#8e939c');                       // transplantoir
+      }
+      // 6. plantes suspendues, gourdes sur une liane tendue sous la panne
+      for (let x = x0 + 30; x < x1 - 20; x += 72) {
+        const hy = top + 34 + Math.floor(ih(x, 1, 78) * 20);
+        rope(b, x, top + 35, x, hy, 0, C.WOOD[1]);
+        b.r(x - 4, hy, 9, 5, C.TERRACOTTA[2]).r(x - 4, hy, 9, 1, C.TERRACOTTA[4]);
+        for (let k = 0; k < 5; k++) b.r(x - 5 + k * 3, hy + 4, 1, 5 + (k % 3) * 4, C.LEAF[2 + (k % 2)]);
+        leaves(b, x, hy - 2, 5, C.LEAF, x, { light: 0.05 });
+      }
+      for (let x = x0 + 60; x < x1 - 40; x += 150) {
+        for (let k = 0; k < 40; k++) b.p(x + k, top + 80 + Math.round(Math.sin(k * 0.3) * 2), C.LEAF[2]);
+        for (const gx of [x + 10, x + 26]) b.r(gx, top + 83, 4, 7, '#c9b45a').r(gx + 1, top + 90, 2, 1, '#a08a3a').p(gx + 1, top + 84, '#e6d690');
+      }
+      // 7. rais de lumière par les déchirures du toit
+      for (let k = 0; k < 4; k++) {
+        const lx = x0 + 60 + k * 120 + Math.floor(ih(k, 5, 79) * 40);
+        if (lx > x1 - 30) break;
+        for (let y = top; y < y1 - 4; y++) {
+          const off = Math.round((y - top) * 0.35);
+          for (let w = 0; w < 10; w++) if (((lx + w + off) + y) % 3 === 0) b.p(lx + w + off, y, 'rgba(255, 250, 220, 0.08)');
+        }
       }
     } else if (layer === 'front') {
-      // poteaux du premier plan, plus sombres
+      // poteaux du premier plan, plus sombres, et feuilles qui pendent du haut
       for (let x = x0 + 24; x < x1; x += 160) {
-        for (let y = y0 - 26; y < y1; y++) { b.p(x, y, C.BAMBOO[1]); b.p(x + 1, y, C.BAMBOO[0]); b.p(x + 2, y, '#2d401c'); }
-        for (let n = y0; n < y1; n += 14) b.r(x - 1, n, 5, 1, '#2a2420');
+        for (let y = top - 4; y < y1; y++) { b.p(x, y, C.BAMBOO[1]); b.p(x + 1, y, C.BAMBOO[0]); b.p(x + 2, y, '#2d401c'); }
+        for (let n = top; n < y1; n += 14) b.r(x - 1, n, 5, 1, '#2a2420');
+      }
+      for (let x = x0; x < x1; x += 6) {
+        if (ih(x, 9, 80) < 0.5) continue;
+        const len = 6 + Math.floor(ih(x, 10, 80) * 14);
+        for (let j = 0; j < len; j++) b.p(x + Math.round(Math.sin(j * 0.4) * 1.5), top - 4 + j, j > len - 3 ? '#4d6b2c' : '#2f4a1e');
+      }
+    }
+  },
+
+  // pots et semis posés sur une étagère de la serre (passerelle « - ») ; montants
+  // jusqu'au sol aux deux bouts
+  shelf_pots(b, p, X, Y, env) {
+    const x0 = p.x * TILE, w = p.w * TILE, top = p.y * TILE;
+    let bot = p.y + 1; while (bot < env.map.h && !env.map.solid(p.x, bot)) bot++;
+    for (const lx of [x0 + 1, x0 + w - 3]) b.r(lx, top + 6, 2, bot * TILE - top - 6, C.WOOD[2]).r(lx, top + 6, 1, bot * TILE - top - 6, C.WOOD[4]);
+    b.line(x0 + 3, top + 6, x0 + 10, top + 13, C.WOOD[1]).line(x0 + w - 4, top + 6, x0 + w - 11, top + 13, C.WOOD[1]);   // équerres
+    for (let k = 0; k < p.w * 2; k++) {
+      const px = x0 + 3 + k * 8 + Math.floor(ih(k, p.x, 61) * 2), kind = ih(k, p.y, 62);
+      if (kind < 0.15) continue;
+      const pw = 5 + Math.floor(ih(k, 3, 63) * 2), ph = 4 + Math.floor(ih(k, 4, 63) * 2);
+      b.r(px, top - ph, pw, ph, C.TERRACOTTA[2]).r(px, top - ph, pw, 1, C.TERRACOTTA[4]).r(px + pw - 1, top - ph, 1, ph, C.TERRACOTTA[0]);
+      if (kind < 0.55) {                                             // semis
+        for (let j = 0; j < 3; j++) b.r(px + 1 + j * 2, top - ph - 2 - (j % 2) * 2, 1, 2 + (j % 2) * 2, C.LEAF[2 + (j % 2)]);
+      } else if (kind < 0.8) {                                       // plante feuillue
+        leaves(b, px + pw / 2, top - ph - 3, 3.5, C.LEAF, px, { light: 0.06 });
+      } else {                                                       // fleur
+        b.r(px + 2, top - ph - 5, 1, 5, C.LEAF[1]).p(px + 1, top - ph - 6, C.FLOWER.pink).p(px + 3, top - ph - 6, C.FLOWER.pink).p(px + 2, top - ph - 7, C.FLOWER.yellow);
       }
     }
   },
@@ -931,9 +1124,11 @@ const PAINT = {
         }
       }
     } else if (layer === 'front') {
-      // encadrement de la porte et poteau d'angle, au premier plan
-      b.r(x0 - 4, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x0 - 4, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
-      b.r(x1 - 6, ye - 6, 8, y1 - ye + 6, C.WOOD[1]).r(x1 - 6, ye - 6, 2, y1 - ye + 6, C.WOOD[3]);
+      // encadrement de la porte et poteau d'angle, au premier plan ; ils partent sous le
+      // bord du chaume (le toit les recouvre, il ne passe pas derrière eux)
+      const top = ye + POST_TOP;
+      b.r(x0 - 4, top, 8, y1 - top, C.WOOD[1]).r(x0 - 4, top, 2, y1 - top, C.WOOD[3]);
+      b.r(x1 - 6, top, 8, y1 - top, C.WOOD[1]).r(x1 - 6, top, 2, y1 - top, C.WOOD[3]);
     }
   },
 
@@ -1062,19 +1257,7 @@ const PAINT = {
       }
     } else if (layer === 'back') {
       const fy = g.floorY;                                                   // dessus du plancher
-      // vieux coffre (nagamochi) : bois sombre, ferrures, serrure de laiton
-      {
-        const cx = g.floorX0 + 92, w = 34, h = 15;
-        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
-          let v = 0.4 + (noise2((cx + i) * 0.3, (fy - h + j) * 0.9, 21) - 0.5) * 0.3 - (i / w) * 0.12;
-          if (j === 4) v -= 0.3;                                             // joint du couvercle
-          b.p(cx + i, fy - h + j, pick(W, clamp01(v), cx + i, j));
-        }
-        b.r(cx, fy - h, w, 1, W[4]);
-        for (const fx of [cx, cx + w - 4]) b.r(fx, fy - h, 4, 4, '#55585f').r(fx, fy - 4, 4, 4, '#55585f').p(fx + 1, fy - h + 1, '#8a8e96');
-        b.r(cx + w / 2 - 2, fy - h + 3, 4, 5, '#b08a3a').p(cx + w / 2 - 1, fy - h + 4, '#e2c070').p(cx + w / 2, fy - h + 6, W[0]);
-        b.r(cx - 2, fy - 9, 2, 3, '#55585f').r(cx + w, fy - 9, 2, 3, '#55585f');   // poignées
-      }
+      // le vieux coffre (nagamochi) s'ouvre : il est dessiné par live.js (chestSprite)
       // sac de riz affaissé et petite caisse
       PAINT.sacks(b, p, g.floorX0 + 136, fy, true);
       b.r(g.floorX0 + 146, fy - 9, 12, 9, W[2]).r(g.floorX0 + 146, fy - 9, 12, 1, W[4]).r(g.floorX0 + 146, fy - 5, 12, 1, W[1]);
@@ -1102,19 +1285,7 @@ const PAINT = {
     } else if (layer === 'ground') {
       // la marche : bottes de foin empilées au bout de la mezzanine (on y grimpe)
       const st = p.step, sx = st.x * TILE, sy = st.y0 * TILE, sw = st.w * TILE, sh = (st.y1 - st.y0 + 1) * TILE;
-      const bale = (bx, by, w, h, seed) => {
-        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
-          let v = 0.6 - (i / w) * 0.25 - (j / h) * 0.15 + (noise2((bx + i) * 0.7, (by + j) * 0.3, seed) - 0.5) * 0.45;
-          if (j === 0) v += 0.12;
-          if (j === h - 1 || i === w - 1) v -= 0.18;
-          b.p(bx + i, by + j, pick(C.STRAW, clamp01(v), bx + i, by + j));
-        }
-        b.r(bx + 5, by, 1, h, C.STRAW[0]).r(bx + w - 6, by, 1, h, C.STRAW[0]);   // liens
-        for (let k = 0; k < w; k += 2) if (ih(k, by, seed) < 0.6) b.p(bx + k, by - 1 - Math.floor(ih(k, bx, seed) * 2), C.STRAW[3]);
-      };
-      bale(sx - 1, sy + sh / 2, sw + 2, sh / 2, 5);
-      bale(sx + 1, sy, sw - 2, sh / 2, 6);
-      bale(sx - 13, sy + sh - 10, 13, 10, 7);                                // une botte tombée, à côté
+      // (les bottes elles-mêmes : décor « hay_stack », calé sur leurs cases)
       // fourche plantée dans la botte du haut
       b.line(sx + sw - 7, sy + 5, sx + sw + 5, sy - 17, W[1], 2);               // manche de bois clair, ombré
       b.line(sx + sw - 7, sy + 4, sx + sw + 4, sy - 17, W[4], 1);
@@ -1133,6 +1304,53 @@ const PAINT = {
       b.line(X - 30, Y - 118, X - 9, Y - 62, C.WOOD[1], 2).line(X - 30, Y - 62, X - 9, Y - 4, C.WOOD[1], 2);
       b.r(X - 34, Y - 124, 60, 4, '#55585f').r(X - 22, Y - 126, 3, 3, '#3a3d44');
     }
+  },
+
+  // tas de pierres de l'arène du corbeau : il vient s'y servir avec ses serres
+  rock_pile(b, p, X, Y) {
+    const stones = [];
+    for (let k = 0; k < 14; k++) {
+      const r = 3 + Math.floor(ih(k, p.x, 41) * 5), row = k < 7 ? 0 : k < 11 ? 1 : 2;
+      const span = [26, 18, 10][row];
+      stones.push({ x: X - span + ih(k, p.x, 42) * span * 2, y: Y - r * 0.8 - row * 6, r });
+    }
+    stones.sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const st of stones.reverse()) {
+      for (let j = -st.r; j <= st.r; j++) for (let i = -st.r - 1; i <= st.r + 1; i++) {
+        const q = (i * i) / ((st.r + 1) * (st.r + 1)) + (j * j) / (st.r * st.r * 0.75);
+        if (q > 1) continue;
+        let v = 0.6 - (i / st.r) * 0.2 - (j / st.r) * 0.28 + (noise2((st.x + i) * 0.5, (st.y + j) * 0.5, 43) - 0.5) * 0.3;
+        if (q > 0.78) v = 0.08;
+        let col = pick(C.STONE, clamp01(v), st.x + i, st.y + j);
+        if (j < -st.r * 0.4 && noise2((st.x + i) * 0.3, (st.y + j) * 0.3, 44) > 0.66) col = pick(C.MOSS, 0.5, st.x + i, j);
+        b.p(Math.round(st.x + i), Math.round(st.y + j), col);
+      }
+    }
+    // cailloux épars et herbe autour
+    for (let k = 0; k < 10; k++) b.r(Math.round(X - 34 + ih(k, 7, 45) * 68), Y - 2, 2, 2, C.STONE[1 + (k % 3)]);
+  },
+
+  // bottes de foin empilées, calées sur leurs cases de collision (« % ») : des
+  // marches qu'on ne peut pas briser. p.x = colonne de gauche, p.y = haut du sol,
+  // p.cols = hauteur (en cases) de chaque colonne, de gauche à droite
+  hay_stack(b, p) {
+    const x0 = p.x * TILE, base = p.y * TILE;
+    p.cols.forEach((h, i) => {
+      for (let k = 0; k < h; k++) {
+        const bx = x0 + i * TILE, by = base - (k + 1) * TILE, w = TILE + (k === 0 ? 1 : 0), seed = 30 + i * 3 + k;
+        for (let j = 0; j < TILE; j++) for (let q = 0; q < w; q++) {
+          let v = 0.62 - (q / w) * 0.25 - (j / TILE) * 0.15 + (noise2((bx + q) * 0.7, (by + j) * 0.3, seed) - 0.5) * 0.45;
+          if (j === 0) v += 0.12;
+          if (j === TILE - 1 || q === w - 1) v -= 0.2;
+          if (q === 0) v += 0.05;
+          b.p(bx + q, by + j, pick(C.STRAW, clamp01(v), bx + q, by + j));
+        }
+        b.r(bx + 4, by, 1, TILE, C.STRAW[0]).r(bx + TILE - 5, by, 1, TILE, C.STRAW[0]);   // liens
+        for (let q = 0; q < TILE; q += 2) if (ih(q, by, seed) < 0.55) b.p(bx + q, by - 1 - Math.floor(ih(q, bx, seed) * 2), C.STRAW[3]);
+      }
+    });
+    // brins éparpillés au pied
+    for (let x = x0 - 6; x < x0 + p.cols.length * TILE + 6; x++) if (ih(x, 9, 31) < 0.3) b.p(x, base - 1, C.STRAW[ih(x, 2, 31) < 0.5 ? 2 : 3]);
   },
 
   hay(b, p, X, Y) {
@@ -1467,7 +1685,24 @@ export function autoDecor(b, map, tx0, tx1) {
     // poteaux de soutien
     for (let ty = 0; ty < map.h - 1; ty++) {
       const st = map.styleAt(tx, ty);
-      if (st !== 'deck' && st !== 'beam') continue;
+      if (st === 'canopy' && !map.solid(tx, ty + 1)) {
+        // feuillage suspendu : des tiges de bambou montent du sol jusqu'à lui (il
+        // est porté par ses bambous, il ne flotte pas) ; aux bouts du massif
+        const lE = map.styleAt(tx - 1, ty) !== 'canopy', rE = map.styleAt(tx + 1, ty) !== 'canopy';
+        if (!lE && !rE) continue;
+        let bot = ty + 1; while (bot < map.h && !map.solid(tx, bot)) bot++;
+        const y0 = (ty + 1) * TILE - 6, y1 = bot * TILE;
+        for (let k = 0; k < 3; k++) {
+          const xb = tx * TILE + (lE ? 1 + k * 5 : 12 - k * 5), lean = (lE ? -1 : 1) * (1 + k * 2);
+          for (let y = y0; y < y1; y++) {
+            const t = (y1 - y) / (y1 - y0), x = Math.round(xb + lean * t * t);
+            const node = (y - y0 + k * 5) % 13 === 0;
+            b.r(x, y, 3, 1, node ? '#2d401c' : C.BAMBOO[1 + (k % 2)]).p(x, y, node ? C.BAMBOO[4] : C.BAMBOO[3]).p(x + 2, y, C.BAMBOO[0]);
+          }
+        }
+        continue;
+      }
+      if (st !== 'deck' && st !== 'beam' && st !== 'plank' && st !== 'shelf') continue;
       if (map.solid(tx, ty + 1)) continue;
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
@@ -1522,7 +1757,15 @@ export function autoDecor(b, map, tx0, tx1) {
 export function groveLeaves(b, map, tx0, tx1) {
   for (let tx = Math.max(0, tx0); tx < Math.min(map.w, tx1); tx++) {
     for (let ty = 0; ty < map.h; ty++) {
-      if (map.styleAt(tx, ty) !== 'grove') continue;
+      const st = map.styleAt(tx, ty);
+      if (st !== 'grove' && st !== 'canopy') continue;
+      // bas d'un bosquet suspendu (feuillage bas) : des feuilles pendent dans le passage
+      if (!map.solid(tx, ty + 1) && ty + 1 < map.h) {
+        for (let x = tx * TILE; x < tx * TILE + TILE; x++) {
+          const len = 2 + Math.floor(ih(x, ty, 505) * 5);
+          for (let j = 0; j < len; j++) b.p(x + (j > 2 && ih(x, j, 506) < 0.5 ? 1 : 0), (ty + 1) * TILE + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
+        }
+      }
       for (let k = 0; k < 3; k++) {
         if (ih(tx, ty * 3 + k, 501) < 0.35) continue;
         const x = tx * TILE + Math.floor(ih(tx, ty * 3 + k, 502) * 16), y = ty * TILE + Math.floor(ih(tx, ty * 3 + k, 503) * 14);

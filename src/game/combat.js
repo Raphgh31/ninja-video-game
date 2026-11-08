@@ -14,6 +14,7 @@ export const DAMAGE_TAKEN = {
   tateBash: 2,         // coup de bouclier de TATE
   waraSpin: 1,         // moulinet de WARA (des deux côtés)
   spikes: 1,           // pics (KAGE est replacé au dernier sol sûr)
+  crate: 1,            // une caisse qui lui tombe dessus
   // chute hors du niveau : mort immédiate
 };
 

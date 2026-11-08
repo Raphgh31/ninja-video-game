@@ -345,28 +345,66 @@ function paintHills(pix, o) {
 // rizières en terrasses : chaque bassin suit la courbe de la colline et
 // reflète le ciel ; certaines sont déjà vertes de jeunes pousses
 // ---------------------------------------------------------------------------
-const paddyCol = { x: NaN, seed: 0, scale: 0, wob: 0 };
+// Même langage que la colline proche (zone 2) : chaque gradin a sa surface
+// (eau qui reflète le ciel, ou rangs de riz), une diguette éclairée à l'avant,
+// puis le mur vertical qui descend au gradin suivant (éclairé à gauche des
+// bosses, dans l'ombre à droite). Des ruisseaux descendent de gradin en gradin
+// (une petite cascade d'écume sur chaque mur), des canaux suivent les courbes.
+const paddyCol = { x: NaN, seed: 0, scale: 0, wob: 0, slope: 0 };
+const WALL = ['#6b6a4f', '#7d7a5a', '#928d68', '#a8a27b'];
+function paddyWob(x, scale, seed) {
+  return fbm1(x * 0.018 / scale, 2, seed) * 9 * scale + Math.sin(x * 0.025 / scale) * 3 * scale;
+}
 function paddyColor(x, y, d, scale, haze, seed) {
-  const bandH = 6 * scale;
+  const bandH = Math.round(7 * scale), riser = Math.max(1, Math.round(1.6 * scale));
   if (paddyCol.x !== x || paddyCol.seed !== seed || paddyCol.scale !== scale) {
     paddyCol.x = x; paddyCol.seed = seed; paddyCol.scale = scale;
-    paddyCol.wob = fbm1(x * 0.018 / scale, 2, seed) * 9 * scale + Math.sin(x * 0.025 / scale) * 3 * scale;
+    paddyCol.wob = paddyWob(x, scale, seed);
+    paddyCol.slope = paddyWob(x + 3, scale, seed) - paddyCol.wob;
   }
   const q = d + paddyCol.wob;
   const band = Math.floor(q / bandH), ly = q - band * bandH;
+  const H = (c) => mixHex(c, C.HAZE, haze);
+  // ruisseau qui descend la pente : un filet sur les gradins, une chute sur chaque mur
+  const sp = 230 * scale, k = Math.floor((x + 40 * scale) / sp);
+  const sx = k * sp + 70 * scale + ih(k, 0, seed + 5) * 60 * scale + Math.sin(band * 1.3 + k) * 5 * scale;
+  const sw = Math.max(1, Math.round(1.6 * scale));
+  const inStream = ih(k, 1, seed + 5) < 0.75 && Math.abs(x - sx) <= sw;
+  // canal qui suit la courbe de niveau (un gradin sur sept, par endroits)
+  const canal = band % 7 === 3 && ih(Math.floor(x / (180 * scale)), band, seed + 6) < 0.6;
+  if (ly >= bandH - riser) {
+    // le mur du gradin : chute d'écume si un ruisseau passe, sinon terre et pierre
+    if (inStream) return H(((ly * 3 + x) % 3 === 0) ? '#cfe7ea' : '#f4fbfa');
+    const lit = paddyCol.slope < -0.15 ? 1 : paddyCol.slope > 0.15 ? -1 : 0;
+    const v = 1.4 + lit * 0.9 + (ih(Math.floor(x / (3 * scale)), band, seed + 3) - 0.5) * 0.8 - (ly - (bandH - riser)) * 0.5;
+    const col = WALL[Math.max(0, Math.min(3, Math.round(v)))];
+    return H(ih(x, band, seed + 4) < 0.12 ? C.GRASS[1] : col);   // touffes d'herbe sur le mur
+  }
+  if (ly >= bandH - riser - 1) return H(inStream ? '#bfe0e6' : C.GRASS[3]);   // la diguette, éclairée
+  if (inStream) {
+    // le filet d'eau sur le gradin, et l'écume au pied de la chute du gradin au-dessus
+    if (ly < 1.5 * scale) return H('#eef8f7');
+    return H(Math.abs(x - sx) < sw * 0.5 ? '#7fb6c6' : '#9fcbd6');
+  }
+  if (canal) {
+    const ripple = ((Math.floor(x / (5 * scale)) + band) % 4 === 0 && ly > 1 && ly < bandH - riser - 2);
+    if (ly < 1) return H(C.GRASS[2]);
+    return H(ripple ? '#d8eef0' : ly < bandH * 0.45 ? '#6fa7b9' : '#5d97ab');
+  }
   const cell = Math.floor((x + band * 17 * scale) / ((36 + ih(band, 0, seed) * 40) * scale));
   const kind = ih(cell, band, seed + 1);
-  if (ly < 1) return mixHex(C.GRASS[2], C.HAZE, haze);                   // diguette herbeuse
-  if (ly < 1 + scale * 0.6 && scale > 1) return mixHex(C.GRASS[1], C.HAZE, haze);
-  if (kind < 0.62) {
-    // eau : le ciel s'y reflète, avec un trait de lumière
+  if (ly < 1) return H(mixHex(C.GRASS[1], '#3f5a3a', 0.35));        // ombre du mur du gradin au-dessus
+  if (kind < 0.6) {
+    // eau : le ciel s'y reflète, plus clair au fond, avec des reflets
     const sh = ih(Math.floor(x / (3 * scale)), band, seed + 2);
-    const c = ly > bandH - 1.5 ? '#c4e2e8' : sh > 0.85 ? '#e6f4f2' : kind < 0.3 ? '#9fcbd6' : '#b3d8df';
+    const back = ly / (bandH - riser);
+    const c = sh > 0.88 ? '#e9f6f4' : back < 0.35 ? '#c8e5ea' : kind < 0.3 ? '#9fcbd6' : '#b0d6de';
     return mixHex(c, C.HAZE, haze * 0.7);
   }
-  // jeunes pousses de riz en rangs
+  // jeunes pousses de riz en rangs (ou riz déjà doré, par endroits)
   const row = Math.floor(x / (2 * scale)) % 2;
-  return mixHex(kind < 0.85 ? (row ? '#9fcf6a' : '#86bb57') : (row ? '#c1dc8a' : '#a9cd76'), C.HAZE, haze);
+  if (kind > 0.92) return H(row ? '#d9cf7a' : '#c4b866');
+  return H(kind < 0.82 ? (row ? '#9fcf6a' : '#86bb57') : (row ? '#c1dc8a' : '#a9cd76'));
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +465,13 @@ function paintFoot(levelW, zones) {
   }
   b.r(tx, ty - 26, 1, 6, roof[0]);
   b.r(tx - 30, ty - 9, 1, 9, red[2]).r(tx - 23, ty - 9, 1, 9, red[2]).r(tx - 32, ty - 10, 12, 1, red[1]).r(tx - 31, ty - 8, 10, 1, red[2]);
+  // de petites fermes éparpillées sur les collines du fond, voilées par la brume
+  const rf = rng(66);
+  for (let x = 30; x < W - 20; x += 70 + rf() * 120) {
+    if (Math.abs(x - tx) < 60) continue;
+    const ri = rf() < 0.5 ? 0 : 1, y = Math.round(base - ranks[ri].prof(Math.round(x)) + 4 + rf() * 10);
+    house(b, Math.round(x), y, 0.5 + rf() * 0.15, rf, ri ? 0.2 : 0.32);
+  }
   return { img: pix.c, W, plane: P };
 }
 
@@ -479,7 +524,12 @@ function paintVillage(levelW, zones) {
   // le village où KAGE arrive (début du chapitre), puis des fermes isolées
   const spots = [];
   for (let x = 24; x < 470; x += 28 + r() * 26) if (Math.abs(x - 300) > 22) spots.push({ x, s: 0.8 + r() * 0.45, tree: r(), pink: r(), side: r() });
-  for (let x = 560; x < endX; x += 110 + r() * 170) spots.push({ x, s: 0.8 + r() * 0.45, tree: r(), pink: r(), side: r() });
+  // puis des hameaux de 1 à 3 maisons tout au long du chapitre, et des fermes
+  // isolées sur les rizières de la fin
+  for (let x = 540; x < W - 40; x += (x > endX ? 150 : 95) + r() * 110) {
+    const n = x > endX ? 1 : 1 + Math.floor(r() * 2.6);
+    for (let k = 0; k < n; k++) spots.push({ x: x + k * (20 + r() * 8), s: 0.75 + r() * 0.45, tree: r(), pink: r(), side: r() });
+  }
   for (const sp of spots) {                                    // cerisier ou arbre derrière la maison
     if (sp.tree > 0.6) continue;
     const y = groundAt(sp.x) + 2;
@@ -556,16 +606,30 @@ function paintNear(levelW, zones) {
     const kind = (t.z === '04' || t.z === '07' || t.z === '01') && t.j < 0.45 ? 'blossom' : t.j > 0.82 ? 'pine' : 'leaf';
     bigTree(pix, t.x, base - 10 + Math.round(t.j * 6), t.s, kind, r);
   }
+  // de grandes fermes au toit de chaume, à demi cachées derrière la haie
+  // (pas derrière la serre ni la grange, qui ont déjà leur fond)
+  const rh = rng(131), farms = [];
+  for (let x = 120; x < W - 60; x += 230 + rh() * 260) {
+    const z = zoneAt(x);
+    if (z === '05' || z === '06') continue;
+    const f = { x: Math.round(x), s: 1.9 + rh() * 0.5, tree: rh(), side: rh(), pink: rh() };
+    farms.push(f);
+    if (f.tree < 0.6) bigTree(pix, f.x + (f.side < 0.5 ? -30 : 30), base - 8, 0.75, f.pink < 0.5 ? 'blossom' : 'leaf', rh);
+  }
+  pix.done();
+  const bh = new Brush(pix.c.getContext('2d'));
+  for (const f of farms) house(bh, f.x, base - 6, f.s, rh, 0);
+  const hedge = new Pix(W, P.h);
   // haie basse continue, tamponnée par-dessus
   const prof = (x) => 18 + fbm1(x * 0.02, 3, 120) * 16;
-  paintHills(pix, {
+  paintHills(hedge, {
     base, seed: 140, rMin: 6, rMax: 9, profile: prof, deep: 22,
     ground: (x, y) => pick(C.HEDGE, clamp01(0.3 - (y - base) / 60), x, y),
     mask: () => 0,
     forest: () => C.HEDGE,
     light: (x, y) => -clamp01((y - base + 10) / 40) * 0.25,
   });
-  pix.done();
+  pix.c.getContext('2d').drawImage(hedge.done(), 0, 0);
   return { img: pix.c, W, plane: P };
 }
 

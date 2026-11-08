@@ -1,14 +1,18 @@
 // KARASU-KASHI — le corbeau du potager, mini-boss du chapitre 1.
 //
 // Perché sur son épouvantail géant, il toise KAGE. Quand le combat s'engage :
-//   1. le bombardement : il s'envole, se place en hauteur et lâche des glands
-//      piquants (épines au sol) et des navets explosifs ; une ombre au sol
-//      annonce chaque point d'impact. En vol, seuls les shurikens le touchent.
-//   2. le plongeon : il se place, fixe KAGE (regard plissé), replie les ailes et
-//      fond en ligne droite. La trajectoire passe à 16 px du sol au-dessus de
-//      KAGE : debout (22 px) il est touché, en glissade (14 px) il passe dessous.
-//   3. la fenêtre : manqué, il s'écrase, le bec planté dans la terre, étourdi.
-//      Le sabre fait mal ; puis il s'ébroue, replace son chapeau, regagne son perchoir.
+//   1. les pierres : il va chercher une pierre sur un des tas de l'arène (il se
+//      pose presque, la saisit dans ses serres), remonte très haut — hors de
+//      portée depuis le sol, même d'un shuriken lancé en sautant — et la lâche
+//      au-dessus de KAGE. Une ombre annonce la chute ; les pierres tombent moins
+//      vite que les anciens projectiles ; les grosses roulent un peu.
+//   2. les plateformes de bois : depuis elles, un coup de sabre sauté l'atteint.
+//      Touché en vol, il tombe et s'écrase, le bec planté dans la terre ; sa
+//      chute fait s'effondrer toutes les plateformes (on ne refait pas le coup).
+//   3. les plongeons (seulement une fois les plateformes tombées) : il prend de
+//      la hauteur, décrit un léger arc puis fond sur KAGE ; manqué, il s'écrase,
+//      le bec planté. Planté, il est vulnérable au sabre et au coup de pied ;
+//      puis il s'ébroue, remet son chapeau, regagne son perchoir.
 // Plus il perd de vie, plus il est rapide (trois paliers), sans jamais attaquer
 // sans préparation lisible. Les sons et les effets passent par onEvent.
 
@@ -18,36 +22,42 @@ import { TILE } from './level.js';
 export const KARASU = {
   hp: 24,
   engageX: 7,              // cases après le début de l'arène : le combat commence
-  altitude: 34,            // px : ses pattes au-dessus du sol en vol (le corps entre ~60 et ~95 px) :
-                           // à portée d'un shuriken lancé au sommet d'un saut
-  flySpeed: 110,           // px/s en vol (déplacements)
-  bombSpeed: 62,           // px/s : il suit KAGE pendant le bombardement
+  altitude: 76,            // px : ses pattes au-dessus du sol en vol (le corps entre ~92 et ~134 px) :
+                           // deux fois plus haut qu'avant : hors de portée depuis le sol (sabre et
+                           // shuriken au sommet d'un saut), à portée d'un saut depuis les plateformes
+  flySpeed: 115,           // px/s en vol (déplacements)
+  carrySpeed: 80,          // px/s quand il porte une pierre (il suit KAGE)
   takeoff: 0.42,           // s
-  taunt: 0.75,             // s de croassement avant une salve
+  taunt: 0.75,             // s de croassement avant de partir
+  grab: 0.42,              // s pour saisir une pierre au sol
   // par palier (début, milieu, fin)
-  salvo: [3, 4, 5],        // projectiles par salve
-  dropEvery: [1.15, 0.9, 0.7],
-  dropWindup: 0.14,       // s : il ouvre les serres avant chaque lâcher
+  rocks: [2, 3, 3],        // pierres par sortie
+  releaseWindup: [0.42, 0.34, 0.28],   // s : il ouvre les serres au-dessus de KAGE avant de lâcher
   aim: [0.85, 0.68, 0.55], // s de visée avant le plongeon (le joueur doit pouvoir le lire)
   stuck: [2.9, 2.6, 2.3],  // s coincé dans le sol
   perchPause: [1.6, 1.2, 0.9],
   diveSpeed: [300, 330, 360],
+  diveRise: 34,            // px : il prend de la hauteur avant de plonger
   diveClear: 17,           // px : hauteur de sa boîte au-dessus du sol quand elle passe sur KAGE
   crash: 0.32,
   shake: 0.75,
   hurtFlash: 0.16,
-  // projectiles
-  acornHit: 1, thornHit: 1, boomHit: 1, diveHit: 2,
-  thornSpeed: 95, thornLife: 0.42,
-  fuse: 0.75, boomRadius: 26,
-  gravity: 420,
+  diveHit: 2,
+  // pierres : petite, moyenne, grosse (rayon, dégâts, gravité, roulement)
+  rock: [
+    { r: 4, dmg: 1, g: 300, roll: 0 },
+    { r: 6, dmg: 1, g: 280, roll: 0 },
+    { r: 8, dmg: 1, g: 260, roll: 46 },
+  ],
+  rollTime: 0.55,
+  knockFall: 360,          // gravité de sa chute quand il est touché en vol
 };
 
 const PHASE_OF = (f) => (f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
 const touch = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 export class Karasu {
-  /** def : { x, y (cases : le pied de l'épouvantail), arena: [x0, x1] (cases) } */
+  /** def : { x, y (cases : le pied de l'épouvantail), arena: [x0, x1] (cases), piles: [x…] (cases) } */
   constructor(meta, images, def, level) {
     this.meta = meta;
     this.img = images;                 // { sheet, perch, items }
@@ -55,6 +65,7 @@ export class Karasu {
     this.perchX = def.x * TILE + 8;
     this.groundY = def.y * TILE;
     this.arena = [def.arena[0] * TILE, def.arena[1] * TILE];
+    this.piles = (def.piles ?? []).map((x) => x * TILE + 8);
     this.reset();
   }
 
@@ -71,21 +82,22 @@ export class Karasu {
     this.animName = 'idle';
     this.animT = 0;
     this.flash = 0;
-    this.shots = [];           // glands et navets
-    this.thorns = [];          // épines qui filent au sol
+    this.shots = [];           // pierres lâchées
+    this.carry = null;         // la pierre qu'il tient dans ses serres
     this.sway = 0;             // l'épouvantail : inclinaison et vitesse
     this.swayV = 0;
     this.lastHit = -1;
-    this.salvoLeft = 0;
-    this.dropT = 0;
+    this.rocksLeft = 0;
     this.nextIdle = 2.5;
     this.diveDone = 0;
     this.gone = false;
     this.defeatedT = 0;
+    this.level.restoreScaffolds?.();   // les plateformes de bois sont de nouveau debout
   }
 
   get alive() { return this.state !== 'defeated'; }
   get noBar() { return true; }        // pas de barre au-dessus de la tête : la sienne est en haut de l'écran
+  get scaffoldsUp() { return this.level.scaffolds?.some((s) => s.up) ?? false; }
 
   /** Déjà vaincu (partie reprise) : affalé au pied de son épouvantail. */
   setDefeated() {
@@ -127,7 +139,7 @@ export class Karasu {
   // ---- boîtes ---------------------------------------------------------------
   boxName() {
     if (this.state === 'perch' || this.state === 'taunt' || this.state === 'land' || this.state === 'shake' || this.state === 'look') return 'perched';
-    if (this.state === 'dive') return 'dive';
+    if (this.state === 'dive' || this.state === 'knocked') return 'dive';
     if (this.state === 'crash' || this.state === 'stuck' || this.state === 'defeated') return 'stuck';
     return 'flying';
   }
@@ -139,23 +151,26 @@ export class Karasu {
     return { x: this.x + ox, y: this.y - pivot.y + b.y, w: b.w, h: b.h };
   }
 
-  get flying() { return ['takeoff', 'fly', 'bomb', 'aim', 'dive', 'return'].includes(this.state); }
+  get flying() { return ['takeoff', 'fetch', 'grab', 'lift', 'carry', 'release', 'hover', 'aim', 'dive', 'return'].includes(this.state); }
 
   // ---- coups reçus ----------------------------------------------------------
   /**
-   * Le sabre et le coup de pied (id = numéro du coup) ne le touchent que coincé
-   * dans le sol ; les shurikens (id = null) le touchent aussi en vol.
+   * Planté dans le sol : le sabre, le coup de pied et le shuriken le blessent.
+   * En vol : un coup de sabre (id = numéro du coup) le fait tomber ; un shuriken
+   * (id = null) le blesse sans le faire tomber.
    */
   takeHit(box, attackerX, id = null, dmg = DAMAGE_DEALT.sword) {
     if (!this.alive || !this.engaged || (id !== null && id === this.lastHit)) return null;
     const stuck = this.state === 'stuck' || this.state === 'crash';
-    if (!stuck && !(id === null && this.flying)) return null;
+    if (!stuck && !this.flying) return null;
     if (!touch(box, this.box())) return null;
     if (id !== null) this.lastHit = id;
     this.hp = Math.max(0, this.hp - dmg);
     this.flash = KARASU.hurtFlash;
-    this.onEvent?.('hit', { x: this.x, y: this.y - 30, dmg, stuck, dir: Math.sign(this.x - attackerX) || 1 });
+    const dir = Math.sign(this.x - attackerX) || 1;
+    this.onEvent?.('hit', { x: this.x, y: this.y - 30, dmg, stuck, dir });
     if (this.hp <= 0) {
+      this.dropCarried();
       this.setState('defeated');
       this.play('defeated');
       this.vx = 0;
@@ -163,13 +178,28 @@ export class Karasu {
       this.onEvent?.('defeat', { x: this.x, y: this.y });
     } else if (stuck) {
       this.hitT = 0.18;               // réaction : la mine vexée
+    } else if (id !== null) {
+      // touché au sabre en plein vol : il tombe, tourneboule, et s'écrase bec en avant
+      this.dropCarried();
+      this.setState('knocked');
+      this.play('hurt');
+      this.vx = dir * 70;
+      this.vy = -90;
+      this.facing = dir;
+      this.onEvent?.('knocked', { x: this.x, y: this.y - 30 });
     } else {
-      this.vy -= 40;                  // touché en vol : il encaisse, vexé
+      this.vy -= 40;                  // touché par un shuriken en vol : il encaisse, vexé
     }
     return 'hit';
   }
 
   push() {}                          // le coup de pied ne le repousse pas (il est planté)
+
+  /** Lâche la pierre qu'il portait (touché, vaincu) : elle tombe tout droit. */
+  dropCarried() {
+    if (!this.carry) return;
+    this.throwRock(0);
+  }
 
   // ---- comportement ---------------------------------------------------------
   update(dt, player) {
@@ -183,27 +213,29 @@ export class Karasu {
     this.updateShots(dt);
     if (this.state === 'defeated') {
       this.defeatedT += dt;
-      this.vy += KARASU.gravity * dt;
+      this.vy += KARASU.knockFall * dt;
       this.y = Math.min(this.groundY, this.y + this.vy * dt);
       return;
     }
     const P = this.phase;
     const px = player.x;
     // KAGE quitte l'arène : il regagne son perchoir et l'attend (pas de coups gratuits au loin)
-    if (this.engaged && px < this.arena[0] - 48 && ['fly', 'bomb', 'aim'].includes(this.state)) {
+    if (this.engaged && px < this.arena[0] - 48 && ['fetch', 'grab', 'lift', 'carry', 'release', 'hover', 'aim'].includes(this.state)) {
       this.engaged = false;
+      this.carry = null;
       this.setState('return');
       this.onEvent?.('disengage', {});
     }
     const toward = Math.sign(px - this.x) || this.facing;
+    const cruise = this.groundY - KARASU.altitude;
     switch (this.state) {
       case 'perch': {
         const top = this.perchPoint();
         this.x = top.x; this.y = top.y;
         this.facing = toward;
+        this.personality(dt);
         if (!this.engaged) {
           // il attend : il toise KAGE, penche la tête, redresse son chapeau
-          this.personality(dt);
           if (px > this.arena[0] + KARASU.engageX * TILE && player.state !== 'death') {
             this.engaged = true;
             this.onEvent?.('engage', {});
@@ -211,76 +243,121 @@ export class Karasu {
             this.play('croak');
             this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true });
           }
-        } else {
-          this.personality(dt);
-          if (this.timer > KARASU.perchPause[P]) this.takeOff();
-        }
+        } else if (this.timer > KARASU.perchPause[P]) this.takeOff(P);
         break;
       }
       case 'taunt':
-        if (this.timer > KARASU.taunt) this.takeOff();
+        if (this.timer > KARASU.taunt) this.takeOff(P);
         break;
       case 'takeoff':
         this.play('takeoff');
         this.y -= 70 * dt;
-        if (this.timer > KARASU.takeoff) {
-          this.setState('fly');
-          this.salvoLeft = KARASU.salvo[P];
-          this.dropT = 0.6;
-          this.croaked = false;
-        }
+        if (this.timer > KARASU.takeoff) this.goFetch(px);
         break;
-      case 'fly':                    // il gagne sa hauteur de bombardement
-      case 'bomb': {
-        this.play(this.state === 'bomb' && this.dropping > 0 ? 'drop' : 'fly');
-        const ty = this.groundY - KARASU.altitude + Math.sin(this.timer * 2.2) * 4;
-        const lead = this.clampX(this.state === 'bomb' ? px - toward * 10 : px - toward * 60, 40);
-        this.steer(lead, ty, this.state === 'bomb' ? KARASU.bombSpeed : KARASU.flySpeed, dt);
-        this.facing = toward;
-        if (this.state === 'fly' && Math.abs(this.y - ty) < 6) this.setState('bomb');
-        if (this.state === 'bomb') {
-          this.dropping = Math.max(0, (this.dropping ?? 0) - dt);
-          if (!this.croaked && this.timer > 0.2) {
-            this.croaked = true;
-            this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true });
-          }
-          this.dropT -= dt;
-          if (this.windup > 0) {          // il ouvre les serres : le projectile part
-            this.windup -= dt;
-            if (this.windup <= 0) { this.drop(player, P); this.salvoLeft--; }
-          } else if (this.dropT <= 0 && this.salvoLeft > 0) {
-            this.windup = KARASU.dropWindup;   // il s'apprête (lisible avant chaque lâcher)
-            this.dropping = KARASU.dropWindup + 0.2;
-            this.dropT = KARASU.dropEvery[P] * (0.85 + Math.random() * 0.3);
-          }
-          if (this.salvoLeft <= 0 && this.dropT <= 0 && !(this.windup > 0)) {
-            this.setState('aim');
-            this.aimSide = -toward;
-          }
+      case 'fetch': {                // il vole vers un tas de pierres, puis descend dessus
+        this.play('fly');
+        const tx = this.pileX, ty = this.groundY - 10;
+        const near = Math.abs(this.x - tx) < 6;
+        this.steer(tx, near ? ty : Math.min(cruise + 20, ty - 30), KARASU.flySpeed * (near ? 0.8 : 1.15), dt);
+        this.facing = Math.sign(tx - this.x) || this.facing;
+        if (near && Math.abs(this.y - ty) < 5) {
+          this.setState('grab');
+          this.play('drop');
         }
         break;
       }
-      case 'aim': {                  // il se place, fixe KAGE, replie les ailes
-        this.play('aim');
-        let sx = px + this.aimSide * 96;
-        if (sx !== this.clampX(sx, 30)) { this.aimSide = -this.aimSide; sx = px + this.aimSide * 96; }   // pas de place : de l'autre côté
-        sx = this.clampX(sx, 30);
-        this.steer(sx, this.groundY - KARASU.altitude - 16, KARASU.flySpeed * 1.2, dt);
+      case 'grab':                   // serres ouvertes, il saisit une pierre
+        this.y = this.groundY - 10 + Math.sin(this.timer * 18) * 1.2;
+        if (this.timer > KARASU.grab * 0.55 && !this.carry) {
+          const size = Math.random() < [0.25, 0.4, 0.5][P] ? 2 : Math.random() < 0.5 ? 1 : 0;
+          this.carry = { size };
+          this.onEvent?.('grab', { x: this.x, y: this.groundY, size });
+        }
+        if (this.timer > KARASU.grab) { this.setState('lift'); this.onEvent?.('flap', { x: this.x, y: this.y }); }
+        break;
+      case 'lift':                   // il remonte, la pierre dans les serres
+        this.play('fly');
+        this.steer(this.x + toward * 10, cruise, KARASU.flySpeed, dt);
         this.facing = toward;
-        if (this.timer === dt) this.onEvent?.('glare', { x: this.x, y: this.y - 40 });
+        if (Math.abs(this.y - cruise) < 6) this.setState('carry');
+        break;
+      case 'carry': {                // il se place au-dessus de KAGE (légère avance sur sa course)
+        this.play('fly');
+        const lead = this.clampX(px + player.vx * 0.35, 30);
+        const far = Math.abs(lead - this.x) > 70;           // loin : il file ; au-dessus de KAGE : il le suit
+        this.steer(lead, cruise + Math.sin(this.animT * 2.4) * 3, far ? KARASU.flySpeed * 1.1 : KARASU.carrySpeed, dt);
+        this.facing = toward;
+        if ((Math.abs(this.x - lead) < 10 && this.timer > 0.5) || this.timer > 5) {
+          this.setState('release');
+          this.play('drop');
+          this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true, soft: true });
+        }
+        break;
+      }
+      case 'release':                // il ouvre les serres (lisible), puis lâche
+        this.steer(this.x, cruise, 20, dt);
+        if (this.timer > KARASU.releaseWindup[P]) {
+          this.throwRock(this.facing * 26);
+          this.rocksLeft--;
+          if (this.rocksLeft > 0) this.goFetch(px);
+          else if (!this.scaffoldsUp) { this.setState('aim'); this.aimSide = -toward; this.onEvent?.('glare', { x: this.x, y: this.y - 40 }); }
+          else this.setState('hover');
+        }
+        break;
+      case 'hover': {                // au-dessus des plateformes, il nargue KAGE avant de repartir
+        this.play('fly');
+        const hx = this.clampX(px + Math.sin(this.timer * 1.4) * 40, 40);
+        this.steer(hx, cruise + Math.sin(this.timer * 2.1) * 5, KARASU.flySpeed * 0.6, dt);
+        this.facing = toward;
+        if (this.timer > 1.6) this.setState('return');
+        break;
+      }
+      case 'aim': {                  // il prend de la hauteur, se place, fixe KAGE
+        this.play('aim');
+        let sx = px + this.aimSide * 104;
+        if (sx !== this.clampX(sx, 30)) { this.aimSide = -this.aimSide; sx = px + this.aimSide * 104; }   // pas de place : de l'autre côté
+        sx = this.clampX(sx, 30);
+        this.steer(sx, cruise - KARASU.diveRise, KARASU.flySpeed * 1.2, dt);
+        this.facing = toward;
         if (this.timer > KARASU.aim[P]) this.startDive(player, P);
         break;
       }
-      case 'dive': {
-        this.play('dive');
-        const sp = Math.min(KARASU.diveSpeed[P], 150 + this.timer * 900);
-        this.x += this.dx * sp * dt;
-        this.y += this.dy * sp * dt;
-        if (this.y >= this.groundY) {   // il touche le sol : écrasé dans le potager
+      case 'dive': {                 // un arc : il remonte un peu, s'incurve et fond sur KAGE
+        this.play(this.u < 0.25 ? 'aim' : 'dive');
+        const sp = Math.min(KARASU.diveSpeed[P], 140 + this.timer * 760);
+        let p;
+        if (this.u < 1) {                            // l'arc
+          const d = this.bezierD(this.u);
+          this.u = Math.min(1, this.u + (sp * dt) / Math.max(1, Math.hypot(d.x, d.y)));
+          p = this.bezier(this.u);
+          this.v = 0;
+        } else {                                     // la ligne droite finale
+          const ln = this.line;
+          this.v = Math.min(1, this.v + (sp * dt) / Math.max(1, ln.len));
+          p = { x: ln.x0 + (ln.x1 - ln.x0) * this.v, y: ln.y0 + (ln.y1 - ln.y0) * this.v };
+        }
+        this.facing = Math.sign(p.x - this.x) || this.facing;
+        this.x = p.x; this.y = p.y;
+        if ((this.u >= 1 && this.v >= 1) || this.y >= this.groundY) {   // il touche le sol : écrasé dans le potager
           this.y = this.groundY;
           this.setState('crash');
           this.play('crash');
           this.onEvent?.('crash', { x: this.x, y: this.groundY, dir: this.facing });
+        }
+        break;
+      }
+      case 'knocked': {              // touché en vol : il tombe et s'écrase bec en avant
+        this.vy += KARASU.knockFall * dt;
+        this.x = this.clampX(this.x + this.vx * dt, 24);
+        this.y += this.vy * dt;
+        if (this.vy > 60) this.play('dive');
+        if (this.y >= this.groundY) {
+          this.y = this.groundY;
+          this.setState('crash');
+          this.play('crash');
+          this.onEvent?.('crash', { x: this.x, y: this.groundY, dir: this.facing, heavy: true });
+          // sa chute fait trembler le champ : les plateformes de bois s'effondrent
+          if (this.scaffoldsUp) this.level.collapseScaffolds?.(this.x);
         }
         break;
       }
@@ -318,7 +395,7 @@ export class Karasu {
         if (this.timer > 0.55) {
           // à la fin du combat, il enchaîne un second plongeon
           if (P === 2 && !this.diveDone) { this.diveDone = 1; this.setState('aim'); this.aimSide = -toward; }
-          else { this.diveDone = 0; this.setState('fly'); this.salvoLeft = KARASU.salvo[P]; this.dropT = 0.4; this.croaked = false; }
+          else { this.diveDone = 0; this.goFetch(px, KARASU.rocks[P]); }
         }
         break;
       }
@@ -339,10 +416,21 @@ export class Karasu {
     }
   }
 
-  takeOff() {
+  takeOff(P) {
     this.setState('takeoff');
+    this.rocksLeft = KARASU.rocks[P];
     this.kick(2.8);
     this.onEvent?.('flap', { x: this.x, y: this.y });
+  }
+
+  /** Va chercher une pierre : le tas le plus proche qui reste à bonne distance de
+   *  KAGE (il ne vient pas se servir sous son nez), sinon le plus éloigné. */
+  goFetch(px, n = null) {
+    if (n != null) this.rocksLeft = n;
+    const piles = this.piles.length ? this.piles : [this.perchX];
+    const ok = piles.filter((x) => Math.abs(x - px) > 96).sort((a, b) => Math.abs(a - this.x) - Math.abs(b - this.x));
+    this.pileX = ok[0] ?? piles.reduce((a, b) => (Math.abs(b - px) > Math.abs(a - px) ? b : a));
+    this.setState('fetch');
   }
 
   clampX(x, m) { return Math.max(this.arena[0] + m, Math.min(this.arena[1] - m, x)); }
@@ -355,101 +443,110 @@ export class Karasu {
     this.y += (dy / d) * v * dt;
   }
 
-  /** Un projectile : surtout des glands ; des navets de plus en plus souvent. */
-  drop(player, P) {
-    const turnip = Math.random() < [0.3, 0.4, 0.45][P];
-    const sx = this.x + this.facing * 8, sy = this.y - 22;
-    const lead = player.vx * 0.25;
-    const spread = P >= 1 && !turnip && Math.random() < 0.5 ? [-26, 0, 26] : [0];
-    for (const o of spread) {
-      const tx = this.clampX(player.x + lead + o + (Math.random() - 0.5) * 16, 8);
-      const t = Math.sqrt((2 * (this.groundY - sy)) / KARASU.gravity);
-      this.shots.push({ kind: turnip ? 'turnip' : 'acorn', x: sx, y: sy, vx: (tx - sx) / t, vy: 0, t: 0, tx, state: 'fall' });
-    }
-    this.onEvent?.('drop', { x: sx, y: sy, turnip });
+  /** La pierre portée part : elle tombe (vx : un peu d'élan vers l'avant). */
+  throwRock(vx) {
+    const size = this.carry?.size ?? 0;
+    this.carry = null;
+    this.shots.push({ size, x: this.x, y: this.y - 4, vx, vy: 0, t: 0, state: 'fall', spin: 0, dir: Math.sign(vx) || this.facing });
+    this.onEvent?.('throw', { x: this.x, y: this.y, size });
   }
 
+  // ---- le plongeon en arc ------------------------------------------------------
   startDive(player, P) {
-    // Il vise le sol juste au-delà de KAGE. Le point bas de sa boîte, au moment où
-    // l'arrière de celle-ci dépasse KAGE, passe à KARASU.diveClear px du sol :
-    // trop bas pour KAGE debout (22 px), assez haut pour qu'il glisse dessous (14 px).
+    // Il vise le sol juste au-delà de KAGE. La fin de la courbe suit la droite
+    // qui fait passer le bas de sa boîte à KARASU.diveClear px du sol au-dessus de
+    // KAGE : trop bas pour KAGE debout (22 px), assez haut pour qu'il glisse dessous.
     this.facing = Math.sign(this.clampX(player.x, 24) - this.x) || this.facing;
     const f = this.facing, b = this.meta.boxes.dive, pivot = this.meta.pivot;
-    const rear = pivot.x - b.x;                    // de l'ancrage à l'arrière de la boîte
-    const lift = pivot.y - (b.y + b.h);            // bas de la boîte, au-dessus des pattes
-    const qx = this.clampX(player.x, 24) + f * (rear + 8);   // il ne s'écrase jamais hors de l'arène
+    const rear = pivot.x - b.x;
+    const lift = pivot.y - (b.y + b.h);
+    const qx = this.clampX(player.x, 24) + f * (rear + 8);
     const qy = this.groundY - KARASU.diveClear + lift;
     const sx = qx - this.x, sy = qy - this.y;
-    const k = (this.groundY - this.y) / Math.max(1, sy);   // on prolonge jusqu'au sol
-    const cx = this.x + sx * k, cy = this.groundY;
-    const L = Math.hypot(cx - this.x, cy - this.y);
-    this.dx = (cx - this.x) / L;
-    this.dy = (cy - this.y) / L;
+    const k = (this.groundY - this.y) / Math.max(1, sy);
+    const cx = this.clampX(this.x + sx * k, 20), cy = this.groundY;
+    // l'arc : une courbe de Bézier du point de départ jusqu'à Q, sur la droite de
+    // visée (à 72 px du sol d'arrivée), tangente à elle en Q ; puis la fin du
+    // plongeon est droite (elle passe au-dessus de KAGE à la hauteur prévue)
+    const L = Math.hypot(cx - this.x, cy - this.y), ux = (cx - this.x) / L, uy = (cy - this.y) / L;
+    const back = Math.min(72, L * 0.45);
+    const q = { x: cx - ux * back, y: cy - uy * back };
+    const lq = Math.hypot(q.x - this.x, q.y - this.y);
+    this.p0 = { x: this.x, y: this.y };
+    this.p1 = { x: q.x - ux * lq * 0.55, y: Math.min(this.y - 20, q.y - uy * lq * 0.55) };
+    this.p2 = q;
+    this.line = { x0: q.x, y0: q.y, x1: cx, y1: cy, len: back };
+    this.u = 0;
     this.diveTarget = { x: cx, y: cy, at: player.x };
     this.setState('dive');
     this.onEvent?.('dive', { x: this.x, y: this.y });
   }
 
-  // ---- projectiles ----------------------------------------------------------
+  bezier(u) {
+    const a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
+    return { x: a * this.p0.x + b * this.p1.x + c * this.p2.x, y: a * this.p0.y + b * this.p1.y + c * this.p2.y };
+  }
+
+  bezierD(u) {
+    return {
+      x: 2 * (1 - u) * (this.p1.x - this.p0.x) + 2 * u * (this.p2.x - this.p1.x),
+      y: 2 * (1 - u) * (this.p1.y - this.p0.y) + 2 * u * (this.p2.y - this.p1.y),
+    };
+  }
+
+  // ---- pierres ----------------------------------------------------------------
+  /** Haut de la surface sous (x, y) : le sol de l'arène ou une plateforme de bois. */
+  surfaceAt(x, y) {
+    const lv = this.level, tx = Math.floor(x / TILE);
+    for (let ty = Math.max(0, Math.floor(y / TILE)); ty < lv.h; ty++) {
+      if (lv.solid(tx, ty) || lv.ledge(tx, ty)) return Math.min(ty * TILE, this.groundY);
+    }
+    return this.groundY;
+  }
+
   updateShots(dt) {
     for (const s of this.shots) {
       s.t += dt;
+      const R = KARASU.rock[s.size];
       if (s.state === 'fall') {
-        s.vy += KARASU.gravity * dt;
+        s.vy += R.g * dt;
         s.x += s.vx * dt;
         s.y += s.vy * dt;
-        if (s.y >= this.groundY - 4) {
-          s.y = this.groundY - 4;
-          if (s.kind === 'acorn') {
-            s.dead = true;
-            for (const dir of [-1, 1]) this.thorns.push({ x: s.x, y: this.groundY - 3, dir, t: 0 });
-            this.onEvent?.('acorn', { x: s.x, y: this.groundY });
-          } else {
-            s.state = 'fuse';
-            s.t = 0;
-            this.onEvent?.('turnipLand', { x: s.x, y: this.groundY });
-          }
+        s.spin += dt * 6;
+        const floor = this.surfaceAt(s.x, s.y - 2);
+        if (s.y >= floor) {
+          s.y = floor;
+          this.onEvent?.('rockLand', { x: s.x, y: floor, size: s.size });
+          if (R.roll && floor === this.groundY) { s.state = 'roll'; s.t = 0; }
+          else s.dead = true;
         }
-      } else if (s.state === 'fuse' && s.t > KARASU.fuse) {
-        s.dead = true;
-        s.boom = true;
-        this.onEvent?.('boom', { x: s.x, y: this.groundY, r: KARASU.boomRadius });
+      } else if (s.state === 'roll') {
+        s.x += s.dir * R.roll * (1 - s.t / KARASU.rollTime) * dt;
+        s.spin += s.dir * dt * 8;
+        if (s.t > KARASU.rollTime || s.x < this.arena[0] + 8 || s.x > this.arena[1] - 8) { s.dead = true; this.onEvent?.('rockBreak', { x: s.x, y: s.y, size: s.size }); }
       }
     }
-    this.booms = this.shots.filter((s) => s.boom);
     this.shots = this.shots.filter((s) => !s.dead);
-    for (const th of this.thorns) {
-      th.t += dt;
-      th.x += th.dir * KARASU.thornSpeed * dt;
-    }
-    this.thorns = this.thorns.filter((th) => th.t < KARASU.thornLife);
   }
 
-  /** Ce qui blesse KAGE : le plongeon, les glands, les épines, les explosions. */
+  /** Ce qui blesse KAGE : le plongeon et les pierres. */
   interact(player) {
     if (player.state === 'death' || player.state === 'respawn') return;
     const pb = player.box();
-    const hurt = (dmg, fromX) => player.hurt(dmg, fromX);
     if (this.state === 'dive' && touch(pb, this.box('dive'))) {
       // touché : il remonte ; KAGE encore invulnérable (il clignote) : il file et s'écrase
-      if (hurt(KARASU.diveHit, this.x)) {
+      if (player.hurt(KARASU.diveHit, this.x)) {
         this.onEvent?.('diveHit', { x: player.x, y: player.y - 12 });
         this.setState('pullup');
       }
     }
     for (const s of this.shots) {
-      if (s.state === 'fall' && touch(pb, { x: s.x - 4, y: s.y - 5, w: 8, h: 9 })) {
-        if (hurt(s.kind === 'acorn' ? KARASU.acornHit : KARASU.boomHit, s.x)) s.dead = true;
+      const r = KARASU.rock[s.size].r;
+      if (touch(pb, { x: s.x - r, y: s.y - 2 * r, w: 2 * r, h: 2 * r }) && player.hurt(KARASU.rock[s.size].dmg, s.x)) {
+        s.dead = true;
+        this.onEvent?.('rockBreak', { x: s.x, y: s.y - r, size: s.size });
       }
     }
-    for (const th of this.thorns) {
-      if (touch(pb, { x: th.x - 3, y: th.y - 3, w: 6, h: 4 })) hurt(KARASU.thornHit, th.x - th.dir * 10);
-    }
-    for (const bm of this.booms ?? []) {
-      const cx = player.x, cy = player.y - 11;
-      if (Math.hypot(cx - bm.x, cy - (this.groundY - 6)) < KARASU.boomRadius + 6) hurt(KARASU.boomHit, bm.x);
-    }
-    this.booms = [];
   }
 
   // ---- dessin ---------------------------------------------------------------
@@ -467,21 +564,54 @@ export class Karasu {
     return a.frames[a.frames.length - 1];
   }
 
-  /** L'épouvantail (derrière KAGE) et les ombres des projectiles au sol. */
+  /** Une pierre (rayon r) : tirée une fois, puis recopiée. */
+  rockSprite(size) {
+    this.rockImg ??= [];
+    if (this.rockImg[size]) return this.rockImg[size];
+    const r = KARASU.rock[size].r, d = 2 * r + 2;
+    const c = document.createElement('canvas');
+    c.width = d; c.height = d;
+    const g = c.getContext('2d');
+    const ST = ['#3c3833', '#57514a', '#746d63', '#958d80', '#b6ad9e'];
+    for (let y = 0; y < d; y++) for (let x = 0; x < d; x++) {
+      const dx = (x - r - 0.5) / r, dy = (y - r - 0.5) / (r * 0.85);
+      const bump = Math.sin(x * 2.1 + size) * 0.08 + Math.cos(y * 1.7) * 0.08;
+      const q = dx * dx + dy * dy;
+      if (q > 1 + bump) continue;
+      let v = 0.62 - dx * 0.25 - dy * 0.3;
+      if (q > 0.82 + bump) v = 0.05;
+      if ((x * 7 + y * 3 + size) % 11 === 0) v -= 0.15;
+      g.fillStyle = ST[Math.max(0, Math.min(4, Math.round(v * 4)))];
+      g.fillRect(x, y, 1, 1);
+    }
+    g.fillStyle = '#5f8a3a';                           // une touche de mousse
+    g.fillRect(r - 1, 1, 2, 1);
+    this.rockImg[size] = c;
+    return c;
+  }
+
+  /** L'épouvantail (derrière KAGE) et les ombres des pierres au sol. */
   drawBack(ctx, cam) {
     const m = this.meta;
     const k = Math.max(0, Math.min(4, Math.round((this.sway + 1) * 2)));
     const f = m.frames[`perch_${k}`];
     const sx = Math.round(this.perchX - m.perchPivot.x - cam.x), sy = Math.round(this.groundY - m.perchPivot.y - cam.y);
     ctx.drawImage(this.img.perch, f.x, f.y, f.w, f.h, sx, sy, f.w, f.h);
-    // ombres au sol : elles annoncent où tombe chaque projectile
-    for (const s of this.shots) {
-      const h = Math.max(0, this.groundY - s.y);
-      const w = Math.max(3, Math.round(12 - h / 12));
-      ctx.globalAlpha = s.state === 'fall' ? Math.min(0.45, 0.15 + 30 / (h + 30)) : 0.35;
+    // ombres au sol (ou sur une plateforme) : elles annoncent où tombe chaque pierre
+    const shadow = (x, floor, h, r) => {
+      const w = Math.max(3, Math.round(r * 2.4 - h / 14));
+      ctx.globalAlpha = Math.min(0.5, 0.18 + 40 / (h + 40));
       ctx.fillStyle = '#1a120c';
-      const gx = s.state === 'fall' ? s.tx ?? s.x : s.x;
-      ctx.fillRect(Math.round(gx - w / 2 - cam.x), Math.round(this.groundY - 2 - cam.y), w, 2);
+      ctx.fillRect(Math.round(x - w / 2 - cam.x), Math.round(floor - 2 - cam.y), w, 2);
+    };
+    for (const s of this.shots) {
+      if (s.state !== 'fall') continue;
+      const floor = this.surfaceAt(s.x, s.y);
+      shadow(s.x + s.vx * Math.sqrt((2 * Math.max(0, floor - s.y)) / KARASU.rock[s.size].g), floor, floor - s.y, KARASU.rock[s.size].r);
+    }
+    if (this.carry && ['carry', 'release'].includes(this.state)) {
+      const floor = this.surfaceAt(this.x, this.y);
+      shadow(this.x, floor, floor - this.y, KARASU.rock[this.carry.size].r * 0.7);
     }
     ctx.globalAlpha = 1;
   }
@@ -490,6 +620,11 @@ export class Karasu {
     if (this.gone) return;
     const m = this.meta, name = this.frame(), f = m.frames[name];
     const sx = Math.round(this.x - cam.x), sy = Math.round(this.y - cam.y) - m.pivot.y;
+    // la pierre qu'il tient, sous ses serres
+    if (this.carry) {
+      const img = this.rockSprite(this.carry.size), r = KARASU.rock[this.carry.size].r;
+      ctx.drawImage(img, Math.round(this.x - r - 1 - cam.x), Math.round(this.y - 2 * r + 4 - cam.y));
+    }
     ctx.save();
     if (this.facing < 0) {
       ctx.translate(sx, 0);
@@ -508,24 +643,15 @@ export class Karasu {
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
-    // projectiles et épines
+    // pierres qui tombent ou qui roulent (elles tournent sur elles-mêmes)
     for (const s of this.shots) {
-      const a = m.animations[s.kind];
-      const fr = m.frames[a.frames[Math.floor(s.t * (s.state === 'fuse' ? 14 : 10)) % a.frames.length]];
-      const blink = s.state === 'fuse' && Math.floor(s.t * 12) % 2 === 0;
-      ctx.drawImage(this.img.items, fr.x, fr.y, fr.w, fr.h, Math.round(s.x - fr.w / 2 - cam.x), Math.round(s.y - fr.h + 5 - cam.y), fr.w, fr.h);
-      if (blink) {
-        ctx.fillStyle = '#ffe39a';
-        ctx.fillRect(Math.round(s.x + 6 - cam.x), Math.round(s.y - 13 - cam.y), 2, 2);
-      }
-    }
-    for (const th of this.thorns) {
-      const x = Math.round(th.x - cam.x), y = Math.round(th.y - cam.y);
-      ctx.fillStyle = '#0a0b11';
-      ctx.fillRect(x - 3, y - 1, 7, 3);
-      ctx.fillStyle = '#b9bec6';
-      ctx.fillRect(x - 2, y, 5, 1);
-      ctx.fillRect(x + th.dir * 2, y - 1, 1, 1);
+      const img = this.rockSprite(s.size), r = KARASU.rock[s.size].r;
+      const x = Math.round(s.x - cam.x), y = Math.round(s.y - r - cam.y);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.round(s.spin) * (Math.PI / 2));       // quarts de tour : les pixels restent nets
+      ctx.drawImage(img, -r - 1, -r - 1);
+      ctx.restore();
     }
   }
 }

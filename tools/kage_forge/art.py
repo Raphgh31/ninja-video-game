@@ -18,12 +18,12 @@ def F(grid, *retouches, **meta):
 # Garde basse : jambe avant fléchie (genou en avant de la cheville), jambe
 # arrière presque tendue vers l'arrière, poing lointain levé devant.
 STANCE = dict(near_leg=[(19, 26), (18, 28)], far_leg=[(11, 26), (9, 28)],
-              # au repos (d'après la référence de l'utilisateur) : un bras passé derrière le dos,
-              # coude un peu plié, seule la main dépasse à la hanche ; l'autre armé, coude en
-              # arrière caché par le buste, poing serré juste devant la poitrine
-              near_arm=None, back_arm=[(13, 22), (10, 23)], far_arm=[(13, 23), (19, 21)], far_hand="hand")
+              # au repos (d'après la référence de l'utilisateur) : le bras du dos part de l'épaule
+              # arrière et pend le long du dos, coude un peu plié, main à la ceinture ; l'autre
+              # est armé, coude et avant-bras cachés par le buste, poing juste devant la poitrine
+              near_arm=None, back_arm=[(10, 21), (10, 23)], far_arm=[(13, 23), (19, 21)], far_hand="hand")
 STANCE_LOW = dict(near_leg=[(19, 27), (18, 28)], far_leg=[(11, 27), (9, 28)],
-                  near_arm=None, back_arm=[(13, 23), (10, 24)], far_arm=[(13, 24), (19, 22)], far_hand="hand")
+                  near_arm=None, back_arm=[(10, 22), (10, 24)], far_arm=[(13, 24), (19, 22)], far_hand="hand")
 
 IDLE = [
     F(pose(torso="up", tx=12, ty=19, **STANCE,

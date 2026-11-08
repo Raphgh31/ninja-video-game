@@ -105,6 +105,8 @@ export class Shurikens {
         s.vy = -60;
         s.gravity = Math.max(s.gravity, 400);
       }
+      // corde d'une grue : il la tranche et poursuit sa course
+      lv.cutRope?.({ x: s.x - 3, y: s.y - 3, w: 6, h: 6 });
       // cible d'entraînement : elle se brise, le shuriken est dévié et retombe
       if (lv.hitTargets({ x: s.x - 2, y: s.y - 2, w: 4, h: 4 }, s.dir)) {
         s.vx *= -0.2;

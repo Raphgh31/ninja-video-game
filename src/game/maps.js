@@ -6,6 +6,8 @@ import { POTAGER } from './chapters/potager.js';
 //   T cible d'entraînement
 //   Chapitres (monde continu, voir chapters/) : = bois   | bambou   ~ eau   B caisse
 //   o ryō   M marchand   % bloc invisible (le décor peint montre ce qui arrête KAGE : pente d'un toit, foin…)
+//   - passerelle (traversable par-dessous : on se pose dessus en retombant)   _ plateforme fragile (arène du boss)
+//   K blocs d'une grue de bambou (posés par le niveau, voir Builder.crane)   B : les caisses tombent quand rien ne les porte
 
 // Terrain d'essai : long sol plat fermé par deux murs, puits et mur isolé.
 export const TERRAIN = [

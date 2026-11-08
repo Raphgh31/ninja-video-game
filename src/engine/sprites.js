@@ -61,7 +61,12 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
     const skin = await loadJson(`${baseUrl}/skins/${id}.json`);
     const projectiles = {};
     for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, skin);
-    skins[id] = { ...skin, sheet: applySkin(indexImage, meta, skin), projectiles };
+    const sheet = applySkin(indexImage, meta, skin);
+    // accessoires du skin (chapeau, cordelette…) : calque d'index à part, même
+    // disposition que la planche, fondu une fois pour toutes par-dessus
+    const acc = meta.accessorySheets?.[id];
+    if (acc) sheet.getContext('2d').drawImage(applySkin(await loadImage(`${baseUrl}/${acc}`), meta, skin), 0, 0);
+    skins[id] = { ...skin, sheet, projectiles };
   }
   return { meta, skins };
 }

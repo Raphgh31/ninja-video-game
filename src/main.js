@@ -7,7 +7,7 @@ import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
 import { Karasu, KARASU } from './game/karasu.js';
-import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
+import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
@@ -118,8 +118,13 @@ addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
 
 const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
-const look = skins.encre;   // palette du ninja noir (les skins viendront plus tard)
+let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à la boutique du marchand
+// version de test (artefact privé) : tous les skins sont disponibles sans achat
+const TEST_BUILD = !!globalThis.__KAGE_TEST;
+function wearSkin(id) { look = skins[id] ?? skins.encre; }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
+// cabine d'essayage des skins (artefact de test dédié, window.__KAGE_SKINLAB) : le Potager sans écran titre + barre des skins
+const SKIN_LAB = !!globalThis.__KAGE_SKINLAB;
 const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
 const level = new Level(LEVEL_ID);
 if (level.art) {
@@ -167,8 +172,26 @@ const ui = {
   hint: document.querySelector('.hint'),
   saved: document.querySelector('.saved'),
   talk: document.querySelector('.talk'),
+  talkLabel: document.querySelector('[data-talk]'),
 };
-const shop = new Shop(document.querySelector('.shop'));
+const shop = new Shop(document.querySelector('.shop'), {
+  skins, meta, test: TEST_BUILD,
+  buy(id) {
+    const sk = skins[id];
+    if (!save || save.skins.includes(id) || save.ryo < sk.price) return false;
+    save.ryo -= sk.price;
+    save.skins.push(id);
+    sfx('coin');
+    this.wear(id);
+    return true;
+  },
+  wear(id) {
+    if (!save) return;
+    save.skin = id;
+    wearSkin(id);
+    persist();
+  },
+});
 shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
@@ -292,20 +315,26 @@ function onKarasuEvent(n, d) {
     case 'diveHit': fx.shake(3, 0.25); fx.drift(d.x, d.y, 4, { speed: 70 }); break;
     case 'crash':
       sfxAt('crash', d);
-      fx.shake(3, 0.3);
+      fx.shake(d.heavy ? 4 : 3, d.heavy ? 0.45 : 0.3);
       fx.dust(d.x + d.dir * 6, d.y, 8, { dir: d.dir, spread: 50, up: 30, palette: 'dirt', life: 0.6 });
       fx.dust(d.x - d.dir * 6, d.y, 5, { dir: -d.dir, spread: 35, up: 20 });
       fx.drift(d.x, d.y - 24, 5, { speed: 60, up: 40 });
       break;
     case 'shake': sfxAt('flap', d); fx.dust(d.x, d.y, 5, { spread: 30, palette: 'dirt' }); fx.drift(d.x, d.y - 20, 4, { speed: 45 }); break;
-    case 'acorn': sfxAt('acorn', d); fx.sparks(d.x, d.y - 3, 5, { palette: 'dirt', speed: 60 }); break;
-    case 'turnipLand': sfxAt('turnipLand', d); fx.dust(d.x, d.y, 3, { spread: 20, palette: 'dirt' }); break;
-    case 'boom':
-      sfxAt('boom', d);
-      fx.shake(3, 0.3);
-      fx.sparks(d.x, d.y - 8, 16, { palette: 'fire', speed: 130 });
-      fx.dust(d.x - 8, d.y, 7, { dir: -1, spread: 45, up: 30, palette: 'dirt' });
-      fx.dust(d.x + 8, d.y, 7, { dir: 1, spread: 45, up: 30, palette: 'dirt' });
+    // les pierres : il les saisit sur un tas, les lâche, elles s'écrasent
+    case 'grab': sfxAt('grabRock', d); fx.dust(d.x, d.y, 5, { spread: 26, up: 14, palette: 'dirt' }); break;
+    case 'throw': sfxAt('flap', d); break;
+    case 'rockLand':
+      sfxAt('rockThud', d, { size: d.size });
+      fx.dust(d.x, d.y, 3 + d.size * 2, { spread: 22 + d.size * 8, up: 12 + d.size * 5, palette: 'dirt' });
+      if (d.size === 2) fx.shake(1.4, 0.15);
+      if (d.size < 2) fx.sparks(d.x, d.y - 3, 4 + d.size * 2, { palette: 'dirt', speed: 70 });
+      break;
+    case 'rockBreak': fx.sparks(d.x, d.y - 3, 6, { palette: 'dirt', speed: 80 }); break;
+    case 'knocked':
+      sfxAt('squawk', d);
+      fx.drift(d.x, d.y, 10, { speed: 80, up: 50 });
+      fx.hitStop(0.09);
       break;
     case 'hit':
       if (!swordStrike) sfxAt('hit', d, undefined, 0.6);
@@ -347,6 +376,38 @@ level.onEvent = (n, d) => {
         save.checkpointX = d.x;   // la lanterne est retrouvée par sa position (les indices changent si on en ajoute)
         persist(true);
       }
+      break;
+    // caisses : elles tombent lourdement quand plus rien ne les porte
+    case 'crateLand':
+      sfx('crateLand', {}, Math.min(1, 0.5 + d.speed / 600));
+      fx.dust(d.x - 6, d.y, 4, { dir: -1, spread: 22, up: 8, life: 0.45 });
+      fx.dust(d.x + 6, d.y, 4, { dir: 1, spread: 22, up: 8, life: 0.45 });
+      fx.sparks(d.x, d.y - 2, 3, { palette: 'straw', speed: 50 });
+      fx.shake(d.speed > 250 ? 1.2 : 0.6, 0.14);
+      break;
+    case 'crateHit':
+      player.hurt(DAMAGE_TAKEN.crate, d.x);   // le son et le recul viennent de l'événement « hurt » de KAGE
+      break;
+    // grue de bambou : la corde claque, les blocs tombent dans la fosse
+    case 'ropeCut':
+      sfx('ropeSnap');
+      fx.sparks(d.x, d.y, 6, { palette: 'straw', speed: 70 });
+      if (save && !save.cranes.includes(d.id)) { save.cranes.push(d.id); persist(); }
+      break;
+    // arène du corbeau : sa chute fait trembler puis s'effondrer les plateformes
+    case 'scaffoldsShake': sfx('woodCreak'); break;
+    case 'scaffoldFall':
+      sfx('woodCollapse');
+      fx.dust(d.x, d.ground, 8, { spread: d.w * 0.6, up: 24, life: 0.7 });
+      fx.drift(d.x, d.y, 4, { palette: 'straw', speed: 40 });
+      fx.shake(1.2, 0.2);
+      break;
+    case 'craneLand':
+      sfx('boulderLand');
+      fx.shake(2.4, 0.4);
+      fx.dust(d.x - d.w / 2, d.y - 4, 8, { dir: -1, spread: 40, up: 26, life: 0.7 });
+      fx.dust(d.x + d.w / 2, d.y - 4, 8, { dir: 1, spread: 40, up: 26, life: 0.7 });
+      fx.dust(d.x, d.y - 8, 6, { spread: 50, up: 40, life: 0.8 });
       break;
     default:
   }
@@ -393,6 +454,47 @@ let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
 for (const a of document.querySelectorAll('.levels a')) if (a.dataset.level === LEVEL_ID) a.setAttribute('aria-current', 'page');
+if (SKIN_LAB) setupSkinLab();
+
+/** Cabine d'essayage : une vignette par skin en haut de l'image ; clic ou touches 1, 2… */
+function setupSkinLab() {
+  document.querySelector('.levels').style.display = 'none';
+  document.title = 'The Ninja Game — cabine des skins';
+  const bar = document.createElement('div');
+  bar.className = 'skinlab';
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', 'Skins');
+  const f = meta.animations.idle.frames[0];
+  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
+  const buttons = ids.map((id, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.skin = id;
+    b.title = `${skins[id].name} (touche ${i + 1})`;
+    const cv = document.createElement('canvas');
+    cv.width = 32; cv.height = 26;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.drawImage(skins[id].sheet, f.x, f.y + 6, 32, 26, 0, 0, 32, 26);
+    const name = document.createElement('span');
+    name.textContent = skins[id].name;
+    b.append(cv, name);
+    b.addEventListener('click', () => pick(id));
+    b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    bar.append(b);
+    return b;
+  });
+  function pick(id) {
+    wearSkin(id);
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
+  }
+  addEventListener('keydown', (e) => {
+    const n = Number(e.key);
+    if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
+  });
+  document.querySelector('.stage').append(bar);
+  pick(ids.find((id) => id !== 'encre') ?? 'encre');
+}
 
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
@@ -537,7 +639,7 @@ function updateCamera(dt) {
   if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
   // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
   const y = camV.t < 1 ? camV.to : camera.y;
-  if (alive && player.y - 26 < y + VIEW_H * CAM.top) retargetY(player.y - 26 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
+  if (alive && player.y - 31 < y + VIEW_H * CAM.top) retargetY(player.y - 31 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
   else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
   if (camV.t < 1) {
     camV.t = Math.min(1, camV.t + dt / camV.dur);
@@ -583,11 +685,11 @@ function draw() {
   for (const t of enemies) {
     if (t.gone || t.noBar) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
-    const top = t instanceof Wara ? 29 + Math.round(t.lift) : 32;   // au-dessus du chapeau
+    const top = t instanceof Wara ? 34 + Math.round(t.lift) : 38;   // au-dessus du chapeau (personnages agrandis de 20 %)
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn') {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 27);
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31);
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
@@ -652,6 +754,9 @@ const HINTS = {
   kick: ['B : coup de pied — il repousse', 'Bouton coup de pied : repousser'],
   attack: ['X : coup de sabre — il brise les caisses', 'Bouton sabre : briser les caisses'],
   slide: ['↓ en courant : glissade', 'Joystick vers le bas en courant : glissade'],
+  wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
+  rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
+  airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
@@ -661,6 +766,9 @@ const HINT_USED = {
   kick: () => player.state === 'kick',
   attack: () => player.state === 'attack' || player.state === 'air_attack',
   slide: () => player.state === 'slide',
+  wall: () => player.state === 'wall_jump',
+  rope: () => level.cranes.some((c) => c.cut),
+  airAttack: () => player.state === 'air_attack',
 };
 
 function updateChapterUi(dt) {
@@ -694,9 +802,32 @@ function updateChapterUi(dt) {
   ui.saved.classList.toggle('on', savedFlash > 0);
   // marchand : « Parler » quand on est devant le comptoir
   const m = level.merchant;
-  const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && player.state !== 'death';
-  ui.talk.hidden = !near;
-  if (near && input.wasPressed('up')) openShop();
+  const alive = player.state !== 'death' && player.state !== 'respawn';
+  const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && alive;
+  // coffre : « Ouvrir le coffre » quand on se tient devant, encore fermé
+  chestHere = !near && alive ? level.chestNear(player.x, player.y) : null;
+  ui.talk.hidden = !near && !chestHere;
+  ui.talkLabel.textContent = chestHere ? 'Ouvrir le coffre' : 'Parler au marchand';
+  if (input.wasPressed('up')) talkAction();
+}
+
+/** ↑ / E ou le bouton : parler au marchand, ou ouvrir le coffre devant soi. */
+function talkAction() {
+  if (chestHere) openChest(chestHere);
+  else if (!ui.talk.hidden) openShop();
+}
+
+let chestHere = null;
+function openChest(ch) {
+  const coins = level.openChest(ch);
+  if (!coins.length) return;
+  chestHere = null;
+  ui.talk.hidden = true;
+  sfx('chestOpen');
+  fx.dust(ch.x, ch.y - 2, 6, { spread: 24, up: 10 });
+  fx.sparks(ch.x, ch.y - 12, 10, { speed: 60 });
+  fx.shake(0.6, 0.15);
+  if (save) { save.chests.push(ch.id); persist(); }
 }
 
 /** Masque les aides posées sur le jeu (boutique ouverte, fin du chapitre). */
@@ -712,10 +843,10 @@ function openShop() {
   music.setLevel(MUSIC.duck, 0.4);
   hideChapterUi();
   sfx('bell');
-  shop.open({ firstVisit: !save.merchantMet, ryo: save.ryo });
+  shop.open({ firstVisit: !save.merchantMet, save });
   if (!save.merchantMet) { save.merchantMet = true; persist(); }
 }
-ui.talk.addEventListener('click', openShop);
+ui.talk.addEventListener('click', talkAction);
 
 /**
  * Lanterne de reprise d'une sauvegarde : par sa position ; pour une sauvegarde
@@ -739,6 +870,11 @@ function startChapter(resume) {
   const s = resume ? loadSave() : null;
   if (!resume) clearSave();
   save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
+  save.skins ??= ['encre'];   // sauvegarde d'avant les skins
+  save.chests ??= [];        // sauvegarde d'avant les coffres
+  save.cranes ??= [];        // grues dont la corde a été coupée
+  save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
+  if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);
   run.time = save.time;
   run.falls = save.falls;
@@ -770,6 +906,7 @@ if (CHAPTER) {
   cont.addEventListener('click', () => startChapter(true));
   title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
   (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
+  if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
 }
 
 // barre de vie du boss : fine, en haut de l'image, avec son nom ; la part perdue
@@ -876,4 +1013,4 @@ fit();
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }) };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; } };

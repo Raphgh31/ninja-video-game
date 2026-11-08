@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from art import ANIMS, SHURIKEN, VIEWS  # noqa: E402
 from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
+from accessories import dress, find_head  # noqa: E402
+import scale  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/characters/kage"
@@ -79,6 +81,7 @@ def qa(name, grids):
 
 
 def main():
+    global CW, CH
     skins = load_skins()
     ref = skins["encre"]["colors"]
     order = list(ANIMS)
@@ -93,6 +96,14 @@ def main():
     if problems:
         print("\n".join(problems))
         raise SystemExit("Contrôle qualité : échec")
+
+    # agrandissement de 20 % (scale.py) : les poses sont dessinées en 48×32, le
+    # jeu reçoit des cellules plus grandes ; les contrôles se font sur le dessin
+    small = rendered
+    plans = {k: [scale.plan(g) for g in v] for k, v in small.items()}
+    rendered = {k: [scale.grow(g, p) for g, p in zip(small[k], plans[k])] for k in order}
+    views = {k: scale.big(g) for k, g in views.items()}
+    CW, CH = scale.BIG_W, scale.BIG_H
 
     for d in ("anims", "frames", "layers", "views"):
         shutil.rmtree(OUT / d, ignore_errors=True)
@@ -112,6 +123,28 @@ def main():
     # planche de référence + carte d'index + calques
     sheet(lambda g: to_rgba(g, ref)).save(OUT / "kage_sheet.png")
     sheet(to_index).save(OUT / "kage_sheet_index.png")
+    # calques d'accessoires des skins (chapeau, cordelette…), posés par le jeu
+    # par-dessus la planche du skin ; même disposition que la carte d'index
+    acc_sheets = {}
+    for sid, sk in skins.items():
+        names = sk.get("accessories") or []
+        if not names:
+            continue
+        nohead = [f"{k}[{i}]" for k in order for i, g in enumerate(rendered[k])
+                  if k not in ("death", "respawn") and find_head(g) is None]
+        if nohead:
+            raise SystemExit(f"Accessoires du skin {sid} : tête introuvable dans {', '.join(nohead)}")
+        f = f"kage_acc_{sid}_index.png"
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        for r, k in enumerate(order):
+            for c, (g0, p) in enumerate(zip(small[k], plans[k])):
+                # même agrandissement que l'image nue : seuls les pixels qui changent
+                dg, bg = scale.grow(dress(g0, names), p), rendered[k][c]
+                ov = np.full(bg.shape, ".", dtype="<U1")
+                ov[dg != bg] = dg[dg != bg]
+                im.paste(to_index(ov), (c * sx, r * sy))
+        im.save(OUT / f)
+        acc_sheets[sid] = f
     for part in PARTS:
         slots = {s for s, (p, _) in SLOTS.items() if p == part}
         sheet(lambda g, slots=slots: to_rgba(g, ref, only=slots)).save(OUT / "layers" / f"kage_{part}.png")
@@ -176,26 +209,27 @@ def main():
         "cell": {"w": CW, "h": CH},
         "spacing": SPACING,
         "margin": 0,
-        "pivot": {"x": PIVOT[0], "y": PIVOT[1], "note": "milieu bas de la cellule, sous les pieds"},
+        "pivot": {"x": scale.BIG_PIVOT[0], "y": scale.BIG_PIVOT[1], "note": "sous les pieds (cellule agrandie de 20 %, scale.py)"},
         "facing": "right",
         "flipForLeft": True,
-        "hitbox": {
+        "hitbox": {k: scale.box(v, body=k in ("default", "slide", "dash")) for k, v in {
             "default": {"x": 12, "y": 9, "w": 9, "h": 22},
             "slide": {"x": 13, "y": 17, "w": 15, "h": 14},
-            "dash": {"x": 10, "y": 14, "w": 13, "h": 16},
+            "dash": {"x": 10, "y": 15, "w": 13, "h": 16},   # un passage bas d'une case (16 px) se franchit au dash
             "air_attack": {"x": 18, "y": 0, "w": 22, "h": 32, "frames": [2, 3, 4],
                            "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"},
             "kick": {"x": 18, "y": 11, "w": 21, "h": 13, "frames": [1, 2],
                      "note": "coup de pied de côté (détente et impact)"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
-        },
+        }.items()},
         "slots": [{"index": i + 1, "slot": s, "part": SLOTS[s][0], "role": SLOTS[s][1]}
                   for i, s in enumerate(SLOT_ORDER)],
         "animations": {},
         "views": {k: {"x": i * sx, "y": 0, "w": CW, "h": CH, "image": "kage_views.png"}
                   for i, k in enumerate(vorder)},
         "skins": sorted(skins),
+        "accessorySheets": acc_sheets,
         "projectiles": {
             "shuriken": {
                 "image": "kage_shuriken.png",
@@ -219,7 +253,8 @@ def main():
             "loopStart": a.get("loop_start", 0),
             "state": a["state"],
             "strip": f"anims/kage_{k}.png",
-            **({"release": a["release"]} if "release" in a else {}),
+            **({"release": {**a["release"], **dict(zip("xy", scale.point(a["release"]["x"], a["release"]["y"])))}}
+               if "release" in a else {}),
             "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],

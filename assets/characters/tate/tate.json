@@ -3,75 +3,75 @@
   "image": "tate_sheet.png",
   "glowImage": "tate_glow.png",
   "cell": {
-    "w": 48,
-    "h": 32
+    "w": 54,
+    "h": 38
   },
   "pivot": {
-    "x": 15,
-    "y": 30,
-    "note": "sous les pieds"
+    "x": 18,
+    "y": 36,
+    "note": "sous les pieds (agrandi de 20 %, grow20.py)"
   },
   "facing": "right",
   "frames": {
     "walk_1": {
       "x": 0,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "walk_2": {
-      "x": 50,
+      "x": 56,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "guard": {
-      "x": 100,
+      "x": 112,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "windup": {
-      "x": 150,
+      "x": 168,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "bash": {
-      "x": 200,
+      "x": 224,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "stunned": {
-      "x": 250,
+      "x": 280,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "defeat_kneel": {
-      "x": 300,
+      "x": 336,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "defeat_topple": {
-      "x": 350,
+      "x": 392,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "defeat_impact": {
-      "x": 400,
+      "x": 448,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     },
     "defeat_down": {
-      "x": 450,
+      "x": 504,
       "y": 0,
-      "w": 48,
-      "h": 32
+      "w": 54,
+      "h": 38
     }
   },
   "animations": {
@@ -130,24 +130,24 @@
   },
   "boxes": {
     "body": {
-      "x": 8,
-      "y": 5,
-      "w": 15,
-      "h": 26,
+      "x": 10,
+      "y": 6,
+      "w": 18,
+      "h": 31,
       "note": "corps solide"
     },
     "shield": {
-      "x": 22,
-      "y": 6,
-      "w": 10,
-      "h": 25,
+      "x": 26,
+      "y": 7,
+      "w": 12,
+      "h": 30,
       "note": "bouclier (bloque de face)"
     },
     "bash": {
-      "x": 27,
-      "y": 5,
-      "w": 12,
-      "h": 26,
+      "x": 32,
+      "y": 6,
+      "w": 14,
+      "h": 31,
       "note": "bouclier projeté : touche KAGE"
     }
   }

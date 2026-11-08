@@ -45,7 +45,7 @@ export class PotagerArt {
     this.world.draw(ctx, 'back', cam, viewW, viewH);       // ... puis le terrain devant
     // caisses : elles disparaissent quand on les brise
     for (const cr of this.level.crates.values()) {
-      const sx = Math.round(cr.tx * TILE - cam.x), sy = Math.round(cr.ty * TILE - cam.y);
+      const sx = Math.round(cr.tx * TILE - cam.x), sy = Math.round((cr.fall ? cr.fall.y : cr.ty * TILE) - cam.y);
       if (sx < -TILE || sx > viewW) continue;
       ctx.drawImage(this.crate, sx, sy);
     }
