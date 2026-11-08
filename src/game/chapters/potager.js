@@ -96,6 +96,12 @@ class Builder {
     return this;
   }
 
+  /** Décor posé au fond, derrière tous les autres (une maison derrière les arbres). */
+  propBack(type, x, y, extra = {}) {
+    this.props.unshift({ type, x, y, ...extra });
+    return this;
+  }
+
   hint(kind, x = this.x) {
     this.hints.push({ kind, x });
     return this;
@@ -218,8 +224,9 @@ function build() {
   b.prop('crops', x + 1, G - 5, { w: 3, kind: 'poireaux+choux' });
   x = b.x; b.flat(3, G - 3);                         // escalier de pierre ébréché
   b.flat(3, G - 1);
-  b.flat(4);
+  b.flat(10);
   b.prop('tall_grass', x + 4, G - 1, { w: 2 });
+  b.propBack('house', x + 11, G);                        // une ferme au pied de l'escalier
 
   // -------------------------------------------------------------------------
   // ZONE 03 — Les canaux d'irrigation : saut, dash et sprint ensemble
@@ -347,12 +354,27 @@ function build() {
   b.prop('tree', x + 17, G, { kind: 'pommier', s: 1.15 });
   b.prop('tree', x + 13, G, { kind: 'cerisier', s: 0.7 });
   b.prop('lantern_stone', x + 24, G);
+  b.propBack('house', x + 19, G);                        // la maison du verger, derrière les arbres
   b.prop('tree', x + 1, G, { kind: 'poirier', s: 0.85 });
   b.prop('baskets', x + 11, G);
   b.prop('tree', x + 21, G, { kind: 'cerisier', s: 0.9 });
   b.prop('tall_grass', x + 4, G, { w: 2 });
   b.prop('stone', x + 22, G);
   b.coins([x + 2, x + 13, x + 25]);
+  // les plateformes de cueillette, sous les arbres : deux niveaux et leurs échelles
+  x = b.x; b.flat(14);
+  b.row(x + 2, 4, G - 3, '-');
+  b.row(x + 6, 4, G - 6, '-');
+  b.row(x + 10, 3, G - 3, '-');
+  b.prop('ladder', x + 3, G, { h: 3 });
+  b.prop('ladder', x + 7, G - 3, { h: 3 });
+  b.prop('tree', x + 8, G, { kind: 'pommier', s: 1.4 });
+  b.prop('tree', x + 1, G, { kind: 'poirier', s: 1.05 });
+  b.prop('baskets', x + 4, G - 3);
+  b.prop('crops', x + 10, G - 3, { w: 3, kind: 'choux' });
+  b.coins([x + 7, x + 8, x + 9], 0);
+  b.coins([x + 11, x + 12], 0);
+  b.prop('baskets', x + 12, G);
   b.flat(4);
 
   // -------------------------------------------------------------------------
@@ -513,6 +535,7 @@ function build() {
   b.prop('path_stones', x + 7, G, { w: 10 });
   b.prop('lantern_stone', x + 3, G);
   b.prop('bench', x + 9, G);
+  b.propBack('house', x + 11, G);                        // la maison du gardien du jardin
   b.prop('bush', x + 13, G, { flowers: 'white' });
   b.prop('lantern_stone', x + 16, G);
   x = b.x; b.flat(12);
@@ -535,6 +558,20 @@ function build() {
   b.prop('tree', x + 15, G, { kind: 'cerisier', s: 0.9 });
   b.prop('tall_grass', x + 17, G, { w: 2 });
   b.coins([x + 3, x + 15]);
+  // la pépinière en étages : des plateformes sur pilotis, cultivées, reliées par des échelles
+  x = b.x; b.flat(16);
+  b.row(x + 1, 4, G - 3, '-');
+  b.row(x + 5, 4, G - 6, '-');
+  b.row(x + 9, 4, G - 9, '-');
+  b.row(x + 11, 4, G - 4, '-');
+  b.prop('crops', x + 1, G - 3, { w: 4, kind: 'poireaux+choux' });
+  b.prop('crops', x + 5, G - 6, { w: 4, kind: 'carottes' });
+  b.prop('crops', x + 9, G - 9, { w: 4, kind: 'radis' });
+  b.prop('crops', x + 11, G - 4, { w: 4, kind: 'navets' });
+  b.prop('ladder', x + 2, G, { h: 3 });
+  b.prop('ladder', x + 6, G - 3, { h: 3 });
+  b.prop('ladder', x + 10, G - 6, { h: 3 });
+  b.coins([x + 10, x + 11, x + 12], 0);
   for (let s = 1; s <= 4; s++) b.flat(4, G - s); // le chemin monte vers les collines
 
   // -------------------------------------------------------------------------
