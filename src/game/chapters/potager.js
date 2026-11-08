@@ -336,12 +336,14 @@ function build() {
   b.coins([x + 5, x + 7], 0);                        // deux ryō sur la mezzanine
   b.set(x + 15, G - 1, 'B');
   b.on(x + 17, 'W');                                 // il se cachait derrière la caisse
-  b.set(x + 21, G - 1, 'B').set(x + 22, G - 1, 'B').set(x + 22, G - 2, 'B');
+  // marches de foin vers la poutre du milieu : incassables (« % »), contrairement
+  // aux caisses (le joueur les brisait et ne pouvait plus monter)
+  b.block(x + 21, 1, G - 1, G - 1, '%').block(x + 22, 1, G - 2, G - 1, '%');
+  b.prop('hay_stack', x + 21, G, { cols: [1, 2] });
   b.row(x + 19, 9, G - 5, '=');
   b.coins([x + 21, x + 23, x + 25], 0);              // trois ryō sur la poutre du milieu
   b.set(x + 26, G - 1, 'B').set(x + 26, G - 2, 'B').set(x + 26, G - 3, 'B').set(x + 26, G - 4, 'B');
   b.prop('hay', x + 1, G);
-  b.prop('hay', x + 24, G);
   b.prop('sacks', x + 11, G);
   b.prop('tubs', x + 19, G);
   const grange1 = b.x;
@@ -352,7 +354,11 @@ function build() {
   // c'est le toit peint qui se voit.
   const gFloor = G - 8;                               // plancher (ligne 11)
   b.block(grange0 + 1, 12, gFloor, gFloor, '=');
-  b.block(x + 9, 2, G - 6, G - 5, '%');               // bottes de foin sur la mezzanine : la marche (2 cases libres à droite pour atterrir)
+  // bottes de foin sur la mezzanine : un petit escalier (1 case, puis 2) vers le
+  // grenier, au bout de la mezzanine. Plus large et sous le plancher du grenier,
+  // l'ancienne botte bouchait la mezzanine : on la longe maintenant, en l'enjambant
+  b.block(x + 10, 1, G - 5, G - 5, '%').block(x + 11, 1, G - 6, G - 5, '%');
+  b.prop('hay_stack', x + 10, G - 4, { cols: [1, 2] });
   // plafond : il suit l'intérieur du toit (calculé sur sa forme), bas aux deux bouts, sous l'entrait au milieu
   const CEIL = [11, 11, 12, 12, 13, 13, ...Array(19).fill(14), 13, 13, 12, 12, 11, 11, 11, 10];
   CEIL.forEach((d, i) => b.set(grange0 + 1 + i, G - d, '%'));
@@ -361,7 +367,7 @@ function build() {
   b.prop('chest', grange0 + 7, gFloor, { id: 'grenier', ryo: 10 });   // le vieux coffre : ↑ / E pour l'ouvrir, 10 ryō
   b.prop('grenier', Math.floor((grange0 + grange1) / 2), gFloor, {
     gx0: grange0, gx1: grange1, eave: G - 9, roofH: 150, floor: gFloor, floorX0: grange0 + 1, floorX1: grange0 + 12,
-    collar: G - 14, step: { x: x + 9, w: 2, y0: G - 6, y1: G - 5 },
+    collar: G - 14, step: { x: x + 11, w: 1, y0: G - 6, y1: G - 5 },
     owl: { x: (grange0 + 26) * 16 + 4, y: (G - 12) * 16 + 10 },          // la chouette, sur son perchoir
     revealY: (G - 4) * 16,                                                  // KAGE à hauteur de la mezzanine ou plus haut : le toit s'efface
   });

@@ -1148,19 +1148,7 @@ const PAINT = {
     } else if (layer === 'ground') {
       // la marche : bottes de foin empilées au bout de la mezzanine (on y grimpe)
       const st = p.step, sx = st.x * TILE, sy = st.y0 * TILE, sw = st.w * TILE, sh = (st.y1 - st.y0 + 1) * TILE;
-      const bale = (bx, by, w, h, seed) => {
-        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
-          let v = 0.6 - (i / w) * 0.25 - (j / h) * 0.15 + (noise2((bx + i) * 0.7, (by + j) * 0.3, seed) - 0.5) * 0.45;
-          if (j === 0) v += 0.12;
-          if (j === h - 1 || i === w - 1) v -= 0.18;
-          b.p(bx + i, by + j, pick(C.STRAW, clamp01(v), bx + i, by + j));
-        }
-        b.r(bx + 5, by, 1, h, C.STRAW[0]).r(bx + w - 6, by, 1, h, C.STRAW[0]);   // liens
-        for (let k = 0; k < w; k += 2) if (ih(k, by, seed) < 0.6) b.p(bx + k, by - 1 - Math.floor(ih(k, bx, seed) * 2), C.STRAW[3]);
-      };
-      bale(sx - 1, sy + sh / 2, sw + 2, sh / 2, 5);
-      bale(sx + 1, sy, sw - 2, sh / 2, 6);
-      bale(sx - 13, sy + sh - 10, 13, 10, 7);                                // une botte tombée, à côté
+      // (les bottes elles-mêmes : décor « hay_stack », calé sur leurs cases)
       // fourche plantée dans la botte du haut
       b.line(sx + sw - 7, sy + 5, sx + sw + 5, sy - 17, W[1], 2);               // manche de bois clair, ombré
       b.line(sx + sw - 7, sy + 4, sx + sw + 4, sy - 17, W[4], 1);
@@ -1179,6 +1167,29 @@ const PAINT = {
       b.line(X - 30, Y - 118, X - 9, Y - 62, C.WOOD[1], 2).line(X - 30, Y - 62, X - 9, Y - 4, C.WOOD[1], 2);
       b.r(X - 34, Y - 124, 60, 4, '#55585f').r(X - 22, Y - 126, 3, 3, '#3a3d44');
     }
+  },
+
+  // bottes de foin empilées, calées sur leurs cases de collision (« % ») : des
+  // marches qu'on ne peut pas briser. p.x = colonne de gauche, p.y = haut du sol,
+  // p.cols = hauteur (en cases) de chaque colonne, de gauche à droite
+  hay_stack(b, p) {
+    const x0 = p.x * TILE, base = p.y * TILE;
+    p.cols.forEach((h, i) => {
+      for (let k = 0; k < h; k++) {
+        const bx = x0 + i * TILE, by = base - (k + 1) * TILE, w = TILE + (k === 0 ? 1 : 0), seed = 30 + i * 3 + k;
+        for (let j = 0; j < TILE; j++) for (let q = 0; q < w; q++) {
+          let v = 0.62 - (q / w) * 0.25 - (j / TILE) * 0.15 + (noise2((bx + q) * 0.7, (by + j) * 0.3, seed) - 0.5) * 0.45;
+          if (j === 0) v += 0.12;
+          if (j === TILE - 1 || q === w - 1) v -= 0.2;
+          if (q === 0) v += 0.05;
+          b.p(bx + q, by + j, pick(C.STRAW, clamp01(v), bx + q, by + j));
+        }
+        b.r(bx + 4, by, 1, TILE, C.STRAW[0]).r(bx + TILE - 5, by, 1, TILE, C.STRAW[0]);   // liens
+        for (let q = 0; q < TILE; q += 2) if (ih(q, by, seed) < 0.55) b.p(bx + q, by - 1 - Math.floor(ih(q, bx, seed) * 2), C.STRAW[3]);
+      }
+    });
+    // brins éparpillés au pied
+    for (let x = x0 - 6; x < x0 + p.cols.length * TILE + 6; x++) if (ih(x, 9, 31) < 0.3) b.p(x, base - 1, C.STRAW[ih(x, 2, 31) < 0.5 ? 2 : 3]);
   },
 
   hay(b, p, X, Y) {

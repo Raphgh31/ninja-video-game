@@ -88,14 +88,14 @@ async function main() {
     expect(walkGain > 0.2 && walkGain < idleGain, `marche +${walkGain.toFixed(2)}/s, arrêt +${idleGain.toFixed(2)}/s`);
   });
 
-  await test('3 dashs enchaînés, le 4e refusé', async () => {
+  await test('4 dashs enchaînés (énergie −20 %), le 5e refusé', async () => {
     await reset();
     const out = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       await k.press('ArrowRight'); await wait(40); await k.press('ArrowRight'); await wait(30);
       out.push((await S()).state); await wait(260);
     }
-    expect(out.slice(0, 3).every((s) => s === 'dash') && out[3] !== 'dash', out.join(','));
+    expect(out.slice(0, 4).every((s) => s === 'dash') && out[4] !== 'dash', out.join(','));
   });
 
   await test('dérapage au demi-tour en pleine course', async () => {
@@ -655,10 +655,29 @@ async function main() {
     expect(after.n < before.n && after.coins - before.coins === before.n - after.n, `caisses ${before.n} → ${after.n}, ryō ${before.coins} → ${after.coins}, KAGE ${after.st}`);
   });
 
+  await test('potager : grange — la caisse du haut retombe quand on brise celles du dessous ; les marches de foin ne se brisent pas', async () => {
+    const st = await pg.evaluate(() => {
+      const l = window.__kage.level, col = {};
+      for (const c of l.crates.values()) (col[c.tx] ??= []).push(c.ty);
+      const tx = +Object.keys(col).find((k) => col[k].length === 4);
+      return { tx, rows: col[tx].sort((a, b) => a - b) };
+    });
+    for (const ty of [18, 17, 16]) await pg.evaluate(([tx, ty]) => window.__kage.level.breakCrates({ x: tx * 16 + 4, y: ty * 16 + 4, w: 8, h: 8 }), [st.tx, ty]);
+    await pw(900);
+    const after = await pg.evaluate((tx) => [...window.__kage.level.crates.values()].filter((c) => c.tx === tx).map((c) => `${c.ty}${c.fall ? '+' : ''}`), st.tx);
+    // les marches de foin (« % ») : un coup de sabre n'y fait rien
+    const hay = await pg.evaluate(() => {
+      const l = window.__kage.level, h = l.props.find((p) => p.type === 'hay_stack' && p.y === 19);
+      const n = l.breakCrates({ x: h.x * 16, y: 17 * 16, w: 32, h: 32 }).length;
+      return { n, solid: l.solid(h.x + 1, 17) && l.solid(h.x + 1, 18) && l.solid(h.x, 18) };
+    });
+    expect(st.rows.join() === '15,16,17,18' && after.join() === '18' && hay.n === 0 && hay.solid, `pile ${st.rows}, après ${after}, foin ${JSON.stringify(hay)}`);
+  });
+
   await test('potager : le grenier de la grange (3e étage) se rejoint par les bottes de foin, avec ses ryō', async () => {
     const at = await pg.evaluate(() => { const l = window.__kage.level, gr = l.props.find((p) => p.type === 'grenier'); return { step: gr.step, floor: gr.floor, x0: gr.floorX0, x1: gr.floorX1, top: l.coins.filter((c) => Math.floor(c.y / 16) === gr.floor - 1 && c.x / 16 >= gr.floorX0 && c.x / 16 <= gr.floorX1 + 1).length }; });
-    // KAGE sur la mezzanine, juste à droite des bottes de foin
-    await pg.evaluate((sx) => { const g = window.__kage, pl = g.player; pl.x = (sx + 3) * 16 + 4; pl.y = 15 * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.energy.value = 1;
+    // KAGE sur la mezzanine, au bout, juste à droite de la botte de foin
+    await pg.evaluate((sx) => { const g = window.__kage, pl = g.player; pl.x = (sx + 1) * 16 + 8; pl.y = 15 * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.energy.value = 1;
       for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, at.step.x);
     await pw(200);
     // comme un joueur : on saute, puis on se dirige
@@ -668,7 +687,7 @@ async function main() {
     const up = await PS();
     await PK.down('ArrowLeft'); await pw(1600); await PK.up('ArrowLeft'); await pw(200);
     const got = await pg.evaluate((gr) => window.__kage.level.coins.filter((c) => c.taken && Math.floor(c.y / 16) === gr.floor - 1 && c.x / 16 >= gr.x0 && c.x / 16 <= gr.x1 + 1).length, at);
-    expect(at.top >= 5 && hay.y === at.step.y0 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
+    expect(at.top >= 5 && hay.y >= at.step.y0 * 16 && hay.y <= at.step.y1 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
   });
 
   await test('potager : le coffre du grenier s\'ouvre (↑) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {

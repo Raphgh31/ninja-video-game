@@ -7,7 +7,7 @@ import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
 import { Karasu, KARASU } from './game/karasu.js';
-import { DAMAGE_DEALT, HEALTH } from './game/combat.js';
+import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
@@ -370,6 +370,30 @@ level.onEvent = (n, d) => {
         save.checkpointX = d.x;   // la lanterne est retrouvée par sa position (les indices changent si on en ajoute)
         persist(true);
       }
+      break;
+    // caisses : elles tombent lourdement quand plus rien ne les porte
+    case 'crateLand':
+      sfx('crateLand', {}, Math.min(1, 0.5 + d.speed / 600));
+      fx.dust(d.x - 6, d.y, 4, { dir: -1, spread: 22, up: 8, life: 0.45 });
+      fx.dust(d.x + 6, d.y, 4, { dir: 1, spread: 22, up: 8, life: 0.45 });
+      fx.sparks(d.x, d.y - 2, 3, { palette: 'straw', speed: 50 });
+      fx.shake(d.speed > 250 ? 1.2 : 0.6, 0.14);
+      break;
+    case 'crateHit':
+      player.hurt(DAMAGE_TAKEN.crate, d.x);   // le son et le recul viennent de l'événement « hurt » de KAGE
+      break;
+    // grue de bambou : la corde claque, les blocs tombent dans la fosse
+    case 'ropeCut':
+      sfx('ropeSnap');
+      fx.sparks(d.x, d.y, 6, { palette: 'straw', speed: 70 });
+      if (save && !save.cranes.includes(d.id)) { save.cranes.push(d.id); persist(); }
+      break;
+    case 'craneLand':
+      sfx('boulderLand');
+      fx.shake(2.4, 0.4);
+      fx.dust(d.x - d.w / 2, d.y - 4, 8, { dir: -1, spread: 40, up: 26, life: 0.7 });
+      fx.dust(d.x + d.w / 2, d.y - 4, 8, { dir: 1, spread: 40, up: 26, life: 0.7 });
+      fx.dust(d.x, d.y - 8, 6, { spread: 50, up: 40, life: 0.8 });
       break;
     default:
   }
@@ -828,6 +852,7 @@ function startChapter(resume) {
   save = s && s.chapter === LEVEL_ID ? s : emptySave(LEVEL_ID);
   save.skins ??= ['encre'];   // sauvegarde d'avant les skins
   save.chests ??= [];        // sauvegarde d'avant les coffres
+  save.cranes ??= [];        // grues dont la corde a été coupée
   save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
   if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);

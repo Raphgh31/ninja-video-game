@@ -5,7 +5,7 @@
 let ac = null;
 let master = null;
 let noiseBuf = null;
-const SFX_VOLUME = 0.125;  // volume général des bruitages (0,35 à l'origine, puis −2, −3 et −4 dB à la demande de l'utilisateur)
+const SFX_VOLUME = 0.2223; // volume général des bruitages (0,35 à l'origine, puis −2, −3 et −4 dB, puis +5 dB à la demande de l'utilisateur)
 let muted = false;
 let out = null;
 let musicBus = null;   // la musique a son propre circuit (même bouton « Son »)   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
@@ -293,6 +293,27 @@ const SOUNDS = {
   },
   paperTear: () => air({ dur: 0.4, vol: 0.09, type: 'highpass', q: 0.9, f: [[0, 2500], [1, 4200]], g: [[0, 0.1], [0.1, 1], [0.8, 0.6], [1, 0.01]], am: { rate: 60, depth: 0.9, type: 'square' } }),
   // la grande porte du temple : bois lourd qui grince en pivotant
+  // caisse qui retombe lourdement : choc sourd de bois, petit rebond, craquement
+  crateLand: () => {
+    tone({ f: 110, to: 55, dur: 0.16, type: 'triangle', vol: 0.11 });
+    noise({ dur: 0.12, vol: 0.16, type: 'lowpass', f: 700, to: 180 });
+    noise({ dur: 0.05, vol: 0.06, type: 'bandpass', f: 1800, q: 2, delay: 0.02 });
+    tone({ f: 90, to: 60, dur: 0.07, type: 'triangle', vol: 0.04, delay: 0.13 });
+  },
+  // corde de la grue tranchée : claquement sec, fibres qui fouettent l'air
+  ropeSnap: () => {
+    noise({ dur: 0.04, vol: 0.16, type: 'highpass', f: 2200 });
+    tone({ f: 420, to: 140, dur: 0.09, type: 'sawtooth', vol: 0.03 });
+    air({ dur: 0.22, vol: 0.06, q: 4, f: [[0, 2600], [1, 900]], g: [[0, 1], [0.3, 0.6], [1, 0]] });
+    noise({ dur: 0.3, vol: 0.05, type: 'lowpass', f: 500, to: 300, delay: 0.1 });   // le bois de la grue qui gémit
+  },
+  // blocs de pierre qui tombent dans la fosse : grondement, cailloux qui roulent
+  boulderLand: () => {
+    tone({ f: 70, to: 32, dur: 0.6, type: 'triangle', vol: 0.16, attack: 0.002 });
+    noise({ dur: 0.5, vol: 0.22, type: 'lowpass', f: 420, to: 90 });
+    noise({ dur: 0.2, vol: 0.08, type: 'bandpass', f: 1400, q: 1.5, delay: 0.04 });
+    for (let i = 0; i < 5; i++) noise({ dur: 0.04, vol: 0.05, type: 'bandpass', f: 1800 + i * 300, q: 3, delay: 0.18 + i * 0.07 });
+  },
   // vieux coffre : déclic du loquet, charnière qui grince, couvercle qui bascule, éclat de l'or
   chestOpen: () => {
     noise({ dur: 0.05, vol: 0.12, type: 'highpass', f: 2500 });

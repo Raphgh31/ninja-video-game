@@ -16,6 +16,7 @@ export function emptySave(chapter) {
     coins: [],           // ryō déjà ramassés (identifiants)
     crates: [],          // caisses déjà brisées
     chests: [],          // coffres déjà ouverts
+    cranes: [],          // grues dont la corde a été coupée (blocs dans la fosse)
     merchantMet: false,
     skins: ['encre'],    // skins de KAGE possédés (achetés chez le marchand)
     skin: 'encre',       // skin porté

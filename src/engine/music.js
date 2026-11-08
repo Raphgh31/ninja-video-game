@@ -7,7 +7,7 @@
 import { musicOutput } from './sfx.js';
 
 export const MUSIC = {
-  volume: 0.0319,  // 0,016 puis +3 dB, puis encore +3 dB à la demande de l'utilisateur (la musique doit ressortir)
+  volume: 0.0567,  // 0,016 puis +3 dB, +3 dB, puis +5 dB avec tous les sons, à la demande de l'utilisateur
   fadeIn: 2.5,     // s
   duck: 0.45,      // volume relatif pendant la boutique
 };

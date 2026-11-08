@@ -518,7 +518,8 @@ export class Player {
     if (this.vy >= 0) {
       const ty = Math.floor((b.y + b.h) / TILE);
       for (let tx = x0; tx <= x1; tx++) {
-        if (lv.solid(tx, ty) && b.y + b.h - this.vy * dt <= ty * TILE + 1) {
+        // tuile pleine, ou passerelle « - » (on la traverse en montant, on retombe dessus)
+        if ((lv.solid(tx, ty) || lv.ledge?.(tx, ty)) && b.y + b.h - this.vy * dt <= ty * TILE + 1) {
           this.y -= b.y + b.h - ty * TILE;
           this.vy = 0;
           this.onGround = true;
