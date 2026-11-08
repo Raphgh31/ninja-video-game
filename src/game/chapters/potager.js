@@ -66,6 +66,11 @@ class Builder {
     return this;
   }
 
+  /** Échelle d'une plateforme à l'autre : pied en bx, haut en tx (en cases, décimales permises). */
+  ladder(bx, tx, row, h) {
+    return this.prop('ladder', Math.floor(bx), row, { h, bx, tx });
+  }
+
   /** Haut du sol d'une colonne déjà posée. */
   top(x) {
     const c = this.cols[x];
@@ -285,9 +290,9 @@ function build() {
   b.prop('crops', c0 + 1, G - 5, { w: 3, kind: 'poireaux+choux' });
   b.prop('crops', c0 + 7, G - 7, { w: 4, kind: 'carottes' });
   b.prop('crops', c0 + 11, G - 1, { w: 3, kind: 'navets+radis' });
-  b.prop('ladder', c0 + 3, G - 1, { h: 4 });         // de A à C
-  b.prop('ladder', c0 + 8, G - 3, { h: 4 });         // de B à E
-  b.prop('ladder', c0 + 13, G - 1, { h: 4 });        // de D à F
+  b.ladder(c0 + 0.6, c0 + 1.4, G - 1, 4);            // de A à C
+  b.ladder(c0 + 6.2, c0 + 7.4, G - 3, 4);            // de B à E
+  b.ladder(c0 + 11.2, c0 + 12.4, G - 1, 4);          // de D à F
   b.prop('baskets', c0 + 1, G - 1);
   b.coins([c0 + 2, c0 + 3], 0);
   b.coins([c0 + 8, c0 + 9, c0 + 10], 0);
@@ -297,7 +302,8 @@ function build() {
   b.prop('reeds', x, G, { w: 2 });
 
   // LA GRUE DE BAMBOU (énigme) : un mur de blocs de pierre ficelés pend à une
-  // grue et bouche le passage sous la falaise ; une fosse l'attend dessous. On
+  // grue et bouche le passage ; une fosse l'attend dessous, et le mât de la grue
+  // (une tour de bambou) empêche de passer par-dessus. On
   // grimpe par sauts muraux entre deux murs de bambous serrés (on entre dans le
   // puits en se glissant sous le premier) jusqu'à la plateforme de la grue, d'où
   // un shuriken coupe la corde : les blocs tombent et comblent la fosse.
@@ -309,19 +315,17 @@ function build() {
   b.block(s0 + 7, 1, G - 8, G - 4, '|');             // mur de droite (le puits fait 3 cases de large)
   b.row(s0 + 4, 7, G - 9, '-');                      // la plateforme de la grue, en haut du puits
   b.hint('rope', s0 + 8);
-  b.crane('canal', s0 + 11, 2, G - 8, 5, { mastX: (s0 + 10) * TILE + 8, boomY: (G - 14) * TILE + 6 });
+  // le mât de la grue, juste après la fosse : une tour de bambou infranchissable
+  // en haut (on ne passe pas par-dessus les blocs) ; en bas, entre ses montants,
+  // le passage s'ouvre quand les blocs ont comblé la fosse
+  b.crane('canal', s0 + 11, 2, G - 8, 5, { mastX: (s0 + 13) * TILE + 8, boomY: (G - 14) * TILE + 6, towerY: (G - 8) * TILE });
+  b.block(s0 + 13, 1, 0, G - 9, '%');
   b.coins([s0 + 5, s0 + 6], 0);
   for (const c of [s0 + 14, s0 + 16]) b.set(c, G - 4, 'o');
   b.prop('stone', s0 + 20, G - 3);
   b.prop('tall_grass', s0 + 21, G - 3, { w: 2 });
   b.flat(2, G - 2).flat(2, G - 1);
   b.flat(5);
-  // le surplomb rocheux (le pied d'une paroi qui monte hors de l'image) : on ne
-  // passe que dessous ; au-delà du mur de blocs, il remonte en biais vers le haut
-  for (let i = 0; i < 18; i++) {
-    const bot = i < 6 ? G - 9 : Math.max(1, Math.round(G - 9 - (i - 5) * 0.75));
-    b.block(s0 + 13 + i, 1, 0, bot, '#');
-  }
 
   // -------------------------------------------------------------------------
   // ZONE 04 — Le vieux verger : les premiers ennemis, le coup de pied
@@ -367,8 +371,8 @@ function build() {
   b.row(x + 2, 4, G - 3, '-');
   b.row(x + 6, 4, G - 6, '-');
   b.row(x + 10, 3, G - 3, '-');
-  b.prop('ladder', x + 3, G, { h: 3 });
-  b.prop('ladder', x + 7, G - 3, { h: 3 });
+  b.ladder(x + 1.3, x + 2.4, G, 3);
+  b.ladder(x + 5.4, x + 6.4, G - 3, 3);
   b.prop('tree', x + 8, G, { kind: 'pommier', s: 1.4 });
   b.prop('tree', x + 1, G, { kind: 'poirier', s: 1.05 });
   b.prop('baskets', x + 4, G - 3);
@@ -422,6 +426,8 @@ function build() {
   b.coins([x + 3, x + 4], 0);
   b.block(serre0, serre1 - serre0, G - 13, G - 13, '|');   // faîtage de la serre
   for (const c of [x + 6, x + 7, x + 8]) b.set(c, G - 11, 'o');   // encore des ryō tout au long de la poutre
+  // et sur le toit de la serre (le faîtage) : de quoi pousser à s'aventurer tout en haut
+  for (let c = serre0 + 5; c < serre1 - 2; c += 4) b.set(c, G - 14, 'o');
   b.backdrop('serre', serre0, serre1, G - 13, G);
   // dehors : une bande de bambous (feuillage bas, puits) remplace l'ancien bloc
   x = b.x; b.flat(10);
@@ -575,9 +581,9 @@ function build() {
   b.prop('crops', x + 5, G - 6, { w: 4, kind: 'carottes' });
   b.prop('crops', x + 9, G - 9, { w: 4, kind: 'radis' });
   b.prop('crops', x + 11, G - 4, { w: 4, kind: 'navets' });
-  b.prop('ladder', x + 2, G, { h: 3 });
-  b.prop('ladder', x + 6, G - 3, { h: 3 });
-  b.prop('ladder', x + 10, G - 6, { h: 3 });
+  b.ladder(x + 0.3, x + 1.4, G, 3);                   // échelles : du bout de la plateforme du dessous
+  b.ladder(x + 4.4, x + 5.4, G - 3, 3);               // au début de celle du dessus
+  b.ladder(x + 8.4, x + 9.4, G - 6, 3);
   b.coins([x + 10, x + 11, x + 12], 0);
   for (let s = 1; s <= 4; s++) b.flat(4, G - s); // le chemin monte vers les collines
 

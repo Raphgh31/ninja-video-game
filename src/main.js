@@ -354,6 +354,39 @@ function onKarasuEvent(n, d) {
   }
 }
 if (boss) boss.onEvent = onKarasuEvent;
+// La porte ouverte : KAGE ne passe pas devant les vantaux, il entre dans le
+// passage. La porte le dessine elle-même entre le couloir et la façade (temple.js,
+// inside) : il s'enfonce, rapetisse avec la profondeur et s'efface dans la
+// pénombre ; ensuite seulement, la fin du chapitre.
+const templeGate = level.art?.live?.templeGate ?? null;
+const ENTER_TIME = 1.8;
+function startEntering() {
+  run.won = true;                                   // plus de commandes, le chrono s'arrête
+  run.entering = { t: 0, u0: (player.x - templeGate.X) / Math.cos((28 * Math.PI) / 180) };
+  player.vx = 0;
+  player.anim.play('walk', { restart: true });
+  templeGate.inside = drawEntering;
+}
+function updateEntering(dt) {
+  const e = run.entering;
+  e.t += dt;
+  player.anim.update(dt);
+  if (e.t >= ENTER_TIME && !e.done) { e.done = true; win(); }
+}
+function drawEntering(ctx, cam, gate) {
+  const e = run.entering;
+  if (!e) return;
+  const p = Math.min(1, e.t / ENTER_TIME);
+  const u = e.u0 * (1 - Math.min(1, p * 3)), w = -60 * p, v = 4 * Math.min(1, p * 6);
+  const at = gate.proj(u, v, w), k = gate.scaleAt(u, w);
+  ctx.save();
+  ctx.globalAlpha = p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) / 0.45);
+  ctx.translate(Math.round(at.x - cam.x), Math.round(at.y - cam.y));
+  ctx.scale(k, k);
+  player.anim.draw(ctx, look.sheet, 0, 0, 1);
+  ctx.restore();
+}
+
 /** La porte du temple s'ouvre : le talisman se déchire, les battants pivotent. */
 function openTempleGate(silent = false) {
   level.doorOpen = true;
@@ -509,7 +542,8 @@ function update(dt) {
   }
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
-  player.update(dt, run.won ? IDLE_INPUT : input);
+  if (run.entering) updateEntering(dt);
+  else player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
   shurikens.update(dt);
   for (const t of enemies) {
@@ -569,6 +603,8 @@ function update(dt) {
   ryoShown = Math.max(0, ryoShown - dt);
   if (CHAPTER) updateChapterUi(dt);
   // progression : lanternes et arrivée
+  if (!run.won && templeGate && level.doorOpen && level.doorT >= level.doorTime * 0.6 && player.onGround
+    && player.x >= templeGate.X - 4 && Math.abs(player.y - templeGate.G) < 6) startEntering();
   if (!run.won && level.checkProgress(player.x, player.y) && level.goal) win();
   if (!run.won && level.goal) run.time += dt;
   fx.update(dt);
@@ -677,7 +713,7 @@ function draw() {
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
-  player.draw(ctx, look.sheet, cam);
+  if (!run.entering) player.draw(ctx, look.sheet, cam);   // (dans la porte, c'est elle qui le dessine)
   level.drawForeground(ctx, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);
@@ -689,7 +725,7 @@ function draw() {
     const top = t instanceof Wara ? 34 + Math.round(t.lift) : 38;   // au-dessus du chapeau (personnages agrandis de 20 %)
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
-  if (player.state !== 'death' && player.state !== 'respawn') {
+  if (player.state !== 'death' && player.state !== 'respawn' && !run.entering) {
     kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31);
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens

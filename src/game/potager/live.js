@@ -326,28 +326,50 @@ export class Live {
     };
     const lash = (x, y) => { ctx.fillStyle = '#2a2420'; ctx.fillRect(x - 3, y - 1, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); };
     const mx = R(c.mastX - 2) + ox, ground = (c.top + c.h) * TILE + oy, by = R(c.boomY) + oy;
-    const tipX = R(c.ropeX) + ox;
-    // mât (deux bambous liés), haubans vers le sol, flèche et bras du contrepoids
-    pole(mx, by - 6, ground);
-    pole(mx - 5, by + 10, ground, 3);
-    ctx.fillStyle = '#5b4a36';
-    for (let i = 0; i < 26; i++) ctx.fillRect(mx - 6 - i, by + 6 + i * 4, 1, 1);   // hauban (corde)
-    beam(mx - 28, tipX + 8, by, 4);
-    lash(mx + 2, by + 2); lash(mx + 2, by + 30); lash(mx - 3, by + 60);
+    const tipX = R(c.ropeX) + ox, sd = Math.sign(tipX - mx) || 1;   // côté de la flèche
+    if (c.towerY != null) {
+      // le mât est une tour de bambou : deux montants ; en haut, un treillis serré de
+      // bambous ligaturés qu'on ne franchit pas ; en bas, on passe entre les montants
+      const L = R(c.mastX - 8) + ox, Rr = L + 12, tb = R(c.towerY) + oy;
+      ctx.fillStyle = '#2b3a1c'; ctx.fillRect(L + 3, by - 2, 8, tb - by + 2);            // l'ombre du treillis
+      for (let y = by + 4; y < tb - 2; y += 7) beam(L + 2, Rr + 2, y, 2);                   // traverses serrées
+      ctx.fillStyle = B[1];
+      for (let y = by + 4; y < tb - 10; y += 14) for (let i = 0; i < 10; i++) {           // croisillons
+        ctx.fillRect(L + 3 + i, y + i, 1, 1); ctx.fillRect(Rr - i, y + i, 1, 1);
+      }
+      pole(L, by - 8, ground, 4); pole(Rr, by - 8, ground, 4);
+      beam(L - 2, Rr + 6, tb - 3, 4);                                                       // le linteau au-dessus du passage
+      for (const y of [by + 2, R((by + tb) / 2), tb - 2]) { lash(L + 2, y); lash(Rr + 2, y); }
+      // jambes de force du passage, et haubans
+      ctx.fillStyle = B[1];
+      for (let i = 0; i < 8; i++) { ctx.fillRect(L + 4 + i, tb + 1 + i, 1, 1); ctx.fillRect(Rr - i, tb + 1 + i, 1, 1); }
+      ctx.fillStyle = '#5b4a36';
+      for (let i = 0; i < 26; i++) ctx.fillRect(Rr + 6 + i, by + 6 + i * 4, 1, 1);
+    } else {
+      // mât (deux bambous liés), haubans vers le sol
+      pole(mx, by - 6, ground);
+      pole(mx - 5, by + 10, ground, 3);
+      ctx.fillStyle = '#5b4a36';
+      for (let i = 0; i < 26; i++) ctx.fillRect(mx - 6 - i, by + 6 + i * 4, 1, 1);   // hauban (corde)
+      lash(mx + 2, by + 2); lash(mx + 2, by + 30); lash(mx - 3, by + 60);
+    }
+    // flèche et bras du contrepoids (de l'autre côté)
+    beam(Math.min(mx - sd * 28, tipX + sd * 8), Math.max(mx - sd * 28, tipX + sd * 8), by, 4);
+    lash(mx + 2, by + 2);
     // jambe de force sous la flèche
     ctx.fillStyle = B[1];
-    for (let i = 0; i < 20; i++) ctx.fillRect(mx + 4 + i, by + 24 - i, 2, 2);
+    for (let i = 0; i < 20; i++) ctx.fillRect(mx + 2 + sd * (2 + i), by + 24 - i, 2, 2);
     // contrepoids : panier de pierres au bout du bras court
-    const cwx = mx - 26, swing = Math.sin(time * 1.3) * 1.2;
+    const cwx = mx - sd * 26, swing = Math.sin(time * 1.3) * 1.2;
     ctx.fillStyle = '#5b4a36'; ctx.fillRect(cwx + 1, by + 4, 1, 12);
     ctx.fillStyle = '#7a6040'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 9);
     ctx.fillStyle = '#5b4a36'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 1); ctx.fillRect(R(cwx - 5 + swing), by + 20, 13, 1);
     ctx.fillStyle = C.STONE[3]; ctx.fillRect(R(cwx - 3 + swing), by + 13, 4, 3); ctx.fillRect(R(cwx + 2 + swing), by + 14, 4, 2);
-    // treuil sur le mât, à hauteur de la plateforme, avec la corde enroulée
-    const wy = (c.top - 1) * TILE + oy - 8;
-    ctx.fillStyle = '#6a4a2c'; ctx.fillRect(mx - 8, wy, 10, 7);
-    ctx.fillStyle = '#9a7448'; for (let y = wy + 1; y < wy + 7; y += 2) ctx.fillRect(mx - 8, y, 10, 1);
-    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(mx - 11, wy + 2, 3, 3); ctx.fillRect(mx - 13, wy + 5, 2, 5);   // manivelle
+    // treuil sur le mât, avec la corde enroulée (côté contrepoids)
+    const wy = (c.top - 1) * TILE + oy - 8, wx = sd > 0 ? mx - 8 : mx + 9;
+    ctx.fillStyle = '#6a4a2c'; ctx.fillRect(wx, wy, 10, 7);
+    ctx.fillStyle = '#9a7448'; for (let y = wy + 1; y < wy + 7; y += 2) ctx.fillRect(wx, y, 10, 1);
+    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(wx + (sd > 0 ? -3 : 10), wy + 2, 3, 3); ctx.fillRect(wx + (sd > 0 ? -5 : 13), wy + 5, 2, 5);   // manivelle
     // poulie au bout de la flèche
     ctx.fillStyle = C.WOOD[1]; ctx.fillRect(tipX - 3, by + 3, 6, 6);
     ctx.fillStyle = C.WOOD[4]; ctx.fillRect(tipX - 2, by + 4, 4, 1);

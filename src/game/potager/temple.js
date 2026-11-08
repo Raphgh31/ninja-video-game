@@ -186,6 +186,11 @@ export class TempleGate {
     this.build(interior);
   }
 
+  /** Échelle de la perspective en un point du sol (u, w). */
+  scaleAt(u, w) {
+    return D / (D - u * SN - w * CS);
+  }
+
   /** Projette un point du pavillon (u, v, w) à l'écran (coordonnées du monde). */
   proj(u, v, w) {
     const x = this.X + u * CS - w * SN, z = -u * SN - w * CS, k = D / (D + z);
@@ -364,6 +369,7 @@ export class TempleGate {
     const ox = R(this.ox - cam.x), oy = R(this.oy - cam.y);
     ctx.drawImage(this.back, ox, oy);
     this.motes(ctx, cam, time, o);
+    this.inside?.(ctx, cam, this);                // KAGE qui s'enfonce dans le passage (main.js)
     ctx.drawImage(this.front, ox, oy);
     // les vantaux : celui de gauche (au fond) d'abord ; ouverts aux trois quarts,
     // ils cachent encore une part du passage

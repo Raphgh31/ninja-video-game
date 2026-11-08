@@ -629,6 +629,19 @@ const PAINT = {
 
   ladder(b, p, X, Y) {
     const h = (p.h ?? 4) * TILE;
+    if (p.bx != null) {
+      // échelle posée d'une plateforme à l'autre : son pied sur celle du dessous
+      // (bx, en cases), son haut accroché au début de celle du dessus (tx)
+      const x0 = Math.round(p.bx * TILE) - 4, x1 = Math.round(p.tx * TILE) - 4, top = Y - h - 3;
+      b.line(x0, Y, x1, top, C.WOOD[1], 2).line(x0 + 8, Y, x1 + 8, top, C.WOOD[1], 2);
+      b.line(x0 + 1, Y, x1 + 1, top, C.WOOD[4]).line(x0 + 9, Y, x1 + 9, top, C.WOOD[3]);
+      for (let y = 5; y < h; y += 7) {
+        const xx = Math.round(x0 + (x1 - x0) * (y / (h + 3)));
+        b.r(xx + 1, Y - y, 8, 1, C.WOOD[3]).p(xx + 1, Y - y + 1, C.WOOD[1]);
+      }
+      b.r(x0 - 1, Y - 1, 12, 1, 'rgba(20, 12, 6, 0.4)');                 // ombre au pied
+      return;
+    }
     b.line(X - 6, Y, X + 2, Y - h, C.WOOD[2], 2).line(X + 2, Y, X + 10, Y - h, C.WOOD[2], 2);
     b.line(X - 5, Y, X + 3, Y - h, C.WOOD[4]);
     for (let y = 6; y < h; y += 7) {
@@ -1820,9 +1833,12 @@ export function groveLeaves(b, map, tx0, tx1) {
       if (st !== 'grove' && st !== 'canopy') continue;
       // bas d'un bosquet suspendu (feuillage bas) : des feuilles pendent dans le passage
       if (!map.solid(tx, ty + 1) && ty + 1 < map.h) {
+        // quelques feuilles qui pendent, sans redescendre dans le passage (le bas du
+        // massif est remonté de ~6 px, voir canopyColor)
         for (let x = tx * TILE; x < tx * TILE + TILE; x++) {
-          const len = 2 + Math.floor(ih(x, ty, 505) * 5);
-          for (let j = 0; j < len; j++) b.p(x + (j > 2 && ih(x, j, 506) < 0.5 ? 1 : 0), (ty + 1) * TILE + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
+          if (ih(x, ty, 507) < 0.45) continue;
+          const len = 1 + Math.floor(ih(x, ty, 505) * 3);
+          for (let j = 0; j < len; j++) b.p(x + (j > 1 && ih(x, j, 506) < 0.5 ? 1 : 0), ty * TILE + 9 + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
         }
       }
       for (let k = 0; k < 3; k++) {
