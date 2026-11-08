@@ -308,7 +308,7 @@ function build() {
   // puits en se glissant sous le premier) jusqu'à la plateforme de la grue, d'où
   // un shuriken coupe la corde : les blocs tombent et comblent la fosse.
   b.flat(2, G - 1).flat(2, G - 2);
-  const s0 = b.x; b.flat(23, G - 3);                 // plateau (haut à la ligne 16)
+  const s0 = b.x; b.flat(25, G - 3);                 // plateau (haut à la ligne 16)
   b.on(s0 + 1, 'P');                                 // lanterne : avant l'énigme
   b.hint('wall', s0 + 4);
   b.block(s0 + 3, 1, G - 10, G - 5, '|');            // mur de bambous de gauche : on se glisse dessous
@@ -316,18 +316,23 @@ function build() {
   // la plateforme de la grue, en haut du puits : elle s'arrête à trois cases de la
   // corde (le sabre ne l'atteint pas, il faut le shuriken)
   b.row(s0 + 4, 5, G - 9, '-');
+  // pour revenir sur la plateforme (quand on a compris qu'il faut le shuriken) :
+  // un escalier de bois raide, à claire-voie, du bout de la plateforme au sol
+  const treads = [1, 2, 3, 4, 5].map((k) => [s0 + 8 + k, G - 9 + k]);   // cinq marches, une case plus bas à chaque fois
+  for (const [tx, ty] of treads) b.set(tx, ty, '-');
+  b.prop('stair', s0 + 9, G - 3, { top: [s0 + 8, G - 9], foot: [s0 + 14, G - 3], treads });
   b.hint('rope', s0 + 8);
   // le mât de la grue, juste après la fosse : une tour de bambou infranchissable
   // en haut (on ne passe pas par-dessus les blocs) ; en bas, entre ses montants,
   // le passage s'ouvre quand les blocs ont comblé la fosse
-  // la grue est loin de la plateforme (11 cases de vide) : ni un saut ni un dash
+  // la grue est loin de la plateforme (12 cases de vide) : ni un saut ni un dash
   // ne mènent sur les blocs ; seul le shuriken (portée 10 cases) atteint la corde
-  const cx = s0 + 20;
+  const cx = s0 + 21;
   b.crane('canal', cx, 2, G - 8, 5, { mastX: (cx + 2) * TILE + 8, boomY: (G - 14) * TILE + 6, towerY: (G - 8) * TILE });
   b.block(cx + 2, 1, 0, G - 9, '%');
   b.coins([s0 + 5, s0 + 6], 0);
-  for (const c of [s0 + 13, s0 + 16]) b.set(c, G - 4, 'o');
-  b.prop('tall_grass', s0 + 22, G - 3, { w: 1 });
+  for (const c of [s0 + 16, s0 + 19]) b.set(c, G - 4, 'o');
+  b.prop('tall_grass', s0 + 24, G - 3, { w: 1 });
   b.flat(2, G - 2).flat(2, G - 1);
   b.flat(5);
 

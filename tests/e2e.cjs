@@ -655,7 +655,7 @@ async function main() {
 
   await test('potager : la grue de bambou — mur de blocs infranchissable ; dash sous les bambous, sauts muraux jusqu\'à la plateforme, shuriken dans la corde : les blocs comblent la fosse', async () => {
     const c = await pg.evaluate(() => window.__kage.level.cranes[0]);
-    const s0 = c.x0 - 20, K = PK;               // début du plateau de l'énigme (la grue est 20 cases plus loin)
+    const s0 = c.x0 - 21, K = PK;               // début du plateau de l'énigme (la grue est 21 cases plus loin)
     const put = (tx, ty) => pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; g.shurikens.stock = 3; }, [tx, ty]);
     // le mur de blocs bouche le passage (on est arrêté devant, même en sautant)
     await put(s0 + 9, 16); await K.down('ArrowRight'); await K.down('Space'); await pw(300); await K.up('Space'); await pw(900); await K.up('ArrowRight'); await pw(150);
@@ -681,7 +681,7 @@ async function main() {
     const reach = await pg.evaluate((c) => c.ropeX - window.__kage.player.x, c);
     await K.press('KeyC'); await pw(1500);
     const cr = await pg.evaluate(() => { const c = window.__kage.level.cranes[0], l = window.__kage.level; return { cut: c.cut, landed: c.landed, filled: l.solid(c.x0, c.top + c.h) && l.solid(c.x0, c.top + 2 * c.h - 1), open: !l.solid(c.x0, c.top) }; });
-    await K.down('ArrowRight'); await pw(3600); await K.up('ArrowRight'); await pw(200);   // 11 cases de vide, la fosse comblée, puis sous le mât
+    await K.down('ArrowRight'); await pw(4400); await K.up('ArrowRight'); await pw(200);   // 12 cases de vide, la fosse comblée, puis sous le mât
     const past = (await PS()).tx;
     const saved = await SAVE();
     expect(blocked && walk < s0 + 3 && dashed > s0 + 3 && dashed < s0 + 7 && up.y === (c.top - 1) * 16 && reach > 150 && cr.cut && cr.landed && cr.filled && cr.open && past > c.x0 + 6 && saved.cranes.includes(c.id),
@@ -710,6 +710,18 @@ async function main() {
     const s = await PS();
     expect(far < c.x0 * 16 - 16 && landed.y > c.top * 16 && s.tx <= c.x0 + c.w - 1,
       `portée à hauteur des blocs ${Math.round(far / 16 * 10) / 10} (blocs en ${c.x0}), posé y=${landed.y}, sur les blocs puis vers la droite : colonne ${s.tx - c.x0}`);
+  });
+
+  await test('potager : la grue — un escalier de bois raide ramène du sol à la plateforme', async () => {
+    const st = await pg.evaluate(() => { const p = window.__kage.level.props.find((q) => q.type === 'stair'); return { foot: p.foot, top: p.top }; });
+    await pg.evaluate(([tx, ty]) => { const g = window.__kage, p = g.player; p.x = tx * 16 + 8; p.y = ty * 16; p.vx = 0; p.vy = 0; p.onGround = true; p.setState('idle'); p.energy.value = 1; p.hp = 5; }, [st.foot[0] + 2, st.foot[1]]);
+    await pw(250);
+    for (let i = 0; i < 4; i++) {
+      await PK.down('ArrowLeft'); await pw(60); await PK.down('Space'); await pw(230); await PK.up('Space'); await pw(120); await PK.up('ArrowLeft'); await pw(450);
+      if ((await PS()).y === st.top[1] * 16) break;
+    }
+    const s = await PS();
+    expect(s.ground && s.y === st.top[1] * 16, `KAGE y=${s.y} (plateforme : ${st.top[1] * 16}), colonne ${s.tx}`);
   });
 
   await test('potager : la serre se quitte par la charpente — sortie au sol bouchée par les bambous, sauts muraux dans le puits, on traverse la poutre par-dessous', async () => {

@@ -182,7 +182,7 @@ const TERRACE_KINDS = [0.2, 0.5, 0.9, 0.2, 0.7, 0.5, 0.2, 0.9, 0.7, 0.2, 0.5, 0.
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'],
-  ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
+  ladder: ['back'], stair: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
   bridge_red: ['back'], stall: ['back'], temple_gate: [], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
   baskets: ['ground'], bridge: ['ground'], reeds: ['ground', 'front'], pots: ['ground'], hay: ['ground'],
@@ -191,7 +191,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { stair: 140, temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -625,6 +625,46 @@ const PAINT = {
       // quelques feuilles basses passent devant KAGE (haut du feuillage seulement)
       leaves(b, top.x + 16 * s, top.y + 8, 6 * s, ramp, p.x + 50, { light: -0.1 });
     }
+  },
+
+  // escalier de bois à claire-voie, vu de trois quarts (comme la porte du temple) :
+  // deux limons en biais, l'un devant, l'autre derrière (décalé de la profondeur
+  // D, vers le haut et la droite), et entre eux des marches de planche qui vont
+  // d'un limon à l'autre, clouées sur les deux, sans contremarche ; une main
+  // courante de corde. Les marches sont des « - » (traversables par-dessous) :
+  // le milieu de chaque planche est à la hauteur de la case.
+  stair(b, p) {
+    const T = TILE, D = [14, -6];
+    const P = p.treads.map(([tx, ty]) => [tx * T + 1, ty * T + 3]);      // bout avant de chaque marche
+    const step = [P[1][0] - P[0][0], P[1][1] - P[0][1]];
+    const top = [P[0][0] - step[0] * ((P[0][1] - p.top[1] * T) / step[1]), p.top[1] * T];
+    const footY = p.foot[1] * T, foot = [P[P.length - 1][0] + step[0] * ((footY - P[P.length - 1][1]) / step[1]), footY];
+    const rail = (ox, oy, light) => {                                     // un limon : planche en biais de 3 px
+      const n = Math.round(foot[1] - top[1]);
+      for (let i = 0; i <= n; i++) {
+        const x = Math.round(top[0] + ((foot[0] - top[0]) * i) / n) + ox, y = Math.round(top[1] + i) + oy;
+        b.r(x - 1, y, 4, 1, light ? C.WOOD[2] : C.WOOD[1]).p(x - 1, y, light ? C.WOOD[4] : C.WOOD[2]).p(x + 2, y, C.WOOD[0]);
+      }
+    };
+    rail(D[0], D[1], false);                                              // le limon du fond
+    // les marches : des planches qui vont d'un limon à l'autre (dessus clair, chant, ombre)
+    for (const [x0, y0] of P) {
+      const n = D[0];
+      for (let i = 0; i <= n; i++) {
+        const x = x0 + i, y = Math.round(y0 + (D[1] * i) / n);
+        b.r(x, y - 2, 1, 1, C.WOOD[5]).r(x, y - 1, 1, 1, C.WOOD[4]).r(x, y, 1, 2, C.WOOD[3]).r(x, y + 2, 1, 1, C.WOOD[1]).p(x, y + 3, 'rgba(30, 18, 10, 0.5)');
+        if (i % 5 === 2) b.p(x, y, C.WOOD[2]);                            // fil du bois
+      }
+      b.p(x0 + D[0] - 1, y0 + D[1] + 1, '#6f737b');                      // clou sur le limon du fond
+    }
+    rail(0, 0, true);                                                     // le limon de devant, par-dessus le bout des marches
+    for (const [x0, y0] of P) b.p(x0, y0 + 1, '#a9aeb6');                 // clous sur le limon de devant
+    // pied : une pierre plate ; main courante de corde, d'un poteau à l'autre
+    b.r(Math.round(foot[0]) - 5, footY - 2, 22, 2, C.STONE[2]).r(Math.round(foot[0]) - 5, footY - 2, 22, 1, C.STONE[4]);
+    const px = Math.round(foot[0]) + D[0] + 4, tx0 = Math.round(top[0]) + D[0] - 3;
+    b.r(px, footY - 26, 2, 26, C.WOOD[1]).p(px, footY - 26, C.WOOD[4]);
+    b.r(tx0, top[1] - 20, 2, 18, C.WOOD[1]).p(tx0, top[1] - 20, C.WOOD[4]);
+    rope(b, tx0 + 1, top[1] - 19, px + 1, footY - 25, 8, '#8a6a3a');
   },
 
   ladder(b, p, X, Y) {

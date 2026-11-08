@@ -23,6 +23,8 @@ export class TileMap {
     // fosses des grues : ce ne sont pas des canaux (pas de berge ni d'eau peintes)
     this.pitCols = new Set();
     for (const c of level.cranes ?? []) for (let x = c.x0; x < c.x0 + c.w; x++) this.pitCols.add(x);
+    // marches des escaliers de bois (« - ») : c'est le décor « stair » qui les peint
+    this.treads = new Set((level.props ?? []).filter((p) => p.type === 'stair').flatMap((p) => p.treads.map(([x, y]) => x + ',' + y)));
     for (let tx = 0; tx < this.w; tx++) {
       for (let ty = 0; ty < this.h; ty++) {
         const t = level.rows[ty][tx];
@@ -49,7 +51,7 @@ export class TileMap {
 
   classify(tx, ty, t) {
     const z = this.zone[tx];
-    if (t === '-') return z === '05' ? 'rafter' : 'plank';
+    if (t === '-') return this.treads?.has(tx + ',' + ty) ? 'tread' : z === '05' ? 'rafter' : 'plank';
     if (t === '=') {
       if (z === '05') return 'shelf';
       if (z === '06') return 'beam';
@@ -519,6 +521,7 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
               case 'canopy': col = canopyColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'plank': col = plankColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'rafter': col = rafterColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
+              case 'tread': continue;                                  // peinte par le décor « stair »
               default: col = soilColor(wx, wy, depthBelowAir(map, tx, ty, py), C.SOIL, map.zone[tx] === '05' ? 0.08 : 0);
             }
             // flancs à l'air libre : un liseré d'ombre (ou de lumière à gauche)
