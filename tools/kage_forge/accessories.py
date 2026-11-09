@@ -30,10 +30,8 @@ rrrrrrrrrrrrrrrr
 """),
 }
 
-# lignes 1 à 3 de toutes les têtes de profil (head_r, head_r_up, head_r_squint…),
-# et de la tête vue de dos (head_bs : KAGE qui entre dans la porte du temple)
+# lignes 1 à 3 de toutes les têtes de profil (head_r, head_r_up, head_r_squint…)
 HEAD_TOP = ["...hhHHHHI..", "..hHHHHHHHI.", ".hhHHHHHHHHI"]
-HEAD_TOP_BACK = ["...hhHHhh...", "..hHHHHHHh..", ".hHKHHHHKHh."]
 
 
 def _rows(text):
@@ -41,25 +39,21 @@ def _rows(text):
 
 
 _HEAD_PTS = [(i, k, c) for k, row in enumerate(HEAD_TOP) for i, c in enumerate(row) if c != "."]
-_HEAD_PTS_BACK = [(i, k, c) for k, row in enumerate(HEAD_TOP_BACK) for i, c in enumerate(row) if c != "."]
 # la lame ou les mains peuvent passer devant le haut de la tête (sabre levé) :
 # on accepte quelques pixels masqués
 HEAD_MIN = 0.8
 
 
 def find_head(g):
-    """(hx, hy) de la tête (de profil, ou de dos) dans la grille (meilleure correspondance), ou None."""
-    for pts in (_HEAD_PTS, _HEAD_PTS_BACK):
-        best, pos = 0, None
-        for y in range(CH - 3):
-            for x in range(-1, CW - 11):
-                n = sum(1 for i, k, c in pts
-                        if 0 <= x + i < CW and g[y + k, x + i] == c)
-                if n > best:
-                    best, pos = n, (x, y - 1)
-        if best >= HEAD_MIN * len(pts):
-            return pos
-    return None
+    """(hx, hy) de la tête de profil dans la grille (meilleure correspondance), ou None."""
+    best, pos = 0, None
+    for y in range(CH - 3):
+        for x in range(-1, CW - 11):
+            n = sum(1 for i, k, c in _HEAD_PTS
+                    if 0 <= x + i < CW and g[y + k, x + i] == c)
+            if n > best:
+                best, pos = n, (x, y - 1)
+    return pos if best >= HEAD_MIN * len(_HEAD_PTS) else None
 
 
 # pixels que le chapeau ne recouvre jamais : lame, poignée, mains, avant-bras

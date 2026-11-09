@@ -163,9 +163,6 @@ export class Player {
         this.anim.update(dt);
         if (this.anim.finished) this.setState('idle');
         return;
-      case 'enter':                       // il entre de dos dans la porte du temple (dessiné par la porte, voir main.js)
-        this.anim.update(dt);
-        return;
       case 'dash':
         this.vy = 0;
         if (this.timer < P.dashTime) {

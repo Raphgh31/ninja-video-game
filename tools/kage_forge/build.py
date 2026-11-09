@@ -23,7 +23,7 @@ OUT = ROOT / "assets/characters/kage"
 DOCS = ROOT / "docs/kage"
 SPACING = 2
 PIVOT = (16, 31)          # milieu bas de la cellule : point d'ancrage des pieds
-GROUNDED = {"idle", "run", "sprint", "land", "slide", "skid", "kick", "walk", "enter"}
+GROUNDED = {"idle", "run", "sprint", "land", "slide", "skid", "kick", "walk"}
 
 
 def hex2rgb(h):

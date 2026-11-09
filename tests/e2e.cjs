@@ -1099,13 +1099,11 @@ async function main() {
 
   await test('potager : la sortie termine le chapitre', async () => {
     const gx = await pg.evaluate(() => Math.floor(window.__kage.level.goal.x / 16));
-    await pat(gx - 4); await PK.down('ArrowRight'); await pw(900); await PK.up('ArrowRight'); await pw(300);
-    // KAGE entre dans le passage : on ne le voit plus devant la porte, puis la fin du chapitre
-    const inside = await pg.evaluate(() => ({ entering: !!window.__kage.run?.entering, x: window.__kage.player.x }));
-    await pw(2000);
+    // KAGE continue d'avancer, passe derrière la porte (on ne le voit plus), puis la fin du chapitre
+    await pat(gx - 8); await PK.down('ArrowRight'); await pw(2600); await PK.up('ArrowRight'); await pw(600);
     const r = await pg.evaluate(() => [!document.querySelector('.win').hidden, document.querySelector('.win__title').textContent]);
     const s = await SAVE();
-    expect(inside.entering && r[0] && /Potager/.test(r[1]) && s.done, `entre dans la porte ${JSON.stringify(inside)}, fin ${r.join(' / ')}, sauvegarde terminée ${s && s.done}`);
+    expect(r[0] && /Potager/.test(r[1]) && s.done, `fin ${r.join(' / ')}, sauvegarde terminée ${s && s.done}`);
   });
 
   await test('aucune erreur dans la console', async () => {

@@ -638,8 +638,7 @@ function build() {
   b.bossDef = { type: 'karasu', x: a + 31, y: A, arena: [a, gx], piles: [a + 11, a + 51], scaffolds };
   b.prop('temple_gate', gx, A);
   b.block(gx, 1, A - 7, A - 1, 'D');                 // fermée : on ne passe pas (s'ouvre quand il est vaincu)
-  b.on(gx + 1, 'G');                                 // la sortie : on entre dans le passage
-  b.block(gx + 2, 4, 0, A - 1, '%');                 // le bout du monde : rien derrière la porte
+  b.on(gx + 4, 'G');                                 // la sortie : derrière le mur du pavillon, KAGE a disparu
   b.zones[b.zones.length - 1].x1 = b.x;
   return b;
 }
