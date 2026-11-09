@@ -534,7 +534,7 @@ async function main() {
 
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
     await pw(1500);
-    const m = await pg.evaluate(() => { const m = window.__kage.music; return [m.playing, m.source?.loop, m.source?.loopStart, m.source?.loopEnd, m.buffer?.duration ?? 0]; });
+    const m = await pg.evaluate(() => { const m = window.__kage.music, v = m.voices.main; return [m.playing && m.active === 'main', v.source?.loop, v.source?.loopStart, v.source?.loopEnd, v.buffer?.duration ?? 0]; });
     expect(m[0] && m[1] && m[2] > 20 && Math.abs(m[3] - m[2] - 90) < 0.01 && m[4] >= m[3], `musique ${m.join(' / ')}`);
   });
 
@@ -983,10 +983,12 @@ async function main() {
     expect(r.join() === 'perch,false,false' && !(await gateOpen()), `corbeau ${r.join()}, porte ouverte ${await gateOpen()}`);
   });
 
-  await test('potager : en entrant dans l\'arène, il croasse et s\'envole ; sa barre de vie apparaît en haut', async () => {
+  await test('potager : en entrant dans l\'arène, il croasse sur son perchoir (la musique du combat monte), puis s\'envole ; sa barre de vie apparaît en haut', async () => {
     await pat(B.a0 + 9); await pw(1600);
-    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.engaged, b.flying, document.querySelector('.boss').classList.contains('on')]; });
-    expect(r.join() === 'true,true,true', `engagé, en vol, barre : ${r.join()}`);
+    const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.engaged, b.flying, b.state, document.querySelector('.boss').classList.contains('on'), window.__kage.music.active]; });
+    await pw(2800);
+    const later = await pg.evaluate(() => window.__kage.boss.flying);
+    expect(r.join() === 'true,false,taunt,true,boss' && later, `à 1,6 s : engagé, en vol, état, barre, musique ${r.join()} ; à 4,4 s en vol ${later}`);
   });
 
   await test('potager : plongeon — debout, KAGE est touché (2) ; en glissade, il passe dessous', async () => {

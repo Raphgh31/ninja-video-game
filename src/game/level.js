@@ -17,6 +17,7 @@ export class Level {
     this.theme = def.theme ?? 'ville';
     this.chapter = def.chapter ?? null;
     this.music = def.music ?? null;
+    this.bossMusic = def.bossMusic ?? null;   // musique du combat (fondu enchaîné à l'entrée de l'arène)
     this.boss = def.boss ?? null;     // { type, x, y } : le boss du chapitre (et son perchoir)   // { src, loopStart, loopEnd } : musique du chapitre
     this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;

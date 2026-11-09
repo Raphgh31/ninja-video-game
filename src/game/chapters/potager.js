@@ -659,5 +659,9 @@ export const POTAGER = {
   chapter: 1,
   // introduction (25 s) jouée une fois, puis boucle de 90 s (24 mesures à 64 BPM)
   music: { src: './music/potager.mp3', loopStart: 25.09, loopEnd: 115.089 },
+  // le combat contre KARASU-KASHI (zone 9) : musique fournie par l'utilisateur,
+  // introduction de 7 s puis boucle de 66 s (fondu de deux mesures en fin de
+  // boucle) ; plus basse que celle du chapitre : elle reste en fond
+  bossMusic: { src: './music/karasu.mp3', loopStart: 7.27, loopEnd: 73.51, gain: 0.6 },
   next: 'Les rizières',
 };

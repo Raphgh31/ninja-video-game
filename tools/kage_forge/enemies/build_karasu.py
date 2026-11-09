@@ -111,6 +111,9 @@ def main():
             "look": {"frames": ["look_1", "look_2", "look_2", "look_1"], "durations": [260, 500, 300, 260], "loop": False},
             "hatfix": {"frames": ["hatfix_1", "hatfix_2", "idle_1"], "durations": [240, 240, 200], "loop": False},
             "croak": {"frames": ["croak_1", "croak_2", "croak_1", "croak_2"], "durations": [90, 220, 90, 260], "loop": False},
+            # croassements enregistrés : le jeu ouvre et ferme le bec au rythme des cris
+            "cawOpen": {"frames": ["croak_2"], "loop": False},
+            "cawShut": {"frames": ["croak_1"], "loop": False},
             "takeoff": {"frames": ["takeoff_1", "takeoff_2"], "durations": [200, 160], "loop": False},
             "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [90, 70, 110, 70], "loop": True},
             "drop": {"frames": ["drop_1", "drop_2"], "durations": [120, 200], "loop": False},

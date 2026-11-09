@@ -306,9 +306,12 @@ function onKarasuEvent(n, d) {
   switch (n) {
     case 'engage': bossUi.shown = 1; break;
     case 'disengage': bossUi.shown = 0; break;
-    case 'caw': sfxAt('caw', d, { soft: d.soft }); break;
+    // sons enregistrés : un coup d'aile à chaque descente d'aile, les croassements
+    // au début du combat (trois cris) et à chaque retour au perchoir (deux cris)
+    case 'wingbeat': sfxAt('karasuWing', d); break;
+    case 'caw': sfxAt(d.long ? 'karasuCawLong' : 'karasuCaw', d); break;
     case 'straw': fx.sparks(d.x + (Math.random() - 0.5) * 20, d.y, 5, { palette: 'straw', speed: 60 }); fx.drift(d.x, d.y + 10, 3, { palette: 'straw', speed: 30 }); break;
-    case 'flap': sfxAt('flap', d); fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;
+    case 'flap': fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;   // (le son : wingbeat)
     case 'drop': break;
     case 'glare': sfxAt('glare', d); break;
     case 'dive': sfxAt('diveWhistle', d); fx.drift(d.x, d.y - 30, 3, { speed: 50 }); break;
@@ -320,10 +323,10 @@ function onKarasuEvent(n, d) {
       fx.dust(d.x - d.dir * 6, d.y, 5, { dir: -d.dir, spread: 35, up: 20 });
       fx.drift(d.x, d.y - 24, 5, { speed: 60, up: 40 });
       break;
-    case 'shake': sfxAt('flap', d); fx.dust(d.x, d.y, 5, { spread: 30, palette: 'dirt' }); fx.drift(d.x, d.y - 20, 4, { speed: 45 }); break;
+    case 'shake': fx.dust(d.x, d.y, 5, { spread: 30, palette: 'dirt' }); fx.drift(d.x, d.y - 20, 4, { speed: 45 }); break;
     // les pierres : il les saisit sur un tas, les lâche, elles s'écrasent
     case 'grab': sfxAt('grabRock', d); fx.dust(d.x, d.y, 5, { spread: 26, up: 14, palette: 'dirt' }); break;
-    case 'throw': sfxAt('flap', d); break;
+    case 'throw': break;
     case 'rockLand':
       sfxAt('rockThud', d, { size: d.size });
       fx.dust(d.x, d.y, 3 + d.size * 2, { spread: 22 + d.size * 8, up: 12 + d.size * 5, palette: 'dirt' });
@@ -458,6 +461,7 @@ refreshMute();
 // musique du chapitre : chargée tout de suite, jouée au premier geste du joueur
 const music = new Music();
 music.load(level.music);
+music.add('boss', level.bossMusic);
 const onGesture = () => { unlockAudio(); music.start(); };
 for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
 
@@ -602,6 +606,12 @@ function update(dt) {
   }
   ryoShown = Math.max(0, ryoShown - dt);
   if (CHAPTER) updateChapterUi(dt);
+  // musique : celle du combat dès qu'on entre dans le champ du corbeau (zone 9),
+  // en fondu enchaîné, tant qu'il n'est pas vaincu ; ensuite, retour à celle du chapitre
+  if (CHAPTER && boss && level.bossMusic && !run.won) {
+    const want = boss.state !== 'defeated' && level.zoneAt(player.x)?.id === '09' ? 'boss' : 'main';
+    if (music.active !== want) music.switchTo(want, want === 'boss' ? { fadeOut: 4, fadeIn: 6, delay: 1 } : { fadeOut: 3, fadeIn: 5, delay: 1.5 });
+  }
   // progression : lanternes et arrivée
   if (!run.won && templeGate && level.doorOpen && level.doorT >= level.doorTime * 0.6 && player.onGround
     && player.x >= templeGate.X - 4 && Math.abs(player.y - templeGate.G) < 6) startEntering();

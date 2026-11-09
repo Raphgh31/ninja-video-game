@@ -13,8 +13,9 @@ rythme et même niveau, distants d'un nombre entier de mesures) :
 
     - égalisation légère pour laisser la place aux bruitages : coupe sous 30 Hz,
       creux de 2 dB vers 3,2 kHz (lame, shuriken), aigus adoucis au-dessus de 10 kHz ;
-    - fondu enchaîné à puissance constante d'un temps, qui se termine sur le temps
-      fort B (la fin de boucle se fond dans ce qui précède A) ;
+    - fondu enchaîné à puissance constante d'un temps (ou de --fondu secondes : la
+      musique du boss fond sa fin dans son début sur deux mesures), qui se termine
+      sur le temps fort B (la fin de boucle se fond dans ce qui précède A) ;
     - après B, une marge de 0,4 s recopiée depuis A : la boucle reste sans couture
       même si le décodeur du navigateur décale le son (±0,2 s) ;
     - volume ramené à -16 LUFS (gain fixe, crêtes sous -1,5 dB), MP3 160 kb/s ;
@@ -90,10 +91,10 @@ def chercher(path):
         print(f'  score {s:.3f}   A = {a:7.2f} s   B = {b:7.2f} s   boucle {b - a:6.2f} s')
 
 
-def monter(src, dst, debut, A, B, bpm, marge=0.40):
+def monter(src, dst, debut, A, B, bpm, marge=0.40, fondu=None):
     x = lire(src, eq=True)
     a, b, s0 = (int(round(v * SR)) for v in (A, B, debut))
-    nx, nm = int(round(60 / bpm * SR)), int(round(marge * SR))
+    nx, nm = int(round((fondu or 60 / bpm) * SR)), int(round(marge * SR))
     t = np.linspace(0, np.pi / 2, nx, endpoint=False)[:, None]
     fondu = np.cos(t) * x[b - nx:b] + np.sin(t) * x[a - nx:a]
     out = np.concatenate([x[s0:b - nx], fondu, x[a:a + nm]])
@@ -125,9 +126,10 @@ if __name__ == '__main__':
     m.add_argument('--a', type=float, required=True, help='point de retour de la boucle (temps fort, s)')
     m.add_argument('--b', type=float, required=True, help='fin de la boucle (même temps fort, une section plus loin)')
     m.add_argument('--bpm', type=float, required=True, help='tempo (durée du fondu enchaîné : un temps)')
+    m.add_argument('--fondu', type=float, default=None, help='durée du fondu enchaîné (s), au lieu d\'un temps : une transition plus douce')
     args = ap.parse_args()
     if args.cmd == 'chercher':
         chercher(args.source)
     else:
-        monter(args.source, args.sortie, args.debut, args.a, args.b, args.bpm)
+        monter(args.source, args.sortie, args.debut, args.a, args.b, args.bpm, fondu=args.fondu)
     sys.exit(0)

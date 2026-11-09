@@ -28,7 +28,11 @@ export const KARASU = {
   flySpeed: 115,           // px/s en vol (déplacements)
   carrySpeed: 80,          // px/s quand il porte une pierre (il suit KAGE)
   takeoff: 0.42,           // s
-  taunt: 0.75,             // s de croassement avant de partir
+  taunt: 3.8,              // s sur son perchoir quand KAGE arrive : il croasse trois fois, le toise, puis part
+                           // chercher sa première pierre (le joueur comprend qu'un combat commence)
+  cawLong: [0.03, 1.12, 2.21],   // début des cris dans karasu_croa_long.mp3 (s) : le bec s'ouvre avec eux
+  cawShort: [0.03, 1.14],        // début des cris dans karasu_croa.mp3 (retour au perchoir)
+  cawOpen: 0.5,                  // s de bec ouvert par cri
   grab: 0.42,              // s pour saisir une pierre au sol
   grabHover: 6,            // px : ses pattes au-dessus du sol quand il saisit une pierre
   // par palier (début, milieu, fin)
@@ -38,7 +42,7 @@ export const KARASU = {
   throwLead: 0.4,          // la pierre part avec un peu de l'élan de KAGE (vx × throwLead, ±50 px/s)
   aim: [0.85, 0.68, 0.55], // s de visée avant le plongeon (le joueur doit pouvoir le lire)
   stuck: [2.9, 2.6, 2.3],  // s coincé dans le sol
-  perchPause: [1.6, 1.2, 0.9],
+  perchPause: [2.1, 1.9, 1.8],   // s sur le perchoir au retour : il finit ses deux croassements (1,7 s) avant de repartir
   diveSpeed: [300, 330, 360],
   diveRise: 34,            // px : il prend de la hauteur avant de plonger
   diveClear: 17,           // px : hauteur de sa boîte au-dessus du sol quand elle passe sur KAGE
@@ -57,6 +61,8 @@ export const KARASU = {
   knockFall: 360,          // gravité de sa chute quand il est touché en vol
 };
 
+// les images où l'aile descend : le son du coup d'aile part à ce moment-là
+const WING_DOWN = new Set(['fly_3', 'carry_3', 'open_2', 'takeoff_2', 'drop_2']);
 const PHASE_OF = (f) => (f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
 const touch = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -85,6 +91,7 @@ export class Karasu {
     this.setState('perch');
     this.animName = 'idle';
     this.animT = 0;
+    this.cawing = null;
     this.flash = 0;
     this.shots = [];           // pierres lâchées
     this.carry = null;         // la pierre qu'il tient dans ses serres
@@ -209,6 +216,7 @@ export class Karasu {
   update(dt, player) {
     this.timer += dt;
     this.animT += dt;
+    this.voice(dt);
     this.flash = Math.max(0, this.flash - dt);
     this.hitT = Math.max(0, (this.hitT ?? 0) - dt);
     // l'épouvantail : un ressort amorti
@@ -244,13 +252,14 @@ export class Karasu {
             this.engaged = true;
             this.onEvent?.('engage', {});
             this.setState('taunt');
-            this.play('croak');
-            this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true });
+            this.caw(KARASU.cawLong, true);
           }
         } else if (this.timer > KARASU.perchPause[P]) this.takeOff(P);
         break;
       }
-      case 'taunt':
+      case 'taunt':                  // il croasse sur son perchoir, toise KAGE, puis s'envole
+        this.facing = toward;
+        if (!this.cawing && this.animName !== 'look') this.play('look');
         if (this.timer > KARASU.taunt) this.takeOff(P);
         break;
       case 'takeoff':
@@ -295,7 +304,6 @@ export class Karasu {
         if ((Math.abs(this.x - lead) < 10 && this.timer > 0.5) || this.timer > 5) {
           this.setState('release');
           this.play('open');                 // il ouvre les serres : la pierre va tomber
-          this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true, soft: true });
         }
         break;
       }
@@ -389,7 +397,7 @@ export class Karasu {
           this.x = top.x; this.y = top.y;
           this.kick(-2.5);
           this.setState('perch');
-          this.play('hatfix');
+          this.caw(KARASU.cawShort, false);      // de retour sur son perchoir : il croasse
         }
         break;
       }
@@ -410,15 +418,37 @@ export class Karasu {
 
   /** Les petites animations de caractère, quand il est perché. */
   personality(dt) {
+    if (this.cawing) return;                      // il croasse : le bec suit les cris (voir caw)
     const a = this.meta.animations[this.animName];
-    if (this.animName !== 'idle' && !a.loop && this.animT > a.durations.reduce((s, d) => s + d, 0) / 1000) this.play('idle');
+    if (this.animName !== 'idle' && !a.loop && (!a.durations || this.animT > a.durations.reduce((s, d) => s + d, 0) / 1000)) this.play('idle');
     this.nextIdle -= dt;
     if (this.nextIdle <= 0 && this.animName === 'idle') {
-      const r = Math.random();
-      this.play(r < 0.45 ? 'look' : r < 0.75 ? 'hatfix' : 'croak');
-      if (this.animName === 'croak') this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true, soft: true });
+      this.play(Math.random() < 0.6 ? 'look' : 'hatfix');
       this.nextIdle = 2.4 + Math.random() * 2.6;
     }
+  }
+
+  /** Il croasse : le son enregistré, et le bec qui s'ouvre au début de chaque cri. */
+  caw(times, long) {
+    this.cawing = { t: 0, times };
+    this.onEvent?.('caw', { x: this.x, y: this.y - 40, long });
+  }
+
+  /** Le bec pendant un croassement (perché) ; un coup d'aile à chaque descente d'aile. */
+  voice(dt) {
+    if (this.cawing) {
+      const c = this.cawing;
+      c.t += dt;
+      const open = c.times.some((t0) => c.t >= t0 && c.t < t0 + KARASU.cawOpen);
+      if (['perch', 'taunt'].includes(this.state)) this.play(open ? 'cawOpen' : 'cawShut');
+      if (c.t > c.times[c.times.length - 1] + KARASU.cawOpen + 0.15 || !['perch', 'taunt'].includes(this.state)) {
+        this.cawing = null;
+        if (['perch', 'taunt'].includes(this.state)) this.play('idle');
+      }
+    }
+    const f = this.frame();
+    if (f !== this.lastFrame && WING_DOWN.has(f)) this.onEvent?.('wingbeat', { x: this.x, y: this.y - 30 });
+    this.lastFrame = f;
   }
 
   takeOff(P) {

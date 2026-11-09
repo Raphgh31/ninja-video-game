@@ -1,6 +1,9 @@
 // Sons synthétisés en direct (Web Audio), sans fichier : style rétro, assorti
 // au pixel art. Chaque son est une petite recette (oscillateur et/ou bruit
 // filtré, avec enveloppe). Le contexte audio démarre au premier geste du joueur.
+// Exception : les sons enregistrés fournis par l'utilisateur (ailes et
+// croassements de KARASU-KASHI, assets/sfx/), joués comme échantillons.
+import { bytesOf } from './bytes.js';
 
 let ac = null;
 let master = null;
@@ -37,6 +40,7 @@ function ensure() {
 export function unlockAudio() {
   ensure();
   if (ac && ac.state !== 'running') ac.resume().catch(() => {});
+  if (ac) for (const f of Object.keys(sampleBytes)) decodeSample(f);   // les échantillons sont prêts avant leur premier usage
 }
 
 export function isMuted() { return muted; }
@@ -137,7 +141,47 @@ function ring({ f = 3000, vol = 0.03, dur = 0.15, delay = 0 }) {
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 // ---- recettes ---------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// échantillons enregistrés (assets/sfx/, découpés par tools/sons_karasu.py)
+// ---------------------------------------------------------------------------
+const SAMPLES = {
+  karasuWing: { files: ['./sfx/karasu_aile_1.mp3', './sfx/karasu_aile_2.mp3', './sfx/karasu_aile_3.mp3'], gain: 0.5, vary: 0.06 },
+  karasuCawLong: { files: ['./sfx/karasu_croa_long.mp3'], gain: 0.95 },
+  karasuCaw: { files: ['./sfx/karasu_croa.mp3'], gain: 0.85 },
+};
+const sampleBytes = {};      // fichier -> promesse des octets (chargés dès le départ)
+const sampleBuf = {};        // fichier -> AudioBuffer décodé (ou promesse en cours)
+for (const def of Object.values(SAMPLES)) for (const f of def.files) sampleBytes[f] = bytesOf(f).catch(() => null);
+
+function decodeSample(f) {
+  if (sampleBuf[f]) return;
+  sampleBuf[f] = sampleBytes[f].then((b) => (b ? ac.decodeAudioData(b.slice(0)) : null)).then((buf) => { sampleBuf[f] = buf; }).catch(() => { sampleBuf[f] = null; });
+}
+let lastWing = -1;
+/** Joue un échantillon (au hasard parmi ses variantes) vers la sortie en cours. */
+function sample(name) {
+  const def = SAMPLES[name];
+  for (const f of def.files) decodeSample(f);                  // décodés au premier usage
+  const ready = def.files.filter((f) => sampleBuf[f] instanceof AudioBuffer);
+  if (!ready.length) return;
+  let k = Math.floor(Math.random() * ready.length);
+  if (name === 'karasuWing' && ready.length > 1 && k === lastWing) k = (k + 1) % ready.length;   // pas deux fois le même coup d'aile
+  if (name === 'karasuWing') lastWing = k;
+  const s = ac.createBufferSource();
+  s.buffer = sampleBuf[ready[k]];
+  if (def.vary) s.playbackRate.value = 1 + (Math.random() * 2 - 1) * def.vary;
+  const g = ac.createGain();
+  g.gain.value = def.gain;
+  s.connect(g).connect(out);
+  s.start();
+}
+
 const SOUNDS = {
+  // KARASU-KASHI, sons enregistrés : un coup d'aile à chaque descente d'aile,
+  // les croassements au début du combat et à chaque retour au perchoir
+  karasuWing: () => sample('karasuWing'),
+  karasuCawLong: () => sample('karasuCawLong'),
+  karasuCaw: () => sample('karasuCaw'),
   // pas de KAGE : petit choc mat sur la terre, légèrement différent à chaque fois
   step: ({ sprint, walk } = {}) => {
     const v = sprint ? 0.05 : walk ? 0.022 : 0.034;

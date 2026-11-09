@@ -84,6 +84,8 @@ Grand corbeau d'encre aux reflets pétrole, coiffé d'un **sugegasa de paille be
 | Équité | si KAGE quitte l'arène, il regagne son perchoir et attend ; il ne s'écrase jamais hors de l'arène ; si KAGE meurt, le corbeau reprend toute sa vie et les plateformes se relèvent |
 | Vaincu | il s'affale ; plumes, cri qui retombe ; 1,3 s plus tard le talisman de la porte se déchire et les deux battants pivotent (1,6 s). La défaite est **sauvegardée** (`bossDefeated`) |
 
+Sons (novembre 2026, enregistrements fournis par l'utilisateur) : un coup d'aile à chaque descente d'aile, trois croassements quand il repère KAGE (il reste alors 3,8 s sur son perchoir avant sa première pierre), deux à chaque retour au perchoir, bec synchronisé ; musique du combat en fondu enchaîné dès l'entrée dans la zone 9 (voir `docs/REPRISE.md`, § 6 sexies).
+
 Réglages : `KARASU` dans `src/game/karasu.js` (`altitude`, `rocks`, `releaseWindup`, `lead`, `throwLead`, `rock`, `grabHover`, `aim`, `diveRise`, `stuck`…). Le point où il tient la pierre (`grip`, par image) est exporté par `build_karasu.py` (planche `docs/enemies/karasu_serres.png`). Arène : zone 9 de `src/game/chapters/potager.js` (`bossDef` : `piles`, `scaffolds`) ; plateformes : `Level.restoreScaffolds` / `collapseScaffolds`, dessin `Live.scaffold` ; tas de pierres : `rock_pile` (`props.js`). Les anciennes images des glands et navets restent dans la planche (`karasu_items.png`) mais ne servent plus.
 
 ![Porte ouverte](karasu_porte_ouverte.png)
