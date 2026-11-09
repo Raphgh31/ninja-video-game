@@ -23,7 +23,7 @@ OUT = ROOT / "assets/characters/kage"
 DOCS = ROOT / "docs/kage"
 SPACING = 2
 PIVOT = (16, 31)          # milieu bas de la cellule : point d'ancrage des pieds
-GROUNDED = {"idle", "run", "sprint", "land", "slide", "skid", "kick", "walk"}
+GROUNDED = {"idle", "run", "sprint", "land", "slide", "skid", "kick", "walk", "enter"}
 
 
 def hex2rgb(h):
@@ -130,7 +130,8 @@ def main():
         names = sk.get("accessories") or []
         if not names:
             continue
-        nohead = [f"{k}[{i}]" for k in order for i, g in enumerate(rendered[k])
+        # (sur les images de base : c'est là que l'accessoire est posé, avant l'agrandissement)
+        nohead = [f"{k}[{i}]" for k in order for i, g in enumerate(small[k])
                   if k not in ("death", "respawn") and find_head(g) is None]
         if nohead:
             raise SystemExit(f"Accessoires du skin {sid} : tête introuvable dans {', '.join(nohead)}")

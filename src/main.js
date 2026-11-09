@@ -367,7 +367,7 @@ function startEntering() {
   run.won = true;                                   // plus de commandes, le chrono s'arrête
   run.entering = { t: 0, u0: (player.x - templeGate.X) / Math.cos((28 * Math.PI) / 180) };
   player.vx = 0;
-  player.anim.play('walk', { restart: true });
+  player.setState('enter');                       // la marche de dos (il s'éloigne dans le passage)
   templeGate.inside = drawEntering;
 }
 function updateEntering(dt) {
@@ -379,18 +379,27 @@ function updateEntering(dt) {
 function drawEntering(ctx, cam, gate) {
   const e = run.entering;
   if (!e) return;
+  // il s'éloigne de dos dans le passage, à sa taille (pas de rapetissement) ;
+  // les piliers et les vantaux le cachent peu à peu, et il s'efface dans la pénombre
   const p = Math.min(1, e.t / ENTER_TIME);
   const u = e.u0 * (1 - Math.min(1, p * 3)), w = -60 * p, v = 4 * Math.min(1, p * 6);
-  const at = gate.proj(u, v, w), k = gate.scaleAt(u, w);
+  const at = gate.proj(u, v, w);
   ctx.save();
-  ctx.globalAlpha = p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) / 0.45);
-  ctx.translate(Math.round(at.x - cam.x), Math.round(at.y - cam.y));
-  ctx.scale(k, k);
-  player.anim.draw(ctx, look.sheet, 0, 0, 1);
+  ctx.globalAlpha = p < 0.45 ? 1 : Math.max(0, 1 - (p - 0.45) / 0.5);
+  player.anim.draw(ctx, look.sheet, Math.round(at.x - cam.x), Math.round(at.y - cam.y), 1);
   ctx.restore();
 }
 
 /** La porte du temple s'ouvre : le talisman se déchire, les battants pivotent. */
+// Elle ne s'ouvre que lorsque KAGE la voit : vaincu (ou à la reprise d'une partie
+// où il l'est déjà), le corbeau la laisse « prête », et elle s'ouvre devant lui dès
+// qu'elle entre dans l'image (voir updateGate) : le joueur la voit toujours s'ouvrir.
+let gatePending = false;
+function updateGate() {
+  if (!gatePending || !gateProp) return;
+  const gx = gateProp.x * 16 + 8;
+  if (gx - camera.x < VIEW_W - 40 && gx - camera.x > -40) { gatePending = false; openTempleGate(); }
+}
 function openTempleGate(silent = false) {
   level.doorOpen = true;
   bossUi.shown = 0;
@@ -606,6 +615,7 @@ function update(dt) {
   }
   ryoShown = Math.max(0, ryoShown - dt);
   if (CHAPTER) updateChapterUi(dt);
+  updateGate();
   // musique : celle du combat dès qu'on entre dans le champ du corbeau (zone 9),
   // en fondu enchaîné, tant qu'il n'est pas vaincu ; ensuite, retour à celle du chapitre
   if (CHAPTER && boss && level.bossMusic && !run.won) {
@@ -930,7 +940,7 @@ function startChapter(resume) {
     level.checkpoints.forEach((k) => { k.lit = k.x <= c.x; });
     level.spawn = { x: c.x, y: c.y };
   }
-  if (boss && save.bossDefeated) { boss.setDefeated(); openTempleGate(true); }
+  if (boss && save.bossDefeated) { boss.setDefeated(); bossUi.shown = 0; gatePending = true; }   // elle s'ouvrira sous ses yeux
   player.respawn(true);
   startX = player.x;
   // reprise : les aides des commandes déjà passées ne reviennent pas
@@ -961,7 +971,7 @@ if (CHAPTER) {
 function updateBossUi(dt) {
   if (bossUi.outro > 0) {
     bossUi.outro -= dt;
-    if (bossUi.outro <= 0) openTempleGate();
+    if (bossUi.outro <= 0) { bossUi.shown = 0; gatePending = true; }   // la porte s'ouvrira quand KAGE la verra
   }
   const f = Math.max(0, boss.hp) / KARASU.hp;
   bossUi.lag = bossUi.lag > f ? Math.max(f, bossUi.lag - dt * 0.6) : f;

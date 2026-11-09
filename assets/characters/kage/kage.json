@@ -1093,6 +1093,45 @@
           "duration": 100
         }
       ]
+    },
+    "enter": {
+      "row": 20,
+      "frameCount": 4,
+      "fps": 6,
+      "loop": true,
+      "loopStart": 0,
+      "state": "enter",
+      "strip": "anims/kage_enter.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 167
+        },
+        {
+          "x": 59,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 167
+        },
+        {
+          "x": 118,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 167
+        },
+        {
+          "x": 177,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 167
+        }
+      ]
     }
   },
   "views": {

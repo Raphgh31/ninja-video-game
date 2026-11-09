@@ -1079,17 +1079,21 @@ async function main() {
     await PK.press('KeyX'); await pw(300);
     const st = await pg.evaluate(() => window.__kage.boss.state);
     const closed = !(await gateOpen());
-    // le talisman se déchire (1,3 s), puis les vantaux s'ouvrent lentement (4,2 s) : on passe aux trois cinquièmes
-    await pw(4200);
+    // la porte est loin, hors de l'image : elle attend que KAGE la voie
+    await pw(2500);
+    const stillClosed = !(await gateOpen()) && !(await pg.evaluate(() => window.__kage.level.doorOpen));
+    // KAGE s'approche : elle s'ouvre devant lui (le talisman se déchire, puis les vantaux, lentement)
+    await pat(B.a1 - 7); await pw(4200);
     const s = await SAVE();
     const bar = await pg.evaluate(() => document.querySelector('.boss').classList.contains('on'));
-    expect(st === 'defeated' && closed && (await gateOpen()) && s.bossDefeated && !bar, `état ${st}, fermée juste après ${closed}, ouverte ensuite ${await gateOpen()}, sauvegarde ${s.bossDefeated}, barre ${bar}`);
+    expect(st === 'defeated' && closed && stillClosed && (await gateOpen()) && s.bossDefeated && !bar, `état ${st}, fermée juste après ${closed}, toujours fermée hors de vue ${stillClosed}, ouverte devant KAGE ${await gateOpen()}, sauvegarde ${s.bossDefeated}, barre ${bar}`);
   });
 
-  await test('potager : « Continuer » après sa défaite — il reste vaincu, la porte reste ouverte', async () => {
+  await test('potager : « Continuer » après sa défaite — il reste vaincu ; la porte s\'ouvre devant KAGE', async () => {
     await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
     await pg.click('[data-continue]'); await pw(300);
     const st = await pg.evaluate(() => window.__kage.boss.state);
+    await pat(B.a1 - 7); await pw(4200);
     expect(st === 'defeated' && (await gateOpen()), `corbeau ${st}, porte ouverte ${await gateOpen()}`);
   });
 

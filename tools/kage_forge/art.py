@@ -789,6 +789,79 @@ G.....
 """, x=13, top=14),
 ])
 
+# ENTER — KAGE entre dans la porte du temple, de dos : il s'éloigne en marchant.
+# Silhouette fine, aux proportions du profil (tête de 10 px, buste de 8 px entre
+# les bras, longues jambes écartées) : jambes et pieds qui alternent (le talon
+# levé montre la semelle), pans du bandeau qui se balancent. Joué par le jeu
+# quand KAGE passe la porte.
+stamp("head_bs", """
+............
+...hhHHhh...
+..hHHHHHHh..
+.hHKHHHHKHh.
+.fGKKKKKKGf.
+.hHKKkkKKHh.
+.hHKHHHHKHh.
+..hHHHHHHh..
+...hhHHhh...
+""")
+_BACK_TOP = """
+..fFFFFf..
+.tFFFFFFt.
+.tTTTTTTt.
+atTTTTTTta
+atTTTTTTta
+atTTTTTTta
+AlLLLLLLlA
+ntTTTTTTtn
+"""
+_BACK_LEGS = {
+    "gauche": """
+..tT..Tt..
+..tT..Tt..
+..tT..Tt..
+.ddD..Tt..
+.ddd..Tt..
+......Ddd.
+......Ddd.
+""",
+    "passe": """
+..tT..Tt..
+..tT..Tt..
+..tT..Tt..
+..tT..Tt..
+..tT..Tt..
+.ddD..Ddd.
+.ddD..Ddd.
+""",
+    "droite": """
+..tT..Tt..
+..tT..Tt..
+..tT..Tt..
+..tT..Ddd.
+..tT..ddd.
+.ddD......
+.ddD......
+""",
+}
+_BACK_TAIL = """
+.G..f
+.G..f
+G...f
+G....f
+G....f
+.G....
+.G....
+"""
+
+
+def _back_walk(legs, tail_x):
+    body = _BACK_TOP.strip("\n") + "\n" + _BACK_LEGS[legs].strip("\n")
+    return Frame([S("head_bs", 10, 7), A("\n" + body + "\n", x=11, top=16), A(_BACK_TAIL, x=tail_x, top=15)])
+
+
+ENTER = [_back_walk("gauche", 14), _back_walk("passe", 13), _back_walk("droite", 12), _back_walk("passe", 13)]
+
 VIEW_RIGHT = IDLE[0]
 # Profil gauche : vrai dessin (pan long côté éloigné, sombre ; pan court côté
 # proche, clair ; pointe de capuche éloignée), puis orienté vers la gauche.
@@ -893,4 +966,5 @@ ANIMS = {
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),
+    "enter":         dict(frames=ENTER,   fps=6,  loop=True,  state="enter"),
 }
