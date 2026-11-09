@@ -115,9 +115,10 @@ def main():
             "cawOpen": {"frames": ["croak_2"], "loop": False},
             "cawShut": {"frames": ["croak_1"], "loop": False},
             "takeoff": {"frames": ["takeoff_1", "takeoff_2"], "durations": [200, 160], "loop": False},
-            "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [90, 70, 110, 70], "loop": True},
+            # battement lent (0,56 s, un coup d'aile sonore par descente : ~1,8 par seconde)
+            "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [150, 115, 180, 115], "loop": True},
             "drop": {"frames": ["drop_1", "drop_2"], "durations": [120, 200], "loop": False},
-            "carry": {"frames": ["carry_1", "carry_2", "carry_3", "carry_2"], "durations": [100, 80, 120, 80], "loop": True},
+            "carry": {"frames": ["carry_1", "carry_2", "carry_3", "carry_2"], "durations": [160, 120, 190, 120], "loop": True},
             "open": {"frames": ["open_1", "open_2"], "durations": [110, 400], "loop": False},
             "aim": {"frames": ["aim_1", "aim_2"], "durations": [140, 140], "loop": True},
             "dive": {"frames": ["dive_1", "dive_2"], "durations": [80, 80], "loop": True},

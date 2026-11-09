@@ -145,7 +145,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // échantillons enregistrés (assets/sfx/, découpés par tools/sons_karasu.py)
 // ---------------------------------------------------------------------------
 const SAMPLES = {
-  karasuWing: { files: ['./sfx/karasu_aile_1.mp3', './sfx/karasu_aile_2.mp3', './sfx/karasu_aile_3.mp3'], gain: 0.5, vary: 0.06 },
+  // coups d'ailes : baissés de 0,5 à 0,3 (−4,4 dB) à la demande de l'utilisateur, « trop forts »
+  karasuWing: { files: ['./sfx/karasu_aile_1.mp3', './sfx/karasu_aile_2.mp3', './sfx/karasu_aile_3.mp3'], gain: 0.3, vary: 0.06 },
   karasuCawLong: { files: ['./sfx/karasu_croa_long.mp3'], gain: 0.95 },
   karasuCaw: { files: ['./sfx/karasu_croa.mp3'], gain: 0.85 },
 };
