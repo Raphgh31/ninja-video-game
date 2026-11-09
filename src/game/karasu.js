@@ -21,7 +21,7 @@ import { TILE } from './level.js';
 
 export const KARASU = {
   hp: 24,
-  engageX: 7,              // cases après le début de l'arène : le combat commence
+  engageX: 1,              // cases après le début de l'arène : le combat commence (dès qu'on y entre : il croasse)
   altitude: 76,            // px : ses pattes au-dessus du sol en vol (le corps entre ~92 et ~134 px) :
                            // deux fois plus haut qu'avant : hors de portée depuis le sol (sabre et
                            // shuriken au sommet d'un saut), à portée d'un saut depuis les plateformes

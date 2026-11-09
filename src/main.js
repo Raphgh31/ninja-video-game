@@ -309,7 +309,8 @@ function onKarasuEvent(n, d) {
     // sons enregistrés : un coup d'aile à chaque descente d'aile, les croassements
     // au début du combat (trois cris) et à chaque retour au perchoir (deux cris)
     case 'wingbeat': sfxAt('karasuWing', d); break;
-    case 'caw': sfxAt(d.long ? 'karasuCawLong' : 'karasuCaw', d); break;
+    // (le premier, quand KAGE entre dans l'arène, s'entend en entier même si le corbeau est encore hors de l'image)
+    case 'caw': if (d.long) sfx('karasuCawLong'); else sfxAt('karasuCaw', d); break;
     case 'straw': fx.sparks(d.x + (Math.random() - 0.5) * 20, d.y, 5, { palette: 'straw', speed: 60 }); fx.drift(d.x, d.y + 10, 3, { palette: 'straw', speed: 30 }); break;
     case 'flap': fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;   // (le son : wingbeat)
     case 'drop': break;
@@ -619,8 +620,9 @@ function update(dt) {
   // musique : celle du combat dès qu'on entre dans le champ du corbeau (zone 9),
   // en fondu enchaîné, tant qu'il n'est pas vaincu ; ensuite, retour à celle du chapitre
   if (CHAPTER && boss && level.bossMusic && !run.won) {
-    const want = boss.state !== 'defeated' && level.zoneAt(player.x)?.id === '09' ? 'boss' : 'main';
-    if (music.active !== want) music.switchTo(want, want === 'boss' ? { fadeOut: 4, fadeIn: 6, delay: 1 } : { fadeOut: 3, fadeIn: 5, delay: 1.5 });
+    // (elle commence un peu avant l'arène, 4 cases avant, avec une transition plus vive)
+    const want = boss.state !== 'defeated' && player.x >= boss.arena[0] - 4 * 16 ? 'boss' : 'main';
+    if (music.active !== want) music.switchTo(want, want === 'boss' ? { fadeOut: 2.5, fadeIn: 3.5, delay: 0.4 } : { fadeOut: 3, fadeIn: 5, delay: 1.5 });
   }
   // progression : lanternes et arrivée
   if (!run.won && templeGate && level.doorOpen && level.doorT >= level.doorTime * 0.6 && player.onGround
