@@ -978,7 +978,8 @@ async function main() {
   const gateOpen = () => pg.evaluate((a1) => { const l = window.__kage.level; return !l.solid(a1, l.boss.y - 1); }, B.a1);
 
   await test('potager : zone 9 — le corbeau attend sur son épouvantail, la porte du temple est fermée', async () => {
-    await pat(B.a0 + 2); await pw(300);
+    // juste avant l'arène : le combat commence dès qu'on y entre (KARASU.engageX)
+    await pat(B.a0 - 1); await pw(300);
     const r = await pg.evaluate(() => { const b = window.__kage.boss; return [b.state, b.engaged, document.querySelector('.boss').classList.contains('on')]; });
     expect(r.join() === 'perch,false,false' && !(await gateOpen()), `corbeau ${r.join()}, porte ouverte ${await gateOpen()}`);
   });
