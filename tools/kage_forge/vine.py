@@ -18,7 +18,9 @@ GRIP = (20, 14)         # point de la liane tenu par la main du haut (cellule 48
 HEAD = {}
 
 # bras proche : épaule (15, 16) → coude (18, 16) → main (20, 14) ; main lointaine juste dessous
-HANDS = dict(near_arm=[(18, 16), (20, 14)], far_arm=[(17, 18), (20, 17)], far_hand="hand")
+# bras lointain : il part de l'épaule arrière, son coude dépasse derrière le dos, puis il passe
+# derrière le buste et sa main (plus sombre : elle est de l'autre côté) tient la liane sous l'autre
+HANDS = dict(near_arm=[(18, 16), (20, 14)], far_arm=[(10, 19), (20, 17)])
 
 # --- accroché : le corps pend, les jambes se balancent à peine ---------------
 VINE_HANG = [
@@ -65,9 +67,9 @@ VINE_SWING = [
 ]
 
 # --- grimpe : une main après l'autre, les genoux remontent à tour de rôle ------
-UP = dict(near_arm=[(18, 15), (20, 13)], far_arm=[(17, 19), (20, 18)], far_hand="hand")
+UP = dict(near_arm=[(18, 15), (20, 13)], far_arm=[(10, 20), (20, 18)])
 MID = HANDS
-DOWN = dict(near_arm=[(18, 17), (20, 16)], far_arm=[(18, 15), (21, 13)], far_hand="hand")
+DOWN = dict(near_arm=[(18, 17), (20, 16)], far_arm=[(10, 18), (21, 13)])
 VINE_CLIMB = [
     F(pose(torso="up", tx=12, ty=15, **HEAD, **UP,
            near_leg=[(20, 23), (19, 26)], near_foot="tuck",
