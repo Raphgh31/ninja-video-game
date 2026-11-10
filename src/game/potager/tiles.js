@@ -23,6 +23,8 @@ export class TileMap {
     // fosses des grues : ce ne sont pas des canaux (pas de berge ni d'eau peintes)
     this.pitCols = new Set();
     for (const c of level.cranes ?? []) for (let x = c.x0; x < c.x0 + c.w; x++) this.pitCols.add(x);
+    // marches des escaliers de bois (« - ») : c'est le décor « stair » qui les peint
+    this.treads = new Set((level.props ?? []).filter((p) => p.type === 'stair').flatMap((p) => p.treads.map(([x, y]) => x + ',' + y)));
     for (let tx = 0; tx < this.w; tx++) {
       for (let ty = 0; ty < this.h; ty++) {
         const t = level.rows[ty][tx];
@@ -49,7 +51,7 @@ export class TileMap {
 
   classify(tx, ty, t) {
     const z = this.zone[tx];
-    if (t === '-') return z === '05' ? 'rafter' : 'plank';
+    if (t === '-') return this.treads?.has(tx + ',' + ty) ? 'tread' : z === '05' ? 'rafter' : 'plank';
     if (t === '=') {
       if (z === '05') return 'shelf';
       if (z === '06') return 'beam';
@@ -225,7 +227,10 @@ function branchColor(map, tx, ty, px, py, wx, wy) {
 }
 
 function shelfColor(map, tx, ty, px, py, wx, wy) {
-  // étagère renversée : planches, et des bocaux de graines encore rangés
+  // étagère renversée : planches, et des bocaux de graines encore rangés ; au-dessus
+  // du passage à glissade, son bas est remonté de 6 px (KAGE agrandi de 20 %)
+  if (!map.solid(tx, ty + 1) && py > 9) return null;
+  if (!map.solid(tx, ty + 1) && py === 9) return C.WOOD[0];
   const shelfLine = (wy % 16) < 3;
   if (shelfLine) return (wy % 16) === 0 ? C.WOOD[4] : C.WOOD[2];
   if (!map.solid(tx - 1, ty) && px < 2) return C.WOOD[1];
@@ -278,6 +283,9 @@ function canopyColor(map, tx, ty, px, py, wx, wy) {
   if (edgeL && ragged(px)) return null;
   if (edgeR && ragged(15 - px)) return null;
   if (top && ih(Math.floor(wx / 3), 0, 89) * 6 > py) return null;
+  // le bas du massif (au-dessus d'un passage) est remonté de ~6 px : KAGE, agrandi
+  // de 20 %, glisse dessous sans avoir la tête dans les feuilles (collision inchangée)
+  if (!map.solid(tx, ty + 1) && py > 8 + ih(Math.floor(wx / 2), ty, 87) * 3) return null;
   // une feuille = un trait oblique de 6 à 9 px ; on cherche la feuille la plus proche
   const cell = 5, cx = Math.floor(wx / cell), cy = Math.floor(wy / cell);
   let best = 9, shade = 0.3;
@@ -505,7 +513,7 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
               case 'floor': col = floorColor(wx, wy, depthBelowAir(map, tx, ty, py)); break;
               case 'deck': col = deckColor(map, tx, ty, px, py, wx, wy); break;
               case 'beam': col = beamColor(map, tx, ty, px, py, wx, wy); break;
-              case 'shelf': col = shelfColor(map, tx, ty, px, py, wx, wy); break;
+              case 'shelf': col = shelfColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'branch': col = branchColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'bamboo_v': col = bambooColor(true, wx, wy, tx, ty); break;
               case 'bamboo_h': col = bambooColor(false, wx, wy, tx, ty); break;
@@ -513,6 +521,7 @@ export function paintTiles(pix, map, tx0, tx1, ox) {
               case 'canopy': col = canopyColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'plank': col = plankColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
               case 'rafter': col = rafterColor(map, tx, ty, px, py, wx, wy); if (!col) continue; break;
+              case 'tread': continue;                                  // peinte par le décor « stair »
               default: col = soilColor(wx, wy, depthBelowAir(map, tx, ty, py), C.SOIL, map.zone[tx] === '05' ? 0.08 : 0);
             }
             // flancs à l'air libre : un liseré d'ombre (ou de lumière à gauche)

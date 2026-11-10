@@ -182,8 +182,8 @@ const TERRACE_KINDS = [0.2, 0.5, 0.9, 0.2, 0.7, 0.5, 0.2, 0.9, 0.7, 0.2, 0.5, 0.
 const LAYERS = {
   serre: ['backdrop', 'front'], grange: ['backdrop', 'front'], grenier: ['backdrop', 'back', 'ground'], terraces_bg: ['backdrop'], basin: ['ground'],
   house: ['back'], mill: ['back'], well: ['back'], tree: ['back', 'front'],
-  ladder: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
-  bridge_red: ['back'], stall: ['back'], temple_gate: ['back'], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
+  ladder: ['back'], stair: ['back'], lantern_stone: ['back'], shrine: ['back'], gate: ['back', 'front'], torii: ['back'],
+  bridge_red: ['back'], stall: ['back'], temple_gate: [], kakashi: ['back'], daikon_rack: ['back'], bamboo_grove: ['back'],
   pine: ['back'], jizo: ['ground'], fox: ['ground'], crops: ['ground'], fence: ['ground'], stone: ['ground'],
   baskets: ['ground'], bridge: ['ground'], reeds: ['ground', 'front'], pots: ['ground'], hay: ['ground'],
   barn_door: ['back', 'front'], signpost: ['ground'], woodpile: ['ground'], cart: ['ground'], bush: ['ground'],
@@ -191,7 +191,7 @@ const LAYERS = {
   path_stones: ['ground'], bench: ['ground'], sign: ['ground'], waterfall: [], waterwheel: [], koi: [], kappa: [], barrel: [],
 };
 export function propLayers(p) { return LAYERS[p.type] ?? ['ground']; }
-export const PROP_REACH = { temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
+export const PROP_REACH = { stair: 140, temple_gate: 120, terraces_bg: 1100, serre: 700, grange: 600, grenier: 420, house: 90, mill: 160, tree: 100, gate: 80, stall: 80, bridge_red: 180, bamboo_grove: 90, crops: 400, reeds: 120, bridge: 200, trellis: 120 };
 
 // ---------------------------------------------------------------------------
 // outils de dessin
@@ -627,8 +627,69 @@ const PAINT = {
     }
   },
 
+  // escalier de bois à claire-voie, vu de trois quarts (comme la porte du temple) :
+  // deux limons en biais, l'un devant, l'autre derrière (décalé de la profondeur
+  // D, vers le haut et la droite), et entre eux des marches de planche qui vont
+  // d'un limon à l'autre, clouées sur les deux, sans contremarche ; une main
+  // courante de corde. Les marches sont des « - » (traversables par-dessous) :
+  // le milieu de chaque planche est à la hauteur de la case.
+  stair(b, p) {
+    const T = TILE, D = [14, -6];
+    const P = p.treads.map(([tx, ty]) => [tx * T + 1, ty * T + 3]);      // bout avant de chaque marche
+    const step = [P[1][0] - P[0][0], P[1][1] - P[0][1]];
+    const top = [P[0][0] - step[0] * ((P[0][1] - p.top[1] * T) / step[1]), p.top[1] * T];
+    const footY = p.foot[1] * T, foot = [P[P.length - 1][0] + step[0] * ((footY - P[P.length - 1][1]) / step[1]), footY];
+    const rail = (ox, oy, light) => {                                     // un limon : planche en biais de 3 px
+      const n = Math.round(foot[1] - top[1]);
+      for (let i = 0; i <= n; i++) {
+        const x = Math.round(top[0] + ((foot[0] - top[0]) * i) / n) + ox, y = Math.round(top[1] + i) + oy;
+        b.r(x - 1, y, 4, 1, light ? C.WOOD[2] : C.WOOD[1]).p(x - 1, y, light ? C.WOOD[4] : C.WOOD[2]).p(x + 2, y, C.WOOD[0]);
+      }
+    };
+    // main courante de corde, des deux côtés : des poteaux plantés sur la plateforme
+    // (posés sur ses planches) et au pied ; celle du fond d'abord, derrière tout
+    const footX = Math.round(foot[0]);
+    const handrail = (ox, oy, dark) => {
+      const tx = Math.round(top[0]) + ox - 1, ty = top[1] + oy, fx = footX + ox + 4, fy = footY + oy;
+      // (les poteaux descendent jusqu'aux planches et jusqu'au sol, même celui du fond)
+      b.r(tx, ty - 18, 2, top[1] + 1 - (ty - 18), dark ? C.WOOD[0] : C.WOOD[1]).p(tx, ty - 18, C.WOOD[dark ? 2 : 4]);
+      b.r(fx, fy - 24, 2, footY - (fy - 24), dark ? C.WOOD[0] : C.WOOD[1]).p(fx, fy - 24, C.WOOD[dark ? 2 : 4]);
+      rope(b, tx + 1, ty - 17, fx + 1, fy - 23, 8, dark ? '#6b5230' : '#8a6a3a');
+    };
+    handrail(D[0], D[1], true);
+    rail(D[0], D[1], false);                                              // le limon du fond
+    // les marches : des planches qui vont d'un limon à l'autre (dessus clair, chant, ombre)
+    for (const [x0, y0] of P) {
+      const n = D[0];
+      for (let i = 0; i <= n; i++) {
+        const x = x0 + i, y = Math.round(y0 + (D[1] * i) / n);
+        b.r(x, y - 2, 1, 1, C.WOOD[5]).r(x, y - 1, 1, 1, C.WOOD[4]).r(x, y, 1, 2, C.WOOD[3]).r(x, y + 2, 1, 1, C.WOOD[1]).p(x, y + 3, 'rgba(30, 18, 10, 0.5)');
+        if (i % 5 === 2) b.p(x, y, C.WOOD[2]);                            // fil du bois
+      }
+      b.p(x0 + D[0] - 1, y0 + D[1] + 1, '#6f737b');                      // clou sur le limon du fond
+    }
+    rail(0, 0, true);                                                     // le limon de devant, par-dessus le bout des marches
+    for (const [x0, y0] of P) b.p(x0, y0 + 1, '#a9aeb6');                 // clous sur le limon de devant
+    // pied : une pierre plate ; puis la main courante de devant
+    b.r(footX - 5, footY - 2, 22, 2, C.STONE[2]).r(footX - 5, footY - 2, 22, 1, C.STONE[4]);
+    handrail(0, 0, false);
+  },
+
   ladder(b, p, X, Y) {
     const h = (p.h ?? 4) * TILE;
+    if (p.bx != null) {
+      // échelle posée d'une plateforme à l'autre : son pied sur celle du dessous
+      // (bx, en cases), son haut accroché au début de celle du dessus (tx)
+      const x0 = Math.round(p.bx * TILE) - 4, x1 = Math.round(p.tx * TILE) - 4, top = Y - h - 3;
+      b.line(x0, Y, x1, top, C.WOOD[1], 2).line(x0 + 8, Y, x1 + 8, top, C.WOOD[1], 2);
+      b.line(x0 + 1, Y, x1 + 1, top, C.WOOD[4]).line(x0 + 9, Y, x1 + 9, top, C.WOOD[3]);
+      for (let y = 5; y < h; y += 7) {
+        const xx = Math.round(x0 + (x1 - x0) * (y / (h + 3)));
+        b.r(xx + 1, Y - y, 8, 1, C.WOOD[3]).p(xx + 1, Y - y + 1, C.WOOD[1]);
+      }
+      b.r(x0 - 1, Y - 1, 12, 1, 'rgba(20, 12, 6, 0.4)');                 // ombre au pied
+      return;
+    }
     b.line(X - 6, Y, X + 2, Y - h, C.WOOD[2], 2).line(X + 2, Y, X + 10, Y - h, C.WOOD[2], 2);
     b.line(X - 5, Y, X + 3, Y - h, C.WOOD[4]);
     for (let y = 6; y < h; y += 7) {
@@ -932,6 +993,49 @@ const PAINT = {
         b.p(x, y, `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, ${a.toFixed(2)})`);
         if ((y - top) % 44 === 0 && y > top) b.p(x, y, 'rgba(150, 168, 120, 0.55)');   // ligne de couture
       }
+      // 1 bis. le toit : une toile en pointes (façon chapiteau), tendue au-dessus du
+      // faîtage par de fines perches de bambou ; elle retombe en triangle entre deux
+      // perches, coutures rayonnantes, pièces rapiécées, fanions délavés
+      const PEAK = 28, VAL = 5;                       // hauteur des pointes et du creux, au-dessus du faîtage
+      const tentTop = (x) => {
+        const u = ((x - x0) % BAY) / BAY, t = Math.abs(u - 0.5) * 2;      // 1 contre une perche, 0 au milieu
+        return y0 - VAL - Math.round((PEAK - VAL) * Math.pow(t, 1.7));
+      };
+      for (let x = x0 - 2; x < x1 + 3; x++) {
+        const yt = tentTop(Math.min(Math.max(x, x0), x1)), u = ((x - x0) % BAY + BAY) % BAY;
+        const side = u < BAY / 2 ? 1 : -1;                                 // pan éclairé (à droite d'une perche) ou à l'ombre
+        for (let y = yt; y < y0 + 3; y++) {
+          const d = (y - yt) / (y0 + 3 - yt);
+          let v = 0.66 + side * 0.08 - d * 0.1 + (noise2(x * 0.1, y * 0.2, 81) - 0.5) * 0.08;
+          if (y === yt) v += 0.16;                                         // liseré de lumière sur l'arête
+          const seam = ((u + 7) % 12 === 0) && y > yt + 2;                 // coutures : elles descendent de la pointe
+          const col = seam ? 'rgba(160, 176, 132, 0.95)'
+            : `rgba(${Math.round(214 + v * 30)}, ${Math.round(226 + v * 22)}, ${Math.round(196 + v * 28)}, 0.95)`;
+          b.p(x, y, col);
+        }
+        b.p(x, yt + 1, 'rgba(255, 255, 246, 0.9)');
+      }
+      for (let k = 0; ; k++) {                                             // pièces cousues sur la toile
+        const px = x0 + 20 + k * 86 + Math.floor(ih(k, 3, 82) * 20);
+        if (px > x1 - 20) break;
+        const py = tentTop(px) + 6;
+        b.r(px, py, 7, 5, 'rgba(196, 204, 170, 0.95)').r(px, py, 7, 1, 'rgba(150, 160, 120, 0.9)').r(px, py + 4, 7, 1, 'rgba(150, 160, 120, 0.9)');
+        for (let i = 1; i < 7; i += 2) b.p(px + i, py + 2, 'rgba(140, 150, 110, 0.9)');
+      }
+      // les perches : de fins bambous qui montent du mur jusqu'à la pointe, un nœud, un fanion
+      const FLAGS = ['#a8473a', '#3f5a7a', '#c9a24a'];
+      for (let x = x0, k = 0; x <= x1; x += BAY, k++) {
+        const ty = y0 - PEAK - 6;
+        for (let y = ty; y < top; y++) b.p(x, y, C.BAMBOO[4]).p(x + 1, y, C.BAMBOO[1]);
+        for (let n = ty + 5; n < y0; n += 11) b.r(x - 1, n, 4, 1, C.BAMBOO[0]);
+        b.r(x - 1, y0 - PEAK - 1, 4, 2, '#2a2420');                       // ligature sous la pointe
+        b.r(x, ty - 1, 2, 1, C.BAMBOO[5]);
+        if (k % 2 === 0) {                                                 // petit fanion délavé
+          const fc = FLAGS[(k / 2) % FLAGS.length];
+          for (let j = 0; j < 4; j++) b.r(x + 2, ty + 1 + j, 6 - j * 1.5, 1, fc);
+          b.p(x + 2, ty + 1, '#e8dcc0');
+        }
+      }
       // 2. voûte : un arceau de bambou par travée, pannes, faîtage peint par les tuiles
       for (let x = x0; x < x1; x++) {
         const y = top - arch(x);
@@ -1116,8 +1220,9 @@ const PAINT = {
         for (let a = 0; a < 5; a++) b.line(cx, cy, cx + Math.cos(a * 0.35 + 0.1) * 12, cy + Math.sin(a * 0.35 + 0.1) * 12, 'rgba(220, 220, 210, 0.35)');
         for (const rr of [4, 8]) for (let a = 0; a < 5; a++) b.p(Math.round(cx + Math.cos(a * 0.35) * rr), Math.round(cy + Math.sin(a * 0.35) * rr), 'rgba(230, 230, 220, 0.5)');
       }
-      // meules de foin contre le mur
-      for (let x = x0 + 110; x < x1 - 60; x += 240) {
+      // meules de foin contre le mur (sous la mezzanine : pas derrière la botte-marche,
+      // qu'elles noyaient dans la paille)
+      for (const x of [x0 + 110, x0 + 200]) {
         for (let j = 0; j < 28; j++) for (let i = -26 + j * 0.4; i < 26 - j * 0.4; i++) {
           const v = 0.55 - (i / 26) * 0.2 - j * 0.004 + (noise2((x + i) * 0.6, (y1 - j) * 0.3, 4) - 0.5) * 0.5;
           b.p(Math.round(x + i), y1 - 1 - j, pick(C.STRAW, clamp01(v - 0.1), x + i, j));
@@ -1349,6 +1454,20 @@ const PAINT = {
         for (let q = 0; q < TILE; q += 2) if (ih(q, by, seed) < 0.55) b.p(bx + q, by - 1 - Math.floor(ih(q, bx, seed) * 2), C.STRAW[3]);
       }
     });
+    // une botte-marche seule : contour net, ficelles sombres, ombre au sol (elle se
+    // lit comme un bloc où poser le pied, pas comme de la paille du décor)
+    if (p.step) {
+      p.cols.forEach((h, i) => {
+        const bx = x0 + i * TILE, top = base - h * TILE;
+        const hl = i === 0 ? 0 : p.cols[i - 1], hr = p.cols[i + 1] ?? 0;
+        if (hl < h) b.r(bx - 1, top + 1, 1, base - top - 1, C.STRAW[0]);
+        if (hr < h) b.r(bx + TILE, base - (h - hr) * TILE + 1, 1, (h - hr) * TILE - 1, C.STRAW[0]);
+        b.r(bx, top, TILE, 1, C.STRAW[4]);
+        for (const lx of [bx + 4, bx + TILE - 5]) b.r(lx, top, 1, base - top, '#5b4a36').p(lx, top + 1, '#7a6444');
+        for (let k = 1; k < h; k++) b.r(bx, base - k * TILE, TILE, 1, C.STRAW[0]);     // joint entre deux bottes
+      });
+      b.r(x0 - 3, base - 1, p.cols.length * TILE + 6, 1, 'rgba(20, 12, 6, 0.45)');
+    }
     // brins éparpillés au pied
     for (let x = x0 - 6; x < x0 + p.cols.length * TILE + 6; x++) if (ih(x, 9, 31) < 0.3) b.p(x, base - 1, C.STRAW[ih(x, 2, 31) < 0.5 ? 2 : 3]);
   },
@@ -1707,7 +1826,8 @@ export function autoDecor(b, map, tx0, tx1) {
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
       let bot = ty + 1; while (bot < map.h && !map.solid(tx, bot) && map.at(tx, bot) !== '~') bot++;
-      const x = tx * TILE + (lEnd ? 2 : rEnd ? 11 : 6), y0 = (ty + 1) * TILE, y1 = bot * TILE + (map.at(tx, bot) === '~' ? 10 : 0);
+      // une passerelle (« - ») n'a que 6 px d'épaisseur : ses poteaux montent jusque sous ses planches
+      const x = tx * TILE + (lEnd ? 2 : rEnd ? 11 : 6), y0 = ty * TILE + (st === 'plank' ? 6 : TILE), y1 = bot * TILE + (map.at(tx, bot) === '~' ? 10 : 0);
       b.r(x, y0, 3, y1 - y0, C.WOOD[2]).r(x, y0, 1, y1 - y0, C.WOOD[4]).r(x + 2, y0, 1, y1 - y0, C.WOOD[0]);
       if (lEnd && y1 - y0 > 20) b.line(x + 3, y0 + 14, x + 12, y0 + 1, C.WOOD[1], 2);
       if (rEnd && y1 - y0 > 20) b.line(x, y0 + 14, x - 9, y0 + 1, C.WOOD[1], 2);
@@ -1761,9 +1881,12 @@ export function groveLeaves(b, map, tx0, tx1) {
       if (st !== 'grove' && st !== 'canopy') continue;
       // bas d'un bosquet suspendu (feuillage bas) : des feuilles pendent dans le passage
       if (!map.solid(tx, ty + 1) && ty + 1 < map.h) {
+        // quelques feuilles qui pendent, sans redescendre dans le passage (le bas du
+        // massif est remonté de ~6 px, voir canopyColor)
         for (let x = tx * TILE; x < tx * TILE + TILE; x++) {
-          const len = 2 + Math.floor(ih(x, ty, 505) * 5);
-          for (let j = 0; j < len; j++) b.p(x + (j > 2 && ih(x, j, 506) < 0.5 ? 1 : 0), (ty + 1) * TILE + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
+          if (ih(x, ty, 507) < 0.45) continue;
+          const len = 1 + Math.floor(ih(x, ty, 505) * 3);
+          for (let j = 0; j < len; j++) b.p(x + (j > 1 && ih(x, j, 506) < 0.5 ? 1 : 0), ty * TILE + 9 + j, j === len - 1 ? C.BAMBOO[4] : (x + j) % 3 ? C.BAMBOO[2] : C.BAMBOO[3]);
         }
       }
       for (let k = 0; k < 3; k++) {

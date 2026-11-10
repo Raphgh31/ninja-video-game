@@ -111,9 +111,15 @@ def main():
             "look": {"frames": ["look_1", "look_2", "look_2", "look_1"], "durations": [260, 500, 300, 260], "loop": False},
             "hatfix": {"frames": ["hatfix_1", "hatfix_2", "idle_1"], "durations": [240, 240, 200], "loop": False},
             "croak": {"frames": ["croak_1", "croak_2", "croak_1", "croak_2"], "durations": [90, 220, 90, 260], "loop": False},
+            # croassements enregistrés : le jeu ouvre et ferme le bec au rythme des cris
+            "cawOpen": {"frames": ["croak_2"], "loop": False},
+            "cawShut": {"frames": ["croak_1"], "loop": False},
             "takeoff": {"frames": ["takeoff_1", "takeoff_2"], "durations": [200, 160], "loop": False},
-            "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [90, 70, 110, 70], "loop": True},
+            # battement lent (0,56 s, un coup d'aile sonore par descente : ~1,8 par seconde)
+            "fly": {"frames": ["fly_1", "fly_2", "fly_3", "fly_2"], "durations": [150, 115, 180, 115], "loop": True},
             "drop": {"frames": ["drop_1", "drop_2"], "durations": [120, 200], "loop": False},
+            "carry": {"frames": ["carry_1", "carry_2", "carry_3", "carry_2"], "durations": [160, 120, 190, 120], "loop": True},
+            "open": {"frames": ["open_1", "open_2"], "durations": [110, 400], "loop": False},
             "aim": {"frames": ["aim_1", "aim_2"], "durations": [140, 140], "loop": True},
             "dive": {"frames": ["dive_1", "dive_2"], "durations": [80, 80], "loop": True},
             "crash": {"frames": ["crash"], "loop": False},
@@ -126,6 +132,8 @@ def main():
             "acorn": {"frames": ["acorn_1", "acorn_2"], "durations": [80, 80], "loop": True},
             "turnip": {"frames": ["turnip_1", "turnip_2"], "durations": [90, 90], "loop": True},
         },
+        # le haut de la pierre tenue dans les serres, dans la cellule (images carry_ et open_)
+        "grip": {n: {"x": fn.grip[0], "y": fn.grip[1]} for n, fn in GAME_FRAMES if hasattr(fn, "grip") and n.startswith(("carry", "open"))},
         "boxes": {
             "perched": box("idle_1", (0.3, 0.12, 0.12, 0.08)),
             "flying": box("fly_2", (0.2, 0.2, 0.15, 0.0)),   # les pattes pendantes comptent : à portée d'un saut

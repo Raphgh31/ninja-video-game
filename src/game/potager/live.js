@@ -1,6 +1,7 @@
 // Tout ce qui bouge dans le Potager : la roue à eau, l'eau qui coule, les koïs,
 // la pluie de la serre, la lumière de la grange, la fumée, le marchand, et la vie
 // sauvage (papillons, pétales, feuilles, libellules, poussières dans la lumière).
+import { TempleGate, INTERIORS, DEFAULT_INTERIOR } from './temple.js';
 import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
@@ -23,7 +24,9 @@ export class Live {
     this.serre = level.backdrops.find((b) => b.type === 'serre');
     this.grange = level.backdrops.find((b) => b.type === 'grange');
     this.temple = P.find((p) => p.type === 'temple_gate');
-    this.gate = { open: 0, last: 0 };
+    // la grande porte du temple (voir temple.js) ; l'intérieur peut s'essayer avec ?porte=…
+    const porte = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('porte') : null;
+    this.templeGate = this.temple ? new TempleGate(this.temple, INTERIORS[porte] ? porte : DEFAULT_INTERIOR) : null;
     const gr = P.find((p) => p.type === 'grenier');
     this.attic = gr ? { p: gr, g: atticGeom(gr), blink: 3.1, roof: null, alpha: 1 } : null;
     // coffres : fermé, entrouvert, ouvert (peints une fois)
@@ -124,7 +127,7 @@ export class Live {
   drawBehind(ctx, cam, viewW, viewH, time) {
     const vis = (x, m = 80) => x - cam.x > -m && x - cam.x < viewW + m;
     if (this.attic && vis(this.attic.p.owl.x)) this.owl(ctx, cam, time);
-    if (this.temple && vis(this.temple.x * TILE, 120)) this.templeLeaves(ctx, cam, time);
+    if (this.templeGate && vis(this.temple.x * TILE, 220)) this.templeGate.draw(ctx, cam, time, this.gateOpening());
     if (this.chestImg) for (const ch of this.level.chests) if (vis(ch.x, 40)) this.chest(ctx, cam, ch);
     for (const k of this.cranes) if (vis(k.c.ropeX, 200)) this.crane(ctx, cam, k, time);
     for (const sc of this.level.scaffolds ?? []) if (vis((sc.x0 + sc.w / 2) * TILE, 120)) this.scaffold(ctx, cam, sc, time);
@@ -323,28 +326,50 @@ export class Live {
     };
     const lash = (x, y) => { ctx.fillStyle = '#2a2420'; ctx.fillRect(x - 3, y - 1, 7, 2); ctx.fillRect(x - 2, y + 2, 5, 1); };
     const mx = R(c.mastX - 2) + ox, ground = (c.top + c.h) * TILE + oy, by = R(c.boomY) + oy;
-    const tipX = R(c.ropeX) + ox;
-    // mât (deux bambous liés), haubans vers le sol, flèche et bras du contrepoids
-    pole(mx, by - 6, ground);
-    pole(mx - 5, by + 10, ground, 3);
-    ctx.fillStyle = '#5b4a36';
-    for (let i = 0; i < 26; i++) ctx.fillRect(mx - 6 - i, by + 6 + i * 4, 1, 1);   // hauban (corde)
-    beam(mx - 28, tipX + 8, by, 4);
-    lash(mx + 2, by + 2); lash(mx + 2, by + 30); lash(mx - 3, by + 60);
+    const tipX = R(c.ropeX) + ox, sd = Math.sign(tipX - mx) || 1;   // côté de la flèche
+    if (c.towerY != null) {
+      // le mât est une tour de bambou : deux montants ; en haut, un treillis serré de
+      // bambous ligaturés qu'on ne franchit pas ; en bas, on passe entre les montants
+      const L = R(c.mastX - 8) + ox, Rr = L + 12, tb = R(c.towerY) + oy;
+      ctx.fillStyle = '#2b3a1c'; ctx.fillRect(L + 3, by - 2, 8, tb - by + 2);            // l'ombre du treillis
+      for (let y = by + 4; y < tb - 2; y += 7) beam(L + 2, Rr + 2, y, 2);                   // traverses serrées
+      ctx.fillStyle = B[1];
+      for (let y = by + 4; y < tb - 10; y += 14) for (let i = 0; i < 10; i++) {           // croisillons
+        ctx.fillRect(L + 3 + i, y + i, 1, 1); ctx.fillRect(Rr - i, y + i, 1, 1);
+      }
+      pole(L, by - 8, ground, 4); pole(Rr, by - 8, ground, 4);
+      beam(L - 2, Rr + 6, tb - 3, 4);                                                       // le linteau au-dessus du passage
+      for (const y of [by + 2, R((by + tb) / 2), tb - 2]) { lash(L + 2, y); lash(Rr + 2, y); }
+      // jambes de force du passage, et haubans
+      ctx.fillStyle = B[1];
+      for (let i = 0; i < 8; i++) { ctx.fillRect(L + 4 + i, tb + 1 + i, 1, 1); ctx.fillRect(Rr - i, tb + 1 + i, 1, 1); }
+      ctx.fillStyle = '#5b4a36';
+      for (let i = 0; i < 26; i++) ctx.fillRect(Rr + 6 + i, by + 6 + i * 4, 1, 1);
+    } else {
+      // mât (deux bambous liés), haubans vers le sol
+      pole(mx, by - 6, ground);
+      pole(mx - 5, by + 10, ground, 3);
+      ctx.fillStyle = '#5b4a36';
+      for (let i = 0; i < 26; i++) ctx.fillRect(mx - 6 - i, by + 6 + i * 4, 1, 1);   // hauban (corde)
+      lash(mx + 2, by + 2); lash(mx + 2, by + 30); lash(mx - 3, by + 60);
+    }
+    // flèche et bras du contrepoids (de l'autre côté)
+    beam(Math.min(mx - sd * 28, tipX + sd * 8), Math.max(mx - sd * 28, tipX + sd * 8), by, 4);
+    lash(mx + 2, by + 2);
     // jambe de force sous la flèche
     ctx.fillStyle = B[1];
-    for (let i = 0; i < 20; i++) ctx.fillRect(mx + 4 + i, by + 24 - i, 2, 2);
+    for (let i = 0; i < 20; i++) ctx.fillRect(mx + 2 + sd * (2 + i), by + 24 - i, 2, 2);
     // contrepoids : panier de pierres au bout du bras court
-    const cwx = mx - 26, swing = Math.sin(time * 1.3) * 1.2;
+    const cwx = mx - sd * 26, swing = Math.sin(time * 1.3) * 1.2;
     ctx.fillStyle = '#5b4a36'; ctx.fillRect(cwx + 1, by + 4, 1, 12);
     ctx.fillStyle = '#7a6040'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 9);
     ctx.fillStyle = '#5b4a36'; ctx.fillRect(R(cwx - 5 + swing), by + 16, 13, 1); ctx.fillRect(R(cwx - 5 + swing), by + 20, 13, 1);
     ctx.fillStyle = C.STONE[3]; ctx.fillRect(R(cwx - 3 + swing), by + 13, 4, 3); ctx.fillRect(R(cwx + 2 + swing), by + 14, 4, 2);
-    // treuil sur le mât, à hauteur de la plateforme, avec la corde enroulée
-    const wy = (c.top - 1) * TILE + oy - 8;
-    ctx.fillStyle = '#6a4a2c'; ctx.fillRect(mx - 8, wy, 10, 7);
-    ctx.fillStyle = '#9a7448'; for (let y = wy + 1; y < wy + 7; y += 2) ctx.fillRect(mx - 8, y, 10, 1);
-    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(mx - 11, wy + 2, 3, 3); ctx.fillRect(mx - 13, wy + 5, 2, 5);   // manivelle
+    // treuil sur le mât, avec la corde enroulée (côté contrepoids)
+    const wy = (c.top - 1) * TILE + oy - 8, wx = sd > 0 ? mx - 8 : mx + 9;
+    ctx.fillStyle = '#6a4a2c'; ctx.fillRect(wx, wy, 10, 7);
+    ctx.fillStyle = '#9a7448'; for (let y = wy + 1; y < wy + 7; y += 2) ctx.fillRect(wx, y, 10, 1);
+    ctx.fillStyle = C.WOOD[1]; ctx.fillRect(wx + (sd > 0 ? -3 : 10), wy + 2, 3, 3); ctx.fillRect(wx + (sd > 0 ? -5 : 13), wy + 5, 2, 5);   // manivelle
     // poulie au bout de la flèche
     ctx.fillStyle = C.WOOD[1]; ctx.fillRect(tipX - 3, by + 3, 6, 6);
     ctx.fillStyle = C.WOOD[4]; ctx.fillRect(tipX - 2, by + 4, 4, 1);
@@ -578,60 +603,15 @@ export class Live {
     ctx.globalAlpha = 1;
   }
 
-  /**
-   * Les deux vantaux de la porte du temple : fermés, ils sont scellés par un
-   * talisman et une corde sacrée ; quand le corbeau est vaincu (level.doorOpen),
-   * ils pivotent vers l'intérieur et s'amincissent, lent-rapide-lent.
-   */
-  templeLeaves(ctx, cam, time) {
-    const g = this.gate, dt = Math.min(0.05, Math.max(0, time - g.last));
-    g.last = time;
-    if (this.level.doorOpen) g.open = Math.min(1, g.open + dt / 1.6);
-    const o = g.open < 0.5 ? 2 * g.open * g.open : 1 - 2 * (1 - g.open) * (1 - g.open);
-    const X = this.temple.x * TILE + 8 - cam.x, Y = this.temple.y * TILE - cam.y;
-    const top = R(Y - 92), h = 86, full = 36, w = Math.max(5, R(full * (1 - o * 0.84)));
-    const W = C.WOOD;
-    for (const side of [-1, 1]) {
-      const x0 = side < 0 ? R(X - 36) : R(X + 36 - w);
-      const shade = o * 0.5;                                  // en tournant, le bois passe dans l'ombre
-      for (let i = 0; i < w; i++) {
-        const plank = Math.floor((i * full) / w / 6);
-        ctx.fillStyle = (i * full / w) % 6 < 1 ? '#2a2018' : plank % 2 ? W[1] : W[2];
-        ctx.fillRect(x0 + i, top, 1, h);
-      }
-      if (shade > 0) { ctx.fillStyle = `rgba(20, 14, 10, ${shade})`; ctx.fillRect(x0, top, w, h); }
-      for (const yy of [12, 44, 74]) {                         // pentures et clous dorés
-        ctx.fillStyle = '#8a6a2a'; ctx.fillRect(x0, top + yy, w, 3);
-        ctx.fillStyle = '#e0bd5a';
-        for (let k = 2; k < w; k += 5) ctx.fillRect(x0 + k, top + yy + 1, 1, 1);
-      }
-      if (o < 0.3) {                                           // anneaux de bronze
-        const cx = side < 0 ? R(X - 7) : R(X + 4);
-        ctx.fillStyle = '#c9a24a';
-        ctx.fillRect(cx, top + 52, 4, 1); ctx.fillRect(cx, top + 57, 4, 1); ctx.fillRect(cx - 1, top + 53, 1, 4); ctx.fillRect(cx + 4, top + 53, 1, 4);
-      }
-      ctx.fillStyle = '#1a120c';                                 // la ligne d'ombre au pied
-      ctx.fillRect(x0, top + h - 1, w, 1);
-    }
-    if (g.open === 0) {
-      // la corde sacrée tendue en travers, ses papiers en zigzag
-      for (let x = -36; x <= 36; x++) {
-        const y = R(top + 8 + Math.sin(((x + 36) / 72) * Math.PI) * 5);
-        ctx.fillStyle = (x & 1) ? '#86704a' : '#4f3b22';
-        ctx.fillRect(R(X + x), y, 1, 2);
-        if ((x + 36) % 14 === 7) {
-          ctx.fillStyle = '#ece4c8';
-          ctx.fillRect(R(X + x), y + 2, 2, 3); ctx.fillRect(R(X + x) + 1, y + 5, 2, 3); ctx.fillRect(R(X + x), y + 8, 2, 2);
-        }
-      }
-      // le talisman qui scelle les deux vantaux ; il frémit
-      const sw = R(Math.sin(time * 2.1) * 0.6);
-      ctx.fillStyle = '#c4b894'; ctx.fillRect(R(X - 6) + sw, top + 20, 12, 44);
-      ctx.fillStyle = '#ece4c8'; ctx.fillRect(R(X - 5) + sw, top + 21, 10, 42);
-      ctx.fillStyle = '#b0322a';
-      for (let k = 0; k < 6; k++) { ctx.fillRect(R(X - 3) + sw, top + 25 + k * 6, 6, 1); ctx.fillRect(R(X - 1) + sw + (k % 2 ? 2 : -1), top + 27 + k * 6, 2, 2); }
-      ctx.fillRect(R(X - 2) + sw, top + 60, 5, 2);
-    }
+  /** Ouverture des vantaux de la porte du temple (0 à 1) : lente, douce au départ et à l'arrivée. */
+  gateOpening() {
+    const l = this.level, t = Math.min(1, (l.doorT ?? 0) / (l.doorTime ?? 1));
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  /** Change l'intérieur de la porte (planche des propositions). */
+  setTempleInterior(kind) {
+    if (this.templeGate && INTERIORS[kind]) this.templeGate.build(kind);
   }
 
   /** La chouette du grenier : elle cligne des yeux et suit KAGE du regard. */

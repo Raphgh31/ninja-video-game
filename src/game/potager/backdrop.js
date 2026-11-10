@@ -214,23 +214,115 @@ function paintFar(levelW) {
   }
   paintPeaks(pix, list, P.base);
   pix.done();
-  // le dojo final, minuscule, sur un replat du Mont Kagero, et son sentier
-  const b = new Brush(pix.c.getContext('2d'));
-  const dx = giant.x + 46;
-  const dy = Math.round(P.base - peakHeight(giant, dx));
-  const ink = '#3d4668', wall = '#7d86a8', lamp = '#f3c770';
-  b.r(dx - 9, dy, 19, 2, '#6b7699');                           // replat de pierre
-  b.r(dx - 6, dy - 4, 13, 4, wall).r(dx - 8, dy - 5, 17, 1, ink).r(dx - 9, dy - 6, 2, 1, ink).r(dx + 8, dy - 6, 2, 1, ink)
-    .r(dx - 4, dy - 9, 9, 3, wall).r(dx - 6, dy - 10, 13, 1, ink).r(dx - 7, dy - 11, 1, 1, ink).r(dx + 6, dy - 11, 1, 1, ink)
-    .r(dx - 2, dy - 13, 5, 2, ink).r(dx, dy - 16, 1, 3, ink)
-    .p(dx - 3, dy - 2, lamp).p(dx + 3, dy - 2, lamp).p(dx, dy - 7, lamp);
-  b.r(dx - 14, dy - 5, 1, 5, '#a3473a').r(dx - 10, dy - 5, 1, 5, '#a3473a').r(dx - 15, dy - 6, 7, 1, '#7d2f28');
-  for (let i = 0; i < 40; i++) {                               // sentier en lacets dans la neige
-    const sx = dx - 12 + Math.round(Math.sin(i * 0.42) * 7) - Math.floor(i / 4);
-    const sy = dy + 2 + i * 2;
-    if (sy < P.base - 50 && ih(i, 2, 3) < 0.8) b.p(sx, sy, '#8f9abb');
-  }
+  // le dojo final (chapitre 7), au flanc du Mont Kagero : voir paintDojo
+  paintDojo(new Brush(pix.c.getContext('2d')), giant, P);
   return { img: pix.c, W, plane: P };
+}
+
+/**
+ * Le dojo final, au flanc du Mont Kagero : un avant-goût du chapitre 7. Un
+ * sanctuaire de montagne, voilé par la distance : deux terrasses taillées dans la
+ * pente, sur de grands murs de pierre évasés comme ceux des châteaux (ishigaki),
+ * la grande salle au double toit aux coins relevés, une pagode à cinq étages
+ * coiffée d'or, de la neige sur les toits, des fenêtres et des lanternes
+ * allumées, un escalier en lacets et son torii, une écharpe de brume.
+ */
+function paintDojo(b, giant, P) {
+  const K = {
+    roof: '#323a58', roofL: '#4a5476', roofE: '#232841', snow: '#f1f5fb', snowS: '#cdd6e8',
+    wall: '#dfe3ec', wallS: '#aab2c8', red: '#a8493b', redD: '#7a312a', wood: '#474860', woodL: '#62657f',
+    gold: '#e4c067', lamp: '#f7d27c', stone: '#8e99b9', stoneL: '#b3bcd5', stoneD: '#646e95',
+  };
+  const ground = (x) => Math.round(P.base - peakHeight(giant, x));
+  const cx = giant.x + 82, x0 = cx - 30;                       // assez bas sur le flanc : il reste dans l'image
+  const ty = ground(x0 + 8) + 1;                                 // terrasse haute (la grande salle)
+  const t2 = { x0: cx + 3, x1: cx + 25, y: ty + 9 };             // terrasse basse (la pagoda), un cran plus bas
+  const x1 = t2.x1;
+  // toit à coins relevés : eave = ligne du bord, hw = demi-largeur, h = hauteur
+  const roof = (mx, eave, hw, h, snowy = true) => {
+    for (let j = 0; j < h; j++) {
+      const half = Math.round(hw - j * (hw * 0.62) / Math.max(1, h - 1)), y = eave - j;
+      b.r(mx - half, y, 2 * half + 1, 1, j === 0 ? K.roofE : j < 2 ? K.roof : K.roofL);
+      if (snowy && j >= h - 2) b.r(mx - half + 1, y, 2 * half - 1, 1, j === h - 1 ? K.snow : K.snowS);
+    }
+    b.r(mx - hw - 1, eave - 1, 2, 1, K.roofE).p(mx - hw - 2, eave - 2, K.roofE);   // coins relevés
+    b.r(mx + hw, eave - 1, 2, 1, K.roofE).p(mx + hw + 2, eave - 2, K.roofE);
+    if (snowy) for (let x = mx - hw + 2; x < mx + hw - 1; x += 3) b.p(x, eave - 1, K.snowS);
+  };
+  // 1. les grands murs de pierre (ishigaki) sous les deux terrasses, jusqu'à la pente :
+  //    gros blocs assisés, face légèrement en fruit, neige sur les arêtes
+  const wall = (xa, xb, top, fruit = 0) => {
+    for (let x = xa; x <= xb + 16; x++) {
+      const g = ground(x);
+      for (let y = top + 3; y < g + 1; y++) {
+        // en gradins : tous les 14 px, un ressaut enneigé avance de 3 px (et la face a un léger fruit)
+        const step = Math.floor((y - top - 3) / 14), inStep = (y - top - 3) % 14;
+        const edge = xb + Math.round(fruit * (step * 3 + Math.floor(inStep / 5)));
+        if (x > edge) continue;
+        // pierres inégales : chaque assise a ses propres joints (blocs de 3 à 7 px)
+        const row = Math.floor((y - top) / 3), u = x + Math.floor(ih(row, 1, 71) * 7);
+        const joint = (y - top) % 3 === 0 || ih(u, row, 72) < 0.24;
+        const lit = x - xa < 2 ? 1 : edge - x < 2 ? -1 : 0;
+        const tone = ih(Math.floor(u / 4), row, 73) < 0.3 ? '#9aa4c2' : K.stone;
+        let col = joint ? '#76809f' : lit > 0 ? K.stoneL : lit < 0 ? '#5e6890' : tone;
+        if (fruit && step > 0 && inStep === 0) col = x > edge - 4 ? K.snow : K.snowS;          // neige sur le ressaut
+        b.p(x, y, col);
+      }
+    }
+  };
+  wall(x0 - 2, t2.x0, ty);
+  wall(t2.x0, x1 + 2, t2.y, 1);
+  // 2. les terrasses : dalles, garde-corps vermillon
+  for (const [xa, xb, y] of [[x0 - 2, t2.x0, ty], [t2.x0, x1 + 2, t2.y]]) {
+    b.r(xa, y, xb - xa + 1, 3, K.stone).r(xa, y, xb - xa + 1, 1, K.stoneL).r(xa, y + 3, xb - xa + 1, 1, K.stoneD);
+  }
+  for (let x = t2.x0 + 1; x <= x1 + 1; x += 3) b.r(x, t2.y - 3, 1, 3, K.red);
+  b.r(t2.x0 + 1, t2.y - 3, x1 - t2.x0 + 1, 1, K.red);
+  // 3. la pagode à cinq étages, sur la terrasse basse : elle domine la grande salle
+  const px = cx + 15, py = t2.y;
+  for (let k = 0; k < 5; k++) {
+    const eave = py - 6 - k * 8, bw = 5 - Math.floor(k * 0.7);
+    b.r(px - bw, eave + 1, 2 * bw + 1, k ? 7 : 6, k % 2 ? K.wallS : K.wall).r(px - bw, eave + 1, 1, k ? 7 : 6, K.red).r(px + bw, eave + 1, 1, k ? 7 : 6, K.redD);
+    if (k < 4) b.p(px - 1, eave + 3, K.lamp).p(px + 1, eave + 3, K.lamp);
+    roof(px, eave, 10 - k, 3);
+  }
+  const spire = py - 6 - 4 * 8 - 3;
+  b.r(px, spire - 11, 1, 11, K.gold);
+  for (let k = 0; k < 5; k++) b.r(px - 1, spire - 2 - k * 2, 3, 1, K.gold);
+  b.p(px, spire - 12, K.lamp);
+  // 4. la grande salle : piliers vermillon, fenêtres allumées, double toit
+  const hx = x0 + 15, hw = 13;
+  b.r(hx - hw, ty - 9, 2 * hw + 1, 9, K.wall);
+  for (let x = hx - hw; x <= hx + hw; x += 4) b.r(x, ty - 9, 1, 9, K.red).p(x + 1, ty - 9, K.redD);
+  for (const wx of [hx - 9, hx - 5, hx + 3, hx + 7]) b.r(wx, ty - 6, 2, 3, K.lamp).p(wx, ty - 6, '#ffe9b0');
+  b.r(hx - 1, ty - 7, 3, 7, K.redD).p(hx, ty - 5, K.gold);         // la grande porte
+  b.r(hx - hw - 1, ty - 1, 2 * hw + 3, 1, K.stoneD);
+  roof(hx, ty - 10, hw + 6, 5);
+  b.r(hx - 8, ty - 18, 17, 4, K.wallS).r(hx - 8, ty - 18, 17, 1, K.wall);
+  for (let x = hx - 8; x <= hx + 8; x += 4) b.r(x, ty - 18, 1, 4, K.red);
+  roof(hx, ty - 19, 12, 6);
+  b.r(hx - 7, ty - 26, 15, 1, K.roofE);                            // le faîtage, et ses ornements d'or
+  b.r(hx - 8, ty - 28, 1, 2, K.gold).r(hx + 8, ty - 28, 1, 2, K.gold).p(hx, ty - 27, K.gold);
+  for (const lx of [hx - 15, hx + 15]) b.p(lx, ty - 9, K.lamp).p(lx, ty - 8, '#c9973e');   // lanternes sous l'avant-toit
+  // 5. l'escalier en lacets jusqu'au torii, bordé de lanternes
+  let sx = x1 + 2, sy = t2.y + 1, dir = 1;
+  for (let i = 0; i < 46; i++) {
+    sx += dir; sy += 1;
+    const g = ground(sx);
+    if (sy < g - 1) sy = g - 1;
+    b.r(sx, sy, 2, 1, K.stoneL).p(sx, sy + 1, K.stoneD);
+    if (i % 7 === 3) b.p(sx + (dir > 0 ? 2 : -1), sy - 1, K.lamp);
+    if (i % 12 === 11) dir = -dir;
+  }
+  const tx = sx + 2, tg = sy + 1;                                  // le torii, en bas de l'escalier
+  b.r(tx - 5, tg - 9, 11, 1, K.redD).r(tx - 6, tg - 10, 13, 1, K.red).r(tx - 4, tg - 7, 9, 1, K.red)
+    .r(tx - 3, tg - 9, 1, 9, K.red).r(tx + 3, tg - 9, 1, 9, K.redD);
+  // 6. une écharpe de brume sous la terrasse
+  for (let x = x0 - 8; x < x1 + 14; x++) {
+    const y = t2.y + 16 + Math.round(Math.sin(x * 0.12) * 2);
+    b.r(x, y, 1, 2, 'rgba(238, 243, 250, 0.55)');
+    if ((x * 7) % 5 < 2) b.p(x, y - 1, 'rgba(238, 243, 250, 0.35)');
+  }
 }
 
 // ---------------------------------------------------------------------------

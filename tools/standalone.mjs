@@ -39,9 +39,11 @@ for (const f of [kmeta.image, kmeta.perchImage, kmeta.itemImage]) {
   embed[`./${kbase}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, kbase, f)).toString('base64');
 }
 
-// musiques des chapitres
-for (const f of readdirSync(join(dist, 'music'))) {
-  embed[`./music/${f}`] = 'data:audio/mpeg;base64,' + readFileSync(join(dist, 'music', f)).toString('base64');
+// musiques des chapitres, et sons enregistrés (ailes et croassements du corbeau)
+for (const dir of ['music', 'sfx']) {
+  for (const f of readdirSync(join(dist, dir))) {
+    embed[`./${dir}/${f}`] = 'data:audio/mpeg;base64,' + readFileSync(join(dist, dir, f)).toString('base64');
+  }
 }
 
 let html = readFileSync(join(dist, 'index.html'), 'utf8');

@@ -5,6 +5,7 @@ import { PotagerArt } from './potager/index.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
+const GATE_TIME = 4.2;   // s pour que les vantaux de la porte du temple s'ouvrent (lentement, vers KAGE)
 
 export class Level {
   constructor(id = 'niveau-1') {
@@ -16,6 +17,7 @@ export class Level {
     this.theme = def.theme ?? 'ville';
     this.chapter = def.chapter ?? null;
     this.music = def.music ?? null;
+    this.bossMusic = def.bossMusic ?? null;   // musique du combat (fondu enchaîné à l'entrée de l'arène)
     this.boss = def.boss ?? null;     // { type, x, y } : le boss du chapitre (et son perchoir)   // { src, loopStart, loopEnd } : musique du chapitre
     this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;
@@ -39,6 +41,7 @@ export class Level {
     this.goal = null;
     this.doorOpen = false;
     this.doorT = 0;
+    this.doorTime = (def.props ?? []).some((p) => p.type === 'temple_gate') ? GATE_TIME : DOOR_TIME;
     this.h = this.rows.length;
     this.w = this.rows[0].length;
     this.width = this.w * TILE;
@@ -108,7 +111,7 @@ export class Level {
     for (const t of this.targets) if (t.broken) t.t += dt;
     for (const g of this.gongs) g.t += dt;
     for (const c of this.checkpoints) c.t += dt;
-    if (this.doorOpen) this.doorT = Math.min(DOOR_TIME, this.doorT + dt);
+    if (this.doorOpen) this.doorT = Math.min(this.doorTime, this.doorT + dt);
   }
 
   /** Gongs, lanternes, porte et torii (dessinés avec le décor). */
@@ -195,7 +198,7 @@ export class Level {
       }
     }
     // porte : planches cerclées de fer, qui se lève quand le gong a sonné
-    const lift = (this.doorT / DOOR_TIME) * TILE * 4;
+    const lift = (this.doorT / this.doorTime) * TILE * 4;
     for (let ty = 0; ty < this.h && !this.art; ty++) {   // (dans un chapitre peint, la porte a son propre dessin)
       for (let tx = 0; tx < this.w; tx++) {
         if (this.rows[ty][tx] !== 'D') continue;
@@ -270,7 +273,7 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < DOOR_TIME * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6);
   }
 
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la

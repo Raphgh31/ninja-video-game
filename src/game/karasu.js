@@ -21,21 +21,28 @@ import { TILE } from './level.js';
 
 export const KARASU = {
   hp: 24,
-  engageX: 7,              // cases après le début de l'arène : le combat commence
+  engageX: 1,              // cases après le début de l'arène : le combat commence (dès qu'on y entre : il croasse)
   altitude: 76,            // px : ses pattes au-dessus du sol en vol (le corps entre ~92 et ~134 px) :
                            // deux fois plus haut qu'avant : hors de portée depuis le sol (sabre et
                            // shuriken au sommet d'un saut), à portée d'un saut depuis les plateformes
   flySpeed: 115,           // px/s en vol (déplacements)
   carrySpeed: 80,          // px/s quand il porte une pierre (il suit KAGE)
   takeoff: 0.42,           // s
-  taunt: 0.75,             // s de croassement avant de partir
+  taunt: 3.8,              // s sur son perchoir quand KAGE arrive : il croasse trois fois, le toise, puis part
+                           // chercher sa première pierre (le joueur comprend qu'un combat commence)
+  cawLong: [0.03, 1.12, 2.21],   // début des cris dans karasu_croa_long.mp3 (s) : le bec s'ouvre avec eux
+  cawShort: [0.03, 1.14],        // début des cris dans karasu_croa.mp3 (retour au perchoir)
+  cawOpen: 0.5,                  // s de bec ouvert par cri
   grab: 0.42,              // s pour saisir une pierre au sol
+  grabHover: 6,            // px : ses pattes au-dessus du sol quand il saisit une pierre
   // par palier (début, milieu, fin)
-  rocks: [2, 3, 3],        // pierres par sortie
-  releaseWindup: [0.42, 0.34, 0.28],   // s : il ouvre les serres au-dessus de KAGE avant de lâcher
+  rocks: [3, 3, 4],        // pierres par sortie
+  releaseWindup: [0.32, 0.26, 0.21],   // s : il ouvre les serres au-dessus de KAGE avant de lâcher
+  lead: 0.5,               // s : il se place là où KAGE sera (sa vitesse × lead)
+  throwLead: 0.4,          // la pierre part avec un peu de l'élan de KAGE (vx × throwLead, ±50 px/s)
   aim: [0.85, 0.68, 0.55], // s de visée avant le plongeon (le joueur doit pouvoir le lire)
   stuck: [2.9, 2.6, 2.3],  // s coincé dans le sol
-  perchPause: [1.6, 1.2, 0.9],
+  perchPause: [2.1, 1.9, 1.8],   // s sur le perchoir au retour : il finit ses deux croassements (1,7 s) avant de repartir
   diveSpeed: [300, 330, 360],
   diveRise: 34,            // px : il prend de la hauteur avant de plonger
   diveClear: 17,           // px : hauteur de sa boîte au-dessus du sol quand elle passe sur KAGE
@@ -44,15 +51,18 @@ export const KARASU = {
   hurtFlash: 0.16,
   diveHit: 2,
   // pierres : petite, moyenne, grosse (rayon, dégâts, gravité, roulement)
+  // (nov. 2026 : chute plus rapide qu'à la refonte, elles s'esquivaient trop facilement)
   rock: [
-    { r: 4, dmg: 1, g: 300, roll: 0 },
-    { r: 6, dmg: 1, g: 280, roll: 0 },
-    { r: 8, dmg: 1, g: 260, roll: 46 },
+    { r: 4, dmg: 1, g: 390, roll: 0 },
+    { r: 6, dmg: 1, g: 370, roll: 0 },
+    { r: 8, dmg: 1, g: 350, roll: 58 },
   ],
-  rollTime: 0.55,
+  rollTime: 0.7,
   knockFall: 360,          // gravité de sa chute quand il est touché en vol
 };
 
+// les images où l'aile descend : le son du coup d'aile part à ce moment-là
+const WING_DOWN = new Set(['fly_3', 'carry_3', 'open_2', 'takeoff_2', 'drop_2']);
 const PHASE_OF = (f) => (f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
 const touch = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -81,6 +91,7 @@ export class Karasu {
     this.setState('perch');
     this.animName = 'idle';
     this.animT = 0;
+    this.cawing = null;
     this.flash = 0;
     this.shots = [];           // pierres lâchées
     this.carry = null;         // la pierre qu'il tient dans ses serres
@@ -205,6 +216,7 @@ export class Karasu {
   update(dt, player) {
     this.timer += dt;
     this.animT += dt;
+    this.voice(dt);
     this.flash = Math.max(0, this.flash - dt);
     this.hitT = Math.max(0, (this.hitT ?? 0) - dt);
     // l'épouvantail : un ressort amorti
@@ -240,13 +252,14 @@ export class Karasu {
             this.engaged = true;
             this.onEvent?.('engage', {});
             this.setState('taunt');
-            this.play('croak');
-            this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true });
+            this.caw(KARASU.cawLong, true);
           }
         } else if (this.timer > KARASU.perchPause[P]) this.takeOff(P);
         break;
       }
-      case 'taunt':
+      case 'taunt':                  // il croasse sur son perchoir, toise KAGE, puis s'envole
+        this.facing = toward;
+        if (!this.cawing && this.animName !== 'look') this.play('look');
         if (this.timer > KARASU.taunt) this.takeOff(P);
         break;
       case 'takeoff':
@@ -256,48 +269,48 @@ export class Karasu {
         break;
       case 'fetch': {                // il vole vers un tas de pierres, puis descend dessus
         this.play('fly');
-        const tx = this.pileX, ty = this.groundY - 10;
+        const tx = this.pileX, ty = this.groundY - KARASU.grabHover;
         const near = Math.abs(this.x - tx) < 6;
         this.steer(tx, near ? ty : Math.min(cruise + 20, ty - 30), KARASU.flySpeed * (near ? 0.8 : 1.15), dt);
         this.facing = Math.sign(tx - this.x) || this.facing;
         if (near && Math.abs(this.y - ty) < 5) {
           this.setState('grab');
-          this.play('drop');
+          this.play('open');                 // serres ouvertes au-dessus du tas
         }
         break;
       }
       case 'grab':                   // serres ouvertes, il saisit une pierre
-        this.y = this.groundY - 10 + Math.sin(this.timer * 18) * 1.2;
+        this.y = this.groundY - KARASU.grabHover + Math.sin(this.timer * 18) * 1.2;
         if (this.timer > KARASU.grab * 0.55 && !this.carry) {
           const size = Math.random() < [0.25, 0.4, 0.5][P] ? 2 : Math.random() < 0.5 ? 1 : 0;
           this.carry = { size };
+          this.play('carry');                // les serres se referment sur la pierre
           this.onEvent?.('grab', { x: this.x, y: this.groundY, size });
         }
         if (this.timer > KARASU.grab) { this.setState('lift'); this.onEvent?.('flap', { x: this.x, y: this.y }); }
         break;
       case 'lift':                   // il remonte, la pierre dans les serres
-        this.play('fly');
+        this.play(this.carry ? 'carry' : 'fly');
         this.steer(this.x + toward * 10, cruise, KARASU.flySpeed, dt);
         this.facing = toward;
         if (Math.abs(this.y - cruise) < 6) this.setState('carry');
         break;
       case 'carry': {                // il se place au-dessus de KAGE (légère avance sur sa course)
-        this.play('fly');
-        const lead = this.clampX(px + player.vx * 0.35, 30);
+        this.play('carry');
+        const lead = this.clampX(px + player.vx * KARASU.lead, 30);
         const far = Math.abs(lead - this.x) > 70;           // loin : il file ; au-dessus de KAGE : il le suit
         this.steer(lead, cruise + Math.sin(this.animT * 2.4) * 3, far ? KARASU.flySpeed * 1.1 : KARASU.carrySpeed, dt);
         this.facing = toward;
         if ((Math.abs(this.x - lead) < 10 && this.timer > 0.5) || this.timer > 5) {
           this.setState('release');
-          this.play('drop');
-          this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true, soft: true });
+          this.play('open');                 // il ouvre les serres : la pierre va tomber
         }
         break;
       }
       case 'release':                // il ouvre les serres (lisible), puis lâche
         this.steer(this.x, cruise, 20, dt);
         if (this.timer > KARASU.releaseWindup[P]) {
-          this.throwRock(this.facing * 26);
+          this.throwRock(Math.max(-50, Math.min(50, player.vx * KARASU.throwLead)) || this.facing * 12);
           this.rocksLeft--;
           if (this.rocksLeft > 0) this.goFetch(px);
           else if (!this.scaffoldsUp) { this.setState('aim'); this.aimSide = -toward; this.onEvent?.('glare', { x: this.x, y: this.y - 40 }); }
@@ -384,7 +397,7 @@ export class Karasu {
           this.x = top.x; this.y = top.y;
           this.kick(-2.5);
           this.setState('perch');
-          this.play('hatfix');
+          this.caw(KARASU.cawShort, false);      // de retour sur son perchoir : il croasse
         }
         break;
       }
@@ -405,15 +418,37 @@ export class Karasu {
 
   /** Les petites animations de caractère, quand il est perché. */
   personality(dt) {
+    if (this.cawing) return;                      // il croasse : le bec suit les cris (voir caw)
     const a = this.meta.animations[this.animName];
-    if (this.animName !== 'idle' && !a.loop && this.animT > a.durations.reduce((s, d) => s + d, 0) / 1000) this.play('idle');
+    if (this.animName !== 'idle' && !a.loop && (!a.durations || this.animT > a.durations.reduce((s, d) => s + d, 0) / 1000)) this.play('idle');
     this.nextIdle -= dt;
     if (this.nextIdle <= 0 && this.animName === 'idle') {
-      const r = Math.random();
-      this.play(r < 0.45 ? 'look' : r < 0.75 ? 'hatfix' : 'croak');
-      if (this.animName === 'croak') this.onEvent?.('caw', { x: this.x, y: this.y - 40, taunt: true, soft: true });
+      this.play(Math.random() < 0.6 ? 'look' : 'hatfix');
       this.nextIdle = 2.4 + Math.random() * 2.6;
     }
+  }
+
+  /** Il croasse : le son enregistré, et le bec qui s'ouvre au début de chaque cri. */
+  caw(times, long) {
+    this.cawing = { t: 0, times };
+    this.onEvent?.('caw', { x: this.x, y: this.y - 40, long });
+  }
+
+  /** Le bec pendant un croassement (perché) ; un coup d'aile à chaque descente d'aile. */
+  voice(dt) {
+    if (this.cawing) {
+      const c = this.cawing;
+      c.t += dt;
+      const open = c.times.some((t0) => c.t >= t0 && c.t < t0 + KARASU.cawOpen);
+      if (['perch', 'taunt'].includes(this.state)) this.play(open ? 'cawOpen' : 'cawShut');
+      if (c.t > c.times[c.times.length - 1] + KARASU.cawOpen + 0.15 || !['perch', 'taunt'].includes(this.state)) {
+        this.cawing = null;
+        if (['perch', 'taunt'].includes(this.state)) this.play('idle');
+      }
+    }
+    const f = this.frame();
+    if (f !== this.lastFrame && WING_DOWN.has(f)) this.onEvent?.('wingbeat', { x: this.x, y: this.y - 30 });
+    this.lastFrame = f;
   }
 
   takeOff(P) {
@@ -446,8 +481,10 @@ export class Karasu {
   /** La pierre portée part : elle tombe (vx : un peu d'élan vers l'avant). */
   throwRock(vx) {
     const size = this.carry?.size ?? 0;
+    const g = this.gripPoint(), r = KARASU.rock[size].r;
     this.carry = null;
-    this.shots.push({ size, x: this.x, y: this.y - 4, vx, vy: 0, t: 0, state: 'fall', spin: 0, dir: Math.sign(vx) || this.facing });
+    // elle part de ses serres (s.y : le bas de la pierre)
+    this.shots.push({ size, x: g.x, y: g.y + 2 * r, vx, vy: 0, t: 0, state: 'fall', spin: 0, dir: Math.sign(vx) || this.facing });
     this.onEvent?.('throw', { x: this.x, y: this.y, size });
   }
 
@@ -549,6 +586,12 @@ export class Karasu {
     }
   }
 
+  /** Le haut de la pierre tenue, dans le monde : sous ses serres (images carry_ et open_). */
+  gripPoint() {
+    const m = this.meta, g = m.grip?.[this.frame()] ?? m.grip?.carry_2 ?? { x: m.pivot.x, y: m.pivot.y - 10 };
+    return { x: this.x + (g.x - m.pivot.x) * this.facing, y: this.y + g.y - m.pivot.y };
+  }
+
   // ---- dessin ---------------------------------------------------------------
   frame() {
     const a = this.meta.animations[this.animName];
@@ -610,8 +653,8 @@ export class Karasu {
       shadow(s.x + s.vx * Math.sqrt((2 * Math.max(0, floor - s.y)) / KARASU.rock[s.size].g), floor, floor - s.y, KARASU.rock[s.size].r);
     }
     if (this.carry && ['carry', 'release'].includes(this.state)) {
-      const floor = this.surfaceAt(this.x, this.y);
-      shadow(this.x, floor, floor - this.y, KARASU.rock[this.carry.size].r * 0.7);
+      const g = this.gripPoint(), floor = this.surfaceAt(g.x, g.y);
+      shadow(g.x, floor, floor - g.y, KARASU.rock[this.carry.size].r * 0.7);
     }
     ctx.globalAlpha = 1;
   }
@@ -621,9 +664,9 @@ export class Karasu {
     const m = this.meta, name = this.frame(), f = m.frames[name];
     const sx = Math.round(this.x - cam.x), sy = Math.round(this.y - cam.y) - m.pivot.y;
     // la pierre qu'il tient, sous ses serres
-    if (this.carry) {
-      const img = this.rockSprite(this.carry.size), r = KARASU.rock[this.carry.size].r;
-      ctx.drawImage(img, Math.round(this.x - r - 1 - cam.x), Math.round(this.y - 2 * r + 4 - cam.y));
+    if (this.carry) {                            // dessinée avant lui : ses doigts passent devant
+      const img = this.rockSprite(this.carry.size), r = KARASU.rock[this.carry.size].r, g = this.gripPoint();
+      ctx.drawImage(img, Math.round(g.x - r - 1 - cam.x), Math.round(g.y - 1 - cam.y));
     }
     ctx.save();
     if (this.facing < 0) {
