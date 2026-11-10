@@ -2,6 +2,7 @@ import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
+import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
@@ -134,9 +135,13 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
-// cabine d'essayage des skins (artefact de test dédié, window.__KAGE_SKINLAB) : le Potager sans écran titre + barre des skins
-const SKIN_LAB = !!globalThis.__KAGE_SKINLAB;
-const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
+// version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
+// et un panneau en haut à droite : skins sans achat, choix du chapitre, saut de zone en zone
+const SKIN_LAB = TEST_BUILD;
+const labGet = (k) => { try { return localStorage.getItem(`kage.lab.${k}`); } catch { return null; } };
+const labSet = (k, v) => { try { localStorage.setItem(`kage.lab.${k}`, v); } catch { /* rien */ } };
+const hashId = location.hash.slice(1);
+const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter') : 'potager';
 const level = new Level(LEVEL_ID);
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -489,12 +494,29 @@ let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
 for (const a of document.querySelectorAll('.levels a')) if (a.dataset.level === LEVEL_ID) a.setAttribute('aria-current', 'page');
+let labZone = null;   // libellé « Zone 03 » du panneau de test
 if (SKIN_LAB) setupSkinLab();
 
-/** Cabine d'essayage : une vignette par skin en haut de l'image ; clic ou touches 1, 2… */
+/**
+ * Panneau de la version de test, en haut à droite de l'image : une vignette par
+ * skin (clic ou touches 1, 2…), les chapitres, et le saut de zone en zone.
+ */
 function setupSkinLab() {
   document.querySelector('.levels').style.display = 'none';
-  document.title = 'The Ninja Game — cabine des skins';
+  document.title = 'The Ninja Game — Test';
+  const lab = document.createElement('div');
+  lab.className = 'lab';
+  const stop = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  const button = (label, title, onClick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    if (label) b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener('click', () => { onClick(); b.blur(); });
+    stop(b);
+    return b;
+  };
+  // --- skins ---
   const bar = document.createElement('div');
   bar.className = 'skinlab';
   bar.setAttribute('role', 'toolbar');
@@ -502,10 +524,8 @@ function setupSkinLab() {
   const f = meta.animations.idle.frames[0];
   const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
   const buttons = ids.map((id, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
+    const b = button('', `${skins[id].name} (touche ${i + 1})`, () => pick(id));
     b.dataset.skin = id;
-    b.title = `${skins[id].name} (touche ${i + 1})`;
     const cv = document.createElement('canvas');
     cv.width = 32; cv.height = 26;
     const c = cv.getContext('2d');
@@ -514,21 +534,75 @@ function setupSkinLab() {
     const name = document.createElement('span');
     name.textContent = skins[id].name;
     b.append(cv, name);
-    b.addEventListener('click', () => pick(id));
-    b.addEventListener('pointerdown', (e) => e.stopPropagation());
     bar.append(b);
     return b;
   });
   function pick(id) {
     wearSkin(id);
+    labSet('skin', id);
     for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
   }
   addEventListener('keydown', (e) => {
     const n = Number(e.key);
     if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
   });
-  uiLayer.append(bar);
-  pick(ids.find((id) => id !== 'encre') ?? 'encre');
+  lab.append(bar);
+  // --- chapitres : un clic recharge la page sur le chapitre choisi ---
+  const chapters = Object.entries(LEVELS).filter(([, l]) => l.chapter != null).sort((a, b) => a[1].chapter - b[1].chapter);
+  const row = document.createElement('div');
+  row.className = 'lab__row';
+  row.dataset.chapters = '';
+  for (const [id, l] of chapters) {
+    const b = button(`Chapitre ${l.chapter}`, l.name, () => {
+      if (id === LEVEL_ID) { gotoZone(0); return; }
+      labSet('chapter', id);
+      location.hash = `#${id}`;
+      location.reload();
+    });
+    b.dataset.labChapter = id;
+    b.setAttribute('aria-pressed', String(id === LEVEL_ID));
+    row.append(b);
+  }
+  lab.append(row);
+  // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
+  if (level.zones.length) {
+    const zr = document.createElement('div');
+    zr.className = 'lab__row';
+    zr.dataset.zones = '';
+    const cur = () => Math.max(0, level.zones.indexOf(level.zoneAt(player.x)));
+    labZone = document.createElement('span');
+    labZone.textContent = `Zone ${level.zones[0].id}`;
+    const prev = button('←', 'Zone précédente', () => gotoZone(cur() - 1));
+    prev.dataset.zone = 'prev';
+    const next = button('→', 'Zone suivante', () => gotoZone(cur() + 1));
+    next.dataset.zone = 'next';
+    zr.append(prev, labZone, next);
+    lab.append(zr);
+  }
+  uiLayer.append(lab);
+  pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
+}
+
+/** Version de test : pose KAGE au début de la zone i (à sa lanterne s'il y en a une). */
+function gotoZone(i) {
+  const z = level.zones[Math.max(0, Math.min(level.zones.length - 1, i))];
+  if (!z || !save) return;
+  const cp = level.checkpoints.find((k) => k.x >= z.x0 * 16 && k.x < z.x1 * 16);
+  if (cp) {
+    level.checkpoints.forEach((k) => { k.lit = k.x <= cp.x; });
+    level.spawn = { x: cp.x, y: cp.y };
+  } else {
+    const tx = z.x0 + 3;
+    let ty = 0;
+    while (ty < level.h && !level.solid(tx, ty)) ty++;
+    level.checkpoints.forEach((k) => { k.lit = k.x < tx * 16; });
+    level.spawn = { x: tx * 16 + 8, y: ty * 16 };
+  }
+  player.respawn(true);
+  startX = player.x;
+  for (const h of level.hints) if (h.x * 16 < player.x - 48) hintsDone.add(h.kind);
+  hint = null;
+  snapCamera();
 }
 
 function update(dt) {
@@ -823,6 +897,7 @@ function updateChapterUi(dt) {
     zoneTimer = 3.2;
     ui.zone.querySelector('[data-zone-num]').textContent = `Zone ${z.id}`;
     ui.zone.querySelector('[data-zone-name]').textContent = z.name;
+    if (labZone) setText(labZone, `Zone ${z.id}`);
   }
   zoneTimer = Math.max(0, zoneTimer - dt);
   ui.zone.classList.toggle('on', zoneTimer > 0);

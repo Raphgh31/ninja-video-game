@@ -208,12 +208,15 @@ body.mobile .talk { padding-left: 6px; }
 body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touch-action: none;
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* cabine d'essayage des skins (artefact de test dédié) */
-.skinlab { position: absolute; z-index: 3; top: 5px; right: 5px; pointer-events: auto;
-  display: flex; gap: 2px; padding: 2px; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
-.skinlab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;
-  background: transparent; border: 1px solid transparent; padding: 1px 4px 2px; }
-.skinlab button:hover { border-color: rgba(233, 229, 218, .3); }
-.skinlab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
+/* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image) */
+.lab { position: absolute; z-index: 3; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }
+.skinlab, .lab__row { pointer-events: auto; display: flex; align-items: center; gap: 2px; padding: 2px;
+  background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
+.lab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;
+  background: transparent; border: 1px solid transparent; padding: 0 4px 1px; }
+.skinlab button { padding: 1px 4px 2px; }
+.lab button:hover { border-color: rgba(233, 229, 218, .3); }
+.lab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
+.lab__row span { color: #fff7e6; padding: 0 3px 1px; }
 .skinlab canvas:not(.pxt) { width: 32px; height: 26px; image-rendering: pixelated; }
-body.mobile .skinlab { top: 20px; }
+body.mobile .lab { top: 20px; }

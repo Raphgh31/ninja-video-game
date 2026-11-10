@@ -37,7 +37,9 @@ async function main() {
     for (const key of ['ArrowLeft', 'ArrowRight', 'ShiftLeft', 'Space']) await k.up(key);
     await wait(120);
   };
+  // SEUL=« texte » : ne lance que les tests dont le nom contient ce texte (mise au point rapide)
   async function test(name, fn) {
+    if (process.env.SEUL && !name.includes(process.env.SEUL)) return;
     try {
       await fn();
       results.push(['ok', name]);
@@ -942,23 +944,29 @@ async function main() {
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 
-  await test('cabine des skins : le Potager s\'ouvre sans écran titre, la barre change le skin (clic et touches 1, 2…)', async () => {
+  await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
     const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-skins.html')); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
+    await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await lp.waitForFunction(() => window.__kage);
+    await lp.evaluate(() => localStorage.clear()); await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
     const r0 = await lp.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.run.paused, window.__kage.skin, document.querySelectorAll('.skinlab button').length]);
-    await lp.click('.skinlab [data-skin="encre"]'); await lp.waitForTimeout(100);
-    const r1 = await lp.evaluate(() => window.__kage.skin);
     await lp.keyboard.press('2'); await lp.waitForTimeout(100);
     const r2 = await lp.evaluate(() => window.__kage.skin);
+    await lp.click('.skinlab [data-skin="encre"]'); await lp.waitForTimeout(100);
+    const r1 = await lp.evaluate(() => window.__kage.skin);
+    // zone suivante, deux fois : KAGE est posé dans la zone 3, à sa lanterne
+    await lp.click('[data-zone="next"]'); await lp.waitForTimeout(150);
+    await lp.click('[data-zone="next"]'); await lp.waitForTimeout(400);
+    const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
+    const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,vagabond,2' && r1 === 'encre' && r2 === 'vagabond', `ouverture ${r0.join()}, clic ${r1}, touche 2 ${r2}`);
+    expect(r0.join() === 'true,false,encre,2' && r2 === 'vagabond' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
   await test('version de test : tous les skins se portent sans achat', async () => {
     const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
     await tp.evaluate(() => localStorage.clear()); await tp.reload(); await tp.waitForFunction(() => window.__kage); await tp.waitForTimeout(300);
-    await tp.click('[data-new]'); await tp.waitForTimeout(200);
     await tp.evaluate(() => {
       const g = window.__kage, pl = g.player, l = g.level, tx = Math.floor(l.merchant.x / 16) - 1;
       let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;

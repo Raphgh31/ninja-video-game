@@ -123,7 +123,7 @@ C'est la correction la plus fréquente :
 - [ ] Captures regardées et zoomées par soi-même ; ordinateur, téléphone paysage et portrait, écran haut.
 - [ ] Chargement raisonnable (tout est peint une fois au chargement : ~0,8 s pour le Potager) et 60 images/s.
 - [ ] `npm run sprites` puis `npm test` sans échec ; carte mentale à jour dans le même commit.
-- [ ] Version de test republiée (`dist/kage-test.html`), résumé clair en français.
+- [ ] Les deux artefacts republiés (« The Ninja Game » : `dist/kage-standalone.html` ; « The Ninja Game Test » : `dist/kage-test.html`), résumé clair en français.
 
 ## 5. Pièges techniques connus
 - Les PNG des personnages sont **générés** : ne jamais les éditer, modifier la forge puis `npm run sprites`. Le build échoue si un contrôle qualité échoue : corriger la pose, jamais le contrôle.

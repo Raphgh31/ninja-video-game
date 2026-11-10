@@ -20,8 +20,8 @@ Regarde aussi le code du chapitre 1 avant de concevoir quoi que ce soit : `src/g
 
 **Où on en est** : tout est dans `main` et en ligne (https://raphgh31.github.io/ninja-video-game/). Le **chapitre 1, le Potager**, est terminé et retouché : 9 zones, 10 lanternes, le marchand, des énigmes (grue de bambou, serre à quitter par la charpente, bosquets), le mini-boss KARASU-KASHI avec sa musique et ses sons. À la fin, la porte du temple s'ouvre sous les yeux du joueur, KAGE passe derrière et disparaît, puis l'écran de fin s'affiche. 75 tests automatiques passent.
 
-- Version de test (là où j'essaie le jeu) : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm — à republier avec `dist/kage-test.html` à chaque étape.
-- Cabine des skins (privée) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-skins.html`).
+- Le jeu tel que tout le monde le verra : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm — à republier avec `dist/kage-standalone.html` à chaque étape.
+- Ma version de test (privée : skins sans achat, chapitres et zones en un clic) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys — à republier avec `dist/kage-test.html` à chaque étape.
 - Carte mentale : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi (`python3 tools/carte_mentale.py --artefact <fichier>`).
 
 **Ma façon de travailler, en bref** (le détail est dans les fichiers) :
