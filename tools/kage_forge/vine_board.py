@@ -70,7 +70,7 @@ def main(dest):
     d = ImageDraw.Draw(out)
     d.text((24, 16), "KAGE sur une liane — nouvelles animations (chapitre 2)", font=font(26), fill=INK)
     y = 62
-    y = row(d, out, y, "Accroché", "Deux images : le corps pend, les jambes bougent à peine. La liane passe derrière ses mains.", vine.VINE_HANG)
+    y = row(d, out, y, "Accroché", "Deux images : KAGE pend sous la liane, dans son axe, les mains juste au-dessus de la tête. La liane passe derrière lui.", vine.VINE_HANG)
     a = [0.6, 0.3, 0.0, -0.3, -0.6]
     y = row(d, out, y, "Balancé", "Cinq images, de l'arrière à l'avant : le jeu choisit l'image selon l'angle de la liane (le sprite n'est jamais tourné).", vine.VINE_SWING, a)
     y = row(d, out, y, "Grimpe", "Quatre images en boucle : une main après l'autre, les genoux remontent à tour de rôle (lianes de la statue).", vine.VINE_CLIMB)
