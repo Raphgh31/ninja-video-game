@@ -11,30 +11,43 @@
 html, body { margin: 0; height: 100%; }
 body { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; }
 
-.bar {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
-  padding: .7rem 1.2rem; border-bottom: 1px solid var(--line);
+/* --- Textes en pixels ---------------------------------------------------------
+   Tout texte est tracé dans un petit canvas avec la police du jeu (pixelui.js) ;
+   le texte de la page reste là, à taille nulle. --k : taille d'un pixel de police
+   (1px dans le calque du jeu, qui est agrandi d'un bloc ; 2px dans les barres). */
+.bar, .ui, .mute { font-size: 0; line-height: 0; }
+canvas.pxt {
+  display: block; flex: none; pointer-events: none;
+  width: calc(var(--pw) * var(--k, 1px)); height: calc(var(--ph) * var(--k, 1px));
+  image-rendering: pixelated; image-rendering: crisp-edges;
 }
-.bar--bottom { border-bottom: 0; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; }
-h1 { margin: 0; font-size: 1rem; letter-spacing: .18em; }
-h1 span { color: var(--muted); letter-spacing: .04em; font-weight: 400; margin-left: .6rem; }
-.state { margin: 0; color: var(--muted); font-size: .8rem; }
+
+.bar {
+  --k: 2px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 6px 18px; border-bottom: 2px solid var(--line);
+}
+.bar--bottom { border-bottom: 0; border-top: 2px solid var(--line); flex-wrap: wrap; }
+h1 { margin: 0; --pxs: 2; }
+.state { margin: 0; color: var(--muted); }
 
 .stage { position: relative; display: grid; place-items: center; overflow: hidden; padding: .5rem; min-height: 0; }
 #game { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
 /* calque du paysage, exactement sous le jeu */
 .bg-layer { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
 .bg-layer[hidden] { display: none; }
-.stage > #game, .stage > .bg-layer { grid-area: 1 / 1; }
+.stage > #game, .stage > .bg-layer, .stage > .ui { grid-area: 1 / 1; }
 #game.over-bg { background: transparent; }
 body.mobile .bg-layer { position: absolute; left: 0; top: 0; }
 
-.keys { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: 0; font-size: .78rem; }
-.keys div { display: flex; gap: .45rem; }
+.keys { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 0; }
+.keys div { display: flex; gap: 8px; }
 .keys dt { color: var(--ink); }
 .keys dd { margin: 0; color: var(--muted); }
 
+button { font: inherit; }
 button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ui button:focus-visible { outline-width: 1px; outline-offset: 1px; }
 
 /* --- Mobile (écran tactile) : le jeu occupe tout l'écran, commandes dans le jeu --- */
 body.mobile { display: block; overflow: hidden; background: #000; touch-action: none;
@@ -47,163 +60,160 @@ body.mobile #game { position: absolute; left: 0; top: 0; touch-action: none; }
 /* petits écrans d'ordinateur : rien ne doit dépasser la largeur de la fenêtre */
 html, body { overflow-x: hidden; }
 .bar { min-width: 0; }
-.state { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-@media (max-width: 600px) {
-  .bar { padding: .6rem .8rem; }
-  h1 span { display: none; }
+.state { white-space: nowrap; overflow: hidden; min-width: 0; }
+@media (max-width: 900px) {
+  .bar { padding: 6px 10px; }
+  .state { display: none; }
 }
 
-/* bouton du son : coin bas-droit sur ordinateur, coin haut-droit sur mobile */
+/* bouton du son : coin bas-droit sur ordinateur, coin haut-droit du jeu sur mobile */
 .mute {
-  position: fixed; right: 1rem; bottom: .55rem; z-index: 2;
-  font: inherit; font-size: .75rem; color: var(--ink); background: transparent;
-  border: 1px solid var(--line); padding: .3rem .6rem; cursor: pointer;
+  --k: 2px;
+  position: fixed; right: 16px; bottom: 6px; z-index: 2;
+  color: var(--ink); background: transparent;
+  border: 2px solid var(--line); padding: 2px 8px; cursor: pointer;
 }
 .mute:hover { border-color: var(--muted); }
 .mute[aria-pressed="true"] { color: var(--muted); }
 body.mobile .mute {
-  position: absolute; top: .4rem; right: .4rem; bottom: auto; font-size: .65rem; padding: .2rem .45rem;
+  --k: 1px; pointer-events: auto;
+  position: absolute; top: 4px; right: 4px; bottom: auto; padding: 1px 4px; border-width: 1px;
   background: rgba(21, 23, 28, .55); border-color: rgba(233, 229, 218, .25);
 }
 
 /* choix du niveau (ordinateur) */
-.levels { display: flex; gap: 1rem; margin-right: auto; margin-left: 1.5rem; font-size: .8rem; }
-.levels a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+.levels { display: flex; gap: 18px; margin-right: auto; margin-left: 24px; }
+.levels a { color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; }
 .levels a:hover { color: var(--ink); }
 .levels a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
 
-/* écran d'arrivée */
-.win {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3;
-  min-width: 15rem; padding: 1.2rem 1.4rem; background: #15171c; border: 1px solid var(--ink);
-  color: var(--ink);
-}
-.win[hidden] { display: none; }
-.win__title { margin: 0 0 .8rem; font-size: 1rem; letter-spacing: .14em; text-transform: uppercase; }
-.win dl { margin: 0 0 1rem; display: grid; gap: .3rem; }
-.win dl div { display: flex; justify-content: space-between; gap: 2rem; font-size: .85rem; }
-.win dt { color: var(--muted); }
-.win dd { margin: 0; }
-.win button {
-  font: inherit; font-size: .8rem; color: var(--bg); background: var(--ink); border: 0;
-  padding: .45rem .9rem; cursor: pointer;
-}
+/* --- Calque de l'interface du jeu ----------------------------------------------
+   Il a la taille de l'image de jeu en pixels de jeu (448 × 252 sur ordinateur) et
+   il est agrandi d'un bloc, comme elle : ici, 1px = 1 pixel de jeu. --cx / --cy :
+   le centre, toujours sur un pixel entier. */
+.ui { position: relative; z-index: 2; overflow: hidden; pointer-events: none; --k: 1px; }
+body.mobile .ui { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.ui button, .ui section, .ui .win { pointer-events: auto; }
+.ui button { cursor: pointer; }
 
-/* --- chapitre : interface discrète posée sur le jeu ------------------------- */
-/* placée par rapport à l'image de jeu (--gw × --gh, centrée dans .stage), pas à la page */
-.zone-banner, .hint, .saved, .talk { position: absolute; z-index: 2; pointer-events: none; }
+.zone-banner, .hint, .saved, .talk, .boss { position: absolute; left: var(--cx); pointer-events: none; }
 .boss {
-  position: absolute; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .6s;
-  top: calc(50% - var(--gh, 100%) / 2 + .8rem); left: 50%; transform: translateX(-50%);
-  width: calc(var(--gw, 100%) * .34); display: grid; justify-items: center; gap: .3rem;
+  opacity: 0; transition: opacity .6s; top: 7px; transform: translateX(-50%);
+  width: 152px; display: grid; justify-items: center; gap: 1px;
 }
 .boss.on { opacity: 1; }
-.boss__name {
-  font-size: .62rem; line-height: 1; letter-spacing: .34em; padding-left: .34em; text-transform: uppercase;
-  color: #e9e5da; text-shadow: 0 1px 0 #06070a, 0 0 4px rgba(6, 7, 10, .6);
-}
-.boss__bar { position: relative; justify-self: stretch; height: 3px; background: rgba(6, 7, 10, .72); outline: 1px solid rgba(233, 229, 218, .28); }
+.boss__name { --pxs: 2; --pxo: #06070a; text-transform: uppercase; color: #e9e5da; }
+.boss__bar { position: relative; justify-self: stretch; height: 3px; background: rgba(6, 7, 10, .72); box-shadow: 0 0 0 1px rgba(233, 229, 218, .28); }
 .boss__bar i { position: absolute; left: 0; top: 0; bottom: 0; }
 .boss__lag { width: calc(var(--lag, 1) * 100%); background: #e9e5da; opacity: .55; }
 .boss__hp { width: calc(var(--hp, 1) * 100%); background: #b8322a; }
-body.boss-on .saved { top: calc(50% - var(--gh, 100%) / 2 + 2.4rem); }
+body.boss-on .saved { top: 30px; }
+body.boss-on .zone-banner { top: 46px; }
 .zone-banner {
-  top: calc(50% - var(--gh, 100%) * .42); left: 50%; transform: translate(-50%, -6px); opacity: 0;
-  display: grid; justify-items: center; gap: .15rem; text-align: center;
-  padding: .45rem 1.1rem; background: rgba(21, 23, 28, .62); border-top: 1px solid rgba(233, 229, 218, .35);
+  top: 20px; transform: translate(-50%, -3px); opacity: 0;
+  display: grid; justify-items: center; gap: 0;
+  padding: 2px 12px 3px; background: rgba(21, 23, 28, .62); border-top: 1px solid rgba(233, 229, 218, .35);
   border-bottom: 1px solid rgba(233, 229, 218, .35); transition: opacity .5s, transform .5s;
 }
 .zone-banner.on { opacity: 1; transform: translate(-50%, 0); }
-.zone-banner span { font-size: .62rem; letter-spacing: .3em; text-transform: uppercase; color: #c9c3b4; }
-.zone-banner strong { font-size: .95rem; font-weight: 600; letter-spacing: .04em; color: var(--ink); white-space: nowrap; }
+.zone-banner span { --pxs: 2; text-transform: uppercase; color: #a9a496; }
+.zone-banner strong { color: var(--ink); white-space: nowrap; }
 .hint {
-  bottom: calc(50% - var(--gh, 100%) * .41); left: 50%; transform: translateX(-50%); margin: 0; opacity: 0;
-  padding: .3rem .7rem; font-size: .72rem; color: var(--ink); background: rgba(21, 23, 28, .7);
-  border-left: 2px solid #9fd98b; white-space: nowrap; transition: opacity .3s;
+  bottom: 22px; transform: translateX(-50%); margin: 0; opacity: 0;
+  padding: 1px 6px 2px; color: var(--ink); background: rgba(21, 23, 28, .7);
+  border-left: 2px solid #9fd98b; transition: opacity .3s;
 }
 .hint.on { opacity: 1; }
 .saved {
-  top: calc(50% - var(--gh, 100%) / 2 + .55rem); left: 50%; transform: translateX(-50%); margin: 0; opacity: 0;
-  padding: .25rem .6rem; background: rgba(21, 23, 28, .62);
-  font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: #f0c25a;
+  top: 6px; transform: translateX(-50%); margin: 0; opacity: 0;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 6px; background: rgba(21, 23, 28, .62);
+  --pxs: 1; text-transform: uppercase; color: #f0c25a;
   transition: opacity .4s;
 }
-.saved::before { content: ""; display: inline-block; width: .45rem; height: .55rem; margin-right: .4rem;
-  background: #f0c25a; box-shadow: 0 0 6px #f0c25a; vertical-align: -1px; }
+.saved::before { content: ""; width: 4px; height: 6px; background: #f0c25a; box-shadow: 0 0 0 1px rgba(240, 194, 90, .3); }
 .saved.on { opacity: 1; }
 .talk {
-  pointer-events: auto; bottom: calc(50% - var(--gh, 100%) * .26); left: 50%; transform: translateX(-50%);
-  font: inherit; font-size: .72rem; color: var(--ink); background: rgba(21, 23, 28, .78);
-  border: 1px solid rgba(240, 194, 90, .7); padding: .35rem .7rem; cursor: pointer;
+  pointer-events: auto; bottom: 64px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  color: var(--ink); background: rgba(21, 23, 28, .78);
+  border: 1px solid rgba(240, 194, 90, .7); padding: 1px 6px 2px 3px;
 }
 .talk[hidden] { display: none; }
-.talk__key { display: inline-block; padding: 0 .3rem; margin-right: .3rem; border: 1px solid rgba(233, 229, 218, .5); }
+.talk__key { padding: 0 3px; border: 1px solid rgba(233, 229, 218, .5); }
 body.mobile .talk__key { display: none; }
+body.mobile .talk { padding-left: 6px; }
 
 .title-screen {
   position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center;
-  gap: .6rem; background: rgba(12, 14, 18, .72); text-align: center;
+  gap: 2px; background: rgba(12, 14, 18, .72);
 }
 .title-screen[hidden] { display: none; }
-.title-screen__name { margin: 0; font-size: 2.6rem; letter-spacing: .5em; padding-left: .5em; color: var(--ink); }
-.title-screen__chapter { margin: 0 0 .8rem; font-size: .8rem; letter-spacing: .12em; color: #c9c3b4; }
-.title-screen__actions { display: grid; gap: .5rem; min-width: 12rem; }
+.title-screen__name { margin: 0; --pxf: title; --pxs: 1; color: var(--ink); }
+.title-screen__chapter { margin: 0 0 12px; --pxs: 1; color: #c9c3b4; }
+.title-screen__actions { display: grid; gap: 4px; min-width: 110px; }
 .title-screen button, .shop button {
-  font: inherit; font-size: .8rem; color: var(--ink); background: transparent;
-  border: 1px solid rgba(233, 229, 218, .45); padding: .5rem 1rem; cursor: pointer;
+  display: grid; justify-items: center; color: var(--ink); background: transparent;
+  border: 1px solid rgba(233, 229, 218, .45); padding: 2px 10px 3px;
 }
 .title-screen button:hover, .title-screen button:focus-visible { background: var(--ink); color: var(--bg); }
 .title-screen button[hidden] { display: none; }
 
 .shop {
-  position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(30rem, 92%); max-height: 88%; overflow: auto; display: grid; gap: .7rem;
-  padding: 1rem 1.2rem; color: var(--ink); background: #241a14;
-  border: 1px solid #8e6a44; box-shadow: inset 0 0 0 3px #3a2a1e;
+  position: absolute; z-index: 4; left: var(--cx); top: var(--cy); transform: translate(-50%, -50%);
+  width: 320px; max-width: 94%; max-height: 94%; overflow: auto; display: grid; gap: 4px;
+  padding: 7px 10px 8px; color: var(--ink); background: #241a14;
+  border: 1px solid #8e6a44; box-shadow: inset 0 0 0 2px #3a2a1e;
 }
 .shop[hidden] { display: none; }
-.shop__head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-.shop__head h2 { margin: 0; font-size: .95rem; letter-spacing: .08em; }
-.shop__purse { margin: 0; font-size: .75rem; color: #f0c25a; }
-.shop__line { margin: 0; font-size: .78rem; color: #d8cdb4; font-style: italic; }
-.shop__tabs { display: flex; gap: .4rem; flex-wrap: wrap; }
+.shop__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.shop__head h2 { margin: 0; --pxs: 1; }
+.shop__purse { margin: 0; color: #f0c25a; }
+.shop__line { margin: 0; color: #d8cdb4; --pxw: 298; }
+.shop__tabs { display: flex; gap: 3px; flex-wrap: wrap; }
+.shop .shop__tabs button { padding: 1px 6px 2px; }
 .shop__tabs button[aria-pressed="true"] { background: #8e6a44; border-color: #8e6a44; color: #fff7e6; }
-.shop__items { min-height: 4rem; border-top: 1px solid #4a382a; padding-top: .6rem; }
-.shop__empty { margin: 0; font-size: .75rem; color: #a99a80; }
-.shop__items { display: grid; gap: .5rem; }
-.shop__item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem;
-  padding: .35rem .5rem .35rem .3rem; border-bottom: 1px solid #3a2a1e; }
+.shop__items { min-height: 30px; border-top: 1px solid #4a382a; padding-top: 4px; display: grid; gap: 2px; }
+.shop__empty { margin: 0; color: #a99a80; --pxw: 298; }
+.shop__item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  padding: 2px 2px 3px; border-bottom: 1px solid #3a2a1e; }
 .shop__item:last-of-type { border-bottom: 0; }
-.shop__thumb { width: 64px; height: 52px; image-rendering: pixelated; background: #2e221a; }
-.shop__text { display: grid; gap: .15rem; }
-.shop__text strong { font-size: .8rem; font-weight: 600; letter-spacing: .03em; }
-.shop__text span { font-size: .7rem; color: #a99a80; line-height: 1.35; }
+.shop__thumb { width: 32px; height: 26px; image-rendering: pixelated; background: #2e221a; }
+.shop__text { display: grid; gap: 0; }
+.shop__text strong { color: var(--ink); }
+.shop__text span { color: #a99a80; --pxw: 168; --pxl: -1; }
 .shop button:disabled { opacity: .55; cursor: default; }
 .shop button.shop__poor { color: #a99a80; border-color: rgba(233, 229, 218, .2); }
-.shop__item button { white-space: nowrap; }
 .shop__close { justify-self: end; }
-.win__next { margin: -.4rem 0 .8rem; font-size: .75rem; color: #c9c3b4; max-width: 18rem; }
+
+/* écran d'arrivée */
+.win {
+  position: absolute; left: var(--cx); top: var(--cy); transform: translate(-50%, -50%); z-index: 5;
+  min-width: 150px; padding: 8px 12px 10px; background: #15171c; border: 1px solid var(--ink);
+  color: var(--ink); display: grid; gap: 4px;
+}
+.win[hidden] { display: none; }
+.win p { margin: 0; }
+.win__title { --pxs: 1; text-transform: uppercase; --pxw: 240; }
+.win__next { color: #c9c3b4; --pxw: 220; }
 .win__next:empty { display: none; }
+.win dl { margin: 2px 0 4px; display: grid; gap: 0; }
+.win dl div { display: flex; justify-content: space-between; gap: 24px; }
 .win dl div[hidden] { display: none; }
-body.mobile .zone-banner strong { font-size: .8rem; }
+.win dt { color: var(--muted); }
+.win dd { margin: 0; }
+.win button { justify-self: start; color: var(--bg); background: var(--ink); border: 0; padding: 2px 10px 3px; }
 
 /* calque des commandes tactiles : au-dessus du jeu, sous l'interface du chapitre */
 body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touch-action: none;
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* boutique sur téléphone : plus compacte, pour tenir dans la hauteur en paysage */
-body.mobile .shop { gap: .45rem; padding: .7rem 1rem; }
-body.mobile .shop__item { padding: .15rem .4rem .15rem .2rem; gap: .6rem; }
-body.mobile .shop__thumb { width: 48px; height: 39px; }
-body.mobile .shop__items { padding-top: .35rem; gap: .25rem; }
-
 /* cabine d'essayage des skins (artefact de test dédié) */
-.skinlab { position: absolute; z-index: 3; top: calc(50% - var(--gh, 100%) / 2 + .5rem); right: calc(50% - var(--gw, 100%) / 2 + .5rem);
-  display: flex; gap: .35rem; padding: .3rem; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
-.skinlab button { display: grid; justify-items: center; gap: .15rem; font: inherit; font-size: .62rem; color: #d8cdb4;
-  background: transparent; border: 1px solid transparent; padding: .25rem .45rem; cursor: pointer; }
+.skinlab { position: absolute; z-index: 3; top: 5px; right: 5px; pointer-events: auto;
+  display: flex; gap: 2px; padding: 2px; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
+.skinlab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;
+  background: transparent; border: 1px solid transparent; padding: 1px 4px 2px; }
 .skinlab button:hover { border-color: rgba(233, 229, 218, .3); }
 .skinlab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
-.skinlab canvas { width: 48px; height: 39px; image-rendering: pixelated; }
-body.mobile .skinlab canvas { width: 32px; height: 26px; }
-body.mobile .skinlab { top: calc(50% - var(--gh, 100%) / 2 + 2.6rem); }
+.skinlab canvas:not(.pxt) { width: 32px; height: 26px; image-rendering: pixelated; }
+body.mobile .skinlab { top: 20px; }

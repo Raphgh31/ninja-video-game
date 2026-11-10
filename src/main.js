@@ -15,6 +15,7 @@ import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
+import { pixelUI } from './engine/pixelui.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -54,9 +55,14 @@ if (touchCanvas) {
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 const stage = canvas.parentElement;
+// calque de l'interface : à la taille de l'image de jeu, en pixels de jeu, puis
+// agrandi comme elle ; tous ses textes sont tracés avec la police en pixels
+const uiLayer = document.querySelector('.ui');
+/** Change un texte seulement s'il a changé (chaque changement redessine son canvas). */
+const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
 if (MOBILE) {
-  // le bouton du son et l'écran de fin tournent avec le jeu
-  stage.append(document.querySelector('.mute'), document.querySelector('.win'));
+  // le bouton du son tourne avec le jeu, à l'échelle de ses pixels
+  uiLayer.append(document.querySelector('.mute'));
 }
 const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
@@ -110,6 +116,11 @@ function fit() {
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
+  uiLayer.style.width = `${VIEW_W}px`;
+  uiLayer.style.height = `${VIEW_H}px`;
+  uiLayer.style.transform = `scale(${SCALE})`;
+  uiLayer.style.setProperty('--cx', `${Math.floor(VIEW_W / 2)}px`);
+  uiLayer.style.setProperty('--cy', `${Math.floor(VIEW_H / 2)}px`);
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
   touch?.layout(touchView.w, touchView.h, touchView.scale);
@@ -516,7 +527,7 @@ function setupSkinLab() {
     const n = Number(e.key);
     if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
   });
-  document.querySelector('.stage').append(bar);
+  uiLayer.append(bar);
   pick(ids.find((id) => id !== 'encre') ?? 'encre');
 }
 
@@ -754,7 +765,7 @@ function draw() {
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }
-  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`;
+  setText(stateEl, `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`);
 }
 
 // ---- chapitre : sauvegarde, écran titre, zones, aides, marchand ---------------
@@ -827,7 +838,7 @@ function updateChapterUi(dt) {
       hint = null;
     }
   }
-  ui.hint.textContent = hint ? HINTS[hint.kind][MOBILE ? 1 : 0] : '';
+  if (hint) setText(ui.hint, HINTS[hint.kind][MOBILE ? 1 : 0]);
   ui.hint.classList.toggle('on', !!hint);
   // sauvegarde
   savedFlash = Math.max(0, savedFlash - dt);
@@ -839,7 +850,7 @@ function updateChapterUi(dt) {
   // coffre : « Ouvrir le coffre » quand on se tient devant, encore fermé
   chestHere = !near && alive ? level.chestNear(player.x, player.y) : null;
   ui.talk.hidden = !near && !chestHere;
-  ui.talkLabel.textContent = chestHere ? 'Ouvrir le coffre' : 'Parler au marchand';
+  setText(ui.talkLabel, chestHere ? 'Ouvrir le coffre' : 'Parler au marchand');
   if (input.wasPressed('up')) talkAction();
 }
 
@@ -1042,6 +1053,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 fit();
+pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('.mute')]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.

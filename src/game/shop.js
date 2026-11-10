@@ -91,8 +91,8 @@ export class Shop {
       const row = document.createElement('div');
       row.className = 'shop__item';
       row.dataset.skin = id;
-      // vignette : KAGE au repos, ×3, pixels nets
-      const z = 3;
+      // vignette : KAGE au repos, à la taille des pixels du jeu
+      const z = 1;
       const cv = document.createElement('canvas');
       cv.width = 32 * z;
       cv.height = 26 * z;
