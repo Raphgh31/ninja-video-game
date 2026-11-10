@@ -1,4 +1,5 @@
 import { POTAGER } from './chapters/potager.js';
+import { FORET } from './chapters/foret.js';
 
 // Cartes des niveaux. Légende :
 //   # bloc   ^ pics   S départ   E TATE   W WARA   P lanterne (point de sauvegarde)
@@ -7,6 +8,7 @@ import { POTAGER } from './chapters/potager.js';
 //   Chapitres (monde continu, voir chapters/) : = bois   | bambou   ~ eau   B caisse
 //   o ryō   M marchand   % bloc invisible (le décor peint montre ce qui arrête KAGE : pente d'un toit, foin…)
 //   - passerelle (traversable par-dessous : on se pose dessus en retombant)   _ plateforme fragile (arène du boss)
+//   Forêt (chapitre 2) : | tronc plein   v vide (on y meurt)   J porte de pierre de la statue (pleine tant qu'elle dort)
 //   K blocs d'une grue de bambou (posés par le niveau, voir Builder.crane)   B : les caisses tombent quand rien ne les porte
 
 // Terrain d'essai : long sol plat fermé par deux murs, puits et mur isolé.
@@ -59,6 +61,7 @@ export const NIVEAU_1 = [
 
 export const LEVELS = {
   potager: POTAGER,
+  foret: FORET,
   'niveau-1': { name: 'Niveau 1', map: NIVEAU_1 },
   terrain: { name: "Terrain d'essai", map: TERRAIN },
 };

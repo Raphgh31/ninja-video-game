@@ -177,6 +177,7 @@ export class TouchControls {
     } else if (p.x < this.w * 0.5 && !this.stick) {
       // le pouce se pose au centre du joystick : point de départ d'un éventuel coup rapide
       this.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, outAt: -1, outDir: 0, leftDeadAt: performance.now() / 1000, wasDead: true };
+      this.input.setHeld('stick', true);
       this.pointers.set(e.pointerId, { type: 'stick' });
     }
   }
@@ -205,6 +206,8 @@ export class TouchControls {
       this.input.setHeld('left', false);
       this.input.setHeld('right', false);
       this.input.setHeld('down', false);
+      this.input.setHeld('stick', false);
+      this.input.setHeld('stick_up', false);
       this.setSprint(false);
     }
   }
@@ -236,6 +239,9 @@ export class TouchControls {
     const inDead = Math.abs(dx) <= STICK.dead;
     this.input.setHeld('left', dx < -STICK.dead);
     this.input.setHeld('right', dx > STICK.dead);
+    // lianes (chapitre 2) : tant que le joystick est touché, KAGE reste accroché ; vers le haut, il grimpe
+    this.input.setHeld('stick', true);
+    this.input.setHeld('stick_up', dy < -STICK.radius * STICK.down && Math.abs(dy) > Math.abs(dx));
     const wantDown = dy > STICK.radius * STICK.down && Math.abs(dy) > Math.abs(dx);
     // sprint : pouce poussé hors du cercle, vers un côté
     const { out } = this.offset();

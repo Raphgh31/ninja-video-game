@@ -72,6 +72,10 @@ export class Player {
     this.fxTimer = 0;
     this.fastDir = 0;         // sens de la dernière course rapide (pour le dérapage)
     this.fastTimer = 0;
+    this.vine = null;         // liane tenue (chapitre 2)
+    this.vineCd = 0;
+    this.lastVine = null;
+    this.ride = null;         // plateforme mobile sous ses pieds
     this.level.resetTargets?.();
     this.energy?.reset();
     this.hp = HEALTH.max;
@@ -147,6 +151,7 @@ export class Player {
     this.wallCoyote = Math.max(0, this.wallCoyote - dt);
     this.throwCd = Math.max(0, this.throwCd - dt);
     this.kickCd = Math.max(0, (this.kickCd ?? 0) - dt);
+    this.vineCd = Math.max(0, this.vineCd - dt);
     this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
     const L = input.isHeld('left'), R = input.isHeld('right');
@@ -162,6 +167,11 @@ export class Player {
       case 'respawn':
         this.anim.update(dt);
         if (this.anim.finished) this.setState('idle');
+        return;
+      case 'vine':
+        // accroché à une liane : balancier, grimpe et lâcher sont gérés par la forêt
+        this.level.forest.rideVine(this, dt, input);
+        this.energy.update(dt, { resting: true });
         return;
       case 'dash':
         this.vy = 0;
@@ -404,7 +414,10 @@ export class Player {
       }
     }
 
-    if (this.y > this.level.height + 64) {
+    // en l'air, une direction tenue : il attrape la liane qu'il touche
+    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump') && this.level.forest?.tryGrab(this, input)) return;
+
+    if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
       this.die();
     } else if (this.level.hitsSpike(this.box())) {
       if (this.hurt(DAMAGE_TAKEN.spikes, this.x - this.facing) && this.state !== 'death') {
@@ -413,7 +426,7 @@ export class Player {
         this.vx = 0;
         this.vy = 0;
       }
-    } else if (this.onGround && this.state !== 'hurt') {
+    } else if (this.onGround && !this.ride && this.state !== 'hurt') {
       this.safe = { x: this.x, y: this.y };
     }
     this.energy.update(dt, {
@@ -504,6 +517,8 @@ export class Player {
 
   move(dt) {
     const lv = this.level;
+    // porté par une plateforme mobile (tronc flottant) : il la suit
+    if (this.ride?.active) this.x += this.ride.dx;
     // horizontal
     this.x += this.vx * dt;
     let b = this.box();
@@ -535,6 +550,18 @@ export class Player {
       const ty = Math.floor(b.y / TILE);
       for (let tx = x0; tx <= x1; tx++) {
         if (lv.solid(tx, ty)) { this.y += (ty + 1) * TILE - b.y; this.vy = 0; break; }
+      }
+    }
+    // plateformes mobiles de la forêt : on se pose dessus en retombant
+    this.ride = null;
+    if (!this.onGround && this.vy >= 0 && lv.forest) {
+      const p = lv.forest.platformUnder(b, this.vy * dt);
+      if (p) {
+        this.y -= b.y + b.h - p.y;
+        this.vy = 0;
+        this.onGround = true;
+        this.ride = p;
+        p.load = true;
       }
     }
   }

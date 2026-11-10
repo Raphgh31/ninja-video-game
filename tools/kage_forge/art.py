@@ -867,6 +867,10 @@ WALK = [
 ]
 
 # ---------------------------------------------------------------------------
+# lianes du chapitre 2 (poses dans vine.py) : accroché, balancé (image choisie
+# par l'angle de la liane, pas par le temps), grimpe
+from vine import VINE_CLIMB, VINE_HANG, VINE_SWING  # noqa: E402
+
 ANIMS = {
     "idle":          dict(frames=IDLE,    fps=6,  loop=True,  state="idle"),
     "run":           dict(frames=RUN,     fps=12, loop=True,  state="run"),
@@ -893,4 +897,7 @@ ANIMS = {
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),
     "respawn":       dict(frames=RESPAWN, fps=10, loop=False, state="respawn"),
+    "vine":          dict(frames=VINE_HANG, fps=3, loop=True, state="vine"),
+    "vine_swing":    dict(frames=VINE_SWING, fps=8, loop=False, state="vine"),
+    "vine_climb":    dict(frames=VINE_CLIMB, fps=7, loop=True, state="vine"),
 }

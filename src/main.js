@@ -473,6 +473,7 @@ for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
 if (boss) boss.bar = new HealthBar(KARASU.hp);
 player.onRespawn = () => {
+  level.forest?.reset(level.spawn);
   snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
@@ -619,6 +620,7 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
+  level.forest?.update(dt, player);
   shurikens.update(dt);
   for (const t of enemies) {
     t.update(dt, player);
@@ -1115,13 +1117,14 @@ function drawTime(c, right, y, t, label = null) {
 
 // Boucle à pas fixe (120 Hz) pour une physique stable quel que soit l'écran.
 const STEP = 1 / 120;
+let manual = false;   // tests : le temps n'avance que par __kage.step()
 let acc = 0;
 let last = performance.now();
 function frame(now) {
   acc += Math.min(0.1, (now - last) / 1000);
   last = now;
   while (acc >= STEP) {
-    update(STEP);
+    if (!manual) update(STEP);
     acc -= STEP;
   }
   draw();
@@ -1132,4 +1135,8 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; } };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; },
+  /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
+  step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
+  resume() { manual = false; },
+};

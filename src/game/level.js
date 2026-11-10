@@ -2,6 +2,7 @@
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
 import { PotagerArt } from './potager/index.js';
+import { Forest } from './foret/mechanics.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
@@ -75,6 +76,8 @@ export class Level {
     // plateformes fragiles de l'arène du boss : { x0, w, row (cases), ground (ligne du sol dessous) }
     this.scaffolds = (def.boss?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
     for (const c of this.cranes) this.fillCrane(c, c.top);
+    // mécaniques vivantes de la Forêt (chapitre 2) : pont qui s'effondre, lianes, statue, éboulis…
+    this.forest = def.forest ? new Forest(this, def.forest) : null;
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
     this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
@@ -273,7 +276,8 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6)
+      || (c === 'J' && !this.forest?.statueOpen);
   }
 
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la
@@ -488,6 +492,7 @@ export class Level {
 
   /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées, coffres ouverts. */
   applySave(save) {
+    this.forest?.applySave(save);
     const taken = new Set(save.coins ?? []);
     for (const id of save.chests ?? []) {
       const ch = this.chests.find((c) => c.id === id);
@@ -548,6 +553,14 @@ export class Level {
       }
     }
     return this.goal && px >= this.goal.x && Math.abs(py - this.goal.y) < 48;
+  }
+
+  /** Le vide d'un ravin (« v ») : on y meurt. */
+  hitsVoid(box) {
+    const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);
+    const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.at(tx, ty) === 'v') return true;
+    return false;
   }
 
   /** Les pics ne tuent que dans leur moitié basse (plus juste pour le joueur). */

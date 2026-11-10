@@ -1,7 +1,7 @@
 """KAGE sur une liane (chapitre 2) : accroché, balancé, grimpe.
 
-Poses proposées en planche de design AVANT intégration (règle de l'utilisateur) :
-elles ne sont pas encore dans ANIMS (art.py).
+Poses validées sur planche (docs/foret/planche_kage_liane.png), puis intégrées :
+art.py les ajoute à ANIMS (vine, vine_swing, vine_climb).
 
 La liane passe juste devant lui, à x = 20-21 dans la cellule. Ses bras se
 voient et restent COURTS (bras et avant-bras d'environ 3 pixels chacun, coude
@@ -11,8 +11,12 @@ visage) ; l'autre main la tient juste dessous. Les pieds reviennent sous les mai
 liane, il n'est pas accroché à côté. Le jeu dessine la liane derrière lui et
 choisit l'image du balancé selon l'angle du balancier : jamais de rotation.
 """
-from art import F
+from core import G, Frame
 from rig import pose
+
+
+def F(grid, *retouches, **meta):
+    return Frame([G(grid), *retouches], meta=meta)
 
 
 def P(**kw):
@@ -102,9 +106,3 @@ VINE_CLIMB = [
            far_leg=[(15, 24), (16, 27)], far_foot="down",
            tail_long=[(-2, 2), (-3, 5), (-4, 8), (-4, 12)], tail_short=[(-2, 2), (-3, 5), (-3, 8)])),
 ]
-
-ANIMS = {
-    "vine_hang": dict(frames=VINE_HANG, fps=3, loop=True, state="vine"),
-    "vine_swing": dict(frames=VINE_SWING, fps=8, loop=False, state="vine"),
-    "vine_climb": dict(frames=VINE_CLIMB, fps=8, loop=True, state="vine"),
-}
