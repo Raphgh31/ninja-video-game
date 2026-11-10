@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#111"><canvas id="board"></canvas>
+<script type="module">
+// Planche d'ambiance de la Forêt : trois lumières, cinq plans, palette, matières.
+import { mock, planes } from './scene.js';
+import { Pix, canvas } from '/src/game/potager/paint.js';
+import * as C from '/src/game/foret/palette.js';
+import * as L from '/src/game/foret/layers.js';
+import { renderText } from '/src/engine/pixelfont.js';
+
+const kage = new Image(); kage.src = '/characters/kage/kage_sheet.png'; await kage.decode();
+const t0 = performance.now();
+const BG = '#0d1317', INK = '#e9e5da', MUTED = '#8fa3a0';
+const BW = 1416, BH = 2010;
+const b = document.getElementById('board'); b.width = BW; b.height = BH;
+const g = b.getContext('2d'); g.imageSmoothingEnabled = false;
+g.fillStyle = BG; g.fillRect(0, 0, BW, BH);
+const text = (s, x, y, o = {}) => { const c = renderText(s, { color: o.color ?? INK, font: o.font ?? 'small', spacing: o.spacing ?? 0, maxW: o.maxW ?? 0 }); const k = o.k ?? 2; g.drawImage(c, x, y, c.width * k, c.height * k); return c.height * k; };
+
+text('CHAPITRE 2 — LA FORÊT', 24, 14, { font: 'big', k: 2, spacing: 1 });
+text('Planche d\'ambiance : trois lumières, cinq plans, la palette et les matières. Peinte avec le code du décor, à la taille du jeu (448 × 252).', 24, 66, { color: MUTED });
+
+// --- les trois lumières (×2) ---
+let y = 104;
+for (const id of ['matin', 'sousbois', 'couchant']) {
+  text(C.MOODS[id].name, 24, y);
+  g.drawImage(mock(C.MOODS[id], 448, 252, kage), 24, y + 28, 896, 504);
+  y += 504 + 44;
+}
+const yBottom = y;
+
+// --- les cinq plans (sous-bois, ×1) ---
+const pl = planes(C.MOODS.sousbois, 448, 252, kage);
+const by = (ids) => pl.filter((p) => ids.includes(p.id));
+const groups = [
+  ['Plan 0 — ciel, reliefs, cimes lointaines', by(['p0'])],
+  ['Plan 1 — brume, rais de lumière, poussières', by(['p1a', 'p1b', 'p1c'])],
+  ['Plan 2 — arbres géants, fûts, lianes', by(['p2a', 'p2b', 'p2c'])],
+  ['Plan 3 — le monde jouable', by(['p3', 'kage'])],
+  ['Plan 4 — premier plan adouci', by(['p4'])],
+];
+y = 104;
+for (const [name, list] of groups) {
+  text(name, 944, y);
+  g.fillStyle = name.startsWith('Plan 4') ? '#5f7f7c' : '#1b262c'; g.fillRect(944, y + 28, 448, 252);
+  for (const p of list) g.drawImage(p.img, 944, y + 28);
+  y += 252 + 44;
+}
+
+// --- palette ---
+y = yBottom + 6;
+text('Palette', 24, y); y += 30;
+const ramps = [['Mousse', C.MOSS], ['Feuillage', C.LEAF], ['Fougère', C.FERN], ['Écorce', C.BARK], ['Humus', C.HUMUS], ['Roche', C.ROCK], ['Ruines', C.RUIN], ['Eau', C.WATER], ['Lueurs', C.GLOW], ['Or', C.GOLD]];
+ramps.forEach(([name, ramp], i) => {
+  const cx = 24 + (i % 2) * 330, cy = y + Math.floor(i / 2) * 30;
+  text(name, cx, cy + 1, { color: MUTED });
+  ramp.forEach((c, j) => { g.fillStyle = c; g.fillRect(cx + 110 + j * 28, cy, 26, 22); });
+});
+
+// --- matières (×3) ---
+const mx = 700; let my = yBottom + 6;
+text('Matières', mx, my); my += 30;
+const sample = (w, h, paint) => { const p = new L.Sheet(w, h); paint(p); return p.done(); };
+const put = (img, x, yy, label) => { g.drawImage(img, x, yy, img.width * 3, img.height * 3); text(label, x, yy + img.height * 3 + 4, { color: MUTED, k: 2 }); };
+put(sample(72, 50, (p) => { for (let x = 0; x < 72; x++) for (let yy = 16; yy < 50; yy++) p.set(x, yy, L.groundColor(x + 40, yy, yy - 16)); L.fern(p, 16, 16, 10, C.FERN, 3); L.grassTuft(p, 40, 15, 6, C.FERN, 4); L.mushroom(p, 56, 16, 3); }), mx, my, 'Humus, mousse, fougères');
+put(sample(46, 50, (p) => L.rock(p, 23, 49, 20, 30, 9)), mx + 262, my, 'Rocher moussu');
+put(sample(40, 50, (p) => L.bigTrunk(p, 20, 30, 70, 4)), mx + 430, my, 'Écorce');
+put(sample(40, 50, (p) => L.stump(p, 20, 49, 22, 18, 6)), mx + 570, my, 'Souche');
+window.__ms = Math.round(performance.now() - t0); window.__done = true;
+</script>

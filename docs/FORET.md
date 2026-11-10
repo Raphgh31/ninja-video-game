@@ -1,6 +1,6 @@
 # Chapitre 2 — La Forêt (plan)
 
-> **Statut** : plan soumis à l'utilisateur (phase 1 de `docs/GUIDE_CHAPITRE.md`), d'après son brief du 10 novembre 2026. Rien n'est encore construit. Pas d'ennemis ni de boss pour l'instant (demande de l'utilisateur) : des respirations sont prévues pour les accueillir plus tard.
+> **Statut** : plan validé (phase 1) ; **planches d'ambiance et de la statue soumises** (phase 2 : `docs/foret/planche_ambiance.png`, `docs/foret/planche_statue.png`, régénérées par `node tools/foret_planche.mjs ambiance|statue <sortie.png>` avec le vrai code du décor : `src/game/foret/palette.js`, `layers.js`, `statue.js`). Reste de la phase 2 : la planche des animations de liane de KAGE. Réponses de l'utilisateur : passage du chapitre 1 au 2 par un fondu soigné et un peu long avec le titre du chapitre (le chapitre 1 était l'initiation, « le jeu commence ») ; horizon du chapitre 3 volontairement flou pour l'instant. Pas d'ennemis ni de boss pour l'instant (demande de l'utilisateur) : des respirations sont prévues pour les accueillir plus tard.
 
 ## 1. En bref
 
