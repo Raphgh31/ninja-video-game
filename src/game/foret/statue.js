@@ -15,10 +15,10 @@ export const STATUE = {
   cx: 104,                   // axe du cou
   top: 38, chin: 192,        // haut du crâne et bas du menton (tête droite)
   half: 62,                  // demi-largeur du visage
-  tilt: 0.1,                 // la tête penche un peu vers la droite (radians), comme sur le modèle
+  tilt: 0.03,                // à peine inclinée sur le côté : elle penche surtout vers l'avant (PITCH)
   pivot: { x: 104, y: 188 }, // elle penche autour du haut du cou
   neck: { top: 162, half0: 29, half1: 35 },
-  eyeU: 0.36, eyeV: 0.505,   // les yeux, en coordonnées du visage (la tête penchée les fait descendre)
+  eyeU: 0.36, eyeV: 0.52,    // les yeux, en coordonnées du visage (la tête penchée les fait descendre)
 };
 const S = STATUE;
 const FH = S.chin - S.top;
@@ -56,8 +56,10 @@ function headHalf(v) {
  * La tête est penchée vers le sol : vue de face, le front grandit et les traits descendent, le bas du
  * visage se raccourcit. fv donne, pour une hauteur v du visage, la hauteur « des traits ».
  */
-const PITCH = 0.09;
-const fv = (v) => v - 0.035 + Math.max(0, v - 0.6) * 0.15;
+// penchée vers l'avant : le front plonge vers le sol ; vu de face, les traits descendent, le nez s'allonge
+// vers le bas, la bouche se rapproche du nez et le menton rentre
+const PITCH = 0.22;
+const fv = (v) => v - 0.08 + Math.max(0, v - 0.55) * 0.35;
 /** Un profil en arête (et non en cloche) : des volumes taillés, aux bords nets. */
 const tri = (t) => Math.max(0, 1 - Math.abs(t));
 const hat8 = (t) => Math.exp(-(t ** 8));
@@ -81,7 +83,7 @@ function face(u, v) {
   const vb = 0.37 + 0.045 * ((au - 0.37) / 0.27) ** 2 - (au < 0.37 ? (0.018 * (0.37 - au)) / 0.25 : 0);
   z += 0.12 * tri((V - vb) / 0.05) * tri((au - 0.38) / 0.36) * (1 - 0.35 * gauss(u / 0.08));
   // orbites profondes ; la paupière du haut, lourde, baissée ; la paupière du bas, à peine
-  z -= 0.26 * gauss(Math.hypot((au - S.eyeU) / 0.23, (V - 0.445) / (V < 0.445 ? 0.085 : 0.045)));
+  z -= 0.13 * gauss(Math.hypot((au - S.eyeU) / 0.22, (V - 0.445) / (V < 0.445 ? 0.07 : 0.04)));   // des orbites peu creusées : pas de cerne
   z += 0.06 * gauss(Math.hypot((au - S.eyeU) / 0.17, (V - 0.452) / 0.03));
   // le nez : une arête droite qui part du front, un bout arrondi, de petites narines
   const nt = (V - 0.39) / 0.235;
@@ -146,7 +148,8 @@ function carve(pix) {
     // l'ombre des creux (occlusion) : plus le point est en retrait de ses voisins, plus il est sombre
     let ao = 0;
     for (const [ax, ay] of [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, 3], [3, -3], [-3, -3]]) { const nz = zAt(x + ax, y + ay); if (nz >= 0) ao += Math.max(0, nz - z); }
-    lum -= Math.min(0.3, ao * 0.9);
+    const eyeZone = Math.hypot((Math.abs(h.u) - S.eyeU) / 0.24, (fv(h.v) - 0.455) / 0.07) < 1;
+    lum -= Math.min(eyeZone ? 0.06 : 0.3, ao * 0.9);                               // (autour des yeux : pas d'ombre noire)
     // la pierre : grands pans, grain léger, fissures
     const w = worley(x, y, 23, 5, 1.15);
     lum += (w.id - 0.5) * (onFace ? 0.035 : 0.07) + (fbm2(x * 0.09, y * 0.09, 3, 7) - 0.5) * 0.12;
@@ -156,7 +159,7 @@ function carve(pix) {
     if (onFace) lum += 0.07 * gauss(Math.hypot((h.u + 0.15) * 0.9, (h.v - 0.4) * 1.4) / 0.6);   // le jour tombe sur le haut du visage, côté gauche
     if (onFace) {
       const V = fv(h.v), e = Math.hypot((Math.abs(h.u) - S.eyeU) / 0.21, (V - 0.445) / 0.06);
-      if (e < 1 && V < lashV(Math.abs(h.u)) + 0.004) lum *= 0.55 + 0.45 * e * e;   // le regard baissé, dans l'ombre de l'arcade (rien sous les cils)
+      if (e < 0.75 && V < lashV(Math.abs(h.u)) - 0.012) lum *= 0.8 + 0.2 * e;      // une ombre légère sur la paupière, sous l'arcade
     }
     lum = Math.round(lum * 9) / 9;                                                // des aplats : les ombres tombent net
     let c = pick(STONE, lum, x, y, 0.06);
@@ -185,19 +188,22 @@ function hair(pix) {
   const ramp = ['#0d2a22', '#14392b', '#1b4d3e', '#23694a', '#2e8b57', '#55ae54', '#8fd058', '#c9ee78'];
   const shade = (k) => ramp.map((c, i) => ramp[Math.max(0, i - k)]);
   // le bord bas de la couronne (sur le front), déchiqueté
-  const edge = (u) => 0.22 + (noise1(u * 6 + 3, 27) - 0.5) * 0.12 + 0.05 * u * u + Math.max(0, Math.sin(u * 11 + 2)) * 0.07;   // des mèches qui descendent sur le front
+  const edge = (u) => 0.33 + (noise1(u * 6 + 3, 27) - 0.5) * 0.1 + 0.04 * u * u + Math.max(0, Math.sin(u * 11 + 2)) * 0.06;   // des mèches qui descendent sur le front
   const top = (u) => -0.03 - 0.025 * (1 - u * u) + (noise1(u * 5, 28) - 0.5) * 0.06 - Math.max(0, Math.sin(u * 7.3 + 1.1)) * 0.045;   // un feuillage mince, des touffes qui dépassent
   // la couronne : des grappes de feuillage inégales posées sur le crâne, avec des trous entre elles
   const tufts = [];
   for (let i = 0; i < 8; i++) {
     const u = -1.05 + i * 0.3 + (ih(i, 1, 81) - 0.5) * 0.14;
-    const v = (Math.abs(u) > 0.8 ? 0.16 : 0.0) + (ih(i, 2, 81) - 0.3) * 0.12;
+    const v = (Math.abs(u) > 0.8 ? 0.22 : 0.1) + (ih(i, 2, 81) - 0.3) * 0.12;
     tufts.push({ u, v, ru: 0.17 + ih(i, 3, 81) * 0.13, rv: 0.1 + ih(i, 4, 81) * 0.09 + (Math.abs(u) > 0.8 ? 0.06 : 0) });
   }
+  // et quelques-unes qui retombent sur le front
+  for (const [u, v, ru, rv] of [[-0.42, 0.24, 0.2, 0.08], [0.08, 0.27, 0.16, 0.07], [0.5, 0.25, 0.18, 0.08]]) tufts.push({ u, v, ru, rv });
   const crown = (x, y) => {
     const { u, v } = toHead(x, y);
     let best = -1;
     for (const t of tufts) best = Math.max(best, 1 - Math.hypot((u - t.u) / t.ru, (v - t.v) / t.rv));
+    if (best < -0.12) return 0;                                                       // (pas de feuilles qui flottent à l'écart)
     const ragged = (noise2(x * 0.22, y * 0.22, 35) - 0.5) * 0.7 + (v > edge(u) ? -0.6 : 0);
     return (best + ragged) * 3;
   };
