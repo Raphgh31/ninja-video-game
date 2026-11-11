@@ -66,10 +66,12 @@ P.z9 = () => { const f = __kage.level.forest, st = f.statue, l = __kage.level; c
   bot.run(6, (p) => st.ground - p.y >= 96); log.push(['monté', Math.round(st.ground - bot.p.y), bot.p.state]);
   const hop = (name) => { bot.clear(); bot.set({ right: true }); bot.tap('jump'); bot.run(0.05); bot.run(1.2, (p) => p.state === 'vine' || p.onGround); log.push([name, bot.p.state, Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y), f.vines.indexOf(bot.p.vine)]); };
   const level = (h) => { bot.clear(); bot.run(3, (p) => { const d = st.ground - p.y - h; bot.set({ up: d < -2, down: d > 2 }); return Math.abs(d) <= 2; }); bot.clear(); bot.set({ up: true }); bot.run(0.05); };
-  hop('liane 1'); level(96); log.push(['œil gauche', st.lit[0]]);
+  // la hauteur à laquelle KAGE passe devant chaque œil (il s'allume à moins de 22 px)
+  const hL = st.ground - st.eyes[0].y - 14, hR = st.ground - st.eyes[1].y - 14;
+  hop('liane 1'); level(hL); log.push(['œil gauche', st.lit[0]]);
   bot.clear(); bot.set({ up: true }); bot.run(0.3);
-  hop('liane 2'); level(100); hop('liane 3'); level(96); log.push(['œil droit', st.lit[1], Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
-  bot.clear(); bot.run(7.5); log.push(['mâchoire', +st.jaw.toFixed(2), bot.p.state, bot.col(), bot.row(), f.statueOpen]);
+  hop('liane 2'); level(Math.max(hL, hR) + 4); hop('liane 3'); level(hR); log.push(['œil droit', st.lit[1], Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
+  bot.clear(); bot.run(5); log.push(['porte', +st.gate.toFixed(2), bot.p.state, bot.col(), bot.row(), f.statueOpen]);
   const t = bot.runner(12, { until: (p) => p.x > Z(10).x0 * 16 + 30 }); log.push(['sortie', t.toFixed(1), bot.col(), Z(10).x0]);
   return ['z9', log]; };
 // zone 11 : l'éboulis

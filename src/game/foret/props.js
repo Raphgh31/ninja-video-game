@@ -96,6 +96,13 @@ export class ForetProps {
           add('behind', X - 12, Y - 8, W + 24, Hh + 8, (pix) => ravine(pix, X, Y, W, Hh, p.x));
           break;
         }
+        case 'stone_gate': {
+          // le pilier maçonné au-dessus de la porte (le terrain n'y peint que de la terre) : gros blocs moussus
+          mask(p.x, 3, 0, p.y - 3);
+          add('over', X, 0, 3 * TILE, Y - 2 * TILE, (pix) => ruinWallP(pix, X, 0, 3 * TILE, Y - 2 * TILE, 157));
+          add('over', X - 12, Y - 3 * TILE - 22, 50, 3 * TILE + 26, (pix) => stoneGate(pix, X, Y));
+          break;
+        }
         case 'cave_reeds': add('over', X - 8, Y - 34, p.w * TILE + 16, 36, (pix) => caveReeds(pix, X, Y, p.w * TILE, p.x)); break;
         case 'mushrooms': add('over', X - 4, Y - 16, p.w * TILE + 8, 18, (pix) => mushrooms(pix, X, Y, p.w * TILE, p.x)); break;
         case 'rubble': add('front', X - 10, Y - (p.h + 3) * TILE - 6, (p.w + 1) * TILE + 20, (p.h + 3) * TILE + 8, (pix) => rubble(pix, X, Y, p.w, p.h)); break;
@@ -744,6 +751,50 @@ function rootCurtain(pix, X, Y, k, seed) {
     }
     if (ih(i, 3, seed) < 0.35) pix.set(x, Y + len, ih(i, 4, seed) < 0.5 ? '#6fd6ee' : '#a67cf0');
   }
+}
+
+/**
+ * La porte de la statue (zone 9) : le linteau sculpté au-dessus de la bouche du tunnel, dans la face
+ * du pilier maçonné, avec deux yeux clos gravés (live.js les allume) ; un seuil de pierre au sol.
+ * La dalle elle-même est dessinée par live.js (elle remonte).
+ */
+export const GATE = { lintel: { x: -8, w: 34, h: 16 }, eyes: [[3, -7], [15, -7]] };   // yeux gravés : relatifs au coin bas-gauche du linteau
+function stoneGate(pix, X, Y) {
+  const top = Y - 2 * TILE, L0 = X + GATE.lintel.x, W = GATE.lintel.w, H = GATE.lintel.h;
+  // le linteau : un bloc massif, chanfreiné, qui déborde à gauche du pilier
+  for (let y = top - H; y < top + 2; y++) for (let x = L0; x < L0 + W; x++) {
+    const i = x - L0, j = y - (top - H);
+    if ((i < 2 && j < 2 - i) || (i > W - 3 && j < i - (W - 3))) continue;                 // coins chanfreinés
+    let v = 0.56 - (i / W) * 0.18 + (fbm2(x * 0.25, y * 0.25, 2, 141) - 0.5) * 0.14;
+    if (j < 2) v += 0.2;                                                                      // le dessus éclairé
+    if (j === 4 || j === H - 4) v -= 0.22;                                                    // les moulures
+    if (j === 5 || j === H - 3) v += 0.1;
+    if (j >= H) v = 0.12;                                                                      // l'ombre sous le linteau
+    if (i === 0) v += 0.14;
+    const moss = fbm2(x * 0.15, y * 0.2, 2, 143) + (j < 3 ? 0.3 : 0) > 0.8;
+    pix.set(x, y, moss ? pick(C.MOSS, v + 0.1, x, y) : pick(C.RUIN, v, x, y, 0.2));
+  }
+  // les deux yeux clos gravés au milieu du linteau
+  for (const [ex, ey] of GATE.eyes) for (let k = -2; k <= 2; k++) {
+    const x = L0 + ex + 6 + k, y = top + ey + (Math.abs(k) === 2 ? -1 : 0);
+    pix.set(x, y, C.RUIN[0]); pix.set(x, y - 1, C.RUIN[1]);
+  }
+  // le montant gauche de la porte : un pilastre, son chapiteau sous le linteau, son socle au sol
+  for (let y = top; y < Y; y++) for (let x = X - 8; x < X; x++) {
+    const i = x - (X - 8), cap = y < top + 3, base = y >= Y - 4;
+    if (!cap && !base && (i === 0 || i === 7)) continue;
+    let v = 0.6 - (i / 8) * 0.3 + (noise2(x * 0.4, y * 0.15, 145) - 0.5) * 0.1;
+    if (cap || base) v += 0.1;
+    if (y === top + 3 || y === Y - 5) v -= 0.25;
+    if (i === 1) v += 0.12;
+    if (i === 6) v -= 0.18;
+    pix.set(x, y, pick(C.RUIN, v, x, y, 0.2));
+  }
+  // le seuil : une dalle usée devant la porte
+  for (let x = X - 6; x < X + 18; x++) for (let j = 0; j < 3; j++) pix.set(x, Y - 1 + j, j === 0 ? C.RUIN[4] : C.RUIN[2]);
+  // du lierre qui retombe du linteau, sur le côté
+  L.strand(pix, L0 + 2, top - H + 2, 22, C.LEAF, 147, 0.7);
+  L.strand(pix, L0 + 7, top - H + 3, 12, C.LEAF, 149, 0.6);
 }
 
 /** Roseaux de l'oasis souterraine : tiges bleu-vert, feuilles qui retombent, quelques pointes qui luisent. */

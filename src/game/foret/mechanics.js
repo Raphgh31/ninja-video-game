@@ -3,7 +3,7 @@
 //   - planches de bois vermoulu qui cèdent (zone 5) ;
 //   - troncs flottants qui dérivent et s'enfoncent (zone 6) ;
 //   - lianes : immobiles (on y grimpe) ou balancier (on s'y balance) (zones 9 et 10) ;
-//   - la statue : deux yeux à rallumer, la mâchoire qui s'abaisse (zone 9) ;
+//   - la statue : deux yeux à rallumer, puis la porte de pierre qui remonte (zone 9) ;
 //   - l'éboulis qui dévale la pente (zone 11).
 // Le niveau l'instancie (level.forest) ; le joueur s'en sert pour se poser sur une
 // plateforme mobile et pour l'état « vine ». Tout se remet en place à la
@@ -35,7 +35,7 @@ export const FOREST = {
     pumpAngle: 0.62,   // au-delà, gauche / droite ne donnent plus d'élan
     maxSpeed: 300,     // vitesse rendue au lâcher, au plus (px/s)
   },
-  statue: { reach: 22, delay: 0.9, jawTime: 4.2 },
+  statue: { reach: 22, delay: 0.9, gateTime: 2.8 },   // la dalle de la porte remonte en 2,8 s
   slide: { margin: 6 },
 };
 
@@ -68,7 +68,7 @@ export class Forest {
     this.snaps = (def.snaps ?? []).map((q) => ({ kind: 'snap', x: q.x0 * TILE, y: q.row * TILE, y0: q.row * TILE, w: q.w * TILE, host: q.host, state: 'idle', t: 0, active: true, dx: 0, dy: 0, load: false, ang: 0, fx: 0, fy: 0, vx: 0, vy: 0 }));
     this.platforms = [...this.snaps, ...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
     this.vines = def.vines.map((v, i) => ({ ...v, i, angle: 0, av: 0, rider: null, still: !v.swing }));
-    this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, jaw: 0 } : null;
+    this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, gate: 0 } : null;
     this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
     this.dark = def.dark ?? null;
   }
@@ -76,11 +76,11 @@ export class Forest {
   emit(name, data = {}) { this.level.onEvent?.(name, data); }
 
   /** La statue est-elle ouverte (la porte de pierre ne bloque plus) ? */
-  get statueOpen() { return !!this.statue && this.statue.jaw >= 0.85; }
+  get statueOpen() { return !!this.statue && this.statue.gate >= 0.85; }
 
   // --- sauvegarde ---------------------------------------------------------------
   applySave(s) {
-    if (this.statue && s?.statue) { this.statue.lit = [true, true]; this.statue.wake = 0; this.statue.jaw = 1; }
+    if (this.statue && s?.statue) { this.statue.lit = [true, true]; this.statue.wake = 0; this.statue.gate = 1; }
   }
 
   // --- réapparition de KAGE : tout se remet en place ------------------------------
@@ -424,13 +424,14 @@ export class Forest {
         }
       });
     }
-    if (s.lit[0] && s.lit[1] && s.jaw < 1) {
+    if (s.lit[0] && s.lit[1] && s.gate < 1) {
       if (s.wake < 0) s.wake = this.time;
       if (this.time - s.wake >= S.delay) {
-        if (s.jaw === 0) this.emit('jawOpen', { x: s.cx, y: s.ground });
-        const before = s.jaw;
-        s.jaw = Math.min(1, s.jaw + dt / S.jawTime);
-        if (before < 1 && s.jaw >= 1) this.emit('jawDone', { x: s.cx, y: s.ground });
+        const dx = s.door * TILE + 8;
+        if (s.gate === 0) this.emit('gateOpen', { x: dx, y: s.ground });
+        const before = s.gate;
+        s.gate = Math.min(1, s.gate + dt / S.gateTime);
+        if (before < 1 && s.gate >= 1) this.emit('gateDone', { x: dx, y: s.ground });
       }
     }
   }

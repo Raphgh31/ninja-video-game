@@ -229,10 +229,10 @@ async function main() {
     expect(r[0] < r[1] && !r[2], JSON.stringify(r));
   });
 
-  await test('zone 9 : par les lianes, KAGE rallume les deux yeux ; la mâchoire s\'abaisse ; on passe par sa bouche', async () => {
+  await test('zone 9 : par les lianes, KAGE rallume les deux yeux ; la porte de pierre remonte ; on passe par le tunnel', async () => {
     const r = await run('z9');
     const log = Object.fromEntries(r[1].map((e) => [e[0], e.slice(1)]));
-    expect(log['œil gauche'][0] && log['œil droit'][0] && log['mâchoire'][0] === 1 && log.sortie[1] >= log.sortie[2], JSON.stringify(r));
+    expect(log['œil gauche'][0] && log['œil droit'][0] && log.porte[0] === 1 && log.sortie[1] >= log.sortie[2], JSON.stringify(r));
   });
 
   await test('zone 9 : la statue éveillée est enregistrée', async () => {

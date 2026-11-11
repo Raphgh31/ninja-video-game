@@ -1,6 +1,6 @@
 // Ce qui bouge dans la Forêt, dessiné à chaque image :
 //   derrière KAGE : travées du pont et leurs colonnes, planches vermoulues,
-//     troncs flottants, la statue (yeux, mâchoire), les lianes, le lierre des
+//     troncs flottants, la statue (yeux, porte de pierre), les lianes, le lierre des
 //     caches, les coffres, les oiseaux posés ;
 //   devant KAGE : l'eau (miroir de la clairière, torrent, mare souterraine), la
 //     joue de la statue (on passe derrière), l'éboulis, la brume des ravins,
@@ -10,7 +10,7 @@ import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { paintStatue, drawStatue, STATUE } from './statue.js';
-import { pearlTreeShape, limbSprite } from './props.js';
+import { pearlTreeShape, limbSprite, GATE } from './props.js';
 import { FOREST } from './mechanics.js';
 
 const TILE = 16;
@@ -327,8 +327,8 @@ export class ForetLive {
     if (st && this.vis(st.cx - 100, st.ground - 240, 200, 240, cam, vw, vh)) {
       if (!this.statueArt) this.statueArt = paintStatue();
       const eyes = st.lit.map((on, i) => (on ? Math.min(1, (f.time - st.litAt[i]) / 0.7) : 0));
-      const shake = st.jaw > 0 && st.jaw < 1 ? R(Math.sin(time * 40) * 0.6) : 0;
-      drawStatue(ctx, this.statueArt, R(st.cx - STATUE.cx - cam.x) + shake, R(st.ground - cam.y), { eyes, jaw: st.jaw });
+      drawStatue(ctx, this.statueArt, R(st.cx - STATUE.cx - cam.x), R(st.ground - cam.y), { eyes });
+      this.drawGate(ctx, st, eyes, cam, time);
     }
     // lianes (derrière KAGE)
     for (const v of f.vines) this.vine(ctx, v, cam, vw, vh, time);
@@ -484,14 +484,6 @@ export class ForetLive {
     if (!f) return;
     for (const w of this.waters) if (this.vis(w.x, w.y - 40, w.w, w.h + 40, cam, vw, vh)) this.water(ctx, w, cam, vw, vh, time);
     for (const B of f.bridges ?? []) this.bridge(ctx, B, cam, vw, vh, time, 'front');
-    // la joue droite de la statue : KAGE passe derrière en entrant dans le couloir
-    const st = f.statue;
-    if (st && this.statueArt && this.vis(st.cx - 100, st.ground - 240, 200, 240, cam, vw, vh)) {
-      const a = this.statueArt, x0 = STATUE.cx + 30, w = STATUE.cx + STATUE.half + 4 - x0, h = 52;
-      const dx = R(st.cx - STATUE.cx - cam.x) + x0, dy = R(st.ground - h - cam.y);
-      ctx.drawImage(a.stone, x0, STATUE.h - h, w, h, dx, dy, w, h);
-      ctx.drawImage(a.hair, x0, STATUE.h - h, w, h, dx, dy, w, h);
-    }
     this.drawSlide(ctx, cam, vw, vh, time);
     // brume au fond des ravins
     for (const c of this.chasms) {
@@ -752,6 +744,57 @@ export class ForetLive {
     // le bout arraché : des fibres claires
     ctx.fillStyle = '#d9b98a'; ctx.fillRect(-1, -2, 2, 1); ctx.fillRect(0, 0, 2, 1); ctx.fillRect(-1, 2, 2, 1);
     ctx.restore();
+  }
+
+  /**
+   * La porte de pierre de la statue : une dalle encadrée, un œil gravé ; quand les deux yeux sont
+   * allumés, elle remonte lentement dans le mur (en tremblant un peu) et découvre le tunnel.
+   * Les yeux gravés du linteau s'allument avec ceux de la statue.
+   */
+  drawGate(ctx, st, eyes, cam, time) {
+    if (st.door == null) return;
+    const X = st.door * TILE, Y = st.ground, H = 2 * TILE;
+    if (!this.slab) {
+      this.slab = sprite(TILE, H, (p) => {
+        for (let y = 0; y < H; y++) for (let x = 0; x < TILE; x++) {
+          let v = 0.62 - (x / TILE) * 0.2 + (noise2(x * 0.35, y * 0.2, 151) - 0.5) * 0.12;
+          // deux panneaux en retrait, l'un au-dessus de l'autre
+          const p1 = x >= 3 && x <= 12 && y >= 3 && y <= 13, p2 = x >= 3 && x <= 12 && y >= 18 && y <= H - 4;
+          const inner = p1 || p2;
+          if (x === 0 || y === 0) v += 0.16;
+          if (x === TILE - 1 || y === H - 1) v -= 0.3;
+          if (inner) v -= 0.08;
+          if (inner && (x === 3 || y === 3 || y === 18)) v -= 0.18;                        // leur ombre en haut à gauche
+          if (inner && (x === 12 || y === 13 || y === H - 4)) v += 0.14;
+          p.set(x, y, pick(C.RUIN, v, x, y, 0.2));
+        }
+        // l'œil clos gravé dans le panneau du haut
+        for (let k = -3; k <= 3; k++) { const y = 9 + (Math.abs(k) === 3 ? -1 : 0); p.set(7 + k, y, C.RUIN[0]); p.set(7 + k, y - 1, C.RUIN[1]); }
+        for (const k of [-2, 0, 2]) p.set(7 + k, 10, C.RUIN[0]);                          // les cils
+        // un anneau de pierre, au milieu
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, 1], [1, 1]]) p.set(7 + dx, 15 + dy, C.RUIN[1]);
+        p.set(7, 14, C.RUIN[4]);
+      });
+    }
+    const g = st.gate ?? 0, rise = Math.round(g * g * (3 - 2 * g) * H), jit = g > 0 && g < 1 ? R(Math.sin(time * 37) * 0.6) : 0;
+    const sx = R(X - cam.x), sy = R(Y - H - cam.y);
+    if (rise < H) {
+      ctx.save(); ctx.beginPath(); ctx.rect(sx, sy, TILE, H); ctx.clip();
+      ctx.drawImage(this.slab, sx + jit, sy - rise);
+      // l'œil du panneau s'allume avec ceux de la statue
+      const lit = Math.min(1, (eyes[0] + eyes[1]) / 2);
+      if (lit > 0) { ctx.globalAlpha = lit; ctx.fillStyle = '#a6eede'; ctx.fillRect(sx + 4 + jit, sy + 9 - rise, 7, 1); ctx.globalAlpha = 1; }
+      ctx.restore();
+    }
+    // les yeux gravés du linteau : chacun s'allume avec l'œil de la statue
+    GATE.eyes.forEach(([ex, ey], i) => {
+      if (eyes[i] <= 0) return;
+      ctx.globalAlpha = Math.min(1, eyes[i]);
+      ctx.fillStyle = '#a6eede'; ctx.fillRect(R(X + GATE.lintel.x + ex + 4 - cam.x), R(Y - H + ey - cam.y), 5, 1);
+      ctx.globalAlpha = 0.25 * Math.min(1, eyes[i]); ctx.fillStyle = '#5fd0cc';
+      ctx.fillRect(R(X + GATE.lintel.x + ex + 2 - cam.x), R(Y - H + ey - 2 - cam.y), 9, 4);
+      ctx.globalAlpha = 1;
+    });
   }
 
   /** La pénombre du souterrain : tout est sombre, sauf autour de KAGE et des champignons allumés. */

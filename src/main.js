@@ -461,8 +461,8 @@ level.onEvent = (n, d) => {
     case 'branchSnap': sfxAt('crumbleFall', d, {}, 1.3); fx.sparks(d.x - 4, d.y + 2, 7, { speed: 70, palette: 'dirt' }); fx.drift(d.x - d.w / 2, d.y - 4, 9, { palette: 'leaf', speed: 45, up: 20, life: 1.6 }); fx.shake(0.5, 0.12); break;
     case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
     case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
-    case 'jawOpen': sfx('jawOpen'); fx.shake(0.7, 4.2); if (save) { save.statue = true; persist(); } break;
-    case 'jawDone': sfx('jawDone'); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 40, up: 14, life: 0.9 }); break;
+    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 2.8); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
     case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
     case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
     case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;

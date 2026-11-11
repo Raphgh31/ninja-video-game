@@ -9,6 +9,7 @@
 // lianes, statue, éboulis) sont déclarés dans `forest` et animés par
 // src/game/foret/mechanics.js.
 import { Builder } from './builder.js';
+import { STATUE, eyeCenter } from '../foret/statue.js';
 
 const H = 72;
 const TILE = 16;
@@ -469,34 +470,36 @@ function build() {
   x = b.x; ground(2, G9 - 1, '='); ground(8, G9, '=');  // un fût de colonne couché
   b.prop('ruin_drum', x, G9 - 1, { w: 2 });
   coins([x, x + 1], G9 - 3);
-  // la statue : son axe est à la limite entre deux cases
+  // la statue : son axe (le cou) est à la limite entre deux cases ; la tête penche vers la gauche
   x = b.x; ground(14, G9, '=');
-  const sx = x + 9;                                     // axe du visage (en cases)
+  const sx = x + 9;                                     // axe du cou (en cases)
   const scx = sx * TILE, sground = G9 * TILE;
-  // les lianes de sa chevelure : immobiles, on y monte et on en descend
-  vine(sx - 4, G9 - 13.6, 12.3);                        // la grande mèche de gauche, jusqu'au sol
-  vine(sx - 2.5, G9 - 13.4, 7.4);                       // un brin devant l'œil gauche
-  vine(sx - 0.6, G9 - 13.2, 5.2);                       // un brin court sur l'arête du nez : le relais
-  vine(sx + 1.4, G9 - 13.4, 7.6);                       // un brin devant l'œil droit
-  vine(sx + 4, G9 - 13.6, 9.2);                         // la mèche de droite, jusqu'aux éboulis
+  const eye = (side) => { const e = eyeCenter(side); return { x: scx - STATUE.cx + e.x, y: sground - STATUE.h + e.y }; };
+  const eyeL = eye(-1), eyeR = eye(1);
+  // les lianes de sa chevelure : immobiles, on y monte et on en descend ; deux passent devant les yeux
+  vine(sx - 4.4, G9 - 13.6, 12.3);                      // la grande mèche de gauche, jusqu'au sol
+  vine(eyeL.x / TILE, G9 - 13.4, 7.4);                  // devant l'œil gauche
+  vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 13.2, 6);     // un brin court sur l'arête du nez : le relais
+  vine(eyeR.x / TILE, G9 - 13.4, 7.6);                  // devant l'œil droit
+  vine(sx + 3.8, G9 - 13.6, 9.4);                       // la mèche de droite
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
   b.prop('chest', sx + 1, G9 - 13, { id: 'couronne', ryo: 15 });
   coins([sx - 2, sx - 1], G9 - 15);
-  F.statue = { cx: scx, ground: sground, door: sx + 2, eyes: [{ x: scx - 26, y: sground - 109 }, { x: scx + 26, y: sground - 109 }] };
+  F.statue = { cx: scx, ground: sground, eyes: [eyeL, eyeR] };
   b.prop('statue', sx, G9);
-  // derrière sa joue droite : un amas de gros blocs, puis la falaise. Le couloir passe dessous.
-  x = b.x;                                              // = sx + 5
+  // à sa droite, un pilier de pierre maçonnée ; une porte de pierre y ferme un petit tunnel :
+  // quand les deux yeux sont allumés, la dalle remonte dans le mur
+  ground(2, G9, '=');
+  x = b.x;
   for (let i = 0; i < 12; i++) {
     const c = new Array(H).fill('.');
-    const wall = i >= 1;                                // la falaise monte jusqu'en haut de la carte
-    for (let y = 0; y < H; y++) c[y] = y >= G9 ? '=' : y >= G9 - 2 ? '.' : wall || y === G9 - 3 ? '#' : '.';
+    for (let y = 0; y < H; y++) c[y] = y >= G9 ? '=' : y >= G9 - 2 ? '.' : i < 3 ? '=' : '#';
     b.cols.push(c);
   }
-  // le toit du couloir sous les éboulis, et la porte de pierre
-  for (let i = sx + 2; i < x; i++) { b.cols[i][G9 - 3] = '#'; }
-  b.cols[sx + 2][G9 - 1] = 'J'; b.cols[sx + 2][G9 - 2] = 'J';
-  b.prop('rubble', sx + 2, G9, { w: 4, h: 3 });
-  b.prop('cliff', x + 1, G9, { w: 11 });
+  b.cols[x][G9 - 1] = 'J'; b.cols[x][G9 - 2] = 'J';
+  F.statue.door = x;
+  b.prop('stone_gate', x, G9);
+  b.prop('cliff', x + 1, G9, { w: 11 });           // (son fond commence une case plus tôt : derrière la dalle)
 
   // ===========================================================================
   // ZONE 10 — Le souffle des lianes : de longues lianes se balancent au-dessus
