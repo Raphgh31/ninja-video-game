@@ -211,6 +211,12 @@ const SOUNDS = {
     air({ dur: 0.4, vol: 0.1, q: 0.8, f: [[0, 1100], [0.5, 800], [1, 450]], g: [[0, 0.05], [0.06, 1], [0.6, 0.7], [1, 0.01]], am: { rate: 27, depth: 0.7, type: 'sawtooth' } });
     air({ dur: 0.36, vol: 0.035, type: 'highpass', q: 0.7, f: [[0, 3200], [1, 2200]], g: [[0, 0.05], [0.05, 1], [1, 0.01]], am: { rate: 41, depth: 0.8 } });
   },
+  // salto : le corps groupé tourne et brasse l'air (souffle rond et grave, deux passages du tissu)
+  flip: () => {
+    air({ dur: 0.3, vol: 0.09, type: 'lowpass', q: 0.8, f: [[0, 240], [0.45, 820], [1, 260]], g: [[0, 0.02], [0.4, 1], [1, 0.01]] });
+    air({ dur: 0.12, vol: 0.035, q: 1.4, f: [[0, 1300], [1, 2100]], g: [[0, 0.02], [0.4, 1], [1, 0.01]], delay: 0.06 });
+    air({ dur: 0.12, vol: 0.03, q: 1.4, f: [[0, 1200], [1, 1900]], g: [[0, 0.02], [0.4, 1], [1, 0.01]], delay: 0.2 });
+  },
   wallGrab: () => noise({ dur: 0.05, vol: 0.06, type: 'highpass', f: 2200 }),
   wallSlide: () => noise({ dur: 0.07, vol: 0.025, f: 3200, q: 2 }),
   wallJump: () => { tone({ f: 320, to: 620, dur: 0.1, vol: 0.06 }); noise({ dur: 0.06, vol: 0.06, type: 'lowpass', f: 700 }); },

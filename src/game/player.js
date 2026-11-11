@@ -14,6 +14,7 @@ const P = {
   fallLimit: 168,    // chute mortelle au-delà de 10,5 cases entre le sol quitté et le sol d'arrivée
                      // (la poutre de la serre, 10 cases au-dessus du sol, est la limite sans dégâts ; le toit, 13 cases, tue)     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
+  flipWindow: 0.15,   // une direction poussée dans les 0,15 s après le décollage lance aussi le salto
   maxFall: 420,
   jump: 315,
   jumpCut: 0.45,     // relâcher le saut tôt = saut plus court
@@ -91,7 +92,38 @@ export class Player {
     this.setState(instant ? 'idle' : 'respawn');
   }
 
+  isFlipping() { return this.state === 'flip' || this.state === 'backflip'; }
+
+  /** Salto groupé (avant ou arrière) : l'image suit le temps de vol (updateFlip). */
+  startFlip(kind) {
+    this.setState(kind);
+    this.flipP = 0;
+    this.flipEnd = Infinity;
+    this.flipSpun = false;
+    if (kind === 'backflip') this.facing = this.jumpFacing;
+  }
+
+  /**
+   * Avancée du salto (0 à 1) : la part du vol déjà faite, jusqu'au retour à la hauteur du
+   * décollage (si KAGE relâche le saut tôt, le vol raccourcit et la rotation accélère).
+   * Impulsion, groupé, rotation de 45° en 45°, ouverture, puis jambes tendues vers le sol.
+   */
+  updateFlip() {
+    const g = P.gravity, h = this.jumpY0 - this.y;
+    const rem = h >= 0 ? (-this.vy + Math.sqrt(Math.max(0, this.vy * this.vy + 2 * g * h))) / g : 0;
+    const p = this.timer / Math.max(1e-3, this.timer + rem);
+    this.flipP = Math.max(this.flipP, Math.min(1, p));
+    if (this.flipP >= 1 && this.flipEnd === Infinity) this.flipEnd = this.timer;
+    const q = this.flipP;
+    const f = q < 0.08 ? 0 : q < 0.17 ? 1 : q < 0.78 ? 2 + Math.min(6, Math.floor(((q - 0.17) / 0.61) * 7)) : q < 0.9 ? 9 : 10;
+    if (f >= 2 && !this.flipSpun) { this.flipSpun = true; this.emit('flip', { kind: this.state }); }
+    this.anim.frame = f;
+    this.anim.time = 0;
+    this.anim.finished = false;
+  }
+
   setState(s) {
+    if (s !== 'jump' && s !== 'flip' && s !== 'backflip') this.jumpY0 = null;   // (seul un saut depuis le sol lance un salto)
     this.state = s;
     this.timer = 0;
     this.anim.play(s, { restart: true });
@@ -294,6 +326,8 @@ export class Player {
         else if (!this.onGround) this.setState('fall');
         break;
       default: {
+        const face0 = this.facing;                 // (orientation avant la commande : salto avant ou arrière)
+        const flipping = this.isFlipping();
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
         this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
@@ -318,13 +352,13 @@ export class Player {
         if (this.fling && dir !== -Math.sign(this.vx) && Math.abs(this.vx) > Math.abs(target)) {
           // élan d'une liane : il porte KAGE, les commandes ne le brident pas
           this.vx -= Math.sign(this.vx) * P.flingDrag * dt;
-          if (dir !== 0) this.facing = dir;
+          if (dir !== 0 && !flipping) this.facing = dir;
         } else if (this.wallLock <= 0) {
           this.fling = false;
           const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
           else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
-          if (dir !== 0) this.facing = dir;
+          if (dir !== 0 && !flipping) this.facing = dir;   // (pendant un salto, KAGE garde son orientation)
         }
 
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
@@ -335,6 +369,10 @@ export class Player {
           this.jumpBuffer = 0;
           this.emit('jump');
           this.setState('jump');
+          this.jumpFacing = face0;
+          this.jumpY0 = this.y;
+          // saut avec une direction tenue : salto avant (vers où il regarde) ou arrière
+          if (dir !== 0) this.startFlip(dir === face0 ? 'flip' : 'backflip');
         } else if (this.jumpBuffer > 0 && !this.onGround) {
           // saut mural : contre un mur, ou juste après l'avoir quitté
           const side = this.wallSide() || (this.wallCoyote > 0 ? this.lastWall : 0);
@@ -343,7 +381,11 @@ export class Player {
             break;
           }
         }
-        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
+        // une direction poussée juste après le décollage lance aussi le salto
+        if (this.state === 'jump' && dir !== 0 && this.vy < 0 && this.timer < P.flipWindow && this.jumpY0 != null) {
+          this.startFlip(dir === this.jumpFacing ? 'flip' : 'backflip');
+        }
+        if (!input.isHeld('jump') && this.vy < 0 && (this.state === 'jump' || this.isFlipping()) && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
         const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;
@@ -414,7 +456,7 @@ export class Player {
     // transitions d'animation
     const s = this.state;
     const moving = this.energy.exhausted ? 'walk' : this.sprinting ? 'sprint' : 'run';
-    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'walk' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump') {
+    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'walk' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump' || s === 'flip' || s === 'backflip') {
       const side = this.wallSide();
       if (!this.onGround && this.vy > 0 && side && dir === side && s !== 'wall_jump' || (s === 'wall_jump' && this.vy > 0 && side && dir === side)) {
         // contre un mur en tombant, en poussant vers lui : glissade murale
@@ -422,6 +464,9 @@ export class Player {
         this.facing = -side;
         this.emit('wall_grab', { side });
         this.setState('wall_slide');
+      } else if (!this.onGround && (s === 'flip' || s === 'backflip')) {
+        // le salto va jusqu'au bout ; s'il reste du chemin à tomber (sol plus bas), KAGE tombe ensuite
+        if (this.flipP >= 1 && this.timer - this.flipEnd > 0.08) this.setState('fall');
       } else if (!this.onGround) {
         if (this.vy > 30 && s !== 'fall') this.setState('fall');
         else if (s !== 'jump' && s !== 'fall' && s !== 'wall_jump') this.setState('fall');
@@ -438,7 +483,7 @@ export class Player {
     }
 
     // en l'air, une direction tenue : il attrape la liane qu'il touche
-    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump') && this.level.forest?.tryGrab(this, input)) return;
+    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump' || this.isFlipping()) && this.level.forest?.tryGrab(this, input)) return;
 
     if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
       this.die();
@@ -464,6 +509,7 @@ export class Player {
     });
     const before = this.anim.frame, stateBefore = this.state;
     this.anim.update(dt);
+    if (this.isFlipping()) this.updateFlip();
     // bruit de pas : seulement quand le pied touche le sol dans le cycle, et que
     // KAGE avance vraiment (rien à l'arrêt, ni en entrant dans la course)
     const f = this.anim.frame;

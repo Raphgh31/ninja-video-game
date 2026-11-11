@@ -216,6 +216,7 @@ shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 const fx = new Fx();
 player.onEvent = (n, d) => {
   switch (n) {
+    case 'flip': sfx('flip'); break;
     case 'jump': sfx('jump'); fx.dust(d.x, d.y, 5, { spread: 25, up: 15 }); break;
     case 'land':
       if (d.speed > 140) {
@@ -956,7 +957,7 @@ const HINTS = {
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
-  jump: () => player.state === 'jump',
+  jump: () => player.state === 'jump' || player.isFlipping(),
   sprint: () => player.state === 'sprint',
   dash: () => player.state === 'dash',
   kick: () => player.state === 'kick',

@@ -17,6 +17,10 @@ from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 from accessories import dress, find_head  # noqa: E402
 import scale  # noqa: E402
+import flip  # noqa: E402
+
+# toutes les animations : celles posées dans art.py, et les saltos (flip.py, calculés en grand)
+ALL = {**ANIMS, **flip.ANIMS}
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/characters/kage"
@@ -104,6 +108,10 @@ def main():
     rendered = {k: [scale.grow(g, p) for g, p in zip(small[k], plans[k])] for k in order}
     views = {k: scale.big(g) for k, g in views.items()}
     CW, CH = scale.BIG_W, scale.BIG_H
+    # les saltos : la boule tournée est calculée sur le dessin agrandi (flip.py)
+    for k, a in flip.ANIMS.items():
+        rendered[k] = a["build"]()
+        order.append(k)
 
     for d in ("anims", "frames", "layers", "views"):
         shutil.rmtree(OUT / d, ignore_errors=True)
@@ -131,16 +139,18 @@ def main():
         if not names:
             continue
         # (sur les images de base : c'est là que l'accessoire est posé, avant l'agrandissement)
-        nohead = [f"{k}[{i}]" for k in order for i, g in enumerate(small[k])
+        nohead = [f"{k}[{i}]" for k in order if k in small for i, g in enumerate(small[k])
                   if k not in ("death", "respawn") and find_head(g) is None]
         if nohead:
             raise SystemExit(f"Accessoires du skin {sid} : tête introuvable dans {', '.join(nohead)}")
         f = f"kage_acc_{sid}_index.png"
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         for r, k in enumerate(order):
-            for c, (g0, p) in enumerate(zip(small[k], plans[k])):
+            dressed = flip.ANIMS[k]["build"](names) if k in flip.ANIMS else \
+                [scale.grow(dress(g0, names), p) for g0, p in zip(small[k], plans[k])]
+            for c, dg in enumerate(dressed):
                 # même agrandissement que l'image nue : seuls les pixels qui changent
-                dg, bg = scale.grow(dress(g0, names), p), rendered[k][c]
+                bg = rendered[k][c]
                 ov = np.full(bg.shape, ".", dtype="<U1")
                 ov[dg != bg] = dg[dg != bg]
                 im.paste(to_index(ov), (c * sx, r * sy))
@@ -244,7 +254,7 @@ def main():
         },
     }
     for r, k in enumerate(order):
-        a = ANIMS[k]
+        a = ALL[k]
         ms = round(1000 / a["fps"])
         meta["animations"][k] = {
             "row": r,
@@ -331,7 +341,7 @@ def build_docs(rendered, views, skins, order, vorder):
     d = ImageDraw.Draw(im)
     for r, k in enumerate(order):
         y = 20 + r * (ch2 + 10)
-        a = ANIMS[k]
+        a = ALL[k]
         d.text((20, y + 30), k.upper(), fill=INK, font=font(18))
         d.text((20, y + 56), f"{len(rendered[k])} frames · {a['fps']} i/s"
                f"{' · boucle' if a['loop'] else ''}", fill=(80, 80, 86), font=font(13))
@@ -345,7 +355,7 @@ def build_docs(rendered, views, skins, order, vorder):
     # GIF de contrôle par animation (x6, fond neutre, 2 boucles)
     Z3 = 6
     for k in order:
-        a = ANIMS[k]
+        a = ALL[k]
         frames = []
         for g in rendered[k]:
             f = Image.new("RGBA", (CW * Z3, CH * Z3), BG + (255,))

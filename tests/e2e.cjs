@@ -110,6 +110,26 @@ async function main() {
     expect(seen.has('skid'), `états vus : ${[...seen].join(', ')}`);
   });
 
+  await test('salto avant (→ tenue au saut), salto arrière (←), saut droit sans salto', async () => {
+    const jumpWith = async (key) => {
+      await reset(); await ev(() => { window.__kage.player.facing = 1; });
+      if (key) await k.down(key);
+      await k.down('Space');
+      const seen = new Set(), frames = new Set(), facing = new Set();
+      for (let i = 0; i < 45; i++) {
+        const q = await ev(() => { const p = window.__kage.player; return { s: p.state, f: p.anim.frame, d: p.facing, g: p.onGround }; });
+        seen.add(q.s); if (q.s === 'flip' || q.s === 'backflip') { frames.add(q.f); facing.add(q.d); }
+        await wait(16);
+      }
+      await k.up('Space'); if (key) await k.up(key);
+      return { seen: [...seen], frames: [...frames].sort((a, b) => a - b), facing: [...facing] };
+    };
+    const av = await jumpWith('ArrowRight'), ar = await jumpWith('ArrowLeft'), dr = await jumpWith(null);
+    expect(av.seen.includes('flip') && av.frames.includes(5) && av.frames.includes(10), `avant : ${JSON.stringify(av)}`);
+    expect(ar.seen.includes('backflip') && ar.facing.join() === '1' && ar.frames.includes(5), `arrière (KAGE garde son orientation) : ${JSON.stringify(ar)}`);
+    expect(dr.seen.includes('jump') && !dr.seen.includes('flip') && !dr.seen.includes('backflip'), `droit : ${dr.seen.join(',')}`);
+  });
+
   await test('sabre de face : bloqué par TATE', async () => {
     await reset(440, 192, 480);
     await ev(() => { window.__kage.tate.facing = -1; window.__kage.player.facing = 1; });
@@ -354,6 +374,17 @@ async function main() {
     expect(a.s === 'run' && !a.sprint, `léger : ${a.s}`);
     expect(b.s === 'sprint' && b.sprint, `poussé : ${b.s}`);
     expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
+  });
+
+  await test('tactile : saut avec le joystick tenu = salto', async () => {
+    await mReset(); await m.evaluate(() => { window.__kage.player.facing = 1; }); await m.waitForTimeout(250);
+    await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(30);
+    await T('touchMove', [[106, 300, 1]]); await m.waitForTimeout(250);
+    await T('touchStart', [[106, 300, 1], [788, 330, 2]]);
+    const seen = new Set();
+    for (let i = 0; i < 12; i++) { seen.add(await mState()); await m.waitForTimeout(30); }
+    await T('touchEnd', []); await m.waitForTimeout(500);
+    expect(seen.has('flip'), `états vus : ${[...seen].join(', ')}`);
   });
 
   await test('tactile : dash au coup de joystick relâché, pas au retour au centre', async () => {
