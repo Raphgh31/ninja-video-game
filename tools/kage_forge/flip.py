@@ -206,7 +206,8 @@ def draw_tails(g, knot, center, theta, omega, v):
 # ---------------------------------------------------------------------------
 # Les séquences
 # ---------------------------------------------------------------------------
-SPIN = 900.0                              # vitesse de rotation en boule (°/s) : un tour en 0,4 s
+SPIN = 720.0                              # vitesse de rotation en boule (°/s) : un tour en 0,5 s
+BULK = {"tuck_in": 2, "ball": 3, "open": 1}   # lignes et colonnes ajoutées au corps seul (en boule, KAGE paraissait plus petit ; la tête ne change pas)
 
 
 def _grow(p, acc):
@@ -214,6 +215,56 @@ def _grow(p, acc):
     g0 = small(p)
     plan = scale.plan(g0)                  # (sur l'image nue : même agrandissement avec ou sans chapeau)
     return scale.strip_outline(scale.grow(dress(g0, acc) if acc else g0, plan))
+
+
+def _spread(n, lo, hi, bad):
+    """n indices répartis dans [lo, hi], en évitant `bad` (lignes ou colonnes des yeux)."""
+    out = []
+    for i in range(n):
+        x = round(lo + (hi - lo) * (i + 1) / (n + 1))
+        for d in (0, 1, -1, 2, -2, 3, -3):
+            if lo <= x + d <= hi and x + d not in bad and x + d not in out:
+                x += d
+                break
+        out.append(x)
+    return sorted(out)
+
+
+HEAD = list("hHIEe")                      # capuche et yeux : la tête, gardée à sa taille
+
+
+def bulk(g, n):
+    """Agrandit le CORPS de n lignes et n colonnes doublées (jamais de zoom) ; la tête garde
+    sa taille (demande de l'utilisateur : elle est déjà un peu grosse). Le corps est sous la
+    tête dans les poses du salto : on étire seulement les lignes sous le bas de la capuche,
+    recentrées sous le cou, puis toute l'image est recentrée dans la cellule."""
+    if n <= 0:
+        return g
+    H, W = g.shape
+    ys, xs = np.where(g != ".")
+    cy, cx = ys.mean(), xs.mean()
+    hb = int(np.where(np.isin(g, HEAD).any(1))[0].max())      # dernière ligne de la tête
+    top, low = g[:hb + 1], g[hb + 1:]
+    ly, lx = np.where(low != ".")
+    rows = _spread(n, ly.min(), ly.max() - 1, set())
+    cols = _spread(n, lx.min() + 1, lx.max() - 1, set())
+    for r in reversed(rows):
+        low = np.vstack([low[:r + 1], low[r:r + 1], low[r + 1:]])
+    neck = (lx.min() + lx.max()) / 2
+    for c in reversed(cols):
+        low = np.hstack([low[:, :c + 1], low[:, c:c + 1], low[:, c + 1:]])
+    ly2, lx2 = np.where(low != ".")
+    shift = round((lx2.min() + lx2.max()) / 2 - neck)          # le corps reste centré sous le cou
+    pts = [(y, x, top[y, x]) for y, x in zip(*np.where(top != "."))]
+    pts += [(y + hb + 1, x - shift, low[y, x]) for y, x in zip(ly2, lx2)]
+    my = sum(p[0] for p in pts) / len(pts); mx = sum(p[1] for p in pts) / len(pts)
+    dy, dx = round(my - cy), round(mx - cx)                    # recentrer dans la cellule d'origine
+    out = np.full(g.shape, ".", dtype=g.dtype)
+    for y, x, v in pts:
+        ny, nx = y - dy, x - dx
+        assert 0 <= ny < H and 0 <= nx < W, "salto : le corps agrandi sort de la cellule"
+        out[ny, nx] = v
+    return out
 
 
 def _knot(g):
@@ -239,26 +290,26 @@ def frames(kind, acc=None):
     g = _grow(p, acc)
     out.append(_finish(g, _knot(g), _center(g), 0, 0, (55 * s, -300)))
     # 2. début du groupé : la rotation s'amorce
-    g = _grow(TUCK_IN, acc)
-    out.append(_finish(g, _knot(g), _center(g), 0, 380 * s, (75 * s, -220)))
+    g = bulk(_grow(TUCK_IN, acc), BULK["tuck_in"])
+    out.append(_finish(g, _knot(g), _center(g), 0, 300 * s, (60 * s, -200)))
     # 3. la boule, de 45° en 45° ; elle monte, passe le sommet, redescend
-    ball = _grow(TUCK, acc)
+    ball = bulk(_grow(TUCK, acc), BULK["ball"])
     c, k = _center(ball), _knot(ball)
     for i, a in enumerate(range(45, 360, 45)):
-        vy = -190 + i * 63
+        vy = -110 + i * 40                 # (envolée bridée : il monte doucement, flotte, redescend)
         g = rotate(ball, a * s, c)
-        out.append(_finish(g, k, c, a * s, SPIN * s, (85 * s, vy)))      # (tail() tourne le nœud lui-même)
+        out.append(_finish(g, k, c, a * s, SPIN * s, (60 * s, vy)))      # (tail() tourne le nœud lui-même)
     # 4. ouverture : la rotation freine, les jambes vont chercher le sol
-    g = _grow(OPEN, acc)
-    out.append(_finish(g, _knot(g), _center(g), 0, 260 * s, (70 * s, 200)))
+    g = bulk(_grow(OPEN, acc), BULK["open"])
+    out.append(_finish(g, _knot(g), _center(g), 0, 220 * s, (55 * s, 200)))
     # 5. réception : jambes tendues, le foulard flotte au-dessus
     g = _grow(LANDING, acc)
     out.append(_finish(g, _knot(g), _center(g), 0, 0, (60 * s, 280)))
     return out
 
 
-# durées par défaut (ms) ; en jeu, l'image est choisie selon le temps de vol (player.js)
-DURATIONS = [70, 60] + [50] * 7 + [70, 120]
+# durées (ms), reprises en jeu (player.js) : environ 0,95 s du deuxième appui à la réception
+DURATIONS = [130, 100] + [70] * 7 + [100, 140]
 ANIMS = {
     "flip": dict(build=lambda acc=None: frames("front", acc), fps=16, loop=False, state="flip", durations=DURATIONS),
     "backflip": dict(build=lambda acc=None: frames("back", acc), fps=16, loop=False, state="backflip", durations=DURATIONS),

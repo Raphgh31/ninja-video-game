@@ -110,24 +110,28 @@ async function main() {
     expect(seen.has('skid'), `états vus : ${[...seen].join(', ')}`);
   });
 
-  await test('salto avant (→ tenue au saut), salto arrière (←), saut droit sans salto', async () => {
-    const jumpWith = async (key) => {
+  await test('salto au 2e appui sur saut : avant, arrière (← tenue) ; un saut simple n\'en fait pas', async () => {
+    const jumpWith = async (key, second) => {
       await reset(); await ev(() => { window.__kage.player.facing = 1; });
       if (key) await k.down(key);
-      await k.down('Space');
+      await k.down('Space'); await wait(120); await k.up('Space');
+      if (second) { await k.down('Space'); await wait(40); await k.up('Space'); }
       const seen = new Set(), frames = new Set(), facing = new Set();
-      for (let i = 0; i < 45; i++) {
-        const q = await ev(() => { const p = window.__kage.player; return { s: p.state, f: p.anim.frame, d: p.facing, g: p.onGround }; });
+      let y0 = null, top = 0;
+      for (let i = 0; i < 70; i++) {
+        const q = await ev(() => { const p = window.__kage.player; return { s: p.state, f: p.anim.frame, d: p.facing, y: p.y }; });
         seen.add(q.s); if (q.s === 'flip' || q.s === 'backflip') { frames.add(q.f); facing.add(q.d); }
+        y0 ??= q.y; top = Math.max(top, 192 - q.y);
         await wait(16);
       }
-      await k.up('Space'); if (key) await k.up(key);
-      return { seen: [...seen], frames: [...frames].sort((a, b) => a - b), facing: [...facing] };
+      if (key) await k.up(key);
+      return { seen: [...seen], frames: [...frames].sort((a, b) => a - b), facing: [...facing], top: Math.round(top) };
     };
-    const av = await jumpWith('ArrowRight'), ar = await jumpWith('ArrowLeft'), dr = await jumpWith(null);
+    const av = await jumpWith('ArrowRight', true), ar = await jumpWith('ArrowLeft', true), dr = await jumpWith('ArrowRight', false);
     expect(av.seen.includes('flip') && av.frames.includes(5) && av.frames.includes(10), `avant : ${JSON.stringify(av)}`);
     expect(ar.seen.includes('backflip') && ar.facing.join() === '1' && ar.frames.includes(5), `arrière (KAGE garde son orientation) : ${JSON.stringify(ar)}`);
-    expect(dr.seen.includes('jump') && !dr.seen.includes('flip') && !dr.seen.includes('backflip'), `droit : ${dr.seen.join(',')}`);
+    expect(dr.seen.includes('jump') && !dr.seen.includes('flip') && !dr.seen.includes('backflip'), `saut simple en courant : ${dr.seen.join(',')}`);
+    expect(av.top <= 50 + 10, `envolée bridée : ${av.top} px au plus haut (saut plein : 50)`);
   });
 
   await test('sabre de face : bloqué par TATE', async () => {
@@ -376,14 +380,14 @@ async function main() {
     expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
   });
 
-  await test('tactile : saut avec le joystick tenu = salto', async () => {
+  await test('tactile : deuxième appui sur le bouton saut = salto', async () => {
     await mReset(); await m.evaluate(() => { window.__kage.player.facing = 1; }); await m.waitForTimeout(250);
-    await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(30);
-    await T('touchMove', [[106, 300, 1]]); await m.waitForTimeout(250);
-    await T('touchStart', [[106, 300, 1], [788, 330, 2]]);
+    await T('touchStart', [[788, 330, 2]]); await m.waitForTimeout(120); await T('touchEnd', []);
+    await m.waitForTimeout(40);
+    await T('touchStart', [[788, 330, 3]]); await m.waitForTimeout(40); await T('touchEnd', []);
     const seen = new Set();
     for (let i = 0; i < 12; i++) { seen.add(await mState()); await m.waitForTimeout(30); }
-    await T('touchEnd', []); await m.waitForTimeout(500);
+    await m.waitForTimeout(600);
     expect(seen.has('flip'), `états vus : ${[...seen].join(', ')}`);
   });
 

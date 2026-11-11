@@ -14,7 +14,9 @@ const P = {
   fallLimit: 168,    // chute mortelle au-delà de 10,5 cases entre le sol quitté et le sol d'arrivée
                      // (la poutre de la serre, 10 cases au-dessus du sol, est la limite sans dégâts ; le toit, 13 cases, tue)     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
-  flipWindow: 0.15,   // une direction poussée dans les 0,15 s après le décollage lance aussi le salto
+  // salto au deuxième appui : gravité allégée pendant la rotation, petit élan (px/s), au plus une
+  // demi-case au-dessus d'un saut plein ; durées des 11 images (s) : environ 0,95 s en tout
+  flip: { gravity: 0.42, kick: 120, rise: 8, brake: 0.3, times: [0.13, 0.1, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.1, 0.14] },
   maxFall: 420,
   jump: 315,
   jumpCut: 0.45,     // relâcher le saut tôt = saut plus court
@@ -68,6 +70,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.timer = 0;
     this.airDash = true;
+    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false; this.flipK = 1;
     this.wallLock = 0;
     this.wallCoyote = 0;
     this.lastWall = 0;        // côté du dernier mur touché
@@ -94,36 +97,85 @@ export class Player {
 
   isFlipping() { return this.state === 'flip' || this.state === 'backflip'; }
 
-  /** Salto groupé (avant ou arrière) : l'image suit le temps de vol (updateFlip). */
+  /**
+   * Salto groupé, au deuxième appui sur saut en l'air (avant, ou arrière si la direction
+   * tenue est opposée au sens du départ). « Envolée bridée » : un petit élan vers le haut
+   * et une gravité allégée pendant la rotation laissent au salto le temps d'être lent,
+   * sans que KAGE monte plus d'une demi-case au-dessus d'un saut plein ni aille plus loin
+   * qu'un saut normal (sa vitesse vers l'avant est freinée d'autant : flipK).
+   */
   startFlip(kind) {
+    const F = P.flip, g = P.gravity, gF = g * F.gravity;
+    const nominal = F.times.slice(0, 9).reduce((a, b) => a + b, 0);   // (gravité allégée jusqu'à la fin de la rotation)
+    const level = Math.max(this.airY0, this.y);                       // hauteur de référence : le sol quitté
+    // temps de vol restant sans salto, puis avec : la vitesse vers l'avant est réduite d'autant
+    const tNormal = this.airTime(this.y, this.vy, level, g, g, 0);
+    const apex = this.airY0 - (P.jump * P.jump) / (2 * g) - F.rise;
+    const room = Math.max(0, this.y - apex);
+    // en montée ou au sommet : un petit élan (plafonné) ; déjà en redescente : la chute est seulement freinée
+    if (this.vy < 60) this.vy = -Math.min(Math.max(-this.vy, F.kick), Math.sqrt(2 * gF * room));
+    else this.vy *= F.brake;
+    const tFlip = this.airTime(this.y, this.vy, level, gF, g, nominal);
+    this.flipK = Math.max(0.15, Math.min(1, tNormal / Math.max(1e-3, tFlip)));
+    this.vx *= this.flipK;
     this.setState(kind);
-    this.flipP = 0;
+    this.facing = this.airFacing;
+    this.flipT = 0;
     this.flipEnd = Infinity;
     this.flipSpun = false;
-    if (kind === 'backflip') this.facing = this.jumpFacing;
+    this.flipUsed = true;
+    this.jumpBuffer = 0;                 // (ce deuxième appui ne relance pas un saut à la réception)
+  }
+
+  /** Temps pour redescendre au niveau `level` (gravité g1 pendant t1 secondes, puis g2). */
+  airTime(y, vy, level, g1, g2, t1) {
+    let t = 0;
+    const dt = 1 / 120;
+    while (t < 3) {
+      vy = Math.min(P.maxFall, vy + (t < t1 ? g1 : g2) * dt);
+      y += vy * dt;
+      t += dt;
+      if (vy > 0 && y >= level) return t;
+    }
+    return t;
   }
 
   /**
-   * Avancée du salto (0 à 1) : la part du vol déjà faite, jusqu'au retour à la hauteur du
-   * décollage (si KAGE relâche le saut tôt, le vol raccourcit et la rotation accélère).
-   * Impulsion, groupé, rotation de 45° en 45°, ouverture, puis jambes tendues vers le sol.
+   * Images du salto sur leur propre horloge (P.flip.times) : impulsion, groupé, sept images
+   * de rotation, ouverture, puis jambes tendues jusqu'au sol. Si le sol approche trop tôt
+   * (deuxième appui tardif), l'horloge accélère juste assez pour finir la rotation à temps.
    */
-  updateFlip() {
-    const g = P.gravity, h = this.jumpY0 - this.y;
-    const rem = h >= 0 ? (-this.vy + Math.sqrt(Math.max(0, this.vy * this.vy + 2 * g * h))) / g : 0;
-    const p = this.timer / Math.max(1e-3, this.timer + rem);
-    this.flipP = Math.max(this.flipP, Math.min(1, p));
-    if (this.flipP >= 1 && this.flipEnd === Infinity) this.flipEnd = this.timer;
-    const q = this.flipP;
-    const f = q < 0.08 ? 0 : q < 0.17 ? 1 : q < 0.78 ? 2 + Math.min(6, Math.floor(((q - 0.17) / 0.61) * 7)) : q < 0.9 ? 9 : 10;
+  updateFlip(dt) {
+    const F = P.flip, total = F.times.reduce((a, b) => a + b, 0);
+    let rate = 1;
+    if (this.flipT < total) {
+      const g = P.gravity * (this.anim.frame <= 8 ? F.gravity : 1);
+      const left = this.airTime(this.y, this.vy, Math.max(this.airY0, this.y + 1), g, g, 0);
+      rate = Math.min(3, Math.max(1, (total - this.flipT) / Math.max(0.05, left - 0.03)));
+    }
+    this.flipT += dt * rate;
+    let f = 0, acc = 0;
+    while (f < 10 && this.flipT >= acc + F.times[f]) acc += F.times[f++];
+    if (f >= 10 && this.flipEnd === Infinity) this.flipEnd = this.timer;
     if (f >= 2 && !this.flipSpun) { this.flipSpun = true; this.emit('flip', { kind: this.state }); }
     this.anim.frame = f;
     this.anim.time = 0;
     this.anim.finished = false;
   }
 
+  /** Le deuxième appui peut-il lancer un salto ? (pas tout près du sol en retombant : c'est alors un saut mis en réserve) */
+  canFlip() {
+    if (this.onGround || this.coyote > 0 || this.flipUsed || this.isFlipping()) return false;
+    if (this.timer === 0) return false;            // (le saut vient de partir, sur ce même appui)
+    if (this.state !== 'jump' && this.state !== 'fall' && this.state !== 'wall_jump') return false;
+    if (this.vy <= 0) return true;
+    const tx = Math.floor(this.x / TILE), ty = Math.floor(this.y / TILE);
+    for (let r = ty; r <= ty + 1; r++) if (this.level.solid(tx, r) || this.level.ledge?.(tx, r)) return false;
+    return true;
+  }
+
   setState(s) {
-    if (s !== 'jump' && s !== 'flip' && s !== 'backflip') this.jumpY0 = null;   // (seul un saut depuis le sol lance un salto)
+    if (s !== 'flip' && s !== 'backflip' && s !== 'fall' && s !== 'land') this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
     this.state = s;
     this.timer = 0;
     this.anim.play(s, { restart: true });
@@ -170,6 +222,7 @@ export class Player {
     this.airDash = true;
     this.emit('wall_jump', { side });
     this.setState('wall_jump');
+    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false;   // (un salto reste possible après un saut mural)
   }
 
   /** Boîte de collision selon l'état (définie dans kage.json, relative à la cellule). */
@@ -326,7 +379,6 @@ export class Player {
         else if (!this.onGround) this.setState('fall');
         break;
       default: {
-        const face0 = this.facing;                 // (orientation avant la commande : salto avant ou arrière)
         const flipping = this.isFlipping();
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
@@ -347,7 +399,7 @@ export class Player {
           this.setState('skid');
           break;
         }
-        const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run);
+        const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run) * (this.onGround ? 1 : this.flipK ?? 1);
         if (this.onGround) this.fling = false;
         if (this.fling && dir !== -Math.sign(this.vx) && Math.abs(this.vx) > Math.abs(target)) {
           // élan d'une liane : il porte KAGE, les commandes ne le brident pas
@@ -369,10 +421,6 @@ export class Player {
           this.jumpBuffer = 0;
           this.emit('jump');
           this.setState('jump');
-          this.jumpFacing = face0;
-          this.jumpY0 = this.y;
-          // saut avec une direction tenue : salto avant (vers où il regarde) ou arrière
-          if (dir !== 0) this.startFlip(dir === face0 ? 'flip' : 'backflip');
         } else if (this.jumpBuffer > 0 && !this.onGround) {
           // saut mural : contre un mur, ou juste après l'avoir quitté
           const side = this.wallSide() || (this.wallCoyote > 0 ? this.lastWall : 0);
@@ -381,11 +429,11 @@ export class Player {
             break;
           }
         }
-        // une direction poussée juste après le décollage lance aussi le salto
-        if (this.state === 'jump' && dir !== 0 && this.vy < 0 && this.timer < P.flipWindow && this.jumpY0 != null) {
-          this.startFlip(dir === this.jumpFacing ? 'flip' : 'backflip');
+        // deuxième appui sur saut, en l'air : salto (arrière si la direction tenue s'oppose au sens du départ)
+        if (input.wasPressed('jump') && this.state !== 'wall_slide' && this.canFlip()) {
+          this.startFlip(dir !== 0 && dir === -this.airFacing ? 'backflip' : 'flip');
         }
-        if (!input.isHeld('jump') && this.vy < 0 && (this.state === 'jump' || this.isFlipping()) && !this.fling) {
+        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
         const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;
@@ -426,7 +474,8 @@ export class Player {
 
     // gravité (sauf pendant le dash)
     if (this.state !== 'dash') {
-      this.vy = Math.min(P.maxFall, this.vy + P.gravity * dt);
+      const light = this.isFlipping() && this.anim.frame <= 8;      // (salto : envolée bridée)
+      this.vy = Math.min(P.maxFall, this.vy + P.gravity * (light ? P.flip.gravity : 1) * dt);
       if (this.state === 'wall_slide') this.vy = Math.min(this.vy, P.wallSlide);
       if (this.state === 'air_attack') this.vy = Math.min(this.vy, P.airAttackFall);
     }
@@ -447,6 +496,10 @@ export class Player {
 
     if (this.onGround) {
       this.coyote = P.coyote;
+      this.airY0 = this.y;               // (salto : sol quitté, sens du départ)
+      this.airFacing = this.facing;
+      this.flipUsed = false;
+      this.flipK = 1;
       this.airDash = true;
       this.lastWallJump = null;
     } else {
@@ -466,7 +519,7 @@ export class Player {
         this.setState('wall_slide');
       } else if (!this.onGround && (s === 'flip' || s === 'backflip')) {
         // le salto va jusqu'au bout ; s'il reste du chemin à tomber (sol plus bas), KAGE tombe ensuite
-        if (this.flipP >= 1 && this.timer - this.flipEnd > 0.08) this.setState('fall');
+        if (this.timer - this.flipEnd > 0.2 && this.vy > 0) this.setState('fall');
       } else if (!this.onGround) {
         if (this.vy > 30 && s !== 'fall') this.setState('fall');
         else if (s !== 'jump' && s !== 'fall' && s !== 'wall_jump') this.setState('fall');
@@ -509,7 +562,7 @@ export class Player {
     });
     const before = this.anim.frame, stateBefore = this.state;
     this.anim.update(dt);
-    if (this.isFlipping()) this.updateFlip();
+    if (this.isFlipping()) this.updateFlip(dt);
     // bruit de pas : seulement quand le pied touche le sol dans le cycle, et que
     // KAGE avance vraiment (rien à l'arrêt, ni en entrant dans la course)
     const f = this.anim.frame;
