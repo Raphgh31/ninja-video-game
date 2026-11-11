@@ -141,7 +141,10 @@ const SKIN_LAB = TEST_BUILD;
 const labGet = (k) => { try { return localStorage.getItem(`kage.lab.${k}`); } catch { return null; } };
 const labSet = (k, v) => { try { localStorage.setItem(`kage.lab.${k}`, v); } catch { /* rien */ } };
 const hashId = location.hash.slice(1);
-const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter') : 'potager';
+// sans ancre : le chapitre de la partie en cours (la sauvegarde suit KAGE d'un chapitre à l'autre)
+const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
+const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
+  : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -1080,9 +1083,57 @@ if (CHAPTER) {
   const cont = title.querySelector('[data-continue]');
   cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
   cont.addEventListener('click', () => startChapter(true));
-  title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
+  title.querySelector('[data-new]').addEventListener('click', () => {
+    // une nouvelle partie commence toujours au chapitre 1
+    if (LEVEL_ID !== 'potager' && !hashId && !TEST_BUILD) { clearSave(); location.reload(); return; }
+    startChapter(false);
+  });
   (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
-  if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+  if (existing && existing.chapter === LEVEL_ID && existing.intro) {
+    // on arrive du chapitre précédent : pas d'écran titre, la carte du chapitre s'efface sur la forêt
+    startChapter(true);
+    delete save.intro;
+    persist();
+    chapterCard(level.intro, true);
+  } else if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+}
+
+/** Carte de chapitre : noire, le titre ; fadeOut = elle part de noir et s'efface sur le jeu. */
+function chapterCard(t, fadeOut) {
+  const el = document.querySelector('.chapter-card');
+  if (!el || !t) return el;
+  el.querySelector('[data-card-pre]').textContent = t.pre ?? '';
+  el.querySelector('[data-card-num]').textContent = t.num ?? '';
+  el.querySelector('[data-card-name]').textContent = t.name ?? '';
+  el.querySelector('[data-card-line]').textContent = t.line ?? '';
+  el.hidden = false;
+  if (fadeOut) {
+    el.classList.add('on');
+    run.paused = true;
+    setTimeout(() => { run.paused = false; el.classList.add('out'); el.classList.remove('on'); }, 2400);
+    setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 5200);
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+  }
+  return el;
+}
+
+/** Fin d'un chapitre qui a une suite : fondu au noir, titre du suivant, puis on y entre (même partie). */
+function nextChapter() {
+  const id = level.nextId, def = LEVELS[id];
+  const ns = emptySave(id);
+  for (const k of ['ryo', 'skins', 'skin', 'merchantMet', 'bossDefeated', 'time', 'falls']) if (save?.[k] != null) ns[k] = save[k];
+  ns.time = run.time;
+  ns.prev = [...(save?.prev ?? []), LEVEL_ID];
+  ns.intro = true;
+  writeSave(ns);
+  if (TEST_BUILD) labSet('chapter', id);
+  chapterCard(def.intro ?? { num: `Chapitre ${def.chapter}`, name: def.name }, false);
+  music.setLevel(0, 2.5);
+  setTimeout(() => {
+    if (location.hash) location.replace(location.pathname + location.search);
+    else location.reload();
+  }, 4600);
 }
 
 // barre de vie du boss : fine, en haut de l'image, avec son nom ; la part perdue
@@ -1131,10 +1182,11 @@ function win() {
   run.won = true;
   music.setLevel(0, 3);
   sfx('win');
+  if (CHAPTER && level.nextId && LEVELS[level.nextId] && !hashId) { save.done = true; nextChapter(); return; }
   const el = document.querySelector('.win');
   if (CHAPTER) {
     el.querySelector('.win__title').textContent = `${level.name} — terminé`;
-    el.querySelector('[data-next]').textContent = level.next ? `Au loin s'étendent ${level.next.toLowerCase()}… la suite de l'aventure arrive bientôt.` : '';
+    el.querySelector('[data-next]').textContent = level.endText ?? (level.next ? `Au loin s'étendent ${level.next.toLowerCase()}… la suite de l'aventure arrive bientôt.` : '');
     el.querySelector('[data-ryo-row]').hidden = false;
     el.querySelector('[data-ryo]').textContent = String(save.ryo);
     save.done = true;

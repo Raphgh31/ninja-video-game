@@ -493,6 +493,8 @@ export const FORET = {
   forest: F,
   theme: 'foret',
   chapter: 2,
+  intro: { pre: 'Fin de l\'initiation', num: 'Chapitre 2', name: 'La Forêt', line: 'Le voyage commence.' },
+  endText: 'Au-delà de la lisière, le chemin continue… la suite de l\'aventure arrive bientôt.',
   // musique : la piste fournie par Raph, introduction puis boucle sans couture (tools/musique_boucle.py)
   music: { src: './music/foret.mp3', loopStart: 12.28, loopEnd: 152.27 },
   next: null,

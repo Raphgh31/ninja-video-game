@@ -23,6 +23,9 @@ export class Level {
     this.boss = def.boss ?? null;     // { type, x, y } : le boss du chapitre (et son perchoir)   // { src, loopStart, loopEnd } : musique du chapitre
     this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;
+    this.nextId = def.nextId ?? null;        // chapitre suivant (on y enchaîne après l'arrivée)
+    this.intro = def.intro ?? null;          // carte de titre à l'entrée du chapitre
+    this.endText = def.endText ?? null;
     this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
     this.props = def.props ?? [];
     this.hints = def.hints ?? [];

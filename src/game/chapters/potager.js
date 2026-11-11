@@ -544,4 +544,5 @@ export const POTAGER = {
   // boucle) ; plus basse que celle du chapitre : elle reste en fond
   bossMusic: { src: './music/karasu.mp3', loopStart: 7.27, loopEnd: 73.51, gain: 0.6 },
   next: 'Les rizières',
+  nextId: 'foret',            // le chapitre suivant : on y passe par la porte du temple
 };

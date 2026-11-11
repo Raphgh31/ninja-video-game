@@ -1106,13 +1106,21 @@ async function main() {
     expect(st === 'defeated' && (await gateOpen()), `corbeau ${st}, porte ouverte ${await gateOpen()}`);
   });
 
-  await test('potager : la sortie termine le chapitre', async () => {
+  await test('potager : la sortie mène au chapitre 2 — fondu au noir, titre de la Forêt, la partie continue (ryō gardés)', async () => {
     const gx = await pg.evaluate(() => Math.floor(window.__kage.level.goal.x / 16));
-    // KAGE continue d'avancer, passe derrière la porte (on ne le voit plus), puis la fin du chapitre
+    const ryo0 = (await SAVE()).ryo;
+    // KAGE continue d'avancer, passe derrière la porte (on ne le voit plus), puis le fondu
     await pat(gx - 8); await PK.down('ArrowRight'); await pw(2600); await PK.up('ArrowRight'); await pw(600);
-    const r = await pg.evaluate(() => [!document.querySelector('.win').hidden, document.querySelector('.win__title').textContent]);
+    const card = await pg.evaluate(() => { const c = document.querySelector('.chapter-card'); return [!c.hidden, c.textContent.replace(/\s+/g, ' ').trim()]; });
     const s = await SAVE();
-    expect(r[0] && /Potager/.test(r[1]) && s.done, `fin ${r.join(' / ')}, sauvegarde terminée ${s && s.done}`);
+    expect(card[0] && /La Forêt/.test(card[1]) && s.chapter === 'foret' && s.intro && s.ryo === ryo0, `carte ${card.join(' / ')}, sauvegarde ${JSON.stringify(s && { c: s.chapter, ryo: s.ryo, intro: s.intro })}`);
+    // la page se recharge sur la Forêt : pas d'écran titre, KAGE au départ, la carte s'efface
+    await pg.waitForFunction(() => window.__kage && window.__kage.level.theme === 'foret', null, { timeout: 20000 });
+    await pw(800);
+    const r = await pg.evaluate(() => [document.querySelector('.title-screen').hidden, Math.floor(window.__kage.player.x / 16), !document.querySelector('.chapter-card').hidden]);
+    await pw(5000);
+    const r2 = await pg.evaluate(() => [document.querySelector('.chapter-card').hidden, window.__kage.save.ryo]);
+    expect(r[0] && r[1] < 10 && r[2] && r2[0] && r2[1] === ryo0, `forêt : titre caché ${r[0]}, colonne ${r[1]}, carte ${r[2]} → ${r2.join(' / ')}`);
   });
 
   await test('aucune erreur dans la console', async () => {

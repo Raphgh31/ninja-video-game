@@ -149,6 +149,18 @@ body.mobile .talk { padding-left: 6px; }
   gap: 2px; background: rgba(12, 14, 18, .72);
 }
 .title-screen[hidden] { display: none; }
+/* passage d'un chapitre au suivant : fondu au noir, le titre du chapitre */
+.chapter-card {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 3px;
+  background: #05080a; opacity: 0; transition: opacity 1.8s ease-in-out; pointer-events: none;
+}
+.chapter-card[hidden] { display: none; }
+.chapter-card.on { opacity: 1; }
+.chapter-card.out { transition-duration: 2.6s; }
+.chapter-card__pre { margin: 0 0 10px; --pxs: 1; color: #8b9a93; }
+.chapter-card__num { margin: 0; --pxs: 2; color: #c9c3b4; text-transform: uppercase; }
+.chapter-card__name { margin: 0; --pxf: title; --pxs: 1; color: var(--ink); }
+.chapter-card__line { margin: 10px 0 0; --pxs: 1; color: #9fc7b0; }
 .title-screen__name { margin: 0; --pxf: title; --pxs: 1; color: var(--ink); }
 .title-screen__chapter { margin: 0 0 12px; --pxs: 1; color: #c9c3b4; }
 .title-screen__actions { display: grid; gap: 4px; min-width: 110px; }
