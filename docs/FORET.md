@@ -86,3 +86,28 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 3. **Greybox jouable** des 12 zones, avec toutes les mécaniques et les tests.
 4. **Peinture**, puis ce qui bouge.
 5. **Musique, ambiance, bruitages**, finitions ; raccord avec le chapitre 1.
+
+## 8. État d'avancement (11 novembre 2026)
+
+**Validé par l'utilisateur** : le plan (ce document), la planche d'ambiance, la planche de la statue (deux yeux à rallumer, puis la mâchoire s'abaisse), la planche de KAGE sur liane (quatre retouches : bras courts et visibles, coude ouvert, mains devant la poitrine, main gauche cernée de noir et coude derrière le dos). Réponses à mes questions : passage du chapitre 1 au 2 par un **fondu soigné et un peu long** avec le titre du chapitre (« le chapitre 1 était l'initiation, le jeu commence ») ; horizon du chapitre 3 **volontairement flou**. Consigne actuelle : **tout faire sans s'arrêter pour poser des questions**.
+
+**Fait (sur la branche, non fusionné)** :
+- interface en pixels (`src/engine/pixelfont.js`, `pixelui.js`) et les deux artefacts (jeu / test avec chapitres et zones en un clic) ;
+- `src/game/chapters/builder.js` (constructeur commun, le Potager est strictement identique) ;
+- `src/game/chapters/foret.js` : **la carte greybox des 12 zones** (974 × 72 cases, 21 lanternes), enregistrée dans `LEVELS.foret` (`#foret`, chapitre 2). Carte en image : `python3 tools/foret_carte.py <sortie.png> [zone]` ;
+- `src/game/foret/mechanics.js` (`level.forest`, réglages `FOREST`) : travées qui s'effondrent, bois vermoulu, troncs flottants (plateformes mobiles : `platformUnder`, `player.ride`), lianes (`tryGrab`, `rideVine`, `release`), statue (yeux, mâchoire, porte `J`), éboulis ; tuiles `v` (vide mortel) et `J` ; remise à zéro à la réapparition (`reset`) ;
+- joueur : état `vine` (animations `vine`, `vine_swing`, `vine_climb` dans la forge : `tools/kage_forge/vine.py`, 23 animations) ; tactile : `stick`, `stick_up` ; aide `vine` ;
+- pinceaux du décor déjà écrits pour les planches : `src/game/foret/palette.js` (trois lumières `MOODS`), `layers.js` (conifères, fûts, troncs, feuilles, lianes, fougères, rochers, sol, brume, rais), `statue.js` (`paintStatue`, `drawStatue`) ; planches : `node tools/foret_planche.mjs ambiance|statue <sortie.png>` ;
+- tests : `__kage.step(n)` (pas à pas), pilote `tests/foret_bot.js`, sondes de mise au point `tests/foret_sondes.cjs` + `tests/foret_sondes_liste.js` (`SEUL=…` filtre `tests/e2e.cjs`).
+
+**Vérifié au pilote automatique** : zones 1, 2, 3 (sans dash on tombe à l'eau), 4 (sans sprint on meurt ; avec, on passe), 5, 7, 8, 9 (lianes, yeux, mâchoire, sortie), 11 (immobile on meurt ; en courant on passe), 12 (fin) ; zone 10 : sans dash, la corniche finale est hors d'atteinte.
+
+**Pas encore validé** : zone 6 (le pilote se noie : lui ou le tracé ?), enchaînement des lianes de la zone 10 (le pilote reste bloqué après la première ; les piliers sont posés 6 cases après chaque dernière accroche, sous le bout de course de la liane). La série complète `npm test` n'a pas été relancée depuis les changements du joueur, du niveau et de la boucle.
+
+## 9. Reste à faire, dans l'ordre
+
+1. **Finir le greybox** : zones 6 et 10 (au besoin simplifier le tracé plutôt que le pilote), `npm test` vert, lanterne de la niche (zone 5) et coffres atteignables.
+2. **Peinture** (`src/game/foret/index.js` → `ForetArt` avec `drawBack`, `drawBehind`, `drawFront`, branché dans `level.js` pour le thème `foret`) : fond en parallaxe à cinq plans par bandes répétées, lumière par zone (`zone.mood` : matin, sousbois, canopee, souterrain, sanctuaire, couchant, crepuscule) avec fondu entre zones ; terrain par tranches (sol moussu, troncs `|`, ruines `=`, branches `-`, eau miroir, vide) ; décors déclarés dans la carte (`temple_back`, `birch`, `pine_young`, `boulder`, `stump`, `giant_root`, `ivy`, `branch`, `ruin_arch`, `ruin_wall`, `ruin_drum`, `climb_trunk`, `hollow_giant`, `mushrooms`, `statue`, `rubble`, `cliff`, `vine_branch`, `rock_pillar`, `rock_ledge`, `fallen_log`, `last_tree`, `horizon`, coffres) ; arbres creux (`forest.hollows`) ; ce qui bouge : brume, rais, lucioles, oiseaux, eau, troncs flottants, planches, travées qui tombent, lianes (derrière KAGE), statue (yeux, mâchoire, éboulis de blocs devant le couloir), éboulis de la zone 11, pénombre et champignons du souterrain (`forest.dark`), caisses peintes en lierre. Cadrage de la statue : `zone.camGround` (0,955) à brancher dans la caméra (`CAM.ground` dans `main.js`).
+3. **Son** : musique depuis la vidéo de l'utilisateur (`/root/.claude/uploads/…/50d674be-ScreenRecording_11-10-2026_15-20-15_1.mov` si elle existe encore, sinon la lui redemander) avec `tools/musique_boucle.py`, ambiance synthétisée en stéréo, bruitages des événements (`collapseStart`, `spanWarn`, `spanFall`, `crumbleCreak`, `crumbleFall`, `logDip`, `vine_grab`, `vine_release`, `vine_step`, `eyeLit`, `jawOpen`, `jawDone`, `slideStart`, `slideHit`, `slideEnd`), le tout embarqué dans `tools/standalone.mjs`.
+4. **Raccord** : fondu avec le titre du chapitre 2 après la porte du temple, sauvegarde qui suit KAGE d'un chapitre à l'autre (ryō, skins, statue : `save.statue`), « Continuer » dans le bon chapitre, écran de fin du chapitre 2.
+5. **Tests** (~20, dans `tests/`), carte mentale (branche du chapitre 2), `docs/REPRISE.md`, `CLAUDE.md`, captures (ordinateur, téléphone paysage et portrait, écran haut), republication des deux artefacts et de la carte.
