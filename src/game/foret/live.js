@@ -208,8 +208,19 @@ export class ForetLive {
       if (this.rows[ty][tx] !== '~' || this.rows[ty][tx - 1] === '~' || this.rows[ty - 1]?.[tx] === '~') continue;
       let w = 1; while (this.rows[ty][tx + w] === '~') w++;
       let d = 1; while (this.rows[ty + d]?.[tx] === '~') d++;
+      // l'eau est profonde : son corps descend à travers le lit (jusqu'au prochain vide, 14 cases au plus) ;
+      // on n'en voit jamais le fond
+      let bed = 0; while (bed < 14 && ty + d + bed < level.h && this.rows[ty + d + bed][tx] === '#') bed++;
+      d += bed;
       const z = this.zoneAt(tx * TILE);
-      this.waters.push({ x: tx * TILE, y: ty * TILE, w: w * TILE, h: d * TILE, mirror: !!z?.mirror, flow: z?.id === '06', under: this.underground(tx * TILE, ty * TILE) });
+      const oa = this.f?.def?.oasis, oasis = !!oa && tx * TILE >= oa.x0 && tx * TILE < oa.x1;
+      this.waters.push({ oasis, x: tx * TILE, y: ty * TILE, w: w * TILE, h: d * TILE, mirror: !!z?.mirror, flow: z?.id === '06', under: this.underground(tx * TILE, ty * TILE) });
+    }
+    // les piliers de pierre plantés dans l'eau : sous la surface, l'eau passe devant eux (on n'en voit pas le pied)
+    for (const p of level.props) {
+      if (p.type !== 'rock_pillar' && p.type !== 'rock_ledge' && p.type !== 'boulder') continue;
+      const nb = this.waters.find((w) => (w.x === (p.x + p.w) * TILE || w.x + w.w === p.x * TILE) && w.y > p.y * TILE);
+      if (nb) this.waters.push({ x: p.x * TILE, y: nb.y, w: p.w * TILE, h: nb.h, mirror: false, flow: nb.flow, under: nb.under, sub: true });
     }
     // brume au fond des ravins (lignes « v »), et l'ombre qui monte de leurs profondeurs
     this.chasms = [];
@@ -218,7 +229,8 @@ export class ForetLive {
       if (this.rows[ty][tx] !== 'v' || this.rows[ty][tx - 1] === 'v') continue;
       let w = 1; while (this.rows[ty][tx + w] === 'v') w++;
       const lip = Math.min(topOf(tx - 1), topOf(tx + w), ty) * TILE;
-      this.chasms.push({ x: tx * TILE, y: ty * TILE, w: w * TILE, lip });
+      const decor = level.props.some((p) => p.type === 'ravine' && tx >= p.x && tx < p.x + p.w);   // la gorge peinte : l'ombre vient plus bas
+      this.chasms.push({ x: tx * TILE, y: ty * TILE, w: w * TILE, lip, decor });
     }
     // champignons lumineux du souterrain : les grappes déclarées, et quelques-unes en plus sur le sol des galeries
     this.glows = [];
@@ -324,13 +336,13 @@ export class ForetLive {
   /** Les ravins : sous le niveau des bords, l'ombre s'épaissit vers le fond (tramée). */
   drawChasmDepth(ctx, cam, vw, vh) {
     for (const c of this.chasms) {
-      const y0 = c.lip + 2 * TILE;
+      const y0 = c.lip + (c.decor ? 7 : 2) * TILE, ramp = c.decor ? 170 : 110;
       if (!this.vis(c.x, y0, c.w, c.y - y0 + 40, cam, vw, vh)) continue;
       const z = this.zoneAt(c.x), m = C.MOODS[z?.mood] ?? C.MOODS.sousbois;
       ctx.fillStyle = m.fore[0];
       const x0 = R(c.x - cam.x) - 2, w = c.w + 4;
       for (let y = Math.max(y0, cam.y); y < Math.min(c.y + 40, cam.y + vh); y++) {
-        const a = Math.min(1, (y - y0) / 110);
+        const a = Math.min(1, (y - y0) / ramp);
         if (a <= 0) continue;
         const sy = R(y - cam.y);
         if (a >= 1) { ctx.fillRect(x0, sy, w, 1); continue; }
@@ -377,7 +389,7 @@ export class ForetLive {
     // la main courante du fond, et les suspentes qui la relient au tablier (de part et d'autre)
     rope((x) => rail(x, 2), 2, 1);
     for (const p of B.planks) {
-      if (!p.active && p.state === 'fall') continue;
+      if (!p.active) continue;
       const cx = p.x + 8;
       for (const [k, dx, col] of [[2, -6, ROPE[1]], [0, 6, ROPE[2]]]) {
         const x = R(cx + dx - cam.x), y0 = R(rail(cx + dx, k) - cam.y), y1 = R(p.y - cam.y);
@@ -388,6 +400,7 @@ export class ForetLive {
     rope((x) => deck(x) + 5, 1, 1);
     // les planches (une planche pourrie tremble, puis tombe en tournant un peu)
     for (const p of B.planks) {
+      if (p.state === 'gone') continue;
       const img = p.rotten ? this.rottenPlanks[p.i % 2] : this.planks[(p.i * 5 + 1) % 6];
       let sx = R(p.x - cam.x), sy = R(p.y - cam.y) - 1;
       if (p.state === 'shake') sx += R(Math.sin(time * 70 + p.i) * 1);
@@ -484,9 +497,10 @@ export class ForetLive {
 
   water(ctx, w, cam, vw, vh, time) {
     const x0 = R(w.x - cam.x), y0 = R(w.y + 3 - cam.y), W = w.w, H = w.h - 3;
-    const ramp = w.under ? ['#06141a', '#0a2029', '#0f2f38', '#16424a'] : C.WATER;
+    // l'oasis souterraine luit sous les perles (turquoise) ; les autres eaux de la caverne sont d'encre
+    const ramp = w.oasis ? ['#0a2a30', '#0f3d44', '#17575c', '#23767a'] : w.under ? ['#06141a', '#0a2029', '#0f2f38', '#16424a'] : C.WATER;
     // reflet : on recopie, retournée, la bande d'image juste au-dessus de la surface
-    if (w.mirror || !w.flow) {
+    if (!w.sub && (w.mirror || !w.flow)) {
       const rh = Math.min(H, 40);
       for (let k = 0; k < rh; k++) {
         const sy = y0 - 1 - k, dy = y0 + k;
@@ -508,14 +522,44 @@ export class ForetLive {
         ctx.fillStyle = sky[Math.min(1, k >> 2)];
         for (let x = (k + R(time * (w.flow ? 30 : 3))) % 5; x < W; x += 5) ctx.fillRect(x0 + x, y0 + k, 3, 1);
       }
-      ctx.globalAlpha = w.under ? 0.85 : 0.42 + t * 0.5;
-      ctx.fillStyle = w.under ? ramp[Math.min(3, Math.floor((1 - t) * 3))] : sky[Math.min(5, 2 + Math.floor(t * 4))];
+      // en surface, l'eau laisse voir un peu ce qui est derrière ; dès 14 px, elle est opaque et fonce sans fin
+      const a = Math.min(1, k / 14);
+      ctx.globalAlpha = w.under ? 0.85 + a * 0.15 : 0.42 + a * 0.58;
+      const dk = Math.min(1, k / 30);
+      ctx.fillStyle = w.under ? (k > 40 ? '#040d11' : ramp[Math.max(0, 3 - Math.floor(dk * 4))]) : k > 64 ? '#08222a' : k > 40 ? C.WATER[0] : sky[Math.min(5, 2 + Math.floor(dk * 4))];
       ctx.fillRect(x0, y0 + k, W, 1);
     }
     ctx.globalAlpha = 1;
     // la surface : une ligne claire, des reflets qui scintillent (le torrent les emporte)
-    ctx.fillStyle = w.under ? '#2c6f78' : C.WATER[4];
+    ctx.fillStyle = w.oasis ? '#7fe3e0' : w.under ? '#2c6f78' : C.WATER[4];
     ctx.fillRect(x0, y0, W, 1);
+    if (w.oasis) {
+      // les perles du grand arbre se reflètent : des points cyan et violets qui scintillent sous la surface
+      for (let i = 0; i < W / 4; i++) {
+        const tw = Math.sin(time * (1.3 + ih(i, 3, 7) * 2) + i * 1.7);
+        if (tw < 0.1) continue;
+        ctx.globalAlpha = 0.35 + tw * 0.6;
+        ctx.fillStyle = ih(i, 4, 7) < 0.5 ? '#6fd6ee' : ih(i, 5, 7) < 0.6 ? '#a67cf0' : '#e8fdff';
+        ctx.fillRect(x0 + R(ih(i, 1, 7) * W + Math.sin(time * 0.8 + i) * 1.5), y0 + 2 + Math.floor(ih(i, 2, 7) * 12), 1, 1);
+      }
+      ctx.globalAlpha = 1;
+      // des nénuphars posés sur l'eau, bercés ; une fleur sur deux luit
+      for (let x = 5; x < W - 5; x += 10) {
+        if (ih(x, 1, w.x) < 0.3) continue;
+        const cx = x0 + x + Math.floor(ih(x, 2, w.x) * 4) + R(Math.sin(time * 0.6 + x) * 1), r = 3 + Math.floor(ih(x, 3, w.x) * 2), cy = y0;
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx > 0 && dx < 3) { ctx.fillStyle = '#0e3a34'; ctx.fillRect(cx + dx, cy, 1, 1); continue; }   // l'encoche
+          ctx.fillStyle = '#2e8b6a'; ctx.fillRect(cx + dx, cy - 1, 1, 1);
+          ctx.fillStyle = Math.abs(dx) === r ? '#0e3a34' : '#17594c'; ctx.fillRect(cx + dx, cy, 1, 1);
+        }
+        if (ih(x, 4, w.x) < 0.55) {
+          const f = ih(x, 5, w.x) < 0.5 ? ['#a67cf0', '#e9d8ff'] : ['#6fd6ee', '#e8fdff'];
+          ctx.fillStyle = f[0]; ctx.fillRect(cx - 1, cy - 2, 3, 1); ctx.fillRect(cx, cy - 3, 1, 1);
+          ctx.fillStyle = f[1]; ctx.fillRect(cx, cy - 2, 1, 1);
+          ctx.globalAlpha = 0.25; ctx.fillStyle = f[0]; ctx.fillRect(cx - 2, cy - 4, 5, 4); ctx.globalAlpha = 1;
+        }
+      }
+    }
     const speed = w.flow ? 38 : 4;
     for (let i = 0; i < W / 6; i++) {
       const px = ((i * 23 + time * speed + ih(i, 1, w.x) * 40) % W + W) % W;
@@ -708,7 +752,7 @@ export class ForetLive {
   drawFore(ctx, cam, vw, vh) {
     const list = this.art.backdrop.weights(cam, vw, vh);
     // rien ne pousse sur l'eau : la bande est découpée au-dessus des colonnes où l'on voit de l'eau en bas de l'image
-    const lv = this.level, r0 = Math.floor((cam.y + vh - 62) / 16), r1 = Math.floor((cam.y + vh) / 16);
+    const lv = this.level, r0 = Math.floor(cam.y / 16), r1 = Math.floor((cam.y + vh) / 16);   // (l'eau est profonde : toute la colonne compte)
     const wet = (tx) => { for (let r = r0; r <= r1; r++) if (lv.at(tx, r) === '~') return true; return false; };
     let clip = null, run = null;
     const flush = () => { if (!run) return; clip ??= (() => { const q = new Path2D(); q.rect(0, vh - 62, vw, 70); return q; })(); clip.rect(R(run[0] * 16 - cam.x) - 6, vh - 62, (run[1] - run[0] + 1) * 16 + 12, 70); run = null; };

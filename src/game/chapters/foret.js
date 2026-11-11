@@ -16,7 +16,7 @@ export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { oasis: null, spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -181,6 +181,8 @@ function build() {
   chasm(6, KILL4);                                     // brèche : dash
   span(4);
   F.collapse = { trigger: (bridge0 + 4) * TILE, period: 0.72, warn: 0.5, respawnX: (bridge0 - 3) * TILE };
+  // derrière et sous les piliers : la gorge (paroi lointaine, racines, corniches, colonnes en ruine, brume)
+  b.prop('ravine', bridge0 - 1, G1, { w: b.x - bridge0 + 2 });
   x = b.x; ground(14, G1, '=');
   b.prop('ruin_arch', x + 5, G1, { broken: true });
   coins([x + 3, x + 6, x + 9], G1 - 2);
@@ -250,11 +252,11 @@ function build() {
     b.prop('climb_trunk', cx, G6, { top });
     for (let row = G6 - 2, k = 0; row > top; row -= 2, k++) b.row(cx + (k % 2 ? 1 : -2), 2, row, '-');
   };
-  x = b.x; ground(108, G6);                            // le sous-bois de rattrapage, sous toute la canopée
+  x = b.x; ground(112, G6);                            // le sous-bois de rattrapage, sous toute la canopée
   const c0 = x;
   // Les arbres de la canopée sont posés ici, un par un, et chacun a les pieds sur la terre :
-  // l'eau du sous-bois s'étend entre eux (voir les îlots plus bas). Les branches voisines d'un
-  // arbre en sortent (props.js). Largeur du fût en pixels.
+  // l'eau du sous-bois s'étend entre eux (voir les îlots plus bas). Les branches proches d'un
+  // arbre (jusqu'à 6 cases) en sortent par un long bras (props.js). Largeur du fût en pixels.
   const trees = [];                                    // [colonne, largeur du fût]
   const tree = (cx, w = 20) => { b.prop('canopy_trunk', c0 + cx, G6, { w, seed: cx * 7 + 3 }); trees.push([c0 + cx, w]); };
   climbTree(c0 + 3, G7 - 1);
@@ -264,52 +266,53 @@ function build() {
   tree(11);
   branch(12, G7, 3); coin(c0 + 13, G7 - 2);            // 3 cases : un saut
   // le pont suspendu, d'un grand tronc à l'autre : de vieilles planches moussues entre deux cordes,
-  // certaines lâchent sous le pied (il faut avancer) ; il ploie et oscille quand KAGE y saute.
-  // Les deux troncs sont écartés de 17 cases : dessous, une eau trop large pour être sautée.
-  b.prop('bridge_tree', c0 + 17, G6, { top: 0 }); b.prop('bridge_tree', c0 + 34, G6, { top: 0, flip: true });
-  trees.push([c0 + 17, 24], [c0 + 34, 24]);
-  F.bridges.push({ x0: (c0 + 18) * TILE, x1: (c0 + 34) * TILE, y: (G7 - 1) * TILE, sag: 13 });
-  coin(c0 + 21, G7 - 3); coin(c0 + 24, G7 - 4); coin(c0 + 28, G7 - 4); coin(c0 + 31, G7 - 3);
-  tree(39);
-  branch(40, G7, 4); coin(c0 + 37, G7 - 3);            // 6 cases : dash
-  climbTree(c0 + 46, G7);                              // remontée du milieu
-  branch(47, G7 + 1, 5);
-  lantern(c0 + 49, G7 + 1);
-  tree(57);                                            // un arbre porte les deux petites branches
-  branch(55, G7, 2);                                   // petites branches : 3 cases, puis 4
-  branch(60, G7 - 1, 2); coin(c0 + 61, G7 - 3);
-  tree(74, 26);                                        // le grand arbre du nid : quatre branches
-  branch(69, G7 - 1, 4); coin(c0 + 65, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
-  branch(76, G7 + 1, 3);
+  // certaines lâchent sous le pied, pour de bon ; il ploie et oscille quand KAGE y saute.
+  // Les deux troncs sont écartés de 21 cases : dessous, 14 cases d'eau (plus que sprint + saut + dash).
+  b.prop('bridge_tree', c0 + 17, G6, { top: 0 }); b.prop('bridge_tree', c0 + 38, G6, { top: 0, flip: true });
+  trees.push([c0 + 17, 24], [c0 + 38, 24]);
+  F.bridges.push({ x0: (c0 + 18) * TILE, x1: (c0 + 38) * TILE, y: (G7 - 1) * TILE, sag: 15 });
+  coin(c0 + 21, G7 - 3); coin(c0 + 25, G7 - 4); coin(c0 + 30, G7 - 4); coin(c0 + 35, G7 - 3);
+  tree(43);
+  branch(44, G7, 4); coin(c0 + 41, G7 - 3);            // 6 cases : dash
+  climbTree(c0 + 50, G7);                              // remontée du milieu
+  branch(51, G7 + 1, 5);
+  lantern(c0 + 53, G7 + 1);
+  tree(62);                                            // un arbre porte les deux petites branches
+  branch(59, G7, 2);                                   // petites branches : 3 cases, puis 4
+  branch(64, G7 - 1, 2); coin(c0 + 65, G7 - 3);
+  tree(82, 26);                                        // le grand arbre du nid : quatre branches, 14 cases d'eau avant lui
+  branch(73, G7 - 1, 4); coin(c0 + 69, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
+  branch(80, G7 + 1, 3);
   // le nid, au-dessus du chemin : on y monte par deux petites branches
-  branch(72, G7 - 3, 2); branch(76, G7 - 5, 4, { nest: true });
-  b.prop('chest', c0 + 78, G7 - 5, { id: 'nid', ryo: 12 });
-  // des lianes pendent sous quelques branches jusqu'au sous-bois : on s'y accroche pour remonter (↑, puis un bond)
-  const VINES = [[12, G7, 3], [31, G7 - 1, 3], [55, G7, 2], [69, G7 - 1, 4], [92, G7 + 1, 3]];
+  branch(76, G7 - 3, 2); branch(80, G7 - 5, 4, { nest: true });
+  b.prop('chest', c0 + 82, G7 - 5, { id: 'nid', ryo: 12 });
+  // des lianes pendent sous quelques branches jusqu'au sous-bois, toujours au-dessus de la terre :
+  // on s'y accroche pour remonter (↑, puis un bond)
+  const VINES = [[12, G7, 3], [36, G7 - 1, 3], [59, G7, 2], [80, G7 + 1, 3], [96, G7 + 1, 3]];
   for (const [bx, row, w] of VINES) {
-    const deck = bx === 31 ? 0.5 : 0;                  // celle-ci pend sous le pont
+    const deck = bx === 36 ? 0.5 : 0;                  // celle-ci pend sous le pont
     vine(c0 + bx + w / 2, row + 0.15 + deck, G6 - row - 0.55 - deck);
   }
-  climbTree(c0 + 84, G7 + 1);                          // dernière remontée
-  branch(85, G7 + 2, 4);
-  tree(95);                                            // entre les deux dernières branches
-  branch(92, G7 + 1, 3); coin(c0 + 90, G7 - 1);        // 3 cases
+  climbTree(c0 + 88, G7 + 1);                          // dernière remontée
+  branch(89, G7 + 2, 4);
+  tree(99);                                            // entre les deux dernières branches
+  branch(96, G7 + 1, 3); coin(c0 + 94, G7 - 1);        // 3 cases
   // au bout : le grand arbre creux ; on entre par le haut et on se laisse glisser jusque sous terre
-  const pit = c0 + 100;
-  branch(96, G7 + 1, 4);
+  const pit = c0 + 104;
+  branch(100, G7 + 1, 4);
   // au sol, de l'eau partout, sauf sous les pieds des arbres, autour des remontées et sous les lianes :
-  // de grandes étendues (9 cases et plus sous le pont et après la deuxième remontée) qu'on ne saute pas
+  // sous le pont et avant l'arbre du nid, 14 cases qu'on ne franchit pas, même en sprint + saut + dash (~10,5)
   const land = new Set();
   const keep = (a, z) => { for (let c = a; c <= z; c++) land.add(c); };
-  keep(c0 - 8, c0 + 7); keep(c0 + 94, c0 + 108);       // le départ, et le pied de l'arbre creux
-  for (const cx of [c0 + 46, c0 + 84]) keep(cx - 3, cx + 4);
+  keep(c0 - 8, c0 + 7); keep(c0 + 98, c0 + 112);       // le départ, et le pied de l'arbre creux
+  for (const cx of [c0 + 50, c0 + 88]) keep(cx - 3, cx + 4);
   for (const [bx, , w] of VINES) keep(c0 + bx + Math.floor(w / 2) - 2, c0 + bx + Math.floor(w / 2) + 2);
   // le pied d'un arbre s'évase (racines) jusqu'à ~1,12 fois la largeur du fût de chaque côté, plus une case de rive
   for (const [cx, w] of trees) keep(Math.floor((cx * TILE + 8 - 1.12 * w) / TILE) - 1, Math.floor((cx * TILE + 8 + 1.12 * w) / TILE) + 1);
-  for (let cx = c0; cx < c0 + 108; cx++) if (!land.has(cx)) {
+  for (let cx = c0; cx < c0 + 112; cx++) if (!land.has(cx)) {
     // pas de flaque de moins de 3 cases : la terre reprend
     let a = cx; while (a > c0 && !land.has(a - 1)) a--;
-    let z = cx; while (z < c0 + 107 && !land.has(z + 1)) z++;
+    let z = cx; while (z < c0 + 111 && !land.has(z + 1)) z++;
     if (z - a + 1 < 3) continue;
     b.cols[cx][G6] = '~'; b.cols[cx][G6 + 1] = '~';
   }
@@ -377,15 +380,18 @@ function build() {
   for (let i = 0; i < 6; i++) { const c = new Array(H).fill('.'); for (let y = G6; y < H; y++) c[y] = y >= G8 - 5 && y < G8 ? '.' : y === G8 || y === G8 + 1 ? '~' : '#'; b.cols.push(c); }
   tunnel(5, G8, G8 - 5);
   lantern(b.x - 3, G8);
-  // la clairière : le plafond s'envole (15 cases), une petite eau, et au bord le grand arbre aux perles
-  x = b.x; tunnel(34, G8, G8 - 15);
+  // la clairière : le plafond s'envole (15 cases) ; au pied du grand arbre aux perles, une petite oasis
+  // souterraine : un bassin de 13 cases, un îlot au milieu (deux sauts de 5 cases), roseaux et nénuphars
+  x = b.x; tunnel(42, G8, G8 - 15);
   const glade = x;
-  for (let i = 18; i < 21; i++) { b.cols[glade + i][G8] = '~'; b.cols[glade + i][G8 + 1] = '~'; }
+  for (let i = 18; i < 31; i++) if (i < 23 || i > 25) { b.cols[glade + i][G8] = '~'; b.cols[glade + i][G8 + 1] = '~'; }
   pearl(glade + 15, G8, 3);
-  pearl(glade + 5, G8, 1); pearl(glade + 29, G8, 2);
-  b.prop('mushrooms', glade + 9, G8, { w: 3 }); b.prop('mushrooms', glade + 24, G8, { w: 3 });
-  coins([glade + 8, glade + 11, glade + 19, glade + 25], G8 - 2); coins([glade + 19], G8 - 5);
-  F.glade = { x: (glade + 17) * TILE, y: G8 * TILE };
+  pearl(glade + 5, G8, 1); pearl(glade + 24, G8, 1); pearl(glade + 37, G8, 2);
+  b.prop('cave_reeds', glade + 16, G8, { w: 2 }); b.prop('cave_reeds', glade + 31, G8, { w: 3 });
+  b.prop('cave_reeds', glade + 23, G8, { w: 1 }); b.prop('cave_reeds', glade + 25, G8, { w: 1 });
+  b.prop('mushrooms', glade + 9, G8, { w: 3 }); b.prop('mushrooms', glade + 33, G8, { w: 3 });
+  coins([glade + 8, glade + 11, glade + 20, glade + 28], G8 - 3); coins([glade + 24], G8 - 6);
+  F.oasis = { x0: (glade + 18) * TILE, x1: (glade + 31) * TILE };
   tunnel(5, G8, G8 - 6);
   // la salle aux papillons : plafond haut, trois arbres à perles, des papillons qui volent autour
   x = b.x; tunnel(18, G8, G8 - 11);

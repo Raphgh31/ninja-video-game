@@ -126,16 +126,20 @@ async function main() {
     expect(r[2] === 46 && !r[3], JSON.stringify(r));
   });
 
-  await test('zone 7 : le pont suspendu ploie et oscille quand KAGE s\'y pose ; une planche pourrie lâche si on s\'y attarde', async () => {
+  await test('zone 7 : le pont suspendu ploie et oscille quand KAGE s\'y pose ; une planche pourrie lâche si on s\'y attarde, pour de bon', async () => {
     const r = await ev(() => {
-      const f = __kage.level.forest, B = f.bridges[0], p = B.planks.find((q) => q.rotten);
+      const f = __kage.level.forest, B = f.bridges[0];
+      for (const q of B.planks) if (q.rotten) { q.state = 'idle'; q.active = true; q.t = 0; q.vy = 0; }   // (le passage de la canopée les a cassées)
+      const p = B.planks.find((q) => q.rotten);
       bot.place(Math.floor(B.x0 / 16) - 1, 8); bot.clear();
       const pl = bot.p; pl.x = p.x + 8; pl.y = B.y - 30; pl.vy = 0; pl.onGround = false; pl.fallFrom = pl.y;
       let amp = 0, rode = false;
       bot.run(1.6, (q) => { amp = Math.max(amp, B.amp); if (q.ride === p) rode = true; return p.state === 'fall'; });
-      return [rode, +amp.toFixed(1), p.state, B.sag];
+      const fell = p.state;
+      bot.run(6, () => false);                      // une planche tombée ne revient jamais, même après une réapparition
+      return [rode, +amp.toFixed(1), fell, p.state, p.active];
     });
-    expect(r[0] && r[1] > 1 && r[2] === 'fall', JSON.stringify(r));
+    expect(r[0] && r[1] > 1 && r[2] === 'fall' && r[3] === 'gone' && !r[4], JSON.stringify(r));
   });
 
   await test('zone 7 : au sol, de l\'eau entre les îlots des lianes : on ne traverse pas la canopée par en bas', async () => {
@@ -147,6 +151,27 @@ async function main() {
       return [water, bot.p.hp < hp, bot.col(), z.x0 + 60];
     });
     expect(r[0] > 20 && r[1] && r[2] < r[3], JSON.stringify(r));
+  });
+
+  await test('zone 7 : sous le pont, 14 cases d\'eau : même sprint + saut + dash au meilleur moment n\'atteignent pas l\'autre rive', async () => {
+    const r = await ev(() => {
+      const l = __kage.level, z = l.zones[6];
+      let edge = z.x0 + 8; while (l.at(edge + 1, 22) !== '~') edge++;          // la dernière case de terre avant l'eau
+      let far = edge + 1; while (l.at(far, 22) === '~') far++;                   // la première case de l'autre rive
+      let best = 0;
+      for (let d = 0; d <= 0.66; d += 0.03) {
+        bot.place(z.x0 + 1, 22); bot.clear(); bot.set({ right: true, sprint: true });
+        let t = -1, dashed = false, x = 0;
+        bot.run(6, (q) => {
+          if (t < 0 && q.x >= edge * 16 + 12) { t = 0; bot.tap('jump'); }
+          if (t >= 0) { t += 1 / 120; if (!dashed && t >= d) { bot.dash(1); dashed = true; } x = Math.max(x, q.x); }
+          return t > 0.1 && (q.onGround || q.state === 'death' || q.y > 23 * 16);
+        });
+        best = Math.max(best, bot.p.onGround && bot.p.state !== 'death' ? bot.p.x : 0);
+      }
+      return [far - edge - 1, Math.floor(best / 16), far];
+    });
+    expect(r[0] >= 14 && r[1] < r[2], JSON.stringify(r));
   });
 
   await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {

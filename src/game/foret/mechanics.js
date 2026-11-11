@@ -14,7 +14,7 @@ const TILE = 16;
 export const FOREST = {
   collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
   crumble: { hold: 0.7, back: 2.6 },
-  bridge: { rotten: [3, 6, 9, 12], hold: 0.45, back: 3.2, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
+  bridge: { rotten: [4, 8, 12, 16], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
   vine: {
     g: 980,            // pesanteur du balancier
@@ -90,7 +90,7 @@ export class Forest {
     if (this.collapse) { this.collapse.active = false; this.collapse.t = 0; }
     for (const c of this.crumbles) { c.state = 'idle'; c.t = 0; c.y = c.y0; c.vy = 0; c.active = true; }
     for (const l of this.logs) { l.sink = 0; l.y = l.y0; }
-    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
+    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
     for (const v of this.vines) v.rider = null;
     if (this.slide) {
       const S = this.slide;
@@ -202,9 +202,10 @@ export class Forest {
         p.dx = 0;
         if (p.state === 'fall') {
           p.t += dt; p.vy += 700 * dt; const py = p.y; p.y += p.vy * dt; p.dy = p.y - py;
-          if (p.t >= W.back) { p.state = 'grow'; p.t = 0; p.active = true; p.vy = 0; }
+          if (p.t >= 1.2) p.state = 'gone';            // une planche tombée ne revient jamais (demande de Raph)
           continue;
         }
+        if (p.state === 'gone') continue;
         if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + 8, y: p.y }); }
         if (p.state === 'shake') {
           p.t += dt;
