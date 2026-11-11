@@ -111,7 +111,8 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 ### Retours n° 2 (11 novembre 2026), appliqués
 - lueur des champignons de la grotte adoucie ;
 - ciel par heure du jour (`SKIES` dans `foret/backdrop.js`, module commun `src/game/sky.js`) : dégradé travaillé, soleil levant au matin, plein ciel à la canopée, soleil couchant, crépuscule et étoiles ; nuages fins teintés par la lumière, cirrus ; halo du soleil sur la forêt lointaine ;
-- nuages du Potager refaits de la même façon (plus fins et élégants).
+- nuages du Potager refaits de la même façon (plus fins et élégants) ;
+- la grande chaîne du chapitre 1 (Mont Kagero et le dojo) se voit toujours au loin, un quart plus grande (on s'en est rapproché), teintée par l'heure (`RANGE`, `RANGE_TINT` ; `paintFar(largeur, 1.25, 0.03)`).
 
 ## 9. Reste à faire
 

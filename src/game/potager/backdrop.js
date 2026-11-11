@@ -140,9 +140,15 @@ function paintPeaks(pix, list, base) {
 // ---------------------------------------------------------------------------
 // 1. la grande chaîne enneigée
 // ---------------------------------------------------------------------------
-function paintFar(levelW) {
-  const P = PLANES.far;
-  const W = Math.ceil(MAXW + (levelW - 480) * P.fx) + 4;
+/**
+ * La grande chaîne. k > 1 : les mêmes sommets (et le dojo) repeints plus grands,
+ * pour un chapitre plus proche d'eux (la Forêt : k = 1,25) ; fx : défilement.
+ */
+export function paintFar(levelW, k = 1, fx = PLANES.far.fx) {
+  const P0 = PLANES.far;
+  const P = { ...P0, h: Math.round(P0.h * k), base: Math.round(P0.base * k) };
+  const W0 = Math.ceil(MAXW + (levelW - 480) * fx) + 4;
+  const W = Math.ceil(W0 * k);
   const pix = new Pix(W, P.h);
   const r = rng(7);
   const groups = [
@@ -152,7 +158,7 @@ function paintFar(levelW) {
   ];
   let seed = 100;
   for (const g of groups) {
-    for (let x = -40 + r() * 60; x < W + 60; x += g.step[0] + r() * (g.step[1] - g.step[0])) {
+    for (let x = -40 + r() * 60; x < W0 + 60; x += g.step[0] + r() * (g.step[1] - g.step[0])) {
       const h = g.hMin + r() * (g.hMax - g.hMin);
       g.peaks.push({ x, h, rl: h * (1.2 + r() * 0.6), rr: h * (1.2 + r() * 0.6), seed: seed++ });
     }
@@ -161,9 +167,10 @@ function paintFar(levelW) {
   const giant = { x: 430, h: 188, rl: 225, rr: 200, seed: 999 };
   groups[1].peaks = groups[1].peaks.filter((p) => Math.abs(p.x - giant.x) > 170);
   groups[1].peaks.push(giant, { x: 336, h: 118, rl: 110, rr: 80, seed: 998 }, { x: 540, h: 132, rl: 80, rr: 130, seed: 997 });
+  if (k !== 1) for (const g of groups) for (const pk of g.peaks) { pk.x *= k; pk.h *= k; pk.rl *= k; pk.rr *= k; }
   const list = [];
   for (const g of groups) {
-    const o = { rock: hazeRamp(C.ROCK_FAR, C.HAZE, g.haze), snow: hazeRamp(C.SNOW, C.HAZE, g.haze * 0.6), mist: 56 };
+    const o = { rock: hazeRamp(C.ROCK_FAR, C.HAZE, g.haze), snow: hazeRamp(C.SNOW, C.HAZE, g.haze * 0.6), mist: Math.round(56 * k) };
     for (const pk of g.peaks.sort((a, b) => b.h - a.h)) list.push({ pk, o });
   }
   paintPeaks(pix, list, P.base);

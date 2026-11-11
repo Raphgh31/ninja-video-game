@@ -16,6 +16,7 @@ import { canvas, ih, pick, bayer, hazeRamp } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { cloudSprite, cirrusSprite, sunSprite, skyGradient, stars } from '../sky.js';
+import { paintFar } from '../potager/backdrop.js';
 
 const TILE = 16;
 const W = 768;                 // largeur d'une bande (elle se répète sans couture)
@@ -264,6 +265,15 @@ const SKIES = {
   },
 };
 
+// La grande chaîne du chapitre 1 (Mont Kagero, le dojo), toujours au loin : un
+// quart plus grande que dans le Potager (on a avancé vers elle), teintée par la
+// lumière de l'heure (couleur, part de cette couleur).
+const RANGE = { k: 1.25, fx: 0.03, fy: 0.05, drop: 14 };
+const RANGE_TINT = {
+  matin: ['#f6dcae', 0.32], sousbois: ['#8fcfca', 0.42], canopee: ['#d4e6f0', 0.2],
+  sanctuaire: ['#173f4c', 0.62], couchant: ['#e2907e', 0.46], crepuscule: ['#33264f', 0.62],
+};
+
 // ---------------------------------------------------------------------------
 export class ForetBackdrop {
   constructor(level) {
@@ -327,7 +337,24 @@ export class ForetBackdrop {
   }
 
   /** À chaque image : peint une pièce d'avance (lumières des zones voisines). */
+  /** La chaîne de montagnes (peinte une fois), et sa version teintée pour une lumière. */
+  range(mood) {
+    if (!this.mountains) return null;
+    const t = RANGE_TINT[mood];
+    if (!t) return null;
+    const s = this.set(mood);
+    if (!s.range) {
+      const src = this.mountains.img, c = canvas(src.width, src.height), g = c.getContext('2d');
+      g.drawImage(src, 0, 0);
+      g.globalCompositeOperation = 'source-atop';
+      g.globalAlpha = t[1]; g.fillStyle = t[0]; g.fillRect(0, 0, c.width, c.height);
+      s.range = c;
+    }
+    return s.range;
+  }
+
   idle(cam, viewW) {
+    if (!this.mountains) { this.mountains = paintFar(this.level.width, RANGE.k, RANGE.fx); return; }
     const cx = cam.x + viewW / 2, zs = this.zones;
     let i = zs.findIndex((z) => cx >= z.px0 && cx < z.px1);
     if (i < 0) i = 0;
@@ -428,6 +455,14 @@ export class ForetBackdrop {
       if (s.sun) {
         const R = K.sun.R + 1;
         ctx.drawImage(s.sun, this.q(K.sun.x * viewW - R - cam.x * 0.006), this.q(K.sun.y * viewH - R));
+      }
+      // la grande chaîne, derrière les nuages bas et les crêtes boisées
+      const rg = this.range(mood);
+      if (rg) {
+        const base = this.q(viewH * GROUND_AT + RANGE.drop + (this.refRow(cam.x + 240) * TILE - cam.y - viewH * GROUND_AT) * RANGE.fy);
+        const off = this.q(cam.x * RANGE.fx), sx = Math.floor(off);
+        const w = Math.min(viewW + 1, rg.width - sx);
+        if (w > 0) ctx.drawImage(rg, sx, 0, w, rg.height, -(off - sx), base - this.mountains.plane.base, w, rg.height);
       }
       const span = 2400;
       for (const c of s.clouds) {
