@@ -346,6 +346,7 @@ export class ForetLive {
         if (a <= 0) continue;
         const sy = R(y - cam.y);
         if (a >= 1) { ctx.fillRect(x0, sy, w, 1); continue; }
+        if (c.decor) { ctx.globalAlpha = Math.round(a * 16) / 16; ctx.fillRect(x0, sy, w, 1); ctx.globalAlpha = 1; continue; }   // la gorge peinte : un fondu, sans trame
         // tramage ordonné : une ligne sur deux décalée
         const step = a > 0.66 ? 2 : a > 0.33 ? 3 : 4;
         for (let x = (y & 1) ? 0 : 1; x < w; x += step) ctx.fillRect(x0 + x, sy, 1, 1);

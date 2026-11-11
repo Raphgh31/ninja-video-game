@@ -128,6 +128,10 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **eau profonde, sans fond visible** (tout le jeu) : dans la Forêt, le corps de l'eau descend à travers le lit (jusqu'à 14 cases) et devient opaque dès 14 px, puis fonce sans fin ; il passe aussi devant le pied des rochers et des piliers plantés dans l'eau. Dans le Potager, l'eau est déjà peinte opaque et la carte s'arrête dessous : rien à voir au fond ;
 - **l'allée des piliers** (zone 4) : derrière et sous les piliers, une vraie gorge peinte (décor `ravine`, `props.js`) : falaise d'en face dans la brume (grandes dalles verticales, strates, coulures), bord moussu d'où pendent racines et lianes, corniches à fougères et buissons, vieilles colonnes cassées qui montent des profondeurs, deux nappes de brume ; l'ombre du ravin ne vient qu'à 7 cases sous le bord.
 
+### Retours n° 5 (11 novembre 2026), appliqués
+- **falaise de la gorge** (zone 4) : plus de contraste (fissures franches, arêtes claires, coulures), beaucoup plus de végétation (rideaux de mousse, touffes accrochées à la paroi, corniches deux fois plus nombreuses, lianes), et **plus de trame** : teintes en aplats, profondeur en fondu par paliers fins, brume et ombre du ravin en transparence ;
+- **entrée de l'arbre creux** : le dégradé tramé est remplacé par un fondu continu et opaque, du bois encore éclairé vers le noir du boyau (une ligne à la fois, sans grain), qui ne laisse jamais voir le décor à travers.
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

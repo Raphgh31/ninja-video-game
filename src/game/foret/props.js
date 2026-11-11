@@ -477,16 +477,17 @@ function hollowGiant(pix, level, p, layer) {
   const X = p.x * TILE, W = p.w * TILE, top = p.top * TILE, base = p.y * TILE;
   if (layer === 'behind') {
     // l'intérieur : du bois sombre, des fibres verticales, une lueur qui monte d'en bas
-    const inTop = floorTop(level, p.x, p.top) + 6, end = (p.shaftBottom ?? p.y) * TILE, FADE = 72;
+    const inTop = floorTop(level, p.x, p.top) + 6, end = (p.shaftBottom ?? p.y) * TILE, FADE = 120;
     for (let y = inTop - 8; y < end; y++) for (let x = X + 12; x < X + W - 12; x++) {
-      // en haut, l'ombre gagne doucement (tramée) : on entre dans la pénombre, pas d'un coup dans le noir
-      const t = (y - (inTop - 8)) / FADE;
-      if (t < 1 && bayer(x, y) > t * 1.05) continue;
+      // en haut, le bois du creux reçoit encore la lumière ; il fonce ligne après ligne vers le noir du
+      // boyau : un fondu continu, opaque (on ne voit jamais le décor à travers), sans trame ni grain
+      const t = Math.min(1, (y - (inTop - 8)) / FADE), e = t * t * (3 - 2 * t);
       const below = y > base;                                         // sous terre : le bois laisse place à la terre et aux racines
-      let v = 0.16 + (noise2(x * 0.5, y * 0.05, 3) - 0.5) * 0.22 + Math.max(0, 1 - t) * 0.35;
-      const ramp = below ? ['#06090b', '#0a1013', '#101a1d', '#18262a'] : ['#0b0706', '#130c08', '#1d120b', '#2a190f', '#3a2414'];
       if (below && Math.abs(fbm2(x * 0.08, y * 0.02, 2, 9) - 0.5) < 0.03) { pix.set(x, y, '#2a1c12'); continue; }   // racines
-      pix.set(x, y, pick(ramp, v, x, y));
+      const fibre = noise1(x * 0.3, 3) > 0.62 ? 0.1 : noise1(x * 0.3, 3) < 0.3 ? -0.06 : 0;   // de longues veines verticales
+      const lit = L.mixHex('#4a2e1a', '#0b0706', Math.round(Math.min(1, e + (fibre < 0 ? 0.08 : 0)) * 48) / 48);
+      const col = below ? '#0a1013' : fibre > 0 ? L.mixHex(lit, '#5c3a22', 0.18 * (1 - e)) : lit;
+      pix.set(x, y, col);
     }
     return;
   }
@@ -521,49 +522,58 @@ function floorTop(level, col, from) {
  * qui montent des profondeurs, deux nappes de brume ; tout fonce vers le fond.
  */
 function ravine(pix, X, Y, W, Hh, seed) {
-  const HZ = '#1f6f7a', DARK = '#0a282a';
-  const ROCKS = [0, 0.3, 0.55, 0.8].map((k) => L.hazeRamp(L.hazeRamp(C.ROCK, '#2f8d95', 0.5), DARK, k));
-  const RUINS = [0, 0.3, 0.55, 0.8].map((k) => L.hazeRamp(L.hazeRamp(C.RUIN, '#2f8d95', 0.28), DARK, k));
-  const MOSSH = L.hazeRamp(C.MOSS, HZ, 0.4), LEAFH = L.hazeRamp(C.LEAF, HZ, 0.35), FERNH = L.hazeRamp(C.FERN, HZ, 0.35);
-  const ROOTH = L.hazeRamp(C.BARK, HZ, 0.5);
+  const DARK = '#0a282a';
+  // peu de tramage : les teintes changent par aplats (une rampe resserrée), la profondeur fond en douceur
+  const ROCK = L.hazeRamp(C.ROCK, '#2f8d95', 0.36), RUIN = L.hazeRamp(C.RUIN, '#2f8d95', 0.26);
+  const MOSSH = L.hazeRamp(C.MOSS, '#1f6f7a', 0.32), LEAFH = L.hazeRamp(C.LEAF, '#1f6f7a', 0.25), FERNH = L.hazeRamp(C.FERN, '#1f6f7a', 0.22);
+  const ROOTH = L.hazeRamp(C.BARK, '#1f6f7a', 0.45), RIM = L.hazeRamp(C.MOSS, '#1f6f7a', 0.45);
   const x0 = X - 12, x1 = X + W + 12, bottom = Y + Hh;
   const rim = (x) => Y + 3 + Math.round((noise1(x * 0.045, seed) - 0.5) * 8);
-  const deep = (t, x, y) => Math.min(3, Math.floor(t * 4 + (bayer(x, y) - 0.5) * 0.9));
-  // 1. la paroi d'en face : blocs, strates, fissures, mousse en haut
+  const shade = (col, t) => L.mixHex(col, DARK, Math.round(Math.min(0.85, t * 0.95) * 20) / 20);   // l'ombre du fond, par paliers fins
+  const flat = (ramp, v) => ramp[Math.max(0, Math.min(ramp.length - 1, Math.floor(v * ramp.length)))];
+  // 1. la paroi : grandes dalles verticales, fissures sombres, arêtes claires, coulures, strates
   for (let x = x0; x < x1; x++) {
     const r = rim(x);
     for (let y = r; y < bottom; y++) {
-      const d = y - r, t = Math.min(1, d / 230);
-      // une falaise : de grandes dalles verticales (diaclases), quelques strates, peu de contraste (c'est loin)
+      const d = y - r, t = Math.min(1, d / 240);
       const w = worley(x * 1.6, y * 0.55, 22, seed, 0.9);
       const strata = Math.sin((y + noise1(x * 0.02, seed + 1) * 26) * 0.09);
-      let v = 0.5 + (w.id - 0.5) * 0.24 + strata * 0.06 + (noise2(x * 0.08, y * 0.05, seed) - 0.5) * 0.12 - (d < 6 ? 0 : 0.06);
-      if (w.d2 - w.d < 0.5) v -= 0.24;                                           // la fissure
-      else if (w.d2 - w.d < 1.3) v += 0.1;                                       // l'arête éclairée de la dalle
-      if (noise1(x * 0.35, seed + 9) > 0.78) v -= 0.07;                          // coulures sombres
-      const ramp = ROCKS[Math.max(0, deep(t, x, y))];
-      const moss = fbm2(x * 0.035, y * 0.05, 2, seed + 2) + (d < 14 ? 0.25 : 0) - t * 0.5;
-      pix.set(x, y, moss > 0.78 ? pick(L.hazeRamp(MOSSH, DARK, t * 0.7), v + 0.1, x, y) : pick(ramp, v, x, y));
+      let v = 0.48 + (w.id - 0.5) * 0.3 + strata * 0.05 + (noise1(x * 0.06 + y * 0.01, seed + 5) - 0.5) * 0.1;
+      const edge = w.d2 - w.d;
+      if (edge < 0.5) v = 0.06;                                                    // la fissure, franche
+      else if (edge < 0.9) v -= 0.16;                                              // son ombre
+      else if (edge < 1.6 && (w.id * 7) % 1 < 0.6) v += 0.18;                      // l'arête éclairée de la dalle
+      if (noise1(x * 0.3, seed + 9) > 0.8 && edge > 0.9) v -= 0.1;                 // coulures
+      // la mousse : des plaques qui suivent le haut des dalles et coulent en rideaux
+      const moss = fbm2(x * 0.03, y * 0.045, 2, seed + 2) + (d < 18 ? 0.12 : 0) - t * 0.35 + (edge > 1.6 && edge < 2.6 ? 0.08 : 0);
+      const col = moss > 0.72 ? flat(MOSSH, Math.min(0.58, 0.25 + (moss - 0.72) * 1.6) + (edge < 0.9 ? -0.18 : 0)) : flat(ROCK, v);
+      pix.set(x, y, shade(col, t));
     }
-    // le bord : un liseré de mousse, des herbes qui dépassent
-    pix.set(x, r, MOSSH[4]); pix.set(x, r + 1, MOSSH[3]); pix.set(x, r + 2, MOSSH[2]);
-    if (ih(x, 1, seed) < 0.3) L.grassTuft(pix, x, r, 2 + Math.floor(ih(x, 2, seed) * 5), FERNH, x);
+    // le bord : un liseré de mousse épais, des herbes qui dépassent
+    for (let k = 0; k < 4; k++) pix.set(x, r + k, RIM[[3, 2, 1, 1][k]]);
+    if (ih(x, 1, seed) < 0.4) L.grassTuft(pix, x, r, 2 + Math.floor(ih(x, 2, seed) * 6), RIM, x);
   }
-  // 2. des corniches, des fougères et des buissons accrochés à la paroi
-  for (let i = 0; i < W / 70; i++) {
-    const cx = x0 + 20 + Math.floor(ih(i, 1, seed) * (x1 - x0 - 40)), ly = Y + 34 + Math.floor(ih(i, 2, seed) * 150);
-    const lw = 14 + Math.floor(ih(i, 3, seed) * 26), t = Math.min(1, (ly - Y) / 230);
-    const ramp = ROCKS[Math.min(3, Math.floor(t * 4))];
+  // 2. des touffes de feuillage accrochées à la paroi (rideaux de mousse, petits buissons)
+  for (let i = 0; i < W / 40; i++) {
+    const cx = x0 + Math.floor(ih(i, 11, seed) * (x1 - x0)), cy = Y + 16 + Math.floor(ih(i, 12, seed) * 120);
+    const t = Math.min(1, (cy - Y) / 240), rw = 6 + Math.floor(ih(i, 13, seed) * 10);
+    L.bush(pix, cx, cy, rw, 4 + Math.floor(rw / 3), L.hazeRamp(LEAFH, DARK, t * 0.7), seed + i * 7);
+    for (let q = 0; q < 3; q++) if (ih(i, 20 + q, seed) < 0.6) L.vine(pix, cx - rw + Math.floor(ih(i, 30 + q, seed) * rw * 2), cy, 8 + Math.floor(ih(i, 40 + q, seed) * 22), L.hazeRamp(LEAFH, DARK, t * 0.7), seed + i + q);
+  }
+  // 3. des corniches, avec fougères et buissons
+  for (let i = 0; i < W / 45; i++) {
+    const cx = x0 + 20 + Math.floor(ih(i, 1, seed) * (x1 - x0 - 40)), ly = Y + 30 + Math.floor(ih(i, 2, seed) * 160);
+    const lw = 14 + Math.floor(ih(i, 3, seed) * 26), t = Math.min(1, (ly - Y) / 240);
     for (let x = -lw; x <= lw; x++) {
-      const th = Math.round(5 * (1 - (x / lw) ** 2)) + 1;
-      for (let k = 0; k < th; k++) pix.set(cx + x, ly + k, k === 0 ? MOSSH[4] : k === 1 ? MOSSH[2] : pick(ramp, 0.7 - k * 0.14, cx + x, ly + k));
+      const th = Math.round(6 * (1 - (x / lw) ** 2)) + 1;
+      for (let k = 0; k < th; k++) pix.set(cx + x, ly + k, shade(k === 0 ? MOSSH[5] : k === 1 ? MOSSH[3] : flat(ROCK, 0.62 - k * 0.12), t));
+      pix.set(cx + x, ly + th, shade(ROCK[0], t));                                  // l'ombre sous la corniche
     }
-    if (t < 0.75) {
-      L.fern(pix, cx - Math.floor(lw / 3), ly, 6 + Math.floor(ih(i, 4, seed) * 6), L.hazeRamp(FERNH, DARK, t * 0.6), seed + i);
-      if (ih(i, 5, seed) < 0.6) L.bush(pix, cx + Math.floor(lw / 3), ly + 1, 6 + Math.floor(ih(i, 6, seed) * 5), 4, L.hazeRamp(LEAFH, DARK, t * 0.6), seed + i * 3);
-    }
+    L.fern(pix, cx - Math.floor(lw / 3), ly, 7 + Math.floor(ih(i, 4, seed) * 7), L.hazeRamp(FERNH, DARK, t * 0.6), seed + i);
+    L.bush(pix, cx + Math.floor(lw / 3), ly + 1, 6 + Math.floor(ih(i, 6, seed) * 6), 5, L.hazeRamp(LEAFH, DARK, t * 0.6), seed + i * 3);
+    if (ih(i, 8, seed) < 0.5) L.vine(pix, cx + Math.floor((ih(i, 9, seed) - 0.5) * lw), ly + 4, 12 + Math.floor(ih(i, 10, seed) * 30), L.hazeRamp(LEAFH, DARK, t * 0.6), seed + i);
   }
-  // 3. de vieilles colonnes, plus loin que celles du pont : elles montent des profondeurs, cassées en haut
+  // 4. de vieilles colonnes, plus loin que celles du pont : elles montent des profondeurs, cassées en haut
   for (let i = 0; i < W / 150; i++) {
     const cx = X + 60 + i * 150 + Math.floor((ih(i, 7, seed) - 0.5) * 60), cw = 10 + Math.floor(ih(i, 8, seed) * 8);
     const top = Y + 18 + Math.floor(ih(i, 9, seed) * 60);
@@ -571,35 +581,33 @@ function ravine(pix, X, Y, W, Hh, seed) {
       const u = x / (cw - 1), broken = top + Math.round(Math.abs(Math.sin(x * 1.7 + i)) * 5 + (u > 0.6 ? 4 : 0));
       for (let y = broken; y < bottom; y++) {
         const t = Math.min(1, (y - Y) / 240);
-        let v = 0.66 - u * 0.5 + Math.sin(u * Math.PI) * 0.1 + (noise2(x * 0.4, y * 0.1, seed + i) - 0.5) * 0.12;
-        if (x === cw - 1) v = 0.05;                                              // le flanc dans l'ombre
-        if ((y - top) % 20 === 0) v -= 0.25;                                     // les tambours
-        const mossy = fbm2((cx + x) * 0.15, y * 0.05, 2, seed + i) > 0.7 && t < 0.7;
-        pix.set(cx + x, y, mossy ? pick(L.hazeRamp(MOSSH, DARK, t * 0.7), v, cx + x, y) : pick(RUINS[Math.max(0, deep(t, cx + x, y))], v, cx + x, y));
+        let v = u < 0.25 ? 0.78 : u < 0.6 ? 0.55 : u < 0.9 ? 0.35 : 0.08;
+        if ((y - top) % 20 === 0) v -= 0.25;                                       // les tambours
+        const mossy = fbm2((cx + x) * 0.12, y * 0.04, 2, seed + i) > 0.68;
+        pix.set(cx + x, y, shade(mossy ? flat(MOSSH, v * 0.8 + 0.1) : flat(RUIN, v), t));
       }
-      if (ih(x, i, seed) < 0.5) pix.set(cx + x, broken - 1, MOSSH[3]);
+      pix.set(cx + x, broken - 1, MOSSH[4]);
     }
-    L.fern(pix, cx + Math.floor(cw / 2), top + 2, 5 + Math.floor(ih(i, 10, seed) * 4), FERNH, seed + i * 5);
+    L.fern(pix, cx + Math.floor(cw / 2), top + 2, 6 + Math.floor(ih(i, 10, seed) * 5), FERNH, seed + i * 5);
   }
-  // 4. racines et lianes qui pendent du bord
-  for (let x = x0 + 4; x < x1 - 4; x += 7) {
+  // 5. racines et lianes qui pendent du bord
+  for (let x = x0 + 4; x < x1 - 4; x += 5) {
     const k = ih(x, 3, seed);
-    if (k < 0.35) L.vine(pix, x, rim(x) + 2, 14 + Math.floor(ih(x, 4, seed) * 70), LEAFH, x);
-    else if (k < 0.55) {
-      // une racine : elle descend en zigzag et s'amincit
-      let rx = x, len = 10 + Math.floor(ih(x, 5, seed) * 40);
+    if (k < 0.4) L.vine(pix, x, rim(x) + 3, 14 + Math.floor(ih(x, 4, seed) * 80), LEAFH, x);
+    else if (k < 0.6) {
+      let rx = x, len = 10 + Math.floor(ih(x, 5, seed) * 44);
       for (let q = 0; q < len; q++) {
         if (q % 6 === 5) rx += ih(x, q, seed) < 0.5 ? -1 : 1;
-        pix.set(rx, rim(x) + 2 + q, ROOTH[q < len * 0.6 ? 2 : 1]);
-        if (q < len * 0.35) pix.set(rx + 1, rim(x) + 2 + q, ROOTH[1]);
+        pix.set(rx, rim(x) + 3 + q, ROOTH[q < len * 0.6 ? 2 : 1]);
+        if (q < len * 0.35) pix.set(rx + 1, rim(x) + 3 + q, ROOTH[0]);
       }
     }
   }
-  // 5. deux nappes de brume (tramées), et un rai de lumière qui plonge dans la gorge
-  for (const [dm, dens] of [[80, 0.42], [165, 0.5]]) {
-    for (let y = Y + dm - 14; y < Y + dm + 14; y++) for (let x = x0; x < x1; x++) {
-      const a = dens * (1 - Math.abs(y - Y - dm) / 14) * (0.6 + noise1(x * 0.02 + dm, seed + 4) * 0.7);
-      if (a > bayer(x, y)) pix.set(x, y, a > 0.3 ? '#5fb3b3' : '#3f9a9e');
+  // 6. deux nappes de brume : un voile léger et continu (en transparence), pas de trame
+  for (const [dm, dens] of [[90, 0.32], [175, 0.42]]) {
+    for (let y = Y + dm - 18; y < Y + dm + 18; y++) for (let x = x0; x < x1; x++) {
+      const a = dens * (1 - Math.abs(y - Y - dm) / 18) * (0.55 + noise1(x * 0.015 + dm, seed + 4) * 0.6);
+      if (a > 0.02) pix.set(x, y, '#6cbcbc', Math.round(a * 255));
     }
   }
 }
