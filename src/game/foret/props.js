@@ -144,6 +144,13 @@ export class ForetProps {
       const x0 = (vb[0].x - 9) * TILE, x1 = (vb[vb.length - 1].x + 9) * TILE, y = vb[0].y * TILE;
       add('behind', x0 - 40, y - 90, x1 - x0 + 80, level.height - y + 90, (pix) => vineBough(pix, level, x0, x1, y, vb));
     }
+    // les galeries de terre de la zone 5 : leur fond (strates, racines, pierres, lueurs)
+    if (F.galleries) {
+      const G = F.galleries;
+      add('behind', G.x0, G.y0, G.x1 - G.x0, G.y1 - G.y0, (pix) => galleriesBack(pix, level, G));
+      // des rideaux de racines qui pendent des plafonds, aux entrées des salles (devant le terrain, derrière KAGE)
+      for (const [cx, row, k] of G.curtains ?? []) add('over', cx * TILE - 14, row * TILE - 4, 44, 64, (pix) => rootCurtain(pix, cx * TILE, row * TILE, k, cx));
+    }
     // grands troncs (zones 2 et 5) : le pied est un décor (KAGE passe devant), peint par world.js ;
     // seules deux petites racines s'enfoncent dans la mousse, au ras du sol
     for (const hw of F.hollows ?? []) {
@@ -609,6 +616,119 @@ function ravine(pix, X, Y, W, Hh, seed) {
       const a = dens * (1 - Math.abs(y - Y - dm) / 18) * (0.55 + noise1(x * 0.015 + dm, seed + 4) * 0.6);
       if (a > 0.02) pix.set(x, y, '#6cbcbc', Math.round(a * 255));
     }
+  }
+}
+
+/**
+ * Le fond des galeries de terre (zone 5) : la paroi du fond, en retrait et plus sombre que les murs ;
+ * des strates de sédiments ondulées, des lits de cailloux, de grosses racines qui la traversent,
+ * des radicelles qui pendent du plafond (certaines luisent), et la lumière des champignons, de
+ * l'arbre à perles et de la lanterne déjà posée sur la terre. Pas de trame : aplats et fondus fins.
+ * Le fossé fond au noir.
+ */
+function galleriesBack(pix, level, G) {
+  const rows = level.rows, T = TILE;
+  const air = (tx, ty) => { const c = rows[ty]?.[tx]; return c != null && !'#=|%'.includes(c); };
+  const BACK = ['#100a06', '#19100a', '#23170e', '#2e1e12', '#3a2717', '#47301c', '#553a22'];
+  const OCHRE = ['#1c130a', '#2a1d0f', '#392815', '#4a341b'];
+  const flat = (v) => BACK[Math.max(0, Math.min(BACK.length - 1, Math.floor(v * BACK.length)))];
+  // les sources de lumière peintes sur le fond (elles ne bougent pas) : [x, y, rayon, couleur, force]
+  const lights = [];
+  for (const q of level.props) {
+    const X = q.x * T, Y = q.y * T;
+    if (X < G.x0 - 40 || X > G.x1 + 40 || Y < G.y0 - 40 || Y > G.y1 + 40) continue;
+    if (q.type === 'mushrooms') lights.push([X + q.w * 8, Y - 8, 46, (q.x % 3) === 1 ? '#3a2a62' : '#173f44', 0.75]);
+    if (q.type === 'pearl_tree') lights.push([X + 8, Y - 40, 70, '#1d3f4a', 0.8], [X + 8, Y - 50, 40, '#33305c', 0.45]);
+  }
+  for (let ty = 0; ty < level.h; ty++) for (let tx = Math.floor(G.x0 / T); tx < G.x1 / T; tx++) if (rows[ty]?.[tx] === 'P') lights.push([tx * T + 8, ty * T + 2, 64, '#5a3a1c', 0.7]);
+  // le fond de chaque case vide
+  const tx0 = Math.floor(G.x0 / T), tx1 = Math.ceil(G.x1 / T), ty0 = Math.floor(G.y0 / T), ty1 = Math.ceil(G.y1 / T);
+  for (let ty = ty0; ty < ty1; ty++) for (let tx = tx0; tx < tx1; tx++) {
+    if (!air(tx, ty)) continue;
+    // la hauteur libre au-dessus et au-dessous : près du plafond, l'ombre ; au ras du sol, un peu de clarté
+    let up = 0; while (up < 8 && air(tx, ty - 1 - up)) up++;
+    let dn = 0; while (dn < 30 && air(tx, ty + 1 + dn)) dn++;
+    const pitDepth = dn > 3 ? 0 : 0;
+    for (let py = 0; py < T; py++) for (let px = 0; px < T; px++) {
+      const x = tx * T + px, y = ty * T + py;
+      const fromCeil = up * T + py, toFloor = (dn + 1) * T - py;
+      let v = 0.5 + Math.sin(y * 0.21 + noise1(x * 0.018, 81) * 7) * 0.08 + (noise1(x * 0.05 + y * 0.013, 82) - 0.5) * 0.1;
+      // la paroi est en retrait : son pourtour, sous le bord des murs, est dans l'ombre
+      const dl = air(tx - 1, ty) ? 99 : px, dr = air(tx + 1, ty) ? 99 : T - 1 - px, dd = air(tx, ty + 1) ? 99 : T - 1 - py;
+      const rim = Math.min(dl, dr, dd);
+      if (rim < 6) v -= (6 - rim) / 6 * 0.22;
+      // des lits de cailloux dans les strates
+      const bed = Math.sin(y * 0.21 + noise1(x * 0.018, 81) * 7);
+      if (bed > 0.82) {
+        const w = worley(x, y, 4, 83, 0.9);
+        if (w.d < 2.4 && w.id < 0.45) v = w.d < 1.2 ? 0.66 : 0.5;
+      }
+      if (fromCeil < 14) v -= (14 - fromCeil) / 14 * 0.28;           // l'ombre sous le plafond
+      if (toFloor < 10) v += (10 - toFloor) / 10 * 0.06;              // un peu de clarté au ras du sol
+      // une strate sur trois est d'argile ocre
+      const band = Math.floor((y + noise1(x * 0.018, 81) * 33) / 11);
+      let col = ih(band, 0, 94) < 0.3 ? OCHRE[Math.max(0, Math.min(3, Math.floor(v * 4)))] : flat(v);
+      // le rai de jour : une bande oblique, douce, qui s'évase en tombant
+      if (G.beam) {
+        const B = G.beam, k = (y - B.y) / (B.floor - B.y);
+        if (k > 0 && k < 1.05) {
+          const cx = B.x + (y - B.y) * 0.32, half = 3 + k * 9, dx = Math.abs(x - cx);
+          if (dx < half) col = L.mixHex(col, '#c9b98a', Math.round((1 - dx / half) * (0.32 - k * 0.14) * 16) / 16);
+        }
+      }
+      // la lumière des champignons, de l'arbre et de la lanterne, par paliers fins
+      for (const [lx, ly, r, lc, k] of lights) {
+        const d = Math.hypot(x - lx, (y - ly) * 1.15) / r;
+        if (d < 1) col = L.mixHex(col, lc, Math.round((1 - d) * (1 - d) * k * 12) / 12);
+      }
+      // le fossé : il fond au noir en descendant
+      if (ty > 42 && dn >= 0 && !air(tx, 42) && air(tx, ty)) {
+        const below = (y - 43 * T) / 150;
+        col = L.mixHex(col, '#020304', Math.round(Math.min(1, below + 0.25) * 16) / 16);
+      }
+      if (rows[ty][tx] === 'v') col = '#020304';
+      pix.set(x, y, col);
+    }
+    // des radicelles qui pendent du plafond (certaines finissent par une perle qui luit)
+    if (up === 0) for (let k = 0; k < 4; k++) {
+      if (ih(tx, k, 84) > 0.45) continue;
+      const rx = tx * T + 2 + Math.floor(ih(tx, k, 85) * 12), len = 4 + Math.floor(ih(tx, k, 86) * 18);
+      for (let q = 0; q < len; q++) pix.set(rx + Math.round(Math.sin(q * 0.35 + k) * 0.7), ty * T + q, q < len * 0.5 ? '#3a2416' : '#2a1a10');
+      if (ih(tx, k, 87) < 0.35) pix.set(rx, ty * T + len, ih(tx, k, 88) < 0.5 ? '#6fd6ee' : '#a67cf0');
+    }
+    // de loin en loin, une spore qui luit sur la paroi
+    for (let k = 0; k < 2; k++) if (ih(tx, ty * 3 + k, 89) < 0.12) pix.set(tx * T + Math.floor(ih(tx, ty + k, 90) * 16), ty * T + Math.floor(ih(tx, ty - k, 91) * 16), k ? '#a67cf0' : '#6fd6ee');
+  }
+  // de grosses racines qui traversent le fond des salles (en diagonale, elles sortent d'un mur et rentrent dans l'autre)
+  const ROOT = ['#1a0f08', '#2b1a0e', '#3f2715', '#56361c'];
+  for (let i = 0; i < 7; i++) {
+    let x = G.x0 + 40 + ih(i, 1, 92) * (G.x1 - G.x0 - 80), y = G.y0 + 40 + ih(i, 2, 92) * 230;
+    const ang = (ih(i, 3, 92) - 0.5) * 1.6 + Math.PI / 2 * (ih(i, 4, 92) < 0.5 ? 0.3 : -0.3), len = 50 + ih(i, 5, 92) * 70;
+    let thick = 3 + Math.floor(ih(i, 6, 92) * 3);
+    for (let q = 0; q < len; q++) {
+      x += Math.cos(ang + Math.sin(q * 0.06 + i) * 0.4); y += Math.sin(ang + Math.sin(q * 0.06 + i) * 0.4) * 0.6;
+      const tx = Math.floor(x / T), ty = Math.floor(y / T);
+      if (!air(tx, ty)) continue;
+      const th = Math.max(1, Math.round(thick * (1 - q / len * 0.6)));
+      for (let k = 0; k < th; k++) pix.set(Math.round(x), Math.round(y) + k, k === 0 ? ROOT[3] : k === th - 1 ? ROOT[0] : ROOT[2 - (k > th / 2 ? 1 : 0)]);
+      if (q % 9 === 4 && ih(i, q, 93) < 0.6) for (let r = 1; r < 5; r++) pix.set(Math.round(x) + r, Math.round(y) + th + r, ROOT[1]);   // une radicelle
+    }
+  }
+}
+
+/** Un rideau de racines fines qui pend d'un plafond de galerie ; quelques bouts luisent. */
+function rootCurtain(pix, X, Y, k, seed) {
+  const R = ['#24150c', '#331f12', '#4a2e1a', '#5e3c22'];
+  for (let i = 0; i < 9; i++) {
+    const x0 = X - 8 + Math.floor(ih(i, 1, seed) * 30), len = Math.round((10 + ih(i, 2, seed) * 34) * k);
+    let x = x0;
+    for (let q = 0; q < len; q++) {
+      if (q % 5 === 4) x += ih(i, q, seed) < 0.5 ? -1 : 1;
+      pix.set(x, Y + q, R[q < 3 ? 3 : q < len * 0.5 ? 2 : 1]);
+      if (q < len * 0.3 && i % 3 === 0) pix.set(x + 1, Y + q, R[0]);
+      if (q % 7 === 3 && ih(i, q, seed + 1) < 0.4) pix.set(x + (q % 2 ? 1 : -1), Y + q + 1, R[1]);   // radicelle
+    }
+    if (ih(i, 3, seed) < 0.35) pix.set(x, Y + len, ih(i, 4, seed) < 0.5 ? '#6fd6ee' : '#a67cf0');
   }
 }
 

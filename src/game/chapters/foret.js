@@ -16,7 +16,7 @@ export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { oasis: null, spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { oasis: null, galleries: null, spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -201,12 +201,51 @@ function build() {
   const cliff = b.x;
   F.crumbles.push({ x: shaft * TILE, y: (G1 - 9) * TILE, w: 3 * TILE }, { x: shaft * TILE, y: (G1 - 20) * TILE, w: 3 * TILE });
   coins([shaft + 1], G1 - 4); coins([shaft + 1], G1 - 12); coins([shaft + 1], G1 - 18); coins([shaft + 1], G1 - 25);
-  // la falaise : le plateau du torrent est tout en haut
-  ground(2, G6);
-  // la niche de la lanterne, creusée dans la falaise à mi-hauteur
-  carve(cliff, 2, G1 - 16, G1 - 14);
-  // (la colonne suivante ferme la niche)
-  lantern(cliff + 1, G1 - 13);
+  // la falaise : le plateau du torrent est tout en haut. Elle se prolonge en une butte de terre
+  // (38 cases) : en surface, trois souches en escalier, comme à la lisière ; dessous, des galeries
+  ground(6, G6);
+  x = b.x; ground(2, G6 - 1); ground(2, G6 - 2); ground(3, G6 - 4);   // souches en escalier : la plus haute porte des ryō
+  b.prop('stump', x, G6 - 1, { w: 2 }); b.prop('stump', x + 2, G6 - 2, { w: 2 }); b.prop('stump', x + 4, G6 - 4, { w: 3, tall: true });
+  coins([x + 4, x + 5, x + 6], G6 - 6);
+  ground(3, G6 - 1);
+  ground(22, G6);
+  b.prop('pine_young', b.x - 15, G6); b.prop('pine_young', b.x - 6, G6);
+  coins([b.x - 12, b.x - 10, b.x - 3], G6 - 2);
+  // --- les galeries de terre, sous la butte : un avant-goût du souterrain ---------------------------
+  // on y entre par la niche de la lanterne, à mi-hauteur de la falaise ; une salle de croisement ;
+  // en haut, la salle du coffre (un petit arbre à perles, des champignons) ; en bas, un passage bas
+  // sous une racine de chêne, puis un fossé sans fond (des ryō de l'autre côté, pour les téméraires)
+  const c = cliff, KILLG = G1 + 10;
+  carve(c, 8, G1 - 16, G1 - 14);                       // la niche, prolongée en couloir
+  lantern(c + 1, G1 - 13);
+  carve(c + 8, 6, G1 - 20, G1 - 14);                   // la salle de croisement (7 cases de haut)
+  b.prop('mushrooms', c + 9, G1 - 13, { w: 2 });
+  coins([c + 10, c + 11], G1 - 17);
+  // en haut : une marche, un couloir qui monte, la salle du coffre
+  carve(c + 14, 4, G1 - 20, G1 - 16);                  // une marche (2 cases plus haut, par-dessus le trou)
+  carve(c + 18, 4, G1 - 21, G1 - 18);                  // un couloir qui monte encore de 2 cases
+  carve(c + 22, 11, G1 - 25, G1 - 19);
+  b.prop('pearl_tree', c + 25, G1 - 18, { s: 2 });
+  b.prop('mushrooms', c + 27, G1 - 18, { w: 2 }); b.prop('mushrooms', c + 22, G1 - 18, { w: 1 });
+  b.prop('chest', c + 30, G1 - 18, { id: 'galerie', ryo: 10 });
+  coins([c + 19, c + 20], G1 - 19);
+  // en bas : le sol s'ouvre, on descend deux paliers ; un passage bas sous une racine (glissade)
+  carve(c + 12, 6, G1 - 13, G1 - 11);
+  carve(c + 16, 2, G1 - 10, G1 - 8);                   // le sol s'ouvre encore
+  carve(c + 18, 8, G1 - 10, G1 - 8);
+  fill(c + 20, 3, G1 - 10, G1 - 9);                   // le plafond s'abaisse : on passe en glissade
+  coins([c + 15], G1 - 12); coins([c + 24], G1 - 9);
+  b.prop('mushrooms', c + 18, G1 - 7, { w: 2 }); b.prop('mushrooms', c + 25, G1 - 7, { w: 1 });   // la grappe violette : le fossé est proche
+  // le fossé : 4 cases, sans fond ; de l'autre côté, un cul-de-sac et trois ryō
+  carve(c + 26, 4, G1 - 10, KILLG - 1);
+  for (let i = 0; i < 4; i++) b.cols[c + 26 + i][KILLG] = 'v';
+  carve(c + 30, 3, G1 - 10, G1 - 8);
+  coins([c + 28], G1 - 10); coins([c + 30, c + 31, c + 32], G1 - 8);
+  F.galleries = {
+    x0: c * TILE, x1: (c + 34) * TILE, y0: (G1 - 26) * TILE, y1: (KILLG + 1) * TILE, under: (c + 2) * TILE,
+    beam: { x: (c + 28) * TILE + 6, y: (G1 - 25) * TILE, floor: (G1 - 18) * TILE },     // un rai de jour tombe d'une fente sur le coffre
+    curtains: [[c + 7, G1 - 17, 1.2], [c + 21, G1 - 23, 1], [c + 17, G1 - 14, 0.8], [c + 25, G1 - 11, 0.9]],   // rideaux de racines : [colonne, plafond, longueur]
+  };
   // des ryō dans une cheminée plus dure : un creux tout en haut du tronc
   carve(shaft - 2, 2, G6 - 4, G6 - 3);
   coins([shaft - 2, shaft - 1], G6 - 3);

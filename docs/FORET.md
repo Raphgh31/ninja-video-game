@@ -132,6 +132,12 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **falaise de la gorge** (zone 4) : plus de contraste (fissures franches, arêtes claires, coulures), beaucoup plus de végétation (rideaux de mousse, touffes accrochées à la paroi, corniches deux fois plus nombreuses, lianes), et **plus de trame** : teintes en aplats, profondeur en fondu par paliers fins, brume et ombre du ravin en transparence ;
 - **entrée de l'arbre creux** : le dégradé tramé est remplacé par un fondu continu et opaque, du bois encore éclairé vers le noir du boyau (une ligne à la fois, sans grain), qui ne laisse jamais voir le décor à travers.
 
+### Retours n° 6 (11 novembre 2026), appliqués : les galeries de l'ascension
+- **la butte** : la falaise de la zone 5 se prolonge en une butte de terre de 38 cases (le torrent et toute la suite sont décalés d'autant) ; en surface, les trois souches en escalier de la lisière (2, 2 puis 3 cases, la plus haute porte des ryō), deux jeunes pins ;
+- **les galeries** (`F.galleries`, sous la butte) : on y entre par la niche de la lanterne, à mi-hauteur du puits. Une salle de croisement (champignons) ; **en haut**, un saut au bord du trou mène à une marche, un couloir qui monte, puis la **salle du coffre** (`galerie`, 10 ryō) : un arbre à perles, des champignons, un rai de jour qui tombe d'une fente du plafond ; **en bas**, le sol s'ouvre deux fois, un plafond bas (glissade), une grappe de champignons violets, puis un **fossé sans fond** de 4 cases, avec un cul-de-sac et trois ryō de l'autre côté ;
+- **peinture** : un fond de galerie peint (`galleriesBack`, `props.js`) en retrait des murs (ombre sur le pourtour), strates d'argile ocre, lits de cailloux, grosses racines en travers, radicelles dont certaines luisent, spores, la lumière des champignons, de l'arbre et de la lanterne posée en fondu ; rideaux de racines aux entrées (`rootCurtain`) ; les parois prennent la mousse bleu-vert et les spores du souterrain (`world.inGal`) ; une pénombre légère sur les seuls couloirs, éclairée autour de KAGE, de la lanterne, des champignons (qui s'allument à son approche) et de l'arbre (`drawGalleries`, `live.js`) ; le fossé fond au noir ; pas de fougères du premier plan dans les galeries ;
+- test : `zone 5 : par la niche de la lanterne, les galeries mènent au coffre…` ; le pilote de l'ascension ne s'engouffre plus dans la galerie (`wallClimb(…, maxCol)`).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

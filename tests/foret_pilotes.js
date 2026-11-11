@@ -20,7 +20,10 @@ P.z4 = () => { const c = __kage.level.forest.collapse; bot.place(Math.floor(c.re
 // zone 5 : la montée
 P.z5 = () => { bot.place(Z(5).x0 + 2); bot.runner(5, { until: (p) => p.onGround && __kage.level.solid(Math.floor(p.x / 16) + 1, Math.round(p.y / 16) - 5) && p.vx === 0 }); const a = [bot.col(), bot.row()];
   const log = []; let t = 0;
-  for (let i = 0; i < 8 && bot.row() > 22; i++) { t += bot.wallClimb(12, 22, 1, 1); bot.run(1, () => { bot.set({ right: true }); return bot.p.onGround; }); log.push([bot.col(), bot.row(), bot.p.state, bot.p.ride ? 'planche' : '']); if (bot.p.onGround) { bot.clear(); bot.run(0.5); } }
+  const C = __kage.level.forest.def.galleries.x0 / 16;                // la falaise (la niche de la lanterne ouvre sur les galeries)
+  for (let i = 0; i < 8 && bot.row() > 22; i++) { t += bot.wallClimb(12, 22, 1, 1, C + 1); bot.run(1, () => { bot.set({ right: bot.col() <= C }); return bot.p.onGround; }); log.push([bot.col(), bot.row(), bot.p.state, bot.p.ride ? 'planche' : '']); if (bot.p.onGround) { bot.clear(); bot.run(0.5); }
+    // posé dans la niche de la lanterne (l'entrée des galeries) : on revient au bord du puits pour reprendre l'escalade
+    if (bot.p.onGround && bot.col() > C + 1) { bot.run(2, () => { bot.set({ left: true, right: false }); return bot.col() <= C + 1; }); bot.clear(); bot.run(0.3); } }
   bot.runner(2); return ['z5', a, t, log, bot.col(), bot.row()]; };
 // zone 6 : de tronc en tronc
 // zone 7 : la canopée, depuis la première branche

@@ -35,6 +35,7 @@ export class ForetWorld {
     this.rows = level.rows.slice();
     this.mask = mask;                       // Set de 'tx,ty' : tuiles dessinées par un décor
     this.dark = level.forest?.dark ?? null;
+    this.gal = level.forest?.def?.galleries ?? level.forest?.galleries ?? null;
     this.hollows = level.forest?.def?.hollows ?? [];
     this.nx = Math.ceil(level.width / CH);
     this.ny = Math.ceil(level.height / CH);
@@ -55,7 +56,10 @@ export class ForetWorld {
   }
   air(tx, ty) { const k = this.kind(tx, ty); return k === 0; }
   ch(tx, ty) { return tx < 0 || tx >= this.w || ty < 0 || ty >= this.h ? '.' : this.rows[ty][tx]; }
-  under(x, y) { const d = this.dark; return !!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE; }
+  under(x, y) { const d = this.dark; return (!!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE) || this.inGal(x, y); }
+  /** Les galeries de terre de la zone 5 (un avant-goût du souterrain). */
+  inGal(x, y, from = 'under') { const g = this.gal; return !!g && x >= g[from] && x < g.x1 && y >= g.y0 && y < g.y1; }
+  underDark(x, y) { const d = this.dark; return !!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE; }
 
   key(i, j) { return i + ',' + j; }
 
@@ -125,6 +129,7 @@ export class ForetWorld {
 
   /** Case vide enfermée (creux d'écorce, niche, galerie souterraine) : on voit le fond, pas le ciel. */
   niche(tx, ty) {
+    if (this.inGal(tx * TILE, ty * TILE, 'x0')) return false;          // les galeries ont leur propre fond (props.js)
     const c = this.ch(tx, ty);
     if (c === '~' || c === 'v') return false;
     let up = 0; while (up < 5 && this.air(tx, ty - 1 - up)) up++;
@@ -179,7 +184,7 @@ export class ForetWorld {
     if (((band % 9) + 9) % 9 < 1) v -= 0.22;                                              // le joint entre deux strates
     const st = worley(x, y * 1.4, 13, 24, 0.8);
     if (st.id > 0.9 && st.d < 3.2 + (st.id - 0.9) * 14) return st.d2 - st.d < 0.9 ? C.HUMUS[0] : pick(C.ROCK, v + 0.12 - st.dy * 0.04, x, y);
-    if (fL < 14 && fbm2(x * 0.1, y * 0.06, 3, 25) > 0.6) return pick(C.MOSS, v + 0.05, x, y);
+    if (fL < 14 && fbm2(x * 0.1, y * 0.06, 3, 25) > 0.6) return pick(this.inGal(x, y) ? ['#0b2a2a', '#10403c', '#17594c', '#20705a', '#2e8b6a'] : C.MOSS, v + 0.05, x, y);   // (dans les galeries : la mousse bleu-vert du souterrain)
     if (Math.abs(fbm2(x * 0.05, y * 0.012, 2, 26) - 0.5) < 0.012) return C.BARK[2];          // racines qui traversent la terre
     if (fR < 3) return C.HUMUS[0];
     return pick(EARTH, v, x, y);
@@ -204,7 +209,7 @@ export class ForetWorld {
     // la roche bleu-vert de la caverne ; vers la sortie, elle redevient peu à peu la terre de la forêt (tramé)
     const out = d?.fade && x > d.x1 - d.fade ? (x - (d.x1 - d.fade)) / d.fade : 0;
     if (!wet && d && x > d.x0 && x < d.x1 && y > d.y0 + 6 + (bayer(x, y) + noise1(x * 0.05, 74) * 0.6) * 30 && !(out > 0 && (bayer(x, y) * 0.7 + noise1(y * 0.2, 75) * 0.3) < out)) return this.caveRock(x, y, dTop, dBot, dL, dR);
-    if (!wet && dTop >= 44 && dBot >= 16 && !this.under(x, y)) return this.cliff(x, y, fL, fR);
+    if (!wet && dTop >= 44 && dBot >= 16 && !this.underDark(x, y)) return this.cliff(x, y, fL, fR);
     const under = this.under(x, y);
     if (wet && dTop < 10) {
       // le fond d'une mare : galets et vase sombres
@@ -215,7 +220,7 @@ export class ForetWorld {
     if (dTop < 44 && !(under && dTop > 6 && dBot < 18)) {
       let c = under && dTop < 7 ? (dTop === 0 ? (ih(x, 2, 5) < 0.5 ? C.MOSS[3] : C.MOSS[2]) : pick(C.MOSS, 0.35 - dTop / 20, x, y)) : L.groundColor(x, y, dTop);
       if (dR < 3 && dTop > 4) c = C.HUMUS[0];
-      else if (dL < 2 && dTop > 4) c = dTop < 10 ? C.MOSS[4] : C.HUMUS[5];
+      else if (dL < 2 && dTop > 4) c = dTop < 10 ? (under ? '#20705a' : C.MOSS[4]) : C.HUMUS[5];
       return c;
     }
     if (dBot < 16) {

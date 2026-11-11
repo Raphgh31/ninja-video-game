@@ -228,9 +228,11 @@ export class ForetLive {
     for (let ty = 0; ty < level.h; ty++) for (let tx = 0; tx < level.w; tx++) {
       if (this.rows[ty][tx] !== 'v' || this.rows[ty][tx - 1] === 'v') continue;
       let w = 1; while (this.rows[ty][tx + w] === 'v') w++;
-      const lip = Math.min(topOf(tx - 1), topOf(tx + w), ty) * TILE;
+      // sous terre (un fossé dans une galerie), l'ombre part du plafond du couloir, pas de la surface
+      let open = ty; while (open > 0 && !'#=|%'.includes(this.rows[open - 1][tx] ?? '#')) open--;
+      const lip = Math.max(Math.min(topOf(tx - 1), topOf(tx + w), ty), open) * TILE;
       const decor = level.props.some((p) => p.type === 'ravine' && tx >= p.x && tx < p.x + p.w);   // la gorge peinte : l'ombre vient plus bas
-      this.chasms.push({ x: tx * TILE, y: ty * TILE, w: w * TILE, lip, decor });
+      this.chasms.push({ x: tx * TILE, y: ty * TILE, w: w * TILE, lip, decor: decor || this.underground(tx * TILE, ty * TILE) });
     }
     // champignons lumineux du souterrain : les grappes déclarées, et quelques-unes en plus sur le sol des galeries
     this.glows = [];
@@ -253,7 +255,10 @@ export class ForetLive {
   }
 
   zoneAt(x) { return this.zones.find((z) => x >= z.px0 && x < z.px1) ?? null; }
-  underground(x, y) { const d = this.f?.dark; return !!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE; }
+  underground(x, y) {
+    const d = this.f?.dark, g = this.f?.def?.galleries;
+    return (!!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE) || (!!g && x >= g.x0 && x < g.x1 && y >= g.y0 && y < g.y1);
+  }
   killRow(tx, from) { for (let r = from; r < this.level.h; r++) if (this.rows[r]?.[tx + 1] === 'v' || this.rows[r]?.[tx] === 'v') return r; return this.level.h; }
 
   /** À chaque image : la statue est peinte d'avance quand on approche du sanctuaire. */
@@ -339,7 +344,7 @@ export class ForetLive {
       const y0 = c.lip + (c.decor ? 7 : 2) * TILE, ramp = c.decor ? 170 : 110;
       if (!this.vis(c.x, y0, c.w, c.y - y0 + 40, cam, vw, vh)) continue;
       const z = this.zoneAt(c.x), m = C.MOODS[z?.mood] ?? C.MOODS.sousbois;
-      ctx.fillStyle = m.fore[0];
+      ctx.fillStyle = this.underground(c.x, c.y) ? '#030506' : m.fore[0];
       const x0 = R(c.x - cam.x) - 2, w = c.w + 4;
       for (let y = Math.max(y0, cam.y); y < Math.min(c.y + 40, cam.y + vh); y++) {
         const a = Math.min(1, (y - y0) / ramp);
@@ -493,6 +498,7 @@ export class ForetLive {
     }
     this.motes(ctx, cam, vw, vh, time);
     this.drawDark(ctx, cam, vw, vh, time);
+    this.drawGalleries(ctx, cam, vw, vh, time);
     this.drawFore(ctx, cam, vw, vh, time);
   }
 
@@ -632,6 +638,69 @@ export class ForetLive {
     ctx.globalAlpha = 1;
   }
 
+  /**
+   * Les galeries de la zone 5 : une pénombre plus légère que celle du souterrain, posée sur les seuls
+   * couloirs ; KAGE, la lanterne, les champignons (qui s'allument à son approche) et l'arbre à perles
+   * l'éclairent. Un avant-goût de la caverne.
+   */
+  drawGalleries(ctx, cam, vw, vh, time) {
+    const g = this.f?.def?.galleries;
+    if (!g || g.x1 < cam.x || g.x0 > cam.x + vw || g.y1 < cam.y || g.y0 > cam.y + vh) return;
+    if (!this.gal) {
+      const inG = (x, y) => x >= g.x0 && x < g.x1 && y >= g.y0 && y < g.y1;
+      const cells = [], lamps = [];
+      for (let ty = Math.floor(g.y0 / TILE); ty < g.y1 / TILE; ty++) for (let tx = Math.floor(g.under / TILE); tx < g.x1 / TILE; tx++) {
+        const ch = this.rows[ty]?.[tx];
+        if (ch == null || '#=|%'.includes(ch)) continue;
+        cells.push([tx, ty, ch === 'v' || this.rows[ty - 3]?.[tx] === '.' && this.rows[ty + 1]?.[tx] !== '#' && ty > 42 ? 0.75 : 0.42]);
+      }
+      for (let ty = Math.floor(g.y0 / TILE); ty < g.y1 / TILE; ty++) for (let tx = Math.floor(g.x0 / TILE); tx < g.x1 / TILE; tx++) if (this.rows[ty]?.[tx] === 'P') lamps.push([tx * TILE + 8, ty * TILE + 4]);
+      this.gal = { cells, lamps, glows: this.glows.filter((m) => inG(m.x, m.y)), trees: this.pearlTrees.filter(({ shape }) => inG(shape.cx, shape.gy - 4)) };
+    }
+    const G = this.gal, p = this.level.player;
+    for (const m of G.glows) if (p && Math.hypot(p.x - m.x, p.y - m.y) < 110) m.lit = Math.min(1, m.lit + 0.03);
+    if (!this.gshade || this.gshade.width !== vw || this.gshade.height !== vh) this.gshade = canvas(vw, vh);
+    const s = this.gshade.getContext('2d');
+    s.globalCompositeOperation = 'source-over';
+    s.clearRect(0, 0, vw, vh);
+    for (const [tx, ty, a] of G.cells) {
+      const sx = R(tx * TILE - cam.x), sy = R(ty * TILE - cam.y);
+      if (sx < -16 || sx > vw || sy < -16 || sy > vh) continue;
+      s.fillStyle = `rgba(3,7,11,${a * 0.75})`; s.fillRect(sx, sy, TILE, TILE);
+    }
+    s.globalCompositeOperation = 'destination-out';
+    if (p) s.drawImage(this.halo, R(p.x - cam.x - 72), R(p.y - 14 - cam.y - 72));
+    for (const [lx, ly] of G.lamps) { s.globalAlpha = 0.9; s.drawImage(this.halo, R(lx - cam.x - 60), R(ly - cam.y - 60), 120, 120); }
+    for (const m of G.glows) { if (m.lit <= 0) continue; s.globalAlpha = m.lit * 0.9; s.drawImage(this.haloSmall, R(m.x - cam.x - 30), R(m.y - 10 - cam.y - 30), 60, 60); }
+    for (const { shape } of G.trees) { s.globalAlpha = 0.85; s.drawImage(this.halo, R(shape.cx - cam.x - 54), R(shape.gy - shape.trunkH * 0.9 - cam.y - 54), 108, 108); }
+    s.globalAlpha = 1; s.globalCompositeOperation = 'source-over';
+    ctx.drawImage(this.gshade, 0, 0);
+    // la lueur colorée des champignons, puis les champignons eux-mêmes
+    ctx.globalCompositeOperation = 'lighter';
+    for (const m of G.glows) {
+      const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
+      if (m.lit <= 0.05) continue;
+      const img = this.tint[(m.x >> 4) % 3 === 1 ? 1 : 0], r = m.big ? 34 : 24;
+      ctx.globalAlpha = m.lit * (0.3 + 0.06 * Math.sin(time * 1.7 + m.x));
+      ctx.drawImage(img, sx - r, sy - 10 - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    for (const m of G.glows) {
+      const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
+      const violet = (m.x >> 4) % 3 === 1, cap = violet ? C.VIOLET : [C.GLOW[1], C.GLOW[2], C.GLOW[3], C.GLOW[4]];
+      for (let k = 0; k < (m.big ? 5 : 3); k++) {
+        const kx = sx - 7 + k * 4 + (k % 2) * 2, h = 2 + ((k * 7 + (m.x >> 4)) % (m.big ? 8 : 5)), w = 1 + (h > 5 ? 2 : 1);
+        ctx.fillStyle = '#9fb8c8'; ctx.fillRect(kx, sy - h, 1, h);
+        ctx.fillStyle = m.lit > 0.2 ? cap[2] : cap[0];
+        ctx.fillRect(kx - w, sy - h - 2, w * 2 + 1, 2);
+        ctx.fillRect(kx - w + 1, sy - h - 3, w * 2 - 1, 1);
+        if (m.lit > 0.2) { ctx.fillStyle = cap[3]; ctx.fillRect(kx - w + 1, sy - h - 3, 1, 1); }
+      }
+    }
+    const d = this.f.dark;
+    if (!d || d.x1 < cam.x || d.x0 > cam.x + vw || cam.y + vh < d.y0) this.drawPearls(ctx, cam, vw, vh, time);
+  }
+
   /** La pénombre du souterrain : tout est sombre, sauf autour de KAGE et des champignons allumés. */
   drawDark(ctx, cam, vw, vh, time) {
     const d = this.f.dark;
@@ -754,7 +823,9 @@ export class ForetLive {
     const list = this.art.backdrop.weights(cam, vw, vh);
     // rien ne pousse sur l'eau : la bande est découpée au-dessus des colonnes où l'on voit de l'eau en bas de l'image
     const lv = this.level, r0 = Math.floor(cam.y / 16), r1 = Math.floor((cam.y + vh) / 16);   // (l'eau est profonde : toute la colonne compte)
-    const wet = (tx) => { for (let r = r0; r <= r1; r++) if (lv.at(tx, r) === '~') return true; return false; };
+    const gal = this.f?.def?.galleries, galTx0 = gal ? Math.floor(gal.x0 / 16) : 0, galTx1 = gal ? Math.ceil(gal.x1 / 16) + 2 : 0;
+    const inGal = gal && cam.y + vh > gal.y0 + 40;                     // dans les galeries : pas de fougères devant
+    const wet = (tx) => { if (inGal && tx >= galTx0 && tx < galTx1) return true; for (let r = r0; r <= r1; r++) if (lv.at(tx, r) === '~') return true; return false; };
     let clip = null, run = null;
     const flush = () => { if (!run) return; clip ??= (() => { const q = new Path2D(); q.rect(0, vh - 62, vw, 70); return q; })(); clip.rect(R(run[0] * 16 - cam.x) - 6, vh - 62, (run[1] - run[0] + 1) * 16 + 12, 70); run = null; };
     for (let tx = Math.floor(cam.x / 16); tx * 16 < cam.x + vw; tx++) {

@@ -68,6 +68,24 @@ async function main() {
     expect(r[r.length - 1] <= 22, JSON.stringify(r));
   });
 
+  await test('zone 5 : par la niche de la lanterne, les galeries mènent au coffre (en haut) et à un fossé mortel (en bas)', async () => {
+    const r = await ev(() => {
+      const g = __kage.level.forest.def.galleries, c = g.x0 / 16, out = {};
+      // un saut au bord du trou de la salle de croisement : on atteint la marche, puis le coffre
+      bot.place(c + 2, 37); bot.clear(); let jumped = false, air = false;
+      bot.run(3, (q) => { bot.set({ right: true }); if (!jumped && q.onGround && q.x > (c + 11) * 16 + 10) { bot.tap('jump'); jumped = true; } if (jumped && !q.onGround) air = true; return air && q.onGround; });
+      out.marche = [bot.col() - c, bot.row()];
+      bot.clear(); bot.runner(8, { until: (q) => q.x > (c + 29) * 16 });
+      out.coffre = [bot.col() - c, bot.row(), bot.dead(), !!__kage.level.chestNear(bot.p.x, bot.p.y)];
+      // sans sauter : on tombe dans la galerie du bas, on glisse sous le plafond bas, et le fossé tue
+      bot.place(c + 9, 37); bot.clear(); let died = false;
+      bot.runner(8, { until: (q) => { if (q.state === 'death') died = true; return died; } });
+      out.fosse = [died, bot.col() - c];
+      return out;
+    });
+    expect(r.marche[1] === 35 && r.coffre[0] >= 29 && r.coffre[1] === 32 && !r.coffre[2] && r.fosse[0], JSON.stringify(r));
+  });
+
   await test('zone 6 : de tronc en tronc, on traverse le torrent sans perdre de vie', async () => {
     const r = await run('z6b');
     expect(r[3] >= r[4] && !/eau/.test(r[2]), JSON.stringify(r).slice(0, 400));
