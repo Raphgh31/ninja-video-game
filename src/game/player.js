@@ -16,7 +16,7 @@ const P = {
   gravity: 980,
   // salto au deuxième appui : gravité allégée pendant la rotation, petit élan (px/s), au plus une
   // demi-case au-dessus d'un saut plein ; durées des 11 images (s) : environ 0,95 s en tout
-  flip: { gravity: 0.42, kick: 120, rise: 8, brake: 0.3, times: [0.13, 0.1, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.1, 0.14] },
+  flip: { gravity: 0.42, kick: 120, rise: 8, brake: 0.3, wallGap: 40, times: [0.13, 0.1, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.1, 0.14] },
   maxFall: 420,
   jump: 315,
   jumpCut: 0.45,     // relâcher le saut tôt = saut plus court
@@ -167,6 +167,7 @@ export class Player {
   canFlip() {
     if (this.onGround || this.coyote > 0 || this.flipUsed || this.isFlipping()) return false;
     if (this.timer === 0) return false;            // (le saut vient de partir, sur ce même appui)
+    if (this.wallNear(P.flip.wallGap)) return false;   // (près d'un mur, l'appui sert au saut mural)
     if (this.state !== 'jump' && this.state !== 'fall' && this.state !== 'wall_jump') return false;
     if (this.vy <= 0) return true;
     const tx = Math.floor(this.x / TILE), ty = Math.floor(this.y / TILE);
@@ -199,6 +200,15 @@ export class Player {
     return 0;
   }
 
+  /** Un mur à moins de `gap` px d'un côté ou de l'autre (à hauteur du corps) ? */
+  wallNear(gap) {
+    const b = this.box();
+    const y0 = Math.floor((b.y + 2) / TILE), y1 = Math.floor((b.y + b.h - 3) / TILE);
+    const l0 = Math.floor((b.x - gap) / TILE), r1 = Math.floor((b.x + b.w + gap) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = l0; tx <= r1; tx++) if (this.level.solid(tx, ty)) return true;
+    return false;
+  }
+
   /** Colonne de tuiles du mur situé du côté `side`. */
   wallTile(side) {
     const b = this.box();
@@ -222,7 +232,7 @@ export class Player {
     this.airDash = true;
     this.emit('wall_jump', { side });
     this.setState('wall_jump');
-    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false;   // (un salto reste possible après un saut mural)
+    this.flipUsed = true;               // (enchaînement de sauts muraux : plus de salto jusqu'au retour au sol)
   }
 
   /** Boîte de collision selon l'état (définie dans kage.json, relative à la cellule). */

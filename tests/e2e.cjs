@@ -213,6 +213,27 @@ async function main() {
     expect(s.state === 'wall_jump' && s.vx < 0, `état ${s.state}, vx ${s.vx}`);
   });
 
+  await test('enchaînement de sauts muraux à coups de saut répétés : aucun salto', async () => {
+    await reset(1156, 120);
+    const r = await ev(() => {
+      const g = window.__kage, inp = g.input, seen = new Set(), pl = g.player;
+      let walls = 0, dir = -1;
+      const emit = pl.emit; pl.emit = function (n, d) { if (n === 'wall_jump') { walls++; dir = -dir; } return emit.call(this, n, d); };
+      for (let n = 0; n < 240; n++) {
+        inp.setHeld('left', dir < 0); inp.setHeld('right', dir > 0);
+        if (n % 9 === 0) { inp.setHeld('jump', false); g.step(1); inp.setHeld('jump', true); }   // appuis rapprochés, comme un joueur pressé
+        g.step(1);
+        seen.add(pl.state);
+        if (pl.onGround) break;            // (de retour au sol : un nouveau saut peut de nouveau faire un salto)
+      }
+      pl.emit = emit;
+      g.resume();                          // (retour au temps réel pour les tests suivants)
+      for (const a of ['left', 'right', 'jump']) inp.setHeld(a, false);
+      return { walls, seen: [...seen] };
+    });
+    expect(r.walls >= 2 && !r.seen.includes('flip') && !r.seen.includes('backflip'), JSON.stringify(r));
+  });
+
   await test('sabre et shuriken en l\'air', async () => {
     await reset(300);
     await k.press('Space'); await wait(120); await k.press('KeyX'); await wait(30);
