@@ -717,7 +717,7 @@ const CAM = {
   top: 0.1,        // la tête de KAGE ne sort jamais par le haut (10 % de marge)
   bottom: 0.97,    // ni ses pieds par le bas
 };
-const camGround = { y: null };                 // sol de référence du palier en cours
+const camGround = { y: null, k: CAM.ground };                 // sol de référence du palier en cours
 const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
 let camVX = 0;                                 // vitesse horizontale (amorti)
 
@@ -734,9 +734,15 @@ function targetX() {
 }
 
 /** Lance un recadrage vertical vers le palier dont le sol est groundY. */
+/** Hauteur du sol dans l'image : celle de la caméra, ou celle imposée par la zone (la statue tient entière dans l'image). */
+function camGroundAt(x) {
+  const z = level.zones?.find((zz) => x >= zz.px0 && x < zz.px1);
+  return z?.camGround ?? CAM.ground;
+}
+
 function retargetY(groundY) {
   camGround.y = groundY;
-  const to = clampCamY(groundY - VIEW_H * CAM.ground);
+  const to = clampCamY(groundY - VIEW_H * camGroundAt(player.x));
   if (Math.abs(to - camV.to) < 1 && camV.t < 1) return;
   camV.from = camera.y;
   camV.to = to;
@@ -756,6 +762,9 @@ function updateCamera(dt) {
   if (camGround.y == null) retargetY(player.y);
   const alive = player.state !== 'death' && player.state !== 'respawn';
   if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
+  // cadrage imposé par la zone (la statue) : on recadre en entrant et en sortant
+  const gAt = camGroundAt(player.x);
+  if (alive && gAt !== camGround.k) { camGround.k = gAt; if (player.onGround) retargetY(player.y); }
   // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
   const y = camV.t < 1 ? camV.to : camera.y;
   if (alive && player.y - 31 < y + VIEW_H * CAM.top) retargetY(player.y - 31 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
@@ -770,7 +779,7 @@ function updateCamera(dt) {
 function snapCamera() {
   camGround.y = player.y;
   camera.x = clampCamX(player.x - VIEW_W * 0.42);
-  camera.y = clampCamY(player.y - VIEW_H * CAM.ground);
+  camera.y = clampCamY(player.y - VIEW_H * camGroundAt(player.x));
   camV.to = camera.y; camV.t = 1; camVX = 0;
 }
 

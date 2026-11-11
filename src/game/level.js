@@ -2,6 +2,7 @@
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
 import { PotagerArt } from './potager/index.js';
+import { ForetArt } from './foret/index.js';
 import { Forest } from './foret/mechanics.js';
 
 export const TILE = 16;
@@ -80,7 +81,7 @@ export class Level {
     this.forest = def.forest ? new Forest(this, def.forest) : null;
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
-    this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
+    this.art = this.theme === 'potager' ? new PotagerArt(this) : this.theme === 'foret' ? new ForetArt(this) : null;
   }
 
   // --- cibles d'entraînement -------------------------------------------------
