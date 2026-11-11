@@ -876,6 +876,7 @@ const HINTS = {
   wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
   rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
   airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
+  vine: ['← → tenue : s\'accrocher à la liane — tout relâcher : la lâcher', 'Joystick tenu : s\'accrocher à la liane — le relâcher : la lâcher'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
@@ -888,6 +889,7 @@ const HINT_USED = {
   wall: () => player.state === 'wall_jump',
   rope: () => level.cranes.some((c) => c.cut),
   airAttack: () => player.state === 'air_attack',
+  vine: () => player.state === 'vine',
 };
 
 function updateChapterUi(dt) {

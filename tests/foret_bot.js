@@ -8,7 +8,8 @@ window.bot = {
     for (const [a, on] of Object.entries(keys)) this.k.input.setHeld(a, on);
   },
   clear() { for (const a of ['left', 'right', 'up', 'down', 'sprint', 'jump', 'attack', 'stick']) this.k.input.setHeld(a, false); },
-  tap(a) { this.k.input.setHeld(a, false); this.k.input.setHeld(a, true); this._untap = a; },
+  /** Un appui : la touche est relâchée puis enfoncée (le saut reste tenu : saut de pleine hauteur). */
+  tap(a) { this.k.input.setHeld(a, false); this.k.input.setHeld(a, true); if (a !== 'jump') this._untap = a; },
   dash(dir) { this.k.input.pressed.add(dir > 0 ? 'dash_right' : 'dash_left'); },
   /** Pose KAGE debout sur le sol de la colonne (ou à la ligne donnée), tout remis à neuf. */
   place(col, row = null) {
@@ -49,17 +50,32 @@ window.bot = {
       if (o.until && o.until(p)) return true;
       if (this.dead()) return true;
       const l = this.k.level, c = Math.floor(p.x / 16), r = Math.round(p.y / 16);
-      this.set({ right: true, sprint: !!(typeof o.sprint === 'function' ? o.sprint(p) : o.sprint) });
+      // souffler : à l'arrêt sur un sol sûr quand l'énergie est basse (comme un joueur entre deux obstacles)
+      if (o.rest && p.onGround && !p.ride && (p.energy.value < 0.45 || (this._resting && p.energy.value < 0.97))) {
+        this._resting = true; this.clear(); return false;
+      }
+      this._resting = false;
+      this.set({ right: true, left: false, sprint: !!(typeof o.sprint === 'function' ? o.sprint(p) : o.sprint) });
       if (p.onGround) {
         airDashed = false;
         const wall = l.solid(c + 1, r - 1) && p.x % 16 > 6;
         const low = l.solid(c + 1, r - 2) && !l.solid(c + 1, r - 1);         // plafond bas devant : glissade
-        const edge = !this.groundAt(c + 1, r, 2) && p.x % 16 > 9;
+        // une simple marche vers le bas : on se laisse descendre, sans sauter
+        const drop = !this.groundAt(c + 1, r, 2) && l.at(c + 1, r) !== '~' && l.at(c + 1, r + 1) !== '~' && this.groundAt(c + 1, r + 2, 2);
+        const edge = !drop && (!this.groundAt(c + 1, r, 2) || l.at(c + 1, r) === '~') && p.x % 16 > 9;
         if (low && p.state !== 'slide') this.tap('down');
         else if ((wall || edge) && p.state !== 'slide') this.tap('jump');
-        if (edge) { let w = 0; while (w < 12 && !this.groundAt(c + 1 + w, r - 2, 8)) w++; this._gap = w; }
+        else this.set({ jump: false });
+        if (edge) {
+          const land = (cc) => l.at(cc, r) !== '~' && l.at(cc, r + 1) !== '~' && this.groundAt(cc, r - 2, 6);   // l'eau n'est pas un sol
+          let w = 0; while (w < 12 && !land(c + 1 + w)) w++;
+          let n = 0; while (n < 4 && land(c + 1 + w + n)) n++;
+          this._gap = w; this._land = (c + 1 + w + Math.min(n, 3) / 2) * 16;        // où l'on veut retomber
+          if (o.sprintGap && w >= o.sprintGap) this.set({ sprint: true });
+        } else this._land = null;
       } else {
-        this.set({ jump: true });
+        if (o.sprintGap && this._gap >= o.sprintGap) this.set({ sprint: true });
+        if (o.aim && this._land) this.set({ right: p.x < this._land - 3, left: p.x > this._land + 12 });
         if (!airDashed && o.dashGap && this._gap >= o.dashGap && p.vy > -40 && p.airDash) { this.dash(1); airDashed = true; }
       }
       return false;
@@ -70,9 +86,9 @@ window.bot = {
     let side = firstSide;
     return this.run(seconds, (p) => {
       if (p.y < topRow * 16 - 2 && (p.onGround || p.vy > 0)) return true;
+      if (p.state === 'wall_jump') side = p.facing;          // il vient de quitter un mur : on vise l'autre
       this.set({ right: side > 0, left: side < 0 });
-      if (p.onGround) this.tap('jump');
-      else if (p.state === 'wall_slide') { this.tap('jump'); side = -side; }
+      if (p.onGround || p.state === 'wall_slide') this.tap('jump');
       return false;
     });
   },

@@ -142,11 +142,12 @@ function build() {
   x = b.x; ground(7, G1);
   coins([x + 2, x + 4], G1 - 2);
   // le grand miroir : des pierres de gué, et un îlot à l'écart (saut + dash précis) pour les curieux
-  water(4, G1); ground(1, G1 - 1); water(4, G1); ground(1, G1 - 1); water(5, G1);
+  water(3, G1); ground(1, G1 - 1); water(3, G1); ground(2, G1 - 1); water(3, G1);
   x = b.x; ground(2, G1 - 1);
-  b.row(x - 9, 2, G1 - 5, '-');                        // la branche basse au-dessus de l'eau : trois ryō
-  coins([x - 9, x - 8], G1 - 6);
-  b.prop('branch', x - 9, G1 - 5, { w: 2, from: 'top' });
+  b.prop('boulder', x - 9, G1 - 1, { w: 1, wet: true }); b.prop('boulder', x - 5, G1 - 1, { w: 2, wet: true }); b.prop('boulder', x, G1 - 1, { w: 2, wet: true });
+  b.row(x - 5, 2, G1 - 5, '-');                        // une branche basse au-dessus du gué : deux ryō pour les curieux
+  coins([x - 5, x - 4], G1 - 6);
+  b.prop('branch', x - 5, G1 - 5, { w: 2, from: 'top' });
   water(6, G1);
   ground(16, G1);
   coins([b.x - 12, b.x - 9, b.x - 6], G1 - 2);
@@ -246,7 +247,7 @@ function build() {
   /** Remontée : des branches en quinconce le long d'un tronc (décor), du sol jusqu'à la canopée. */
   const climbTree = (cx, top) => {
     b.prop('climb_trunk', cx, G6, { top });
-    for (let row = G6 - 3, k = 0; row > top; row -= 3, k++) b.row(cx + (k % 2 ? 1 : -2), 2, row, '-');
+    for (let row = G6 - 2, k = 0; row > top; row -= 2, k++) b.row(cx + (k % 2 ? 1 : -2), 2, row, '-');
   };
   x = b.x; ground(104, G6);                            // le sous-bois de rattrapage, sous toute la canopée
   const c0 = x;
@@ -262,8 +263,8 @@ function build() {
   branch(43, G7 + 1, 5);
   lantern(c0 + 45, G7 + 1);
   branch(51, G7, 2);                                   // petites branches : 3 cases, puis 4
-  branch(57, G7 - 1, 2); coin(c0 + 58, G7 - 3);
-  branch(66, G7 - 1, 3); coin(c0 + 62, G7 - 4);        // 7 cases : course, saut, dash au sommet
+  branch(56, G7 - 1, 2); coin(c0 + 57, G7 - 3);
+  branch(65, G7 - 1, 4); coin(c0 + 61, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
   branch(72, G7 + 1, 3);
   // le nid, au-dessus du chemin : on y monte par deux petites branches
   branch(68, G7 - 4, 2); branch(72, G7 - 7, 4, { nest: true });
@@ -309,7 +310,7 @@ function build() {
   // une mare souterraine : 6 cases, dash
   x = b.x;
   for (let i = 0; i < 6; i++) { const c = new Array(H).fill('.'); for (let y = G6; y < H; y++) c[y] = y < G8 - 5 || y > G8 + 1 ? '#' : y >= G8 ? '~' : '.'; b.cols.push(c); }
-  tunnel(6, G8, G8 - 5);
+  tunnel(4, G8, G8 - 5); tunnel(2, G8, G8 - 3);        // (le plafond s'abaisse : il sert de mur gauche au puits)
   lantern(b.x - 4, G8);
   // le puits de racines : on monte de 7 cases en sauts muraux vers la galerie haute
   x = b.x; tunnel(3, G8, G8 - 11);
@@ -317,10 +318,11 @@ function build() {
   const G8b = G8 - 7;
   x = b.x; tunnel(8, G8b, G8b - 4);
   coins([x + 3, x + 5], G8b - 2);
-  // une alcôve à champignons derrière un rideau de radicelles (deux caisses)
-  x = b.x; tunnel(4, G8b, G8b - 4);
-  carve(x, 4, G8b, G8b + 2);                            // un trou dans le plancher : on tombe dans l'alcôve
-  for (let i = 0; i < 4; i++) b.cols[x + i][G8b + 3] = '#';
+  // un creux tapissé de champignons dans le plancher de la galerie : quatre ryō
+  x = b.x; tunnel(4, G8b + 2, G8b - 4);
+  coins([x, x + 1, x + 2, x + 3], G8b + 1);
+  b.prop('mushrooms', x, G8b + 2, { w: 4 });
+  tunnel(4, G8b, G8b - 4);
   x = b.x; tunnel(6, G8b, G8b - 1);                     // plafond bas dans la galerie haute
   tunnel(5, G8b, G8b - 4);
   // on redescend : un grand puits, puis le couloir de sortie
@@ -351,6 +353,7 @@ function build() {
   // les lianes de sa chevelure : immobiles, on y monte et on en descend
   vine(sx - 4, G9 - 13.6, 12.3);                        // la grande mèche de gauche, jusqu'au sol
   vine(sx - 2.5, G9 - 13.4, 7.4);                       // un brin devant l'œil gauche
+  vine(sx - 0.6, G9 - 13.2, 5.2);                       // un brin court sur l'arête du nez : le relais
   vine(sx + 1.4, G9 - 13.4, 7.6);                       // un brin devant l'œil droit
   vine(sx + 4, G9 - 13.6, 9.2);                         // la mèche de droite, jusqu'aux éboulis
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
@@ -386,24 +389,24 @@ function build() {
   const swing = (cx, len = 14, phase = 0, amp = 0.5) => { vine(cx, AY, len, amp, phase); b.prop('vine_branch', cx, AY); };
   const pillar = (n, top, lamp = false) => { const p0 = b.x; ground(n, top); b.prop('rock_pillar', p0, top, { w: n }); if (lamp) lantern(p0 + Math.floor(n / 2), top); return p0; };
   // une liane, pour apprendre : elle ramène tout près du bord
-  x = b.x; chasm(13, KILL10);
-  swing(x + 6, 14, 0);
-  coins([x + 6], G9 - 2);
-  pillar(4, G9, false);
+  x = b.x; chasm(12, KILL10);
+  swing(x + 6, 15, 0);
+  coins([x + 6], G9 - 1);
+  pillar(5, G9, false);
   // deux lianes à la suite
   x = b.x; chasm(21, KILL10);
-  swing(x + 6, 14, 0); swing(x + 15, 14, Math.PI);
+  swing(x + 6, 15, 0); swing(x + 15, 15, Math.PI);
   coins([x + 10], G9 - 4);
-  pillar(4, G9, true);
+  pillar(5, G9, true);
   // trois lianes, la dernière plus courte : il faut lâcher plus haut
   x = b.x; chasm(29, KILL10);
-  swing(x + 6, 14, 0); swing(x + 15, 13, Math.PI); swing(x + 23, 12, 0);
+  swing(x + 6, 15, 0); swing(x + 15, 14, Math.PI); swing(x + 23, 13, 0);
   coins([x + 10, x + 19], G9 - 5);
-  pillar(4, G9 - 1, true);
+  pillar(5, G9 - 1, true);
   // le final : une liane, puis la corniche, plus haute et trop loin : on lâche au sommet de la courbe et on dashe
-  x = b.x; chasm(17, KILL10);
-  swing(x + 6, 13, 0, 0.55);
-  coins([x + 11], G9 - 8);
+  x = b.x; chasm(20, KILL10);
+  swing(x + 6, 14, 0, 0.55);
+  coins([x + 12], G9 - 8);
   const G10 = G9 - 4;
   x = b.x; ground(6, G10);
   b.prop('rock_ledge', x, G10, { w: 6 });
@@ -439,7 +442,7 @@ function build() {
   lantern(x + 3, g);                                     // mi-pente : l'éboulis repart d'ici
   const slideMid = x + 3;
   x = step(8, 3); coin(x + 4, g - 2);
-  gapv(4);
+  gapv(3);                                               // brèche : un saut
   x = step(8, 2);
   x = step(6, 3); coins([x + 1, x + 4], g - 2);
   gapv(6);                                               // brèche : dash
@@ -449,7 +452,7 @@ function build() {
   x = step(7, 2); coin(x + 3, g - 2);
   const G12 = FORET_ROWS.vallee;
   x = step(8, G12 - g - 0);
-  F.slide = { trigger: slide0 * TILE, start: (slide0 - 9) * TILE, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 88, speedEnd: 100 };
+  F.slide = { trigger: slide0 * TILE, start: (slide0 - 9) * TILE, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 106 };
 
   // ===========================================================================
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,

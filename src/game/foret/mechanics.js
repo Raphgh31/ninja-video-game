@@ -12,23 +12,25 @@
 const TILE = 16;
 
 export const FOREST = {
-  collapse: { grace: 0.6, speed: 112, warn: 0.5 },      // le front d'effondrement avance à 112 px/s (course 96, sprint 140)
+  collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
   crumble: { hold: 0.7, back: 2.6 },                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
   vine: {
     g: 980,            // pesanteur du balancier
-    pump: 3.1,         // élan donné par gauche / droite (rad/s²)
+    pump: 2.6,         // élan donné par gauche / droite (rad/s²)
     damp: 0.22,        // frottement d'une liane balancier
     dampStill: 3.2,    // frottement d'une liane immobile (statue)
     climb: 46,         // px/s le long de la liane
-    grab: 10,          // distance (px) à laquelle la main attrape la liane
+    grab: 12,          // distance (px) à laquelle la main attrape la liane
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
     jumpUp: 270,       // impulsion du bond pour quitter une liane
     boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
-    maxAngle: 1.2,
+    maxAngle: 1.0,
+    pumpAngle: 0.62,   // au-delà, gauche / droite ne donnent plus d'élan
+    maxSpeed: 300,     // vitesse rendue au lâcher, au plus (px/s)
   },
   statue: { reach: 22, delay: 0.9, jawTime: 4.2 },
   slide: { margin: 6 },
@@ -237,7 +239,8 @@ export class Forest {
     player.vineR = r;
     // balancier : pesanteur, frottement, élan donné par le joueur
     let acc = -(V.g / r) * Math.sin(v.angle) - (v.still ? V.dampStill : V.damp) * v.av;
-    acc += dir * V.pump * (v.still ? 0.25 : 1) * Math.cos(v.angle);
+    // (on ne pousse plus au-delà d'un certain angle : le balancier reste lisible)
+    if (Math.abs(v.angle) < V.pumpAngle || Math.sign(v.angle) !== dir) acc += dir * V.pump * (v.still ? 0.25 : 1) * Math.cos(v.angle);
     v.av += acc * dt;
     v.angle += v.av * dt;
     if (Math.abs(v.angle) > V.maxAngle) { v.angle = Math.sign(v.angle) * V.maxAngle; v.av = 0; }
@@ -271,7 +274,8 @@ export class Forest {
   release(player, { jump = false, dir = 0, dash = 0 } = {}) {
     const V = FOREST.vine, v = player.vine;
     if (!v) return;
-    const r = player.vineR, vt = v.av * r * V.boost;
+    const r = player.vineR;
+    const vt = Math.max(-V.maxSpeed, Math.min(V.maxSpeed, v.av * r * V.boost));
     player.vx = vt * Math.cos(v.angle);
     player.vy = -vt * Math.sin(v.angle);
     if (jump) { player.vy = Math.min(player.vy, 0) - V.jumpUp; player.vx += dir * 70; }
