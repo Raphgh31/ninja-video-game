@@ -27,7 +27,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA + KARASU) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : le jeu en un seul fichier ; dist/kage-test.html : version de test (skins sans achat, chapitres et zones en un clic)
-npm test             # carte mentale + build + version autonome + 75 tests de bout en bout + 22 tests de la Forêt, dans Chromium
+npm test             # carte mentale + build + version autonome + 76 tests de bout en bout + 23 tests de la Forêt, dans Chromium
 ```
 
 Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -66,7 +66,7 @@ Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run 
 | `tools/kage_forge/enemies/grow20.py` | agrandissement de 20 % de TATE et WARA à l'export |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
 | `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
-| `tests/e2e.cjs` | 75 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tests/e2e.cjs` | 76 tests de bout en bout (Playwright) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/`, `karasu/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/carte-mentale/` | **carte mentale de tout le jeu**, à mettre à jour à chaque modification du jeu (règle de l'utilisateur ; `npm run carte` le vérifie, en ligne sur …/ninja-video-game/carte-mentale/) (page interactive : branches, une boîte par élément, détails et chemins de fichiers) ; contenu dans la liste `BRANCHES` de `index.html`, images par `tools/carte_mentale.py` ; page claude.ai privée : <https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi> |

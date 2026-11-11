@@ -10,7 +10,7 @@
 //     fougères devant KAGE (couche avant).
 // Les éléments vivants (travées, troncs flottants, eau…) sont peints par live.js ;
 // les décors (props.js) peuvent masquer les tuiles qu'ils dessinent eux-mêmes.
-import { Pix, ih, noise1, noise2, fbm2, pick, worley } from '../potager/paint.js';
+import { Pix, ih, noise1, noise2, fbm2, pick, worley, bayer } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 
@@ -35,6 +35,7 @@ export class ForetWorld {
     this.rows = level.rows.slice();
     this.mask = mask;                       // Set de 'tx,ty' : tuiles dessinées par un décor
     this.dark = level.forest?.dark ?? null;
+    this.hollows = level.forest?.def?.hollows ?? [];
     this.nx = Math.ceil(level.width / CH);
     this.ny = Math.ceil(level.height / CH);
     this.back = new Map();
@@ -84,6 +85,12 @@ export class ForetWorld {
       for (let tx = Math.floor(x0 / TILE); tx < Math.ceil((x0 + CH) / TILE); tx++) {
         const k = this.kind(tx, ty);
         if (!k || k === 9) {
+          const hb = !k && this.hollowBase(tx, ty);
+          if (hb) {
+            // le pied d'un grand tronc : un décor, KAGE passe devant (même écorce que le tronc)
+            for (let py = 0; py < TILE; py++) for (let px = 0; px < TILE; px++) pix.set(tx * TILE + px, ty * TILE + py, this.bark(tx, ty, tx * TILE + px, ty * TILE + py, hb));
+            continue;
+          }
           if (!k && this.niche(tx, ty)) this.cavity(pix, tx, ty);
           this.bulges(pix, tx, ty);
           continue;
@@ -171,7 +178,23 @@ export class ForetWorld {
     return pick(EARTH, v, x, y);
   }
 
+  /** Sous terre : une roche sombre bleu-vert (la caverne aux champignons), mousse turquoise au sol. */
+  caveRock(x, y, dTop, dBot, dL, dR) {
+    const R = ['#060c10', '#0a141a', '#0f1e25', '#152a32', '#1d3840', '#28494f', '#355d60'];
+    if (dTop < 4) return dTop === 0 ? (ih(x, 2, 5) < 0.5 ? '#2e8b6a' : '#20705a') : pick(['#0b2a2a', '#10403c', '#17594c'], 0.7 - dTop / 5, x, y);
+    const w = worley(x, y * 1.2, 11, 71, 0.85);
+    let v = 0.42 + (w.id - 0.5) * 0.3 + (noise2(x * 0.12, y * 0.12, 72) - 0.5) * 0.2 - Math.min(0.25, dTop / 200);
+    if (dTop < 14) v += 0.12;
+    if (dBot < 10) v -= 0.12;
+    if (dR < 4) v -= 0.2; else if (dL < 4) v += 0.15;
+    if (w.d2 - w.d < 0.8) return R[0];
+    if (fbm2(x * 0.08, y * 0.08, 2, 73) > 0.68 && dTop < 40) return pick(['#0b2a2a', '#10403c', '#17594c', '#20705a'], v, x, y);   // mousse sur la roche
+    return pick(R, v, x, y);
+  }
+
   humus(x, y, dTop, dBot, dL, dR, wet, fL = 999, fR = 999) {
+    const d = this.dark;
+    if (!wet && d && x > d.x0 && x < d.x1 && y > d.y0 + 6 + (bayer(x, y) + noise1(x * 0.05, 74) * 0.6) * 30) return this.caveRock(x, y, dTop, dBot, dL, dR);
     if (!wet && dTop >= 44 && dBot >= 16 && !this.under(x, y)) return this.cliff(x, y, fL, fR);
     const under = this.under(x, y);
     if (wet && dTop < 10) {
@@ -225,10 +248,17 @@ export class ForetWorld {
     return pick(C.RUIN, v, x, y);
   }
 
-  bark(tx, ty, x, y) {
+  /** Case du passage au pied d'un grand tronc (zones 2 et 5) : { a, b } (colonnes du tronc), ou null. */
+  hollowBase(tx, ty) {
+    for (const h of this.hollows) if (tx >= h.x0 && tx < h.x0 + h.w && ty >= h.ground - h.open && ty < h.ground) return { a: h.x0, b: h.x0 + h.w - 1 };
+    return null;
+  }
+
+  bark(tx, ty, x, y, run = null) {
     // la largeur du tronc à cette hauteur (course de « | »)
-    let a = tx; while (this.kind(a - 1, ty) === 3) a--;
-    let b = tx; while (this.kind(b + 1, ty) === 3) b++;
+    let a = tx; while (!run && this.kind(a - 1, ty) === 3) a--;
+    let b = tx; while (!run && this.kind(b + 1, ty) === 3) b++;
+    if (run) { a = run.a; b = run.b; }
     const x0 = a * TILE, w = (b - a + 1) * TILE;
     const u = (x - x0) / w, i = x - x0;
     const cyl = Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 2)));
@@ -255,7 +285,11 @@ export class ForetWorld {
       if (this.air(tx, ty - 1) && c !== '~' && c !== 'v' && c !== 'J') {
         const r = ih(tx, ty, 71);
         if (under) {
-          if (r < 0.25) L.grassTuft(back, x + 4 + Math.floor(ih(tx, ty, 72) * 8), y - 1, 2 + Math.floor(ih(tx, ty, 73) * 3), C.MOSS, tx);
+          // la mousse et les petites fougères de la caverne (bleu-vert, comme sous une lumière de champignons)
+          const CAVE = ['#0b2a2a', '#10403c', '#17594c', '#20705a', '#2e8b6a', '#4fae86'];
+          if (r < 0.45) L.grassTuft(back, x + 3 + Math.floor(ih(tx, ty, 72) * 10), y - 1, 2 + Math.floor(ih(tx, ty, 73) * 4), CAVE, tx);
+          if (r > 0.8) L.fern(back, x + 8, y, 6 + Math.floor(ih(tx, ty, 74) * 4), CAVE, tx);
+          for (let q = 0; q < 3; q++) if (ih(tx, ty, 120 + q) < 0.3) back.set(x + 2 + q * 5, y - 1, q % 2 ? '#6fd6ee' : '#a67cf0');   // spores qui luisent dans la mousse
           continue;
         }
         if (k === 2) {
@@ -274,6 +308,11 @@ export class ForetWorld {
           L.fern(front, x + 8, y + 2, 9 + Math.floor(ih(tx, ty, 77) * 5), [C.FERN[0], C.FERN[0], C.FERN[1], C.FERN[1], C.FERN[2], C.FERN[3]], tx + 5);
           anyFront = true;
         }
+      }
+      // sous terre, de loin en loin : une liane qui pend du plafond, ses perles de lumière
+      if (k === 1 && under && this.air(tx, ty + 1) && this.air(tx, ty + 2) && ih(tx, ty, 130) < 0.12) {
+        const lx = x + 4 + Math.floor(ih(tx, ty, 131) * 8), len = 8 + Math.floor(ih(tx, ty, 132) * 16);
+        for (let q = 0; q < len; q++) back.set(lx + Math.round(Math.sin(q * 0.4 + tx) * 0.8), y + TILE + q, q % 4 === 3 ? (ih(tx, q, 133) < 0.5 ? '#6fd6ee' : '#c4fbff') : '#10403c');
       }
       // dessous d'un plafond : radicelles et racines qui pendent
       if (k === 1 && this.air(tx, ty + 1) && this.ch(tx, ty + 1) !== '~') {

@@ -51,6 +51,8 @@ export class ForetProps {
     const mask = (x0, w, y0, y1) => { for (let i = 0; i < w; i++) for (let y = y0; y <= y1; y++) this.mask.add(`${x0 + i},${y}`); };
     this.add = add;
     const F = level.forest?.def ?? {};
+    // les travées du pont sont dessinées par live.js (elles tombent) : jamais par le terrain
+    for (const sp of F.spans ?? []) mask(sp.x0, sp.w, sp.row, sp.row);
 
     for (const p of level.props) {
       const X = p.x * TILE, Y = p.y * TILE;
@@ -111,11 +113,11 @@ export class ForetProps {
       const x0 = (vb[0].x - 9) * TILE, x1 = (vb[vb.length - 1].x + 9) * TILE, y = vb[0].y * TILE;
       add('behind', x0 - 40, y - 90, x1 - x0 + 80, level.height - y + 90, (pix) => vineBough(pix, level, x0, x1, y, vb));
     }
-    // arbres creux (zones 2 et 5) : l'intérieur sombre du passage, les racines du pied
+    // grands troncs (zones 2 et 5) : le pied est un décor (KAGE passe devant), peint par world.js ;
+    // seules deux petites racines s'enfoncent dans la mousse, au ras du sol
     for (const hw of F.hollows ?? []) {
       const X = hw.x0 * TILE, Y = hw.ground * TILE;
-      add('behind', X - 4, Y - (hw.open + 1) * TILE, hw.w * TILE + 8, (hw.open + 1) * TILE, (pix) => hollowInside(pix, X, Y, hw.w * TILE, hw.open * TILE));
-      add('over', X - 26, Y - (hw.open + 2) * TILE, hw.w * TILE + 52, (hw.open + 2) * TILE + 4, (pix) => hollowFoot(pix, X, Y, hw.w * TILE, hw.open * TILE, hw.x0));
+      add('behind', X - 14, Y - 12, hw.w * TILE + 28, 16, (pix) => trunkFoot(pix, X, Y, hw.w * TILE, hw.x0));
     }
     // les branches (« - ») : chacune tient à un tronc
     this.branches(add);
@@ -138,6 +140,9 @@ export class ForetProps {
           add('over', X - 8, Y - 6, W + 16, 14, (pix) => leafMat(pix, X, Y, W, tx));
           continue;
         }
+        // dans le boyau de l'arbre creux géant : un simple nœud du bois, pas d'arbre
+        const hg = lv.props.find((p) => p.type === 'hollow_giant' && tx >= p.x && tx < p.x + p.w && ty > p.top);
+        if (hg) { add('over', X - 4, Y - 4, W + 8, 14, (pix) => limb(pix, X - 2, X + W + 2, Y, tx === hg.x + 1 ? -1 : 1, tx * 7 + ty, false)); continue; }
         const climb = climbs.find((c) => Math.abs(c.x - tx) <= 3 && ty >= c.top - 1 && ty < c.y);
         const d = decl.find((p) => p.x === tx && p.y === ty);
         if (climb) {
@@ -151,11 +156,14 @@ export class ForetProps {
         const mid = tx + Math.floor(w / 2);
         const g = floorBelow(lv, mid, ty + 1);
         // le tronc à un bout de la branche (celui déclaré, sinon au hasard) : la branche en sort
-        const end = d?.from === 'right' ? 1 : d?.from === 'left' ? -1 : ih(tx, ty, 5) < 0.5 ? -1 : 1;
-        const tcx = (end > 0 ? tx + w : tx) * TILE + (end > 0 ? 6 : -6);
+        const end = d?.from === 'center' ? 0 : d?.from === 'right' ? 1 : d?.from === 'left' ? -1 : ih(tx, ty, 5) < 0.5 ? -1 : 1;
+        const tcx = end === 0 ? X + W / 2 : (end > 0 ? tx + w : tx) * TILE + (end > 0 ? 6 : -6);
         const bottom = Math.min(lv.height, g * TILE + 4), topY = Math.max(0, Y - 260);
         add('behind', tcx - 44, topY, 88, bottom - topY, (pix) => branchTree(pix, tcx, Y, bottom, topY, tx * 3 + ty));
-        add('over', X - 12, Y - 12, W + 24, 28, (pix) => limb(pix, end > 0 ? X - 4 : tcx, end > 0 ? tcx : X + W + 4, Y, -end, tx * 7 + ty, true));
+        if (end === 0) {
+          // le tronc au milieu : deux branches de part et d'autre
+          add('over', X - 12, Y - 12, W + 24, 28, (pix) => { limb(pix, X - 4, tcx, Y, -1, tx * 7 + ty, true); limb(pix, tcx, X + W + 4, Y, 1, tx * 7 + ty + 1, true); });
+        } else add('over', X - 12, Y - 12, W + 24, 28, (pix) => limb(pix, end > 0 ? X - 4 : tcx, end > 0 ? tcx : X + W + 4, Y, -end, tx * 7 + ty, true));
         if (d?.nest) add('over', X + W / 2 - 18, Y - 14, 36, 18, (pix) => nest(pix, X + W / 2, Y));
       }
     }
@@ -278,8 +286,9 @@ function giantRoot(pix, level, p) {
     // la masse : le bloc, plus un empattement qui plonge vers le tronc creux à gauche
     const t = (y - Y) / Hh;
     const right = X + W + 2 + Math.round((noise1(y * 0.12, 5) - 0.5) * 6) - Math.round(Math.max(0, 0.25 - t) * 30);
-    const left = X - Math.round(Math.max(0, t - 0.55) * 110) + Math.round((noise1(y * 0.1, 6) - 0.5) * 4);
-    const topY = Y + Math.round((noise1(x * 0.08, 7) - 0.5) * 3) + (x < X ? Math.round((X - x) * 0.9 + 6) : 0);
+    // (sans empattement : la racine s'arrête au bord de son bloc, rien ne déborde dans le puits)
+    const left = X + Math.round((noise1(y * 0.1, 6) - 0.5) * 3);
+    const topY = Y + Math.round((noise1(x * 0.08, 7) - 0.5) * 3);
     if (x < left || x > right || y < topY) continue;
     // la cache creusée dans le pied (tuiles vides du bloc) : laissée à live.js (lierre) ; ici, la pénombre
     const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
@@ -572,6 +581,17 @@ function vineBough(pix, level, x0, x1, y, vb) {
     }
   }
   for (let x = x0; x < x1; x += 34) L.bush(pix, x + Math.floor(ih(x, 1, 9) * 20), y - 14, 22, 16, leaf, x);
+}
+
+/** Deux racines basses de part et d'autre du pied d'un grand tronc. */
+function trunkFoot(pix, X, Y, W, seed) {
+  for (const side of [-1, 1]) {
+    const x0 = side < 0 ? X : X + W - 1, len = 9 + Math.floor(ih(seed, side, 3) * 4);
+    for (let s = 0; s < len; s++) {
+      const th = Math.max(1, Math.round((1 - s / len) * 6));
+      for (let j = 0; j < th; j++) pix.set(x0 + side * s, Y - th + j + 1, j === 0 ? (side < 0 ? C.BARK[4] : C.BARK[2]) : C.BARK[1 + (j % 2)]);
+    }
+  }
 }
 
 /** L'intérieur d'un arbre creux (le passage à pied, au pied du tronc). */

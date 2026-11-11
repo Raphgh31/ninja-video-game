@@ -24,7 +24,7 @@ export const FOREST = {
     grab: 12,          // distance (px) à laquelle la main attrape la liane
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
-    jumpUp: 270,       // impulsion du bond pour quitter une liane immobile (statue)
+    jumpUp: 320,       // impulsion du bond pour quitter une liane immobile (statue, canopée : de quoi passer sur la branche)
     hop: 60,           // petit coup de reins en quittant une liane qui se balance
     boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)

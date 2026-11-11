@@ -88,17 +88,32 @@ async function main() {
 
   await test('zone 7 : la canopée se traverse de branche en branche', async () => {
     const r = await run('z7');
-    expect(r[2].length === 0 && r[3] >= r[5] - 14, JSON.stringify(r));
+    expect(r[2].length === 0 && r[3] >= r[5] - 18, JSON.stringify(r));
   });
 
-  await test('zone 7 : une chute dans la canopée ne tue pas (on retombe dans le sous-bois)', async () => {
+  await test('zone 7 : une chute de la canopée jusqu\'au sous-bois est mortelle (plus de 10,5 cases)', async () => {
     const r = await ev(() => {
-      const l = __kage.level; let c = l.zones[6].x0 + 30; while (!l.ledge(c, 13)) c++;
-      bot.place(c, 13); const hp = bot.p.hp; bot.p.y += 20; bot.p.onGround = false;
-      bot.run(2.5, () => bot.dead());
-      return [bot.dead(), bot.p.hp === hp, bot.row()];
+      const l = __kage.level; let c = l.zones[6].x0 + 30; while (!l.ledge(c, 9)) c++;
+      bot.place(c, 9); bot.p.y += 20; bot.p.onGround = false;
+      let died = false; bot.run(2.5, () => { if (bot.p.state === 'death') died = true; return died; });
+      return [died];
     });
-    expect(!r[0] && r[1] && r[2] === 22, JSON.stringify(r));
+    expect(r[0], JSON.stringify(r));
+  });
+
+  await test('zone 7 : depuis le sous-bois, une liane permet de remonter sur une branche (↑ puis un bond)', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, l = __kage.level, z = l.zones[6];
+      const v = f.vines.find((q) => q.still && q.ax > z.px0 && q.ax < z.px1);
+      bot.place(Math.floor(v.ax / 16) - 2, 22);
+      bot.run(1.2, (p) => { bot.set({ right: true }); if (p.onGround && p.x > v.ax - 20) bot.tap('jump'); return p.state === 'vine'; });
+      const grabbed = bot.p.state === 'vine';
+      bot.clear(); bot.set({ up: true }); bot.run(4, (p) => p.vineR <= 23);
+      bot.tap('jump');                       // ↑ toujours tenu : un bond droit vers le haut, à travers la branche
+      bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+      return [grabbed, bot.row(), bot.dead()];
+    });
+    expect(r[0] && r[1] < 14 && !r[2], JSON.stringify(r));
   });
 
   await test('zone 8 : le souterrain se traverse (glissades, mare, puits de racines)', async () => {

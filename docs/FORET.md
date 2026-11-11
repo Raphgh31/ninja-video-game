@@ -98,6 +98,16 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **Raccord** : la porte du temple mène à la Forêt (fondu au noir, carte « Fin de l'initiation — Chapitre 2 — La Forêt — Le voyage commence », champ `intro`) ; la sauvegarde suit KAGE (ryō, skins, corbeau vaincu, temps ; `save.statue`) ; l'adresse sans ancre ouvre le chapitre en cours ; « Nouvelle partie » repart du chapitre 1 ; fin du chapitre 2 : écran de fin (`endText`).
 - Caméra : cadrage imposé par la zone (`camGround` de la statue).
 
+### Retours n° 1 de l'utilisateur (11 novembre 2026), appliqués
+- son du torrent et de l'eau baissé de 6 dB (clapotis des troncs : −5 dB) ;
+- caméra : elle ne descend plus quand KAGE tombe dans l'eau, un ravin ou d'un pont (tout le jeu) ;
+- zone 2 : plus de triangle de terre au pied des racines géantes, plus de cavités noires sous les grands troncs (leur pied est un décor : KAGE passe devant ; le tronc sert toujours de mur pour le saut mural) ;
+- zone 3 : l'arbre du gué pousse sur la pierre du milieu, sa branche est une case plus bas (3 cases : un saut) ;
+- zone 4 : les dalles tombées ne restent plus peintes sur le pont (c'était le terrain qui les dessinait) ;
+- **dégâts de chute** dans tout le jeu (au-delà de 10,5 cases : mort) ; la canopée est 4 cases plus haute (G7 = 9) : toute chute jusqu'au sous-bois tue ; des **lianes à grimper** pendent sous cinq branches (↑ puis un bond, ↑ tenu) ; l'arbre creux qui descend sous terre a des paliers en quinconce ;
+- canopée : les arbres du fond sont de grands pins à plateaux (comme ceux où KAGE se tient), certains montrent leur cime, de petites lianes pendent ;
+- souterrain : roche bleu-vert, mousse turquoise, fougères, spores lumineuses, lianes à perles de lumière, plus de champignons (turquoise et violets) avec leur halo coloré, pénombre moins dense ; au fond, de grands champignons lumineux et des mares qui luisent.
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

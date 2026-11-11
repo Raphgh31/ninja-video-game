@@ -146,6 +146,12 @@ export class ForetLive {
     this.statueArt = null;
     this.halo = haloSprite(72);
     this.haloSmall = haloSprite(26);
+    // halos colorés (lumière des champignons) : turquoise, violet
+    this.tint = ['#3fb0b8', '#8f6ae0'].map((col) => {
+      const h = haloSprite(32), c = canvas(64, 64), g = c.getContext('2d');
+      g.drawImage(h, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, 64, 64);
+      return c;
+    });
     this.shade = null;
     this.fore = {};
     this.mirror = null;
@@ -173,7 +179,7 @@ export class ForetLive {
     const d = f?.dark;
     if (d) for (let tx = Math.floor(d.x0 / TILE); tx < d.x1 / TILE; tx++) for (let ty = Math.floor(d.y0 / TILE) + 2; ty < level.h - 1; ty++) {
       const solidBelow = '#='.includes(this.rows[ty + 1]?.[tx]), air = this.rows[ty][tx] === '.';
-      if (air && solidBelow && ih(tx, ty, 17) < 0.14 && !this.glows.some((g) => Math.abs(g.x - tx * TILE) < 48)) this.glows.push({ x: tx * TILE + 8, y: (ty + 1) * TILE, lit: 0, small: true });
+      if (air && solidBelow && ih(tx, ty, 17) < 0.3 && !this.glows.some((g) => Math.abs(g.x - tx * TILE) < 30 && Math.abs(g.y - (ty + 1) * TILE) < 40)) this.glows.push({ x: tx * TILE + 8, y: (ty + 1) * TILE, lit: 0, small: true, big: ih(tx, ty, 18) < 0.35 });
     }
     // oiseaux posés à la lisière (zones 1, 3, 12) : ils s'envolent quand KAGE approche
     this.birds = [];
@@ -487,7 +493,7 @@ export class ForetLive {
     const x0 = R(d.x0 - cam.x), x1 = R(d.x1 - cam.x), y0 = deep ? -999 : R(d.y0 - cam.y);   // sous terre : tout l'écran
     // la nuit tombe progressivement en descendant dans l'arbre creux
     for (let y = Math.max(0, y0); y < vh; y++) {
-      const a = Math.min(0.76, Math.max(0, (y - y0) / 48) * 0.76);
+      const a = Math.min(0.62, Math.max(0, (y - y0) / 48) * 0.62);
       g.fillStyle = `rgba(3,7,11,${a.toFixed(3)})`;
       g.fillRect(Math.max(0, x0), y, Math.min(vw, x1) - Math.max(0, x0), 1);
     }
@@ -504,17 +510,28 @@ export class ForetLive {
     }
     g.globalCompositeOperation = 'source-over';
     ctx.drawImage(this.shade, 0, 0);
-    // la lueur des champignons, par-dessus
+    // la lueur colorée des champignons (turquoise ou violette), puis les champignons eux-mêmes
+    ctx.globalCompositeOperation = 'lighter';
     for (const m of this.glows) {
       const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
-      if (sx < -20 || sx > vw + 20 || sy < -20 || sy > vh + 20) continue;
-      const n = m.big ? 0 : 2;
-      for (let k = n; k < 4; k++) {
-        const kx = sx - 6 + k * 4 + (k % 2), s = 1 + ((k + m.x) % 3);
-        ctx.fillStyle = '#9fb8c8'; ctx.fillRect(kx, sy - s, 1, s);
-        ctx.fillStyle = m.lit > 0.2 ? (k % 2 ? C.GLOW[3] : C.VIOLET[2]) : (k % 2 ? C.GLOW[1] : C.VIOLET[0]);
-        ctx.fillRect(kx - 1, sy - s - 2, 3, 2);
-        if (m.lit > 0.2) { ctx.fillStyle = C.GLOW[4]; ctx.fillRect(kx - 1, sy - s - 2, 1, 1); }
+      if (m.lit <= 0.05 || sx < -40 || sx > vw + 40 || sy < -40 || sy > vh + 40) continue;
+      const img = this.tint[(m.x >> 4) % 3 === 1 ? 1 : 0], r = m.big ? 34 : 24;
+      ctx.globalAlpha = m.lit * (0.5 + 0.1 * Math.sin(time * 1.7 + m.x));
+      ctx.drawImage(img, sx - r, sy - 10 - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    for (const m of this.glows) {
+      const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
+      if (sx < -20 || sx > vw + 20 || sy < -30 || sy > vh + 20) continue;
+      const violet = (m.x >> 4) % 3 === 1, cap = violet ? C.VIOLET : [C.GLOW[1], C.GLOW[2], C.GLOW[3], C.GLOW[4]];
+      for (let k = 0; k < (m.big ? 5 : 3); k++) {
+        const kx = sx - 7 + k * 4 + (k % 2) * 2, h = 2 + ((k * 7 + (m.x >> 4)) % (m.big ? 8 : 5)), w = 1 + (h > 5 ? 2 : 1);
+        ctx.fillStyle = '#9fb8c8'; ctx.fillRect(kx, sy - h, 1, h);
+        ctx.fillStyle = m.lit > 0.2 ? cap[2] : cap[0];
+        ctx.fillRect(kx - w, sy - h - 2, w * 2 + 1, 2);
+        ctx.fillRect(kx - w + 1, sy - h - 3, w * 2 - 1, 1);
+        if (m.lit > 0.2) { ctx.fillStyle = cap[3]; ctx.fillRect(kx - w + 1, sy - h - 3, 1, 1); }
       }
     }
   }

@@ -534,6 +534,26 @@ async function main() {
     expect(shown && i[0] === 9 && i[1] >= 9 && i.slice(2).join() === 'true,true,false,KARASU-KASHI', `titre ${shown}, ${i.join()}`);
   });
 
+  await test('potager : dégâts de chute — de la poutre de la serre (10 cases), KAGE se pose ; du toit (13 cases), il meurt', async () => {
+    const drop = async (roof) => {
+      await pg.evaluate((roof) => {
+        const g = window.__kage, pl = g.player, l = g.level;
+        const s = l.backdrops.find((b) => b.type === 'serre');
+        // la poutre dépasse de la serre (on se laisse tomber dehors) ; le toit s'arrête à son bord
+        const row = roof ? s.y0 : s.y1 - 10, col = roof ? s.x0 : s.x1 + 1;   // (le toit : par son bout gauche, rien en dessous)
+        pl.x = col * 16 + 8; pl.y = row * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.invuln = 0; pl.hp = 5; pl.setState('idle');
+      }, roof);
+      const key = roof ? 'ArrowLeft' : 'ArrowRight';
+      await PK.down(key); await pw(220); await PK.up(key);
+      let died = false;
+      for (let i = 0; i < 20 && !died; i++) { await pw(60); died = await pg.evaluate(() => window.__kage.player.state === 'death'); }
+      await pw(1400);
+      return died;
+    };
+    const beam = await drop(false), roof = await drop(true);
+    expect(!beam && roof, `poutre : mort ${beam}, toit : mort ${roof}`);
+  });
+
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
     await pw(1500);
     const m = await pg.evaluate(() => { const m = window.__kage.music, v = m.voices.main; return [m.playing && m.active === 'main', v.source?.loop, v.source?.loopStart, v.source?.loopEnd, v.buffer?.duration ?? 0]; });

@@ -10,7 +10,9 @@ const P = {
   accel: 1400,
   friction: 1800,
   airFriction: 450,  // freinage en l'air quand on lâche la direction (garde l'élan, utile pour le dash au double appui)
-  flingDrag: 70,     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
+  flingDrag: 70,
+  fallLimit: 168,    // chute mortelle au-delà de 10,5 cases entre le sol quitté et le sol d'arrivée
+                     // (la poutre de la serre, 10 cases au-dessus du sol, est la limite sans dégâts ; le toit, 13 cases, tue)     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
   maxFall: 420,
   jump: 315,
@@ -76,6 +78,7 @@ export class Player {
     this.vine = null;         // liane tenue (chapitre 2)
     this.vineCd = 0;
     this.fling = false;       // élan d'une liane en cours (en l'air)
+    this.fallFrom = this.y;   // hauteur du dernier appui (dégâts de chute)
     this.lastVine = null;
     this.ride = null;         // plateforme mobile sous ses pieds
     this.level.resetTargets?.();
@@ -173,6 +176,7 @@ export class Player {
       case 'vine':
         // accroché à une liane : balancier, grimpe et lâcher sont gérés par la forêt
         this.level.forest.rideVine(this, dt, input);
+        this.fallFrom = this.y;   // accroché : la chute se compte depuis le lâcher
         this.energy.update(dt, { resting: true });
         return;
       case 'dash':
@@ -387,6 +391,16 @@ export class Player {
     const wasGround = this.onGround;
     const fallSpeed = this.vy;
     this.move(dt);
+    // dégâts de chute : la hauteur se compte depuis le dernier appui (sol, glissade murale, liane)
+    if (this.onGround) {
+      if (!wasGround && this.y - this.fallFrom > P.fallLimit) {
+        this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });
+        this.fallFrom = this.y;
+        this.die();
+        return;
+      }
+      this.fallFrom = this.y;
+    } else if (this.state === 'wall_slide') this.fallFrom = this.y;
 
     if (this.onGround) {
       this.coyote = P.coyote;

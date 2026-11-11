@@ -50,6 +50,7 @@ function paintPlane(id, mood) {
       L.firRow(p, GY - 50, n(24), 22, 50, 0.2, mood.firs[0], 11, 5);
       break;
     case 'firs':
+      if (mood.crowns) { padTrees(p, n(9), 3, 6, mood.stems[0], mood.firs[0], 13, GY - 30); L.firRow(p, GY - 28, n(12), 46, 92, 0.19, mood.firs[1], 17, 6); break; }
       L.stems(p, GY - 30, n(15), 2, 5, mood.stems[0], 13);
       L.firRow(p, GY - 28, n(12), 46, 92, 0.19, mood.firs[1], 17, 6);
       break;
@@ -57,6 +58,7 @@ function paintPlane(id, mood) {
       L.paintMist(p, mood.haze, 41, (t) => Math.max(0, 1 - Math.abs(t - 0.66) / 0.2), 1.25);
       break;
     case 'near':
+      if (mood.crowns) { padTrees(p, n(5), 7, 12, mood.stems[1], mood.firs[2], 19, GY - 12); L.firRow(p, GY - 8, n(6), 84, 150, 0.17, mood.firs[2], 23, 5); break; }
       L.stems(p, GY - 12, n(8), 4, 10, mood.stems[1], 19);
       L.firRow(p, GY - 8, n(6), 84, 150, 0.17, mood.firs[2], 23, 5);
       break;
@@ -96,6 +98,35 @@ function paintPlane(id, mood) {
   return p.done();
 }
 
+/**
+ * Les grands pins de la canopée, au loin (même dessin que ceux où KAGE se tient) :
+ * un fût, des plateaux de feuillage alternés, de petites lianes ; certains montrent
+ * leur cime (on comprend qu'ils ne sont pas infinis), les autres sortent du cadre.
+ */
+function padTrees(p, count, w0, w1, stem, leaf, seed, base) {
+  const [col, edge, lit] = stem, [dark, mid, light] = leaf;
+  for (let i = 0; i < count; i++) {
+    const x = Math.round(((i + 0.1 + ih(i, seed, 1) * 0.8) * W) / count), w = Math.round(w0 + ih(i, seed, 2) * (w1 - w0));
+    const cime = ih(i, seed, 3) < 0.55, top = cime ? 18 + Math.floor(ih(i, seed, 4) * 60) : 0;
+    for (let y = top + (cime ? 10 : 0); y < base + 6; y++) for (let dx = 0; dx < w; dx++) p.set(x + dx, y, dx === 0 ? lit : dx >= w - 1 ? edge : col);
+    // les plateaux de feuillage, de part et d'autre
+    for (let k = 0, y = (cime ? top + 18 : 14) + Math.floor(ih(i, seed, 5) * 20); y < base - 20; k++, y += 26 + Math.floor(ih(i, k, seed) * 18)) {
+      const side = (k + i) % 2 ? 1 : -1, pw = Math.round(w * 1.4 + 6 + ih(i, k, seed + 1) * w), ph = 4 + Math.floor(w / 3);
+      const cx = x + w / 2 + side * (w / 2 + pw * 0.45);
+      for (let q = 0; q < pw * 0.5; q++) p.set(Math.round(x + w / 2 + side * q), y + ph - 1 - Math.round(q * 0.2), edge);
+      for (let yy = -ph; yy <= ph * 0.6; yy++) for (let xx = -pw; xx <= pw; xx++) {
+        const e = (xx * xx) / (pw * pw) + (yy * yy) / (ph * ph) + (ih(xx >> 1, yy, seed + k) - 0.5) * 0.35;
+        if (e > 1) continue;
+        p.set(cx + xx, y + yy, yy < -ph * 0.35 && xx < pw * 0.3 ? light : yy > ph * 0.2 ? dark : mid);
+      }
+      // une petite liane qui pend du plateau
+      if (ih(i, k, seed + 2) < 0.5) for (let q = 0, len = 6 + Math.floor(ih(i, k, seed + 3) * 16); q < len; q++) p.set(Math.round(cx + Math.sin(q * 0.3) * 1), y + ph * 0.6 + q, q % 3 ? dark : mid);
+    }
+    // la cime : une pointe de pin
+    if (cime) L.fir(p, x + w / 2, top + 26, 30, 8 + w * 0.6, [dark, mid, light], seed * 7 + i);
+  }
+}
+
 /** Sous terre : une paroi de terre au loin, des racines qui pendent, des points de lumière. */
 function paintCavePlane(id, p, mood) {
   if (id === 'far') {
@@ -104,7 +135,7 @@ function paintCavePlane(id, p, mood) {
       p.set(x, y, pick(['#06090b', '#0a0f12', '#0e1518', '#121b1e'], v, x, y));
     }
     // filons de lueurs (champignons lointains)
-    for (let i = 0; i < n(26); i++) {
+    for (let i = 0; i < n(60); i++) {
       const x = Math.floor(ih(i, 1, 9) * W), y = 40 + Math.floor(ih(i, 2, 9) * 170);
       p.set(x, y, C.GLOW[2 + (i % 2)]);
       if (i % 3 === 0) p.set(x + 1, y, C.GLOW[2], 120);
@@ -129,10 +160,45 @@ function paintCavePlane(id, p, mood) {
         for (let s = 0; s < len; s++) p.set(x0 + (side < 0 ? 0 : w) + side * Math.round(s * 0.5), y0 + s, ramp[1]);
       }
     }
+    // la caverne vit : de grands champignons lumineux, des mares qui luisent, de la mousse
+    if (k >= 1) caveLife(p, k, mood);
   } else if (id === 'mistA' || id === 'mistB') {
-    L.paintMist(p, mood.haze, id === 'mistA' ? 43 : 49, (t) => Math.max(0, 1 - Math.abs(t - 0.85) / 0.14), 1.1);
+    L.paintMist(p, id === 'mistA' ? '#2a6f7a' : '#3b3a7a', id === 'mistA' ? 43 : 49, (t) => Math.max(0, 1 - Math.abs(t - 0.85) / 0.14), 1.1);
   }
   return p.done();
+}
+
+/** Grands champignons lumineux (turquoise et violet), mares qui luisent, touffes de mousse : d'après l'image de l'utilisateur. */
+function caveLife(p, k, mood) {
+  const dim = k === 1 ? 0.55 : 0.85;                           // le plan lointain est plus terne
+  const T = ['#16404a', '#1f6a76', '#3fb0b8', '#8ff0ec'], V = ['#2c2058', '#4a3a9a', '#8f6ae0', '#d6c2ff'];
+  const mix = (a) => a.map((c) => L.mixHex('#05080b', c, dim));
+  // le sol de la caverne, ses mares turquoise
+  for (let x = 0; x < W; x++) {
+    const top = GY - 6 - Math.round(L.pf(x, W, 0.03, 3, 60 + k) * 18);
+    for (let y = top; y < H; y++) p.set(x, y, pick(mix(['#0b1012', '#101a1c', '#16262a', '#1d3436']), 0.5 - (y - top) / 60, x, y));
+    const pool = Math.sin(x * 0.012 + k) > 0.55;
+    if (pool) for (let y = top + 2; y < top + 7; y++) p.set(x, y, mix(T)[y === top + 2 ? 3 : 2 - Math.floor((y - top - 2) / 2) + (y > top + 4 ? 0 : 1)]);
+    if (ih(x, k, 61) < 0.25) for (let q = 0; q < 2 + Math.floor(ih(x, k, 62) * 4); q++) p.set(x, top - q, mix(['#123a2e', '#1b5a3c', '#2e8b57'])[q > 2 ? 2 : 1]);
+  }
+  // les champignons
+  const cnt = k === 1 ? n(9) : n(6);
+  for (let i = 0; i < cnt; i++) {
+    const x = Math.floor(((i + ih(i, k, 63) * 0.8) * W) / cnt), cols = mix(i % 3 === 1 ? V : T);
+    const big = (k === 2 ? 14 : 8) + Math.floor(ih(i, k, 64) * (k === 2 ? 16 : 9)), stemH = big * (1.3 + ih(i, k, 65) * 1.2);
+    const gy = GY - 6 - Math.round(L.pf(x, W, 0.03, 3, 60 + k) * 18), top = gy - stemH;
+    // halo tramé autour du chapeau
+    for (let yy = -big * 1.4; yy < big * 1.2; yy++) for (let xx = -big * 2; xx < big * 2; xx++) {
+      const d = Math.hypot(xx / (big * 2), yy / (big * 1.3));
+      if (d < 1 && bayer(x + xx, Math.round(top + yy)) < (1 - d) * 0.35) p.set(x + xx, top + yy, cols[1], 140);
+    }
+    for (let y = Math.round(top); y < gy; y++) for (let dx = -1; dx <= 1; dx++) p.set(x + dx + Math.round(Math.sin((y - top) * 0.08) * 2), y, dx < 0 ? '#9fb8c8' : '#5c7280');
+    for (let yy = -Math.round(big * 0.55); yy <= 0; yy++) {
+      const hw = Math.round(big * Math.sqrt(1 - (yy * yy) / (big * big * 0.3)));
+      for (let xx = -hw; xx <= hw; xx++) p.set(x + xx, top + yy, yy === 0 ? cols[0] : xx < -hw * 0.3 && yy < -big * 0.2 ? cols[3] : cols[2]);
+    }
+    for (let xx = -big; xx <= big; xx += 3) if (ih(xx, i, 66) < 0.6) for (let q = 1; q < 3 + Math.floor(ih(xx, i, 67) * 5); q++) p.set(x + xx, top + q, cols[1], 180);   // lamelles qui pendent
+  }
 }
 
 function paintVault(mood) {

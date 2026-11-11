@@ -24,8 +24,8 @@ P.z5 = () => { bot.place(Z(5).x0 + 2); bot.runner(5, { until: (p) => p.onGround 
   bot.runner(2); return ['z5', a, t, log, bot.col(), bot.row()]; };
 // zone 6 : de tronc en tronc
 // zone 7 : la canopée, depuis la première branche
-P.z7 = () => { const l = __kage.level; let c = Z(7).x0 + 8; while (!l.ledge(c, 13)) c++; bot.place(c + 1, 13); const falls = []; let fell = false;
-  const t = bot.runner(60, { sprintGap: 5, dashGap: 6, aim: true, rest: true, until: (p) => { if (p.y > 20 * 16 && !fell) { fell = true; falls.push(bot.col()); } return fell || p.x > (Z(8).x0 - 14) * 16; } });
+P.z7 = () => { const l = __kage.level; let c = Z(7).x0 + 8; while (!l.ledge(c, 9)) c++; bot.place(c + 1, 9); const falls = []; let fell = false;
+  const t = bot.runner(60, { sprintGap: 5, dashGap: 6, aim: true, rest: true, until: (p) => { if (p.y > 18 * 16 && !fell) { fell = true; falls.push(bot.col()); } return fell || p.x > (Z(8).x0 - 18) * 16; } });
   return ['z7', t, falls, bot.col(), bot.row(), Z(8).x0]; };
 // fin de la canopée : on entre dans l'arbre creux et on tombe sous terre ; puis tout le souterrain
 P.z8b = () => { const l = __kage.level; const log = [];

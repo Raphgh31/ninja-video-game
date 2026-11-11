@@ -416,8 +416,8 @@ const SOUNDS = {
   },
   // un tronc s'enfonce sous KAGE : clapotis, bulles
   logDip: () => {
-    air({ dur: 0.35, vol: 0.07, type: 'lowpass', q: 0.8, f: [[0, 1400], [1, 500]], g: [[0, 1], [0.3, 0.5], [1, 0.01]] });
-    for (let i = 0; i < 3; i++) tone({ f: rnd(500, 900), to: rnd(900, 1400), dur: 0.05, type: 'sine', vol: 0.018, delay: 0.08 + i * 0.07 });
+    air({ dur: 0.35, vol: 0.039, type: 'lowpass', q: 0.8, f: [[0, 1400], [1, 500]], g: [[0, 1], [0.3, 0.5], [1, 0.01]] });   // −5 dB (l'eau)
+    for (let i = 0; i < 3; i++) tone({ f: rnd(500, 900), to: rnd(900, 1400), dur: 0.05, type: 'sine', vol: 0.01, delay: 0.08 + i * 0.07 });
   },
   // lianes : on s'y accroche (feuilles froissées, la liane se tend), on lâche (souffle), on grimpe
   vineGrab: ({ still = false } = {}) => {
@@ -508,7 +508,7 @@ export function ambience(dt, mix) {
     amb.windR.g.gain.setTargetAtTime(Math.max(0.0001, (m.wind ?? 0) * 0.07 * (1.1 - gust * 0.6)), t, 0.4);
     amb.windL.fl.frequency.setTargetAtTime(380 + gust * 420, t, 0.6);
     amb.windR.fl.frequency.setTargetAtTime(520 + (1 - gust) * 380, t, 0.6);
-    amb.water.g.gain.setTargetAtTime(Math.max(0.0001, (m.water ?? 0) * 0.1), t, 0.5);
+    amb.water.g.gain.setTargetAtTime(Math.max(0.0001, (m.water ?? 0) * 0.05), t, 0.5);   // −6 dB : le torrent laissait trop peu de place à la musique (demande de l'utilisateur)
     amb.cave.g.gain.setTargetAtTime(Math.max(0.0001, (m.cave ?? 0) * 0.12), t, 0.6);
   }
   if (!mix) return;

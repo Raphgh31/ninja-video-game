@@ -12,7 +12,7 @@ import { Builder } from './builder.js';
 
 const H = 72;
 const TILE = 16;
-export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 13, souterrain: 36, sanctuaire: 36, vallee: 62 };
+export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 36, sanctuaire: 36, vallee: 62 };
 
 function build() {
   const b = new Builder(H, 50);
@@ -145,9 +145,10 @@ function build() {
   water(3, G1); ground(1, G1 - 1); water(3, G1); ground(2, G1 - 1); water(3, G1);
   x = b.x; ground(2, G1 - 1);
   b.prop('boulder', x - 9, G1 - 1, { w: 1, wet: true }); b.prop('boulder', x - 5, G1 - 1, { w: 2, wet: true }); b.prop('boulder', x, G1 - 1, { w: 2, wet: true });
-  b.row(x - 5, 2, G1 - 5, '-');                        // une branche basse au-dessus du gué : deux ryō pour les curieux
-  coins([x - 5, x - 4], G1 - 6);
-  b.prop('branch', x - 5, G1 - 5, { w: 2, from: 'top' });
+  // un jeune arbre pousse sur la pierre du gué ; sa branche basse (3 cases : un saut) porte deux ryō
+  b.row(x - 5, 2, G1 - 4, '-');
+  coins([x - 5, x - 4], G1 - 5);
+  b.prop('branch', x - 5, G1 - 4, { w: 2, from: 'center' });
   water(6, G1);
   ground(16, G1);
   coins([b.x - 12, b.x - 9, b.x - 6], G1 - 2);
@@ -267,8 +268,12 @@ function build() {
   branch(65, G7 - 1, 4); coin(c0 + 61, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
   branch(72, G7 + 1, 3);
   // le nid, au-dessus du chemin : on y monte par deux petites branches
-  branch(68, G7 - 4, 2); branch(72, G7 - 7, 4, { nest: true });
-  b.prop('chest', c0 + 74, G7 - 7, { id: 'nid', ryo: 12 });
+  branch(68, G7 - 3, 2); branch(72, G7 - 5, 4, { nest: true });
+  b.prop('chest', c0 + 74, G7 - 5, { id: 'nid', ryo: 12 });
+  // des lianes pendent sous quelques branches jusqu'au sous-bois : on s'y accroche pour remonter (↑, puis un bond)
+  for (const [bx, row, w] of [[12, G7, 3], [27, G7 - 1, 3], [51, G7, 2], [65, G7 - 1, 4], [88, G7 + 1, 3]]) {
+    vine(c0 + bx + w / 2, row + 0.15, G6 - row - 0.55);
+  }
   climbTree(c0 + 80, G7 + 1);                          // dernière remontée
   branch(81, G7 + 2, 4);
   branch(88, G7 + 1, 3); coin(c0 + 86, G7 - 1);        // 3 cases
@@ -285,6 +290,8 @@ function build() {
   fill(pit - 1, 1, G7 + 3, G6 - 1, '|'); fill(pit + 3, 1, G7 - 3, G6 - 1, '|');
   b.prop('hollow_giant', pit - 1, G6, { w: 5, top: G7 - 3 });
   carve(pit, 3, G6, G8 - 1);
+  // dans le boyau, des nœuds du bois en quinconce : on descend de palier en palier (une chute directe serait mortelle)
+  for (let r = G7 + 7, k = 0; r < G8 - 2; r += 5, k++) b.row(pit + (k % 2), 2, r, '-');
   coins([pit + 1], G6 + 2); coins([pit + 1], G6 + 6); coins([pit + 1], G6 + 10);
   zone('08', 'Le souterrain des racines entrelacées', { mood: 'souterrain' });
   const u0 = b.x;

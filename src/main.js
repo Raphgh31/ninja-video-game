@@ -245,6 +245,7 @@ player.onEvent = (n, d) => {
     case 'swing_heavy': sfx('swingHeavy'); break;
     case 'kick_breath': sfx('breath'); break;
     // lianes de la Forêt
+    case 'fall_death': sfx('land', { strength: 1 }); fx.shake(2, 0.25); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
     case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
     case 'vine_release': sfx('vineRelease'); break;
     case 'vine_step': sfx('vineStep'); break;
@@ -816,11 +817,24 @@ function updateCamera(dt) {
   // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
   const y = camV.t < 1 ? camV.to : camera.y;
   if (alive && player.y - 31 < y + VIEW_H * CAM.top) retargetY(player.y - 31 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
-  else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
+  // vers le bas, seulement s'il descend vers un vrai sol (pas dans l'eau, un ravin, ou hors de la carte) :
+  // sinon l'image reste figée et KAGE sort de l'écran par le bas
+  else if (alive && player.y > y + VIEW_H * CAM.bottom && groundBelow(player.x, player.y) != null) retargetY(player.y + 32);
   if (camV.t < 1) {
     camV.t = Math.min(1, camV.t + dt / camV.dur);
     camera.y = camV.from + (camV.to - camV.from) * ease(camV.t);
   }
+}
+
+/** Ligne du premier vrai sol sous (x, y) (tuile pleine ou passerelle), ou null : eau, vide, bas de la carte. */
+function groundBelow(x, y) {
+  const tx = Math.floor(x / 16);
+  for (let ty = Math.floor(y / 16); ty < level.h; ty++) {
+    const c = level.at(tx, ty);
+    if (c === '~' || c === 'v' || c === '^') return null;
+    if (level.solid(tx, ty) || level.ledge(tx, ty)) return ty;
+  }
+  return null;
 }
 
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
