@@ -24,7 +24,8 @@ export const FOREST = {
     grab: 12,          // distance (px) à laquelle la main attrape la liane
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
-    jumpUp: 270,       // impulsion du bond pour quitter une liane
+    jumpUp: 270,       // impulsion du bond pour quitter une liane immobile (statue)
+    hop: 60,           // petit coup de reins en quittant une liane qui se balance
     boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
@@ -249,6 +250,7 @@ export class Forest {
     const p = this.vinePoint(v, r);
     player.x = p.x - player.facing * V.gripX;
     player.y = p.y + V.gripY;
+
     player.onGround = false;
     // animation : grimpe, balancé (image choisie par l'angle), ou accroché
     const a = player.anim;
@@ -271,6 +273,15 @@ export class Forest {
     else if (player.vineHold > V.letGo) this.release(player, {});
   }
 
+  /** La boîte de KAGE touche-t-elle une tuile pleine ? */
+  hitsWall(player) {
+    const b = player.box(), lv = this.level;
+    for (let x = Math.floor(b.x / TILE); x <= Math.floor((b.x + b.w - 1) / TILE); x++) {
+      for (let y = Math.floor(b.y / TILE); y <= Math.floor((b.y + b.h - 1) / TILE); y++) if (lv.solid(x, y)) return true;
+    }
+    return false;
+  }
+
   release(player, { jump = false, dir = 0, dash = 0 } = {}) {
     const V = FOREST.vine, v = player.vine;
     if (!v) return;
@@ -278,10 +289,22 @@ export class Forest {
     const vt = Math.max(-V.maxSpeed, Math.min(V.maxSpeed, v.av * r * V.boost));
     player.vx = vt * Math.cos(v.angle);
     player.vy = -vt * Math.sin(v.angle);
-    if (jump) { player.vy = Math.min(player.vy, 0) - V.jumpUp; player.vx += dir * 70; }
+    // le bond : franc sur une liane immobile (on passe d'une mèche à l'autre), un simple
+    // coup de reins sur une liane qui se balance (l'élan vient du balancier, pas du saut)
+    if (jump && v.still) { player.vy = Math.min(player.vy, 0) - V.jumpUp; player.vx += dir * 70; }
+    else if (jump) player.vy -= V.hop;
     v.rider = null;
     player.vine = null;
     player.lastVine = v;
+    // le balancier a pu le mener contre un pilier : on le dégage (par le haut s'il dépasse à peine, sinon sur le côté)
+    if (this.hitsWall(player)) {
+      const x0 = player.x, y0 = player.y;
+      let ok = false;
+      for (let d = 1; d <= 18 && !ok; d++) { player.y = y0 - d; ok = !this.hitsWall(player); }
+      for (let d = 1; d <= 20 && !ok; d++) for (const sx of [-1, 1]) { player.y = y0; player.x = x0 + sx * d; if (!this.hitsWall(player)) { ok = true; break; } }
+      if (!ok) { player.x = x0; player.y = y0; }
+      if (ok && player.y < y0) player.vy = Math.min(player.vy, 0);
+    }
     player.vineCd = V.cooldown;
     player.airDash = true;
     player.fling = true;

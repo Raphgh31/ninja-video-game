@@ -404,10 +404,10 @@ function build() {
   coins([x + 10, x + 19], G9 - 5);
   pillar(5, G9 - 1, true);
   // le final : une liane, puis la corniche, plus haute et trop loin : on lâche au sommet de la courbe et on dashe
-  x = b.x; chasm(25, KILL10);
+  x = b.x; chasm(22, KILL10);
   swing(x + 6, 17, 0, 0.55);
   coins([x + 12], G9 - 8);
-  const G10 = G9 - 4;
+  const G10 = G9 - 5;
   x = b.x; ground(6, G10);
   b.prop('rock_ledge', x, G10, { w: 6 });
   // tout en haut, une corniche pour un dash parfait : cinq ryō

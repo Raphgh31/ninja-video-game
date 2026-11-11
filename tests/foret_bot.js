@@ -81,11 +81,14 @@ window.bot = {
       return false;
     });
   },
-  /** Grimpe un puits en sauts muraux alternés, jusqu'à ce que les pieds passent au-dessus de la ligne topRow. */
-  wallClimb(seconds, topRow, firstSide = 1) {
+  /**
+   * Grimpe un puits en sauts muraux alternés, jusqu'à ce que les pieds passent au-dessus
+   * de la ligne topRow (exitDir : en partant vers ce côté, pour se poser sur le bord).
+   */
+  wallClimb(seconds, topRow, firstSide = 1, exitDir = null) {
     let side = firstSide;
     return this.run(seconds, (p) => {
-      if (p.y < topRow * 16 - 2 && (p.onGround || p.vy > 0)) return true;
+      if (p.y < topRow * 16 - 2 && (p.onGround || p.vy > 0) && (exitDir == null || p.onGround || (p.state === 'wall_jump' && p.facing === exitDir))) return true;
       if (p.state === 'wall_jump') side = p.facing;          // il vient de quitter un mur : on vise l'autre
       this.set({ right: side > 0, left: side < 0 });
       if (p.onGround || p.state === 'wall_slide') this.tap('jump');
