@@ -44,11 +44,12 @@ const hat = (t) => Math.exp(-t * t * t * t);
 /** Demi-largeur du visage (0 à 1) selon v : crâne arrondi, tempes, puis un ovale qui s'affine jusqu'au menton. */
 function headHalf(v) {
   if (v < 0) return 0;
-  if (v < 0.16) return 0.6 + 0.38 * Math.sqrt(v / 0.16);
-  if (v < 0.46) return 0.98 + 0.02 * Math.sin(((v - 0.16) / 0.3) * Math.PI);
-  const t = (v - 0.46) / 0.54;
-  // un ovale qui s'affine tôt : mâchoire fine, menton étroit et arrondi
-  return Math.max(0, 0.98 - 0.66 * Math.pow(t, 1.75) - (t > 0.84 ? Math.pow((t - 0.84) / 0.16, 2) * 0.32 : 0));
+  // le crâne : le plus large au niveau des arcades, il se resserre en arrondi vers le haut
+  // (il ne s'évase pas au-dessus des yeux)
+  if (v < 0.5) return 0.97 * Math.sqrt(Math.max(0, 1 - ((0.5 - v) / 0.56) ** 2));
+  const t = (v - 0.5) / 0.5;
+  // un ovale qui s'affine : mâchoire fine, menton étroit et arrondi
+  return Math.max(0, 0.97 - 0.62 * Math.pow(t, 1.75) - (t > 0.84 ? Math.pow((t - 0.84) / 0.16, 2) * 0.3 : 0));
 }
 
 /**
@@ -182,17 +183,22 @@ function hair(pix) {
   const top = (u) => -0.03 - 0.025 * (1 - u * u) + (noise1(u * 5, 28) - 0.5) * 0.06 - Math.max(0, Math.sin(u * 7.3 + 1.1)) * 0.045;   // un feuillage mince, des touffes qui dépassent
   // la couronne : des grappes de feuillage inégales posées sur le crâne, avec des trous entre elles
   const tufts = [];
-  for (let i = 0; i < 8; i++) {
-    const u = -1.05 + i * 0.3 + (ih(i, 1, 81) - 0.5) * 0.14;
-    const v = (Math.abs(u) > 0.8 ? 0.22 : 0.1) + (ih(i, 2, 81) - 0.3) * 0.12;
-    tufts.push({ u, v, ru: 0.17 + ih(i, 3, 81) * 0.13, rv: 0.1 + ih(i, 4, 81) * 0.09 + (Math.abs(u) > 0.8 ? 0.06 : 0) });
+  // (elles suivent le crâne, sans le déborder beaucoup : pas de grosse tête)
+  for (let i = 0; i < 7; i++) {
+    const u = -0.84 + i * 0.28 + (ih(i, 1, 81) - 0.5) * 0.1;
+    const v = (Math.abs(u) > 0.6 ? 0.2 : 0.08) + (ih(i, 2, 81) - 0.3) * 0.1;
+    tufts.push({ u, v, ru: 0.15 + ih(i, 3, 81) * 0.1, rv: 0.09 + ih(i, 4, 81) * 0.07 + (Math.abs(u) > 0.6 ? 0.05 : 0) });
   }
   // et quelques-unes qui retombent sur le front
   for (const [u, v, ru, rv] of [[-0.42, 0.24, 0.2, 0.08], [0.08, 0.27, 0.16, 0.07], [0.5, 0.25, 0.18, 0.08]]) tufts.push({ u, v, ru, rv });
+  // de petites touffes légères sur les tempes, de chaque côté
+  for (const [u, v, ru, rv] of [[-0.98, 0.36, 0.1, 0.06], [-0.95, 0.47, 0.08, 0.05], [0.97, 0.38, 0.1, 0.07], [0.99, 0.5, 0.07, 0.05]]) tufts.push({ u, v, ru, rv });
   const crown = (x, y) => {
     const { u, v } = toHead(x, y);
     let best = -1;
     for (const t of tufts) best = Math.max(best, 1 - Math.hypot((u - t.u) / t.ru, (v - t.v) / t.rv));
+    // tout le haut du crâne est couvert : la pierre n'apparaît jamais au sommet
+    if (v < edge(u) - 0.04 && v > -0.02 && Math.abs(u) < headHalf(Math.max(0.001, v)) + 0.04) best = Math.max(best, 0.6);
     if (best < -0.12) return 0;                                                       // (pas de feuilles qui flottent à l'écart)
     const ragged = (noise2(x * 0.22, y * 0.22, 35) - 0.5) * 0.7 + (v > edge(u) ? -0.6 : 0);
     return (best + ragged) * 3;
@@ -242,6 +248,12 @@ function hair(pix) {
   // au pied : des fougères et des buissons cachent la naissance des épaules
   for (const [dx, rw, rh] of [[-58, 14, 9], [-30, 11, 7], [44, 13, 8], [70, 12, 9], [16, 8, 5]]) L.bush(pix, S.cx + dx, S.h - 1, rw, rh, shade(1), 120 + dx);
   for (const [dx, sz] of [[-66, 15], [-40, 12], [58, 14], [30, 10], [-18, 7], [6, 6], [-50, 8], [80, 8], [44, 7]]) L.fern(pix, S.cx + dx, S.h - 1, sz, C.FERN, 130 + dx);
+  // de petits arbustes qui montent du sol devant le cou, et en cachent des morceaux
+  for (const [dx, rw, rh, k] of [[-20, 9, 18, 0], [4, 7, 13, 2], [24, 10, 22, 1], [-36, 7, 11, 2], [38, 6, 12, 2]]) {
+    for (let q = 0; q < 3; q++) pix.set(S.cx + dx + q - 1, S.h - 1 - q, '#3d2a1a');                        // le pied, un peu de bois
+    L.bush(pix, S.cx + dx, S.h - 2, rw, rh, shade(k), 200 + dx);
+    L.bush(pix, S.cx + dx + 3, S.h - Math.round(rh * 0.55), Math.round(rw * 0.6), Math.round(rh * 0.5), ramp.slice(Math.max(0, 1 - k)), 210 + dx);   // une touffe plus claire au-dessus
+  }
   // sur le cou : un peu de lierre et de mousse qui grimpent
   for (const [dx, dy, rw, rh] of [[-24, -40, 6, 4], [-18, -22, 4, 3], [20, -30, 5, 3], [26, -14, 6, 4], [-8, -56, 3, 2]]) L.bush(pix, S.cx + dx, S.h + dy, rw, rh, ramp.slice(1), 170 + dx);
   for (const [dx, dy, len] of [[-22, -44, 14], [22, -34, 10], [-6, -60, 8]]) L.strand(pix, S.cx + dx, S.h + dy, len, ramp, 180 + dx, 0.6, 0, 1);
