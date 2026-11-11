@@ -83,7 +83,10 @@ export class ForetProps {
         case 'climb_trunk': add('behind', X - 40, (p.top - 6) * TILE, 96, (p.y - p.top + 7) * TILE, (pix) => climbTrunk(pix, X + 8, Y, (p.top - 2) * TILE, p.x)); break;
         case 'hollow_giant': {
           mask(p.x, 1, p.top, p.y - 1); mask(p.x + p.w - 1, 1, p.top, p.y - 1);
-          add('behind', X - 30, (p.top - 8) * TILE, p.w * TILE + 60, (p.y - p.top + 9) * TILE, (pix) => hollowGiant(pix, level, p, 'behind'));
+          // le boyau continue sous terre : l'intérieur sombre descend jusqu'au fond du puits (on ne voit jamais le décor à travers)
+          let bot = p.y; while (bot < level.h - 1 && level.rows[bot][p.x + 2] !== '#') bot++;
+          p.shaftBottom = bot;
+          add('behind', X - 30, (p.top - 8) * TILE, p.w * TILE + 60, (bot - p.top + 9) * TILE, (pix) => hollowGiant(pix, level, p, 'behind'));
           add('over', X - 30, (p.top - 8) * TILE, p.w * TILE + 60, (p.y - p.top + 9) * TILE, (pix) => hollowGiant(pix, level, p, 'over'));
           break;
         }
@@ -100,6 +103,22 @@ export class ForetProps {
           mask(p.x, p.w, p.y - 2, p.y - 1);
           const g = floorBelow(level, p.x - 1, p.y);
           add('over', X - 24, Y - 2 * TILE - 6, p.w * TILE + 48, (g - p.y + 2) * TILE + 10, (pix) => fallenLog(pix, X, Y - 2 * TILE, p.w * TILE, g * TILE, p.x));
+          break;
+        }
+        case 'bridge_tree': {
+          // un grand tronc de la canopée, qui porte un bout du pont suspendu
+          const deckY = (level.forest?.def?.bridges ?? []).find((br) => Math.abs(br.x0 - X) < 48 || Math.abs(br.x1 - X) < 48)?.y ?? Y - 200;
+          add('behind', X - 52, 0, 120, Y + 6, (pix) => branchTree(pix, X + 8, deckY, Y + 4, 0, p.x * 3 + 1, 24));
+          break;
+        }
+        case 'pearl_tree': {
+          const sz = PEARL_SIZE[p.s ?? 1];
+          add('behind', X + 8 - sz.w, Y - sz.h - 8, sz.w * 2, sz.h + 14, (pix) => pearlTree(pix, p));
+          break;
+        }
+        case 'oak_root': {
+          mask(p.x, p.w, p.y - p.h + 1, p.y);
+          add('over', X - 80, (p.y - p.h - 4) * TILE, p.w * TILE + 160, (p.h + 7) * TILE, (pix) => oakRoot(pix, p));
           break;
         }
         case 'last_tree': add('behind', X - 90, Y - 330, 200, 334, (pix) => lastTree(pix, X + 8, Y + 2)); break;
@@ -392,10 +411,10 @@ function limb(pix, x0, x1, Y, dir, seed, leafy) {
 }
 
 /** L'arbre qui porte une branche : son tronc descend jusqu'au sol ; le houppier s'ouvre au-dessus. */
-function branchTree(pix, cx, Y, bottom, topY, seed) {
+function branchTree(pix, cx, Y, bottom, topY, seed, wide = 0) {
   // un grand fût qui sort du cadre par le haut ; des masses de feuillage irrégulières le long du tronc
   const bark = L.hazeRamp(C.BARK, '#1d4a44', 0.12), moss = L.hazeRamp(C.MOSS, '#1d4a44', 0.12);
-  const w = 16 + Math.floor(ih(seed, 1, 4) * 8);
+  const w = wide || 16 + Math.floor(ih(seed, 1, 4) * 8);
   L.bigTrunk(pix, cx, w, bottom, seed, bark, moss, { top: topY, roots: 1.2 });
   const leaf = L.hazeRamp(C.LEAF, '#1d4a44', 0.15);
   for (let k = 0; k < 4; k++) {
@@ -434,10 +453,16 @@ function hollowGiant(pix, level, p, layer) {
   const X = p.x * TILE, W = p.w * TILE, top = p.top * TILE, base = p.y * TILE;
   if (layer === 'behind') {
     // l'intérieur : du bois sombre, des fibres verticales, une lueur qui monte d'en bas
-    const inTop = floorTop(level, p.x, p.top) + 6;
-    for (let y = inTop; y < base + 2; y++) for (let x = X + 12; x < X + W - 12; x++) {
-      const v = 0.18 + (noise2(x * 0.5, y * 0.05, 3) - 0.5) * 0.25 + Math.max(0, (y - base + 60) / 300);
-      pix.set(x, y, pick(['#0b0706', '#130c08', '#1d120b', '#2a190f'], v, x, y));
+    const inTop = floorTop(level, p.x, p.top) + 6, end = (p.shaftBottom ?? p.y) * TILE, FADE = 72;
+    for (let y = inTop - 8; y < end; y++) for (let x = X + 12; x < X + W - 12; x++) {
+      // en haut, l'ombre gagne doucement (tramée) : on entre dans la pénombre, pas d'un coup dans le noir
+      const t = (y - (inTop - 8)) / FADE;
+      if (t < 1 && bayer(x, y) > t * 1.05) continue;
+      const below = y > base;                                         // sous terre : le bois laisse place à la terre et aux racines
+      let v = 0.16 + (noise2(x * 0.5, y * 0.05, 3) - 0.5) * 0.22 + Math.max(0, 1 - t) * 0.35;
+      const ramp = below ? ['#06090b', '#0a1013', '#101a1d', '#18262a'] : ['#0b0706', '#130c08', '#1d120b', '#2a190f', '#3a2414'];
+      if (below && Math.abs(fbm2(x * 0.08, y * 0.02, 2, 9) - 0.5) < 0.03) { pix.set(x, y, '#2a1c12'); continue; }   // racines
+      pix.set(x, y, pick(ramp, v, x, y));
     }
     return;
   }
@@ -620,5 +645,114 @@ function hollowFoot(pix, X, Y, W, open, seed) {
         for (let j = 0; j < th; j++) pix.set(x, Math.round(yy) + j, j === 0 ? C.BARK[4] : C.BARK[1 + (j % 2)]);
       }
     }
+  }
+}
+
+// ===========================================================================
+// la caverne aux perles (zone 8)
+// ===========================================================================
+const TRUNK = ['#0e0a10', '#1a121c', '#281c28', '#382834', '#4a3842', '#5e4a50'];
+const CAVE_LEAF = ['#06171a', '#0a2428', '#103438', '#174a4a', '#22625c', '#2f7a6c', '#46947e'];
+const PEARL_SIZE = { 1: { w: 26, h: 44 }, 2: { w: 40, h: 72 }, 3: { w: 118, h: 196 } };
+
+/**
+ * Les branches d'un arbre à perles (déterministes) : des arcs qui partent du tronc,
+ * montent puis retombent en pleureur. Partagées avec live.js (les perles y brillent).
+ */
+export function pearlTreeShape(p) {
+  const s = p.s ?? 1, sz = PEARL_SIZE[s], cx = p.x * TILE + 8, gy = p.y * TILE;
+  const trunkH = Math.round(sz.h * 0.5), lean = (ih(p.x, 1, 41) - 0.5) * 6 * s;
+  const top = { x: cx + lean, y: gy - trunkH };
+  const branches = [], n = s === 3 ? 13 : 3 + s * 2;
+  for (let k = 0; k < n; k++) {
+    const side = k % 2 ? 1 : -1, t0 = 0.55 + (k / n) * 0.45;
+    const sx = cx + lean * t0, sy = gy - trunkH * t0 - (k === n - 1 ? 4 : 0);
+    const reach = sz.w * (0.55 + ih(k, p.x, 42) * 0.45), lift = sz.h * (0.25 + ih(k, p.x, 43) * 0.3);
+    branches.push({ sx, sy, ex: sx + side * reach, ey: sy - lift * 0.4 + sz.h * 0.08, cx: sx + side * reach * 0.45, cy: sy - lift, side, th: Math.max(1, Math.round((s === 3 ? 6 : s * 1.5) - k * (s === 3 ? 0.35 : 0.2))) });
+  }
+  const at = (b, t) => ({ x: (1 - t) ** 2 * b.sx + 2 * (1 - t) * t * b.cx + t * t * b.ex, y: (1 - t) ** 2 * b.sy + 2 * (1 - t) * t * b.cy + t * t * b.ey });
+  // les fils de perles qui pendent des branches
+  const strands = [];
+  branches.forEach((b, k) => {
+    for (let t = 0.3; t <= 1.0; t += 0.14 / s + 0.06) {
+      const q = at(b, t), len = Math.round((6 + ih(Math.round(t * 50), k + p.x, 44) * 14) * (0.7 + s * 0.35));
+      strands.push({ x: Math.round(q.x), y: Math.round(q.y), len, beads: Math.max(2, Math.round(len / 5)) });
+    }
+  });
+  const pearls = [];
+  strands.forEach((st, i) => {
+    for (let j = 1; j <= st.beads; j++) {
+      const c = ih(i, j, p.x) < 0.65 ? 0 : ih(i, j, p.x + 1) < 0.6 ? 1 : 2;
+      pearls.push({ x: st.x + Math.round(Math.sin(j * 1.3 + i) * 1), y: st.y + Math.round((j / st.beads) * st.len), c, big: j === st.beads, ph: ih(i, j, 45) * 6.28 });
+    }
+  });
+  return { s, cx, gy, top, trunkH, branches, strands, pearls, at };
+}
+
+/** Arbre à perles lumineuses : tronc sombre et tordu, branches en pleureur, feuillage bleu-vert, fils de perles. */
+function pearlTree(pix, p) {
+  const T = pearlTreeShape(p), s = T.s;
+  // les racines, qui s'agrippent au sol (et à l'eau pour le grand arbre)
+  for (let k = 0; k < 2 + s * 2; k++) {
+    const side = k % 2 ? 1 : -1, len = 6 + s * 6 + ih(k, p.x, 46) * 8 * s;
+    for (let q = 0; q < len; q++) {
+      const th = Math.max(1, Math.round((1 - q / len) * (2 + s)));
+      for (let j = 0; j < th; j++) pix.set(T.cx + side * (2 + q), T.gy - th + j + Math.round(q / len * 2), TRUNK[j === 0 ? 3 : 1]);
+    }
+  }
+  // le tronc : il se tord en montant, plus étroit en haut, éclairé à gauche (par les perles)
+  const w0 = s === 3 ? 18 : 2 + s * 3;
+  for (let y = 0; y < T.trunkH + 4; y++) {
+    const t = y / T.trunkH, w = Math.max(2, Math.round(w0 * (1 - t * 0.55))), x = T.cx + (T.top.x - T.cx) * t + Math.sin(t * 5 + p.x) * s;
+    for (let i = 0; i < w; i++) {
+      const u = i / Math.max(1, w - 1);
+      pix.set(Math.round(x - w / 2 + i), T.gy - y, TRUNK[u < 0.25 ? 4 : u > 0.75 ? 1 : (ih(i, y >> 2, p.x) < 0.2 ? 2 : 3)]);
+    }
+  }
+  // les branches, puis un feuillage léger le long de leur courbe
+  for (const b of T.branches) {
+    for (let t = 0; t <= 1; t += 0.01) {
+      const q = T.at(b, t), th = Math.max(1, Math.round(b.th * (1 - t * 0.6)));
+      for (let j = 0; j < th; j++) pix.set(q.x, q.y + j, TRUNK[j === 0 ? 4 : 2]);
+    }
+    for (let t = 0.35; t <= 1; t += 0.22) {
+      const q = T.at(b, t), r = 3 + s * 2;
+      L.leafMass(pix, [q.x - r - 2, q.y - r, q.x + r + 2, q.y + r * 0.6], (x, y) => 1 - ((x - q.x) / r) ** 2 - ((y - q.y) / (r * 0.6)) ** 2 + (ih(x, y, 47) - 0.5) * 0.4,
+        (x, y) => 0.6 - (y - q.y + r) / (r * 2.4), CAVE_LEAF, p.x + Math.round(t * 10), { step: 2, size: 0.6 });
+    }
+  }
+  // les fils (les perles elles-mêmes brillent dans live.js)
+  for (const st of T.strands) for (let q = 0; q < st.len; q++) if (q % 2 === 0) pix.set(st.x + Math.round(Math.sin(q * 0.3) * 0.6), st.y + q, '#1d2c34');
+  for (const pe of T.pearls) pix.set(pe.x, pe.y, pe.c === 1 ? '#5a4a8a' : '#3a6f78');
+}
+
+/** Racine de chêne énorme qui barre le passage (au plafond : on glisse dessous ; au sol : on saute). */
+function oakRoot(pix, p) {
+  const X = p.x * TILE, W = p.w * TILE, y1 = (p.y + 1) * TILE, y0 = y1 - p.h * TILE, ceil = p.kind === 'ceil';
+  const R = ['#120c08', '#1f150e', '#2e2016', '#3f2d1e', '#533c27', '#6a4e33'];
+  // la masse : un gros cylindre noueux qui sort de la paroi d'un côté et plonge dans l'autre
+  const EXT = 72;
+  for (let x = X - EXT; x < X + W + EXT; x++) {
+    const t = (x - X) / W, inside = t >= 0 && t <= 1;
+    // (au plafond, le dessous de la racine est peint 6 px au-dessus de la case : KAGE glisse à 20-21 px de haut)
+    const full = p.h * TILE - (ceil ? 6 : 0);
+    const e = inside ? 0 : Math.abs(t < 0 ? t : t - 1) * W / EXT;      // 0 au bord du bloc, 1 au bout
+    if (!inside && e > 0.98) continue;
+    // un tube épais qui traverse le passage, et qui s'amincit en plongeant dans les parois
+    const thick = inside ? full * (0.78 + 0.22 * Math.sin(Math.PI * t)) : Math.max(0, full * 0.78 * (1 - e * 0.55));
+    if (thick <= 2) continue;
+    const rise = inside ? 0 : e * e * (ceil ? 26 : 14);
+    const mid = ceil ? (inside ? y0 + (full - thick) * 0.25 + thick / 2 : y0 + thick / 2 - rise) : (inside ? y1 - thick / 2 : y1 - thick / 2 + rise * 0.6);
+    const wob = Math.sin(x * 0.07 + p.x) * 2 + (noise1(x * 0.15, p.x) - 0.5) * 3;
+    const top = Math.round(mid - thick / 2 + wob), bot = Math.round(mid + thick / 2 + wob * 0.5);
+    for (let y = top; y <= bot; y++) {
+      const v0 = (y - top) / Math.max(1, bot - top), cyl = Math.sin(v0 * Math.PI);
+      let v = 0.15 + cyl * 0.55 - v0 * 0.25 + (noise2(x * 0.06, y * 0.4, p.x) - 0.5) * 0.25;
+      const groove = Math.abs(fbm2(x * 0.02, y * 0.25, 2, p.x) - 0.5) < 0.035;
+      const m = fbm2(x * 0.08, y * 0.1, 3, p.x + 2) + (v0 < 0.25 ? 0.25 : 0);
+      pix.set(x, y, groove ? R[0] : m > 0.66 ? pick(CAVE_LEAF, v + 0.25, x, y) : pick(R, v, x, y));
+    }
+    // radicelles qui pendent sous la racine
+    if (ih(x, 1, p.x) < 0.08) for (let q = 0; q < 3 + Math.floor(ih(x, 2, p.x) * 10); q++) pix.set(x + Math.round(Math.sin(q * 0.4)), bot + 1 + q, R[2]);
   }
 }

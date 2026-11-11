@@ -12,11 +12,11 @@ import { Builder } from './builder.js';
 
 const H = 72;
 const TILE = 16;
-export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 36, sanctuaire: 36, vallee: 62 };
+export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46, sanctuaire: 36, vallee: 62 };
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -257,8 +257,11 @@ function build() {
   branch(4, G7, 5);                                    // on arrive en haut de la première remontée
   lantern(c0 + 6, G7);
   branch(12, G7, 3); coin(c0 + 13, G7 - 2);            // 3 cases : un saut
-  branch(18, G7 - 1, 4);                               // 3 cases, une case plus haut
-  branch(27, G7 - 1, 3); coin(c0 + 24, G7 - 4);        // 5 cases : sprint
+  // le pont suspendu, d'un grand tronc à l'autre : de vieilles planches moussues entre deux cordes,
+  // certaines lâchent sous le pied (il faut avancer) ; il ploie et oscille quand KAGE y saute
+  b.prop('bridge_tree', c0 + 17, G6, { top: 0 }); b.prop('bridge_tree', c0 + 30, G6, { top: 0, flip: true });
+  F.bridges.push({ x0: (c0 + 18) * TILE, x1: (c0 + 30) * TILE, y: (G7 - 1) * TILE, sag: 11 });
+  coin(c0 + 21, G7 - 3); coin(c0 + 24, G7 - 4); coin(c0 + 27, G7 - 3);
   branch(36, G7, 4); coin(c0 + 33, G7 - 3);            // 6 cases : dash
   climbTree(c0 + 42, G7);                              // remontée du milieu
   branch(43, G7 + 1, 5);
@@ -272,7 +275,14 @@ function build() {
   b.prop('chest', c0 + 74, G7 - 5, { id: 'nid', ryo: 12 });
   // des lianes pendent sous quelques branches jusqu'au sous-bois : on s'y accroche pour remonter (↑, puis un bond)
   for (const [bx, row, w] of [[12, G7, 3], [27, G7 - 1, 3], [51, G7, 2], [65, G7 - 1, 4], [88, G7 + 1, 3]]) {
-    vine(c0 + bx + w / 2, row + 0.15, G6 - row - 0.55);
+    vine(c0 + bx + w / 2, row + 0.15 + (bx === 27 ? 0.5 : 0), G6 - row - 0.55 - (bx === 27 ? 0.5 : 0));   // (celle-ci pend sous le pont)
+  }
+  // au sol, de l'eau entre les îlots des lianes et des remontées : on ne traverse pas la canopée par en bas
+  const islands = [[c0 - 8, c0 + 7], [c0 + 39, c0 + 46], [c0 + 77, c0 + 84], [c0 + 90, c0 + 104],
+    ...[[12, 3], [27, 3], [51, 2], [65, 4], [88, 3]].map(([bx, w]) => [c0 + bx + Math.floor(w / 2) - 2, c0 + bx + Math.floor(w / 2) + 2])];
+  for (let cx = c0; cx < c0 + 104; cx++) {
+    if (islands.some(([a, z]) => cx >= a && cx <= z)) continue;
+    b.cols[cx][G6] = '~'; b.cols[cx][G6 + 1] = '~';
   }
   climbTree(c0 + 80, G7 + 1);                          // dernière remontée
   branch(81, G7 + 2, 4);
@@ -290,55 +300,89 @@ function build() {
   fill(pit - 1, 1, G7 + 3, G6 - 1, '|'); fill(pit + 3, 1, G7 - 3, G6 - 1, '|');
   b.prop('hollow_giant', pit - 1, G6, { w: 5, top: G7 - 3 });
   carve(pit, 3, G6, G8 - 1);
-  // dans le boyau, des nœuds du bois en quinconce : on descend de palier en palier (une chute directe serait mortelle)
-  for (let r = G7 + 7, k = 0; r < G8 - 2; r += 5, k++) b.row(pit + (k % 2), 2, r, '-');
+  // dans le boyau, cinq nœuds du bois en quinconce : on descend de palier en palier ; du dernier,
+  // on se laisse tomber de 10 cases (juste sous la limite mortelle) dans la grande salle de la caverne
+  for (let r = G7 + 7, k = 0; k < 5; r += 5, k++) b.row(pit + (k % 2), 2, r, '-');
   coins([pit + 1], G6 + 2); coins([pit + 1], G6 + 6); coins([pit + 1], G6 + 10);
-  zone('08', 'Le souterrain des racines entrelacées', { mood: 'souterrain' });
-  const u0 = b.x;
-  const tunnel = (n, floor, ceil) => {                  // n colonnes pleines, un couloir entre ceil et floor - 1
+
+  // ===========================================================================
+  // ZONE 8 — La caverne aux perles : un petit monde féerique sous la forêt.
+  // De grandes salles, d'énormes racines de chêne qui barrent le chemin, des
+  // arbres à perles lumineuses, des papillons ; au cœur, une clairière haute
+  // avec sa petite eau et le grand arbre aux perles. On en ressort par un puits
+  // de racines, et la lumière revient peu à peu.
+  // ===========================================================================
+  zone('08', 'La caverne aux perles', { mood: 'souterrain' });
+  const G9s = FORET_ROWS.sanctuaire;
+  /** n colonnes de terre sous la surface du sous-bois, un couloir de ceil à floor - 1 (assez profond pour ne jamais voir le dehors). */
+  const tunnel = (n, floor, ceil) => {
     for (let i = 0; i < n; i++) {
       const c = new Array(H).fill('.');
-      for (let y = G6; y < H; y++) c[y] = y >= ceil && y < floor ? '.' : '#';
+      for (let y = G6; y < H; y++) c[y] = '#';
+      for (let y = ceil; y < floor; y++) c[y] = '.';
       b.cols.push(c);
     }
   };
-  // la salle d'arrivée, sous l'arbre creux (les colonnes du boyau la rejoignent)
-  carve(pit - 4, 12, G8 - 4, G8 - 1);
+  const pearl = (cx, ground, s = 1) => b.prop('pearl_tree', cx, ground, { s });
+  const root = (x0, w, y0, y1, kind) => { fill(x0, w, y0, y1, '#'); b.prop('oak_root', x0, y1, { w, h: y1 - y0 + 1, kind }); };
+  // la grande salle, sous l'arbre creux (on y arrive en tombant du dernier palier)
+  tunnel(8, G8, G8 - 9);
+  carve(pit - 4, 14, G8 - 9, G8 - 1);
   lantern(pit - 2, G8);
   b.prop('mushrooms', pit - 4, G8, { w: 3 });
-  tunnel(6, G8, G8 - 4);
-  x = b.x; tunnel(5, G8, G8 - 1);                       // premier plafond bas : glissade
+  pearl(pit + 7, G8, 1);
+  b.prop('mushrooms', b.x - 4, G8, { w: 3 });
+  tunnel(6, G8, G8 - 5);
+  // première racine de chêne : elle barre le couloir à hauteur d'homme, on glisse dessous
+  x = b.x; tunnel(5, G8, G8 - 6); root(x, 5, G8 - 6, G8 - 2, 'ceil');
   b.hint('slide', x - 3);
-  tunnel(7, G8, G8 - 4);
-  coins([b.x - 5, b.x - 3], G8 - 2);
-  x = b.x; tunnel(4, G8, G8 - 1); tunnel(3, G8, G8 - 3); tunnel(5, G8, G8 - 1);   // deux glissades, un court répit
-  tunnel(6, G8, G8 - 4);
+  x = b.x; tunnel(9, G8, G8 - 6);
+  pearl(x + 4, G8, 1); coins([x + 2, x + 6], G8 - 2);
+  // deuxième racine : couchée en travers du sol, on saute par-dessus
+  x = b.x; tunnel(5, G8, G8 - 7); root(x, 5, G8 - 2, G8 - 1, 'floor');
+  coins([x + 2], G8 - 4);
+  tunnel(6, G8, G8 - 6);
   b.prop('mushrooms', b.x - 5, G8, { w: 4 });
+  // une galerie en contrebas : le sol descend de deux marches, des arbres à perles, puis on remonte
+  tunnel(3, G8 + 1, G8 - 6); x = b.x; tunnel(14, G8 + 2, G8 - 8);
+  pearl(x + 3, G8 + 2, 1); pearl(x + 10, G8 + 2, 2);
+  b.prop('mushrooms', x + 6, G8 + 2, { w: 3 });
+  coins([x + 5, x + 7, x + 9], G8);
+  tunnel(3, G8 + 1, G8 - 6);
+  tunnel(5, G8, G8 - 5);
   // une mare souterraine : 6 cases, dash
-  x = b.x;
-  for (let i = 0; i < 6; i++) { const c = new Array(H).fill('.'); for (let y = G6; y < H; y++) c[y] = y < G8 - 5 || y > G8 + 1 ? '#' : y >= G8 ? '~' : '.'; b.cols.push(c); }
-  tunnel(4, G8, G8 - 5); tunnel(2, G8, G8 - 3);        // (le plafond s'abaisse : il sert de mur gauche au puits)
-  lantern(b.x - 4, G8);
-  // le puits de racines : on monte de 7 cases en sauts muraux vers la galerie haute
-  x = b.x; tunnel(3, G8, G8 - 11);
+  for (let i = 0; i < 6; i++) { const c = new Array(H).fill('.'); for (let y = G6; y < H; y++) c[y] = y >= G8 - 5 && y < G8 ? '.' : y === G8 || y === G8 + 1 ? '~' : '#'; b.cols.push(c); }
+  tunnel(5, G8, G8 - 5);
+  lantern(b.x - 3, G8);
+  // la clairière : le plafond s'envole (15 cases), une petite eau, et au bord le grand arbre aux perles
+  x = b.x; tunnel(34, G8, G8 - 15);
+  const glade = x;
+  for (let i = 18; i < 21; i++) { b.cols[glade + i][G8] = '~'; b.cols[glade + i][G8 + 1] = '~'; }
+  pearl(glade + 15, G8, 3);
+  pearl(glade + 5, G8, 1); pearl(glade + 29, G8, 2);
+  b.prop('mushrooms', glade + 9, G8, { w: 3 }); b.prop('mushrooms', glade + 24, G8, { w: 3 });
+  coins([glade + 8, glade + 11, glade + 19, glade + 25], G8 - 2); coins([glade + 19], G8 - 5);
+  F.glade = { x: (glade + 17) * TILE, y: G8 * TILE };
+  tunnel(5, G8, G8 - 6);
+  // la salle aux papillons : plafond haut, trois arbres à perles, des papillons qui volent autour
+  x = b.x; tunnel(18, G8, G8 - 11);
+  pearl(x + 3, G8, 2); pearl(x + 9, G8, 1); pearl(x + 14, G8, 2);
+  b.prop('mushrooms', x + 6, G8, { w: 3 }); b.prop('mushrooms', x + 11, G8, { w: 2 });
+  coins([x + 6, x + 12], G8 - 3);
+  tunnel(4, G8, G8 - 6);
+  // troisième racine : elle tombe du plafond, on glisse dessous
+  x = b.x; tunnel(4, G8, G8 - 6); root(x, 4, G8 - 6, G8 - 2, 'ceil');
+  tunnel(5, G8, G8 - 5);
+  pearl(b.x - 3, G8, 1);
+  lantern(b.x - 5, G8);
+  // le puits de racines : on remonte de 10 cases en sauts muraux jusqu'à la sortie
+  tunnel(2, G8, G8 - 3);                                // (le plafond s'abaisse : il sert de mur gauche au puits)
+  x = b.x; tunnel(3, G8, G9s - 4);
   coins([x + 1], G8 - 4); coins([x + 1], G8 - 8);
-  const G8b = G8 - 7;
-  x = b.x; tunnel(8, G8b, G8b - 4);
-  coins([x + 3, x + 5], G8b - 2);
-  // un creux tapissé de champignons dans le plancher de la galerie : quatre ryō
-  x = b.x; tunnel(4, G8b + 2, G8b - 4);
-  coins([x, x + 1, x + 2, x + 3], G8b + 1);
-  b.prop('mushrooms', x, G8b + 2, { w: 4 });
-  tunnel(4, G8b, G8b - 4);
-  x = b.x; tunnel(6, G8b, G8b - 1);                     // plafond bas dans la galerie haute
-  tunnel(5, G8b, G8b - 4);
-  // on redescend : un grand puits, puis le couloir de sortie
-  x = b.x; tunnel(4, G8, G8b - 4);
-  coins([x + 1, x + 2], G8 - 3);
-  tunnel(7, G8, G8 - 4);
-  x = b.x; tunnel(5, G8, G8 - 1);                       // dernière glissade, vers la lumière
-  tunnel(4, G8, G8 - 5);
-  F.dark = { x0: (pit - 5) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE };
+  // le couloir de sortie : la lumière revient peu à peu
+  // (le couloir s'évase en bouche de caverne : le plafond monte vers la sortie, la lumière entre)
+  x = b.x; for (let i = 0; i < 16; i++) tunnel(1, G9s, G9s - 5 - Math.round(Math.pow(i / 15, 1.6) * 9));
+  F.dark = { x0: (pit - 12) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE, fade: 18 * TILE };
 
   // ===========================================================================
   // ZONE 9 — L'antre de la statue oubliée : le calme. On grimpe aux lianes de sa

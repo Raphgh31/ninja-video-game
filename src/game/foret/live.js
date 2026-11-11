@@ -10,6 +10,7 @@ import { chestSprite, CHEST } from '../potager/props.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { paintStatue, drawStatue, STATUE } from './statue.js';
+import { pearlTreeShape } from './props.js';
 
 const TILE = 16;
 const R = Math.round;
@@ -34,6 +35,25 @@ function logSprite(w, seed) {
       if (e < 2) { const d = Math.abs(v0 - 0.5) * 2; c = d > 0.8 ? C.BARK[1] : (e === 0 ? '#d2b07a' : '#b08a58'); }
       p.set(x, y, c);
     }
+  });
+}
+
+/** Planche du pont suspendu (16 × 7) : vieux bois patiné, mousse ; pourrie : sombre, fendue. */
+function bridgePlank(seed, rotten) {
+  return sprite(16, 12, (p) => {
+    const ramp = rotten ? C.ROT : ['#3a2616', '#563a22', '#74522f', '#93703f', '#b08e58'];
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 16; x++) {
+      if ((x === 0 || x === 15) && ih(y, seed, 3) < 0.4) continue;              // bouts irréguliers
+      let v = 0.62 - y * 0.09 + (noise2(x * 0.18 + seed, y * 0.9, seed) - 0.5) * 0.35 - (x > 13 ? 0.12 : 0);
+      if (rotten && Math.abs(x - 6 - (seed % 4)) < 1 && y > 0) { p.set(x, y, ramp[0]); continue; }   // la fente
+      let c = pick(ramp, v, x, y);
+      if (y === 0) c = ih(x, seed, 4) < (rotten ? 0.7 : 0.45) ? (ih(x, seed, 5) < 0.5 ? C.MOSS[4] : C.MOSS[3]) : ramp[4];
+      if (y === 5) c = ramp[0];
+      p.set(x, y, c);
+    }
+    // les clous, et des franges de mousse qui pendent sous la planche
+    p.set(2, 2, '#2a2420'); p.set(13, 2, '#2a2420');
+    for (let x = 1; x < 15; x += 2) if (ih(x, seed, 6) < (rotten ? 0.5 : 0.3)) for (let q = 0; q < 1 + Math.floor(ih(x, seed, 7) * 5); q++) p.set(x, 6 + q, q ? C.MOSS[1] : C.MOSS[2]);
   });
 }
 
@@ -141,13 +161,35 @@ export class ForetLive {
     this.colH = f?.spans?.length ? (kill - f.spans[0].row + 3) * TILE : 0;
     this.columns = (f?.spans ?? []).map((s, i) => columnSprite(Math.round(s.w * TILE * 0.5), this.colH, 70 + i));
     this.ivy = ivySprite();
+    this.planks = [0, 1, 2, 3, 4, 5].map((k) => bridgePlank(k * 7 + 3, false));
+    this.rottenPlanks = [0, 1].map((k) => bridgePlank(k * 11 + 5, true));
     this.chestImg = level.chests?.length ? [0, 1, 2].map((st) => chestSprite(st, Brush, canvas)) : null;
     this.rocks = [7, 9, 11, 8, 10, 6].map((r, i) => boulderFrames(r, 300 + i));
     this.statueArt = null;
     this.halo = haloSprite(72);
+    // les arbres à perles de la caverne : leurs perles, leur lumière, leurs papillons
+    // la sortie de la caverne : le sol du couloir (pour la lumière qui y entre)
+    if (this.f?.dark) { const tx = Math.floor(this.f.dark.x1 / TILE) - 1; let ty = 0; while (ty < level.h && !'#='.includes(this.rows[ty][tx])) ty++; this.exitY = ty * TILE; }
+    this.pearlTrees = level.props.filter((p) => p.type === 'pearl_tree').map((p) => ({ p, shape: pearlTreeShape(p) }));
+    this.butterflies = [];
+    for (const { p, shape } of this.pearlTrees) {
+      const n = [0, 2, 3, 6][p.s ?? 1];
+      for (let k = 0; k < n; k++) this.butterflies.push({ cx: shape.cx, cy: shape.gy - shape.trunkH * (0.6 + ih(k, p.x, 1) * 0.6), rx: 18 + ih(k, p.x, 2) * 30 * (p.s ?? 1), ry: 8 + ih(k, p.x, 3) * 14, a: 0.5 + ih(k, p.x, 4) * 0.6, b: 0.7 + ih(k, p.x, 5) * 0.7, ph: ih(k, p.x, 6) * 6.28, c: k % 3 });
+    }
+    // fondu de sortie (dithered) : de la pénombre au jour, sur toute la largeur du fondu
+    const fw = Math.round(this.f?.dark?.fade ?? 0);
+    if (fw) {
+      this.exitFade = canvas(fw, 4);
+      const g = this.exitFade.getContext('2d');
+      for (let x = 0; x < fw; x++) for (let y = 0; y < 4; y++) {
+        const t = x / fw, a = Math.pow(1 - t, 1.4);
+        const lvl = Math.floor(a * 6) / 6 + ((a * 6) % 1 > bayer(x, y) ? 1 / 6 : 0);
+        g.fillStyle = `rgba(3,7,11,${(Math.min(1, lvl) * 0.62).toFixed(3)})`; g.fillRect(x, y, 1, 1);
+      }
+    }
     this.haloSmall = haloSprite(26);
     // halos colorés (lumière des champignons) : turquoise, violet
-    this.tint = ['#3fb0b8', '#8f6ae0'].map((col) => {
+    this.tint = ['#3fb0b8', '#8f6ae0', '#e8e6a0'].map((col) => {
       const h = haloSprite(32), c = canvas(64, 64), g = c.getContext('2d');
       g.drawImage(h, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, 64, 64);
       return c;
@@ -234,6 +276,7 @@ export class ForetLive {
       }
       ctx.globalAlpha = 1;
     });
+    for (const B of f.bridges ?? []) this.bridge(ctx, B, cam, vw, vh, time, 'back');
     // planches vermoulues
     for (const c of f.crumbles) {
       if (!this.plank || !this.vis(c.x - 4, c.y, c.w + 8, 40, cam, vw, vh)) continue;
@@ -290,6 +333,63 @@ export class ForetLive {
         const step = a > 0.66 ? 2 : a > 0.33 ? 3 : 4;
         for (let x = (y & 1) ? 0 : 1; x < w; x += step) ctx.fillRect(x0 + x, sy, 1, 1);
       }
+    }
+  }
+
+  /**
+   * Le pont suspendu. layer 'back' : la corde du fond, les suspentes, les cordes porteuses,
+   * les planches ; 'front' : la main courante de devant (elle passe devant KAGE).
+   */
+  bridge(ctx, B, cam, vw, vh, time, layer) {
+    if (B.x1 + 20 < cam.x || B.x0 - 20 > cam.x + vw || B.y - 40 > cam.y + vh || B.y + 40 < cam.y) return;
+    const f = this.f, ROPE = ['#3e3020', '#5c4a2e', '#7d6640', '#a08756'];
+    const deck = (x) => f.deckY(B, x);
+    const rail = (x, k) => B.y - 18 - k + (deck(x) - B.y) * 0.8;      // la main courante ploie un peu moins que le tablier
+    const rope = (yAt, light, thick = 1) => {
+      for (let x = B.x0 - 4; x <= B.x1 + 4; x++) {
+        const y = R(yAt(x) - cam.y), sx = R(x - cam.x);
+        if (sx < -2 || sx > vw + 2) continue;
+        ctx.fillStyle = (x >> 1) % 2 ? ROPE[light] : ROPE[light - 1];       // la torsion de la corde
+        ctx.fillRect(sx, y, 1, thick);
+        if (thick > 1) { ctx.fillStyle = ROPE[0]; ctx.fillRect(sx, y + thick, 1, 1); }
+      }
+    };
+    if (layer === 'front') {
+      rope((x) => rail(x, 0), 3, 2);
+      // touffes de mousse accrochées à la corde, et quelques brins qui pendent
+      for (let x = B.x0 + 6; x < B.x1; x += 9) {
+        if (ih(x, 3, 91) > 0.55) continue;
+        const sx = R(x - cam.x), sy = R(rail(x, 0) - cam.y);
+        ctx.fillStyle = C.MOSS[4]; ctx.fillRect(sx - 1, sy - 1, 3, 2);
+        ctx.fillStyle = C.MOSS[2];
+        const len = 2 + Math.floor(ih(x, 4, 91) * 6), sway = Math.sin(time * 1.5 + x) * 0.6;
+        for (let q = 0; q < len; q++) ctx.fillRect(sx + R(sway * q / len), sy + 2 + q, 1, 1);
+      }
+      // les nœuds autour des deux troncs
+      for (const x of [B.x0 - 3, B.x1 + 3]) { ctx.fillStyle = ROPE[1]; ctx.fillRect(R(x - cam.x) - 2, R(rail(x, 0) - cam.y) - 2, 5, 5); ctx.fillStyle = ROPE[3]; ctx.fillRect(R(x - cam.x) - 1, R(rail(x, 0) - cam.y) - 2, 2, 1); }
+      return;
+    }
+    // la main courante du fond, et les suspentes qui la relient au tablier (de part et d'autre)
+    rope((x) => rail(x, 2), 2, 1);
+    for (const p of B.planks) {
+      if (!p.active && p.state === 'fall') continue;
+      const cx = p.x + 8;
+      for (const [k, dx, col] of [[2, -6, ROPE[1]], [0, 6, ROPE[2]]]) {
+        const x = R(cx + dx - cam.x), y0 = R(rail(cx + dx, k) - cam.y), y1 = R(p.y - cam.y);
+        ctx.fillStyle = col; ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
+      }
+    }
+    // deux cordes porteuses sous les planches
+    rope((x) => deck(x) + 5, 1, 1);
+    // les planches (une planche pourrie tremble, puis tombe en tournant un peu)
+    for (const p of B.planks) {
+      const img = p.rotten ? this.rottenPlanks[p.i % 2] : this.planks[(p.i * 5 + 1) % 6];
+      let sx = R(p.x - cam.x), sy = R(p.y - cam.y) - 1;
+      if (p.state === 'shake') sx += R(Math.sin(time * 70 + p.i) * 1);
+      if (p.state === 'fall') { ctx.globalAlpha = Math.max(0, 1 - p.t / 1.1); }
+      if (p.state === 'grow') ctx.globalAlpha = Math.min(1, p.t / 0.4);
+      if (ctx.globalAlpha > 0) ctx.drawImage(img, sx, sy);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -351,6 +451,7 @@ export class ForetLive {
     const f = this.f;
     if (!f) return;
     for (const w of this.waters) if (this.vis(w.x, w.y - 40, w.w, w.h + 40, cam, vw, vh)) this.water(ctx, w, cam, vw, vh, time);
+    for (const B of f.bridges ?? []) this.bridge(ctx, B, cam, vw, vh, time, 'front');
     // la joue droite de la statue : KAGE passe derrière en entrant dans le couloir
     const st = f.statue;
     if (st && this.statueArt && this.vis(st.cx - 100, st.ground - 240, 200, 240, cam, vw, vh)) {
@@ -491,12 +592,15 @@ export class ForetLive {
     g.clearRect(0, 0, vw, vh);
     const p0 = this.level.player, deep = p0 && p0.y > d.y0 + 64 && p0.x > d.x0 && p0.x < d.x1;
     const x0 = R(d.x0 - cam.x), x1 = R(d.x1 - cam.x), y0 = deep ? -999 : R(d.y0 - cam.y);   // sous terre : tout l'écran
-    // la nuit tombe progressivement en descendant dans l'arbre creux
+    // la nuit tombe progressivement en descendant dans l'arbre creux ; vers la sortie, elle se lève peu à peu
+    const fx1 = this.exitFade ? x1 - this.exitFade.width : x1;
     for (let y = Math.max(0, y0); y < vh; y++) {
       const a = Math.min(0.62, Math.max(0, (y - y0) / 48) * 0.62);
       g.fillStyle = `rgba(3,7,11,${a.toFixed(3)})`;
-      g.fillRect(Math.max(0, x0), y, Math.min(vw, x1) - Math.max(0, x0), 1);
+      g.fillRect(Math.max(0, x0), y, Math.max(0, Math.min(vw, fx1) - Math.max(0, x0)), 1);
+      if (y0 > -999 && this.exitFade && fx1 < vw) { g.globalAlpha = a / 0.62; g.drawImage(this.exitFade, 0, y & 3, this.exitFade.width, 1, fx1, y, this.exitFade.width, 1); g.globalAlpha = 1; }
     }
+    if (y0 <= -999 && this.exitFade && fx1 < vw) g.drawImage(this.exitFade, 0, 0, this.exitFade.width, 4, fx1, 0, this.exitFade.width, vh);
     g.globalCompositeOperation = 'destination-out';
     const p = this.level.player;
     if (p) g.drawImage(this.halo, R(p.x - cam.x - 72), R(p.y - 14 - cam.y - 72));
@@ -508,8 +612,27 @@ export class ForetLive {
       g.drawImage(this.haloSmall, R(m.x - cam.x - 26 * r), R(m.y - 8 - cam.y - 26 * r), 52 * r, 52 * r);
       g.globalAlpha = 1;
     }
+    // les arbres à perles éclairent leur coin de caverne
+    for (const { p: pt, shape } of this.pearlTrees) {
+      const r = [0, 38, 54, 120][pt.s ?? 1];
+      const sx = R(shape.cx - cam.x), sy = R(shape.gy - shape.trunkH * 0.9 - cam.y);
+      if (sx < -r || sx > vw + r || sy < -r || sy > vh + r) continue;
+      g.globalAlpha = 0.85; g.drawImage(this.halo, sx - r, sy - r, r * 2, r * 2); g.globalAlpha = 1;
+    }
     g.globalCompositeOperation = 'source-over';
     ctx.drawImage(this.shade, 0, 0);
+    // la lumière du jour entre par la sortie : une nappe dorée et verte qui s'avance dans le couloir
+    if (this.exitFade && x1 > -40 && x1 - this.exitFade.width < vw) {
+      if (!this.spill) this.spill = haloSprite(80);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 3; k++) {
+        const r = 40 + k * 26, sy = R((this.exitY ?? d.y0) - cam.y) - 24;
+        ctx.globalAlpha = 0.08 + 0.02 * Math.sin(time * 0.7 + k);
+        ctx.drawImage(this.tint[2] ?? this.tint[0], x1 - r * 1.6, sy - r, r * 2.2, r * 2);
+      }
+      ctx.restore();
+    }
+    this.drawPearls(ctx, cam, vw, vh, time);
     // la lueur colorée des champignons (turquoise ou violette), puis les champignons eux-mêmes
     ctx.globalCompositeOperation = 'lighter';
     for (const m of this.glows) {
@@ -533,6 +656,46 @@ export class ForetLive {
         ctx.fillRect(kx - w + 1, sy - h - 3, w * 2 - 1, 1);
         if (m.lit > 0.2) { ctx.fillStyle = cap[3]; ctx.fillRect(kx - w + 1, sy - h - 3, 1, 1); }
       }
+    }
+  }
+
+  /** Les perles qui scintillent, la lumière bleutée des arbres, les papillons lumineux. */
+  drawPearls(ctx, cam, vw, vh, time) {
+    const COLS = [['#6fd6ee', '#c4fbff'], ['#a67cf0', '#dcc4ff'], ['#ffe7a8', '#fff7dc']];
+    ctx.globalCompositeOperation = 'lighter';
+    for (const { p: pt, shape } of this.pearlTrees) {
+      const r = [0, 40, 56, 130][pt.s ?? 1];
+      const sx = R(shape.cx - cam.x), sy = R(shape.gy - shape.trunkH * 0.9 - cam.y);
+      if (sx < -r || sx > vw + r || sy < -r || sy > vh + r) continue;
+      ctx.globalAlpha = 0.18 + 0.03 * Math.sin(time * 0.8 + pt.x);
+      ctx.drawImage(this.tint[0], sx - r, sy - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    for (const { shape } of this.pearlTrees) {
+      if (shape.cx + 100 < cam.x || shape.cx - 100 > cam.x + vw) continue;
+      for (const pe of shape.pearls) {
+        const sx = R(pe.x - cam.x), sy = R(pe.y - cam.y + Math.sin(time * 1.2 + pe.ph) * 0.6);
+        if (sx < -2 || sx > vw + 2 || sy < -2 || sy > vh + 2) continue;
+        const tw = 0.55 + 0.45 * Math.sin(time * 2.2 + pe.ph * 3);
+        const [mid, hi] = COLS[pe.c];
+        ctx.globalAlpha = 0.35 * tw; ctx.fillStyle = mid; ctx.fillRect(sx - 1, sy - 1, 3, 3);
+        ctx.globalAlpha = 0.6 + 0.4 * tw; ctx.fillStyle = tw > 0.7 ? hi : mid; ctx.fillRect(sx, sy, 1, pe.big ? 2 : 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // les papillons : ailes qui battent, une lueur qui les suit
+    for (const b of this.butterflies) {
+      const x = b.cx + Math.sin(time * b.a + b.ph) * b.rx + Math.sin(time * 1.7 + b.ph) * 4;
+      const y = b.cy + Math.sin(time * b.b * 1.3 + b.ph * 2) * b.ry;
+      const sx = R(x - cam.x), sy = R(y - cam.y);
+      if (sx < -4 || sx > vw + 4 || sy < -4 || sy > vh + 4) continue;
+      const [mid, hi] = COLS[b.c], open = Math.sin(time * 14 + b.ph) > 0;
+      ctx.globalAlpha = 0.25; ctx.fillStyle = mid; ctx.fillRect(sx - 2, sy - 2, 5, 4);
+      ctx.globalAlpha = 1; ctx.fillStyle = hi;
+      ctx.fillRect(sx, sy, 1, 2);
+      if (open) { ctx.fillStyle = mid; ctx.fillRect(sx - 2, sy - 1, 2, 2); ctx.fillRect(sx + 1, sy - 1, 2, 2); }
+      else { ctx.fillStyle = mid; ctx.fillRect(sx - 1, sy - 2, 1, 2); ctx.fillRect(sx + 1, sy - 2, 1, 2); }
     }
   }
 

@@ -327,7 +327,7 @@ export class ForetBackdrop {
     // sous terre : la paroi du souterrain remplace le ciel dès qu'on descend
     const d = this.dark;
     if (d && cx > d.x0 && cx < d.x1) {
-      const t = Math.max(0, Math.min(1, (cy - d.y0) / 64));
+      const t = Math.max(0, Math.min(1, (cy - d.y0) / 64)) * Math.max(0, Math.min(1, (d.x1 - cx) / (d.fade ?? BLEND)));
       if (t > 0) {
         out = out.map((o) => ({ mood: o.mood, w: o.w * (1 - t) })).filter((o) => o.mood !== 'souterrain');
         out.push({ mood: 'souterrain', w: t });

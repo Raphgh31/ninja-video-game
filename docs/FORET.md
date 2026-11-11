@@ -114,6 +114,12 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - nuages du Potager refaits de la même façon (plus fins et élégants) ;
 - la grande chaîne du chapitre 1 (Mont Kagero et le dojo) se voit toujours au loin, un quart plus grande (on s'en est rapproché), teintée par l'heure (`RANGE`, `RANGE_TINT` ; `paintFar(largeur, 1.25, 0.03)`).
 
+### Retours n° 3 (11 novembre 2026), appliqués
+- **canopée** : un grand **pont suspendu** entre les deux grands troncs (à la place des branches 18 et 27 : `F.bridges`, `bridge_tree`) ; douze vieilles planches moussues qui suivent sa courbe, ploient sous KAGE et oscillent quand il atterrit (`FOREST.bridge`, `deckY`), trois planches pourries qui lâchent si on s'y attarde puis repoussent ; deux mains courantes de corde (celle de devant passe devant KAGE), suspentes, cordes porteuses, mousse ; au sol, **de l'eau entre les îlots** des lianes et des remontées (on ne traverse plus par en bas) ; une chute de trop haut dans l'eau est mortelle ;
+- **arbre creux** : l'intérieur sombre descend jusqu'au fond du boyau (on ne voit plus le décor à travers), entrée en dégradé tramé ;
+- **caverne aux perles** (zone 8, refaite) : plus profonde (`souterrain` = 46) ; après le cinquième palier du boyau, une chute de 10 cases dans la grande salle ; 166 cases au lieu de 98 : racines de chêne énormes (au plafond : glissade ; au sol : saut ; `oak_root`), galerie en contrebas, mare (dash), **clairière** haute de 15 cases avec une petite eau et le **grand arbre aux perles** au bord, salle aux papillons, puits de racines (10 cases de sauts muraux), couloir de sortie en bouche de caverne ; arbres à perles lumineuses (`pearl_tree`, perles qui scintillent dans `live.js`), papillons lumineux ; roche bleu-vert qui redevient terre vers la sortie, pénombre qui se lève peu à peu et lumière du jour qui entre (`dark.fade`) ;
+- zone 10 : sur une liane qui se balance, sauter revient à lâcher (`hop` = 0 : un lâcher à l'extrême atteignait la corniche sans dash).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

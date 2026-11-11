@@ -13,7 +13,8 @@ const TILE = 16;
 
 export const FOREST = {
   collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
-  crumble: { hold: 0.7, back: 2.6 },                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
+  crumble: { hold: 0.7, back: 2.6 },
+  bridge: { rotten: [3, 6, 9], hold: 0.45, back: 3.2, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
   vine: {
     g: 980,            // pesanteur du balancier
@@ -25,7 +26,7 @@ export const FOREST = {
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
     jumpUp: 320,       // impulsion du bond pour quitter une liane immobile (statue, canopée : de quoi passer sur la branche)
-    hop: 60,           // petit coup de reins en quittant une liane qui se balance
+    hop: 0,            // sur une liane qui se balance, sauter revient à lâcher (l'élan vient du balancier)
     boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
@@ -55,7 +56,15 @@ export class Forest {
       kind: 'log', x0: l.x0, x1: l.x1, w: l.w, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
       x: l.x0 + (l.x1 - l.x0) * (l.start ?? 0), y: l.y, y0: l.y, sink: 0, active: true, dx: 0, dy: 0, load: false, phase: l.x0 * 0.07,
     }));
-    this.platforms = [...this.crumbles, ...this.logs];
+    // le pont suspendu : une planche par case ; les planches pourries lâchent sous le pied
+    this.bridges = (def.bridges ?? []).map((br) => {
+      const B = { ...br, amp: 0, t: 0, dipX: null, loaded: false, planks: [] };
+      for (let x = br.x0, i = 0; x < br.x1; x += TILE, i++) {
+        B.planks.push({ kind: 'plank', bridge: B, i, x, w: TILE, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
+      }
+      return B;
+    });
+    this.platforms = [...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
     this.vines = def.vines.map((v, i) => ({ ...v, i, angle: 0, av: 0, rider: null, still: !v.swing }));
     this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, jaw: 0 } : null;
     this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
@@ -81,6 +90,7 @@ export class Forest {
     if (this.collapse) { this.collapse.active = false; this.collapse.t = 0; }
     for (const c of this.crumbles) { c.state = 'idle'; c.t = 0; c.y = c.y0; c.vy = 0; c.active = true; }
     for (const l of this.logs) { l.sink = 0; l.y = l.y0; }
+    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
     for (const v of this.vines) v.rider = null;
     if (this.slide) {
       const S = this.slide;
@@ -99,7 +109,9 @@ export class Forest {
     for (const p of this.platforms) {
       if (!p.active) continue;
       if (box.x + box.w <= p.x + 1 || box.x >= p.x + p.w - 1) continue;
-      if (feet >= p.y && feet - dy <= p.y + 4 + Math.max(0, p.dy)) return p;
+      // (les planches du pont suivent sa courbe : on monte de l'une à l'autre comme sur une petite marche)
+      const tol = p.kind === 'plank' ? 9 : 4;
+      if (feet >= p.y && feet - dy <= p.y + tol + Math.max(0, p.dy)) return p;
     }
     return null;
   }
@@ -109,6 +121,7 @@ export class Forest {
     const alive = player.state !== 'death' && player.state !== 'respawn';
     this.updateCollapse(dt, player, alive);
     this.updateCrumbles(dt);
+    this.updateBridges(dt, player);
     this.updateLogs(dt);
     this.updateVines(dt);
     this.updateStatue(dt, player, alive);
@@ -157,6 +170,49 @@ export class Forest {
       } else if (c.state === 'grow') {
         c.t += dt;
         if (c.t >= 0.35) c.state = 'idle';
+      }
+    }
+  }
+
+  // --- zone 7 : le pont suspendu --------------------------------------------------------
+  /** Hauteur du tablier à l'abscisse x (courbe, creux sous KAGE, oscillation). */
+  deckY(B, x) {
+    const W = FOREST.bridge, u = Math.max(0, Math.min(1, (x - B.x0) / (B.x1 - B.x0))), s = Math.sin(Math.PI * u);
+    const dip = B.dipX == null ? 0 : W.dip * Math.exp(-(((x - B.dipX) / 40) ** 2)) * Math.min(1, s * 2.5);
+    return B.y + B.sag * s + dip + B.amp * s * Math.sin(B.t * W.freq);
+  }
+
+  updateBridges(dt, player) {
+    const W = FOREST.bridge;
+    for (const B of this.bridges) {
+      const loaded = B.planks.some((p) => p.load);
+      if (loaded && !B.loaded) {
+        // KAGE s'y pose : le pont accuse le coup, oscille, craque
+        B.amp = Math.min(W.maxAmp, B.amp + W.bounce * Math.min(1.4, Math.max(0.5, (player.lastFall ?? 200) / 220)));
+        this.emit('bridgeCreak', { x: player.x, y: B.y });
+      }
+      B.loaded = loaded;
+      B.t += dt;
+      B.amp *= Math.exp(-dt * W.damp);
+      // le creux suit KAGE en douceur ; il se relâche quand il quitte le pont
+      const target = loaded ? player.x : null;
+      if (target != null) B.dipX = B.dipX == null ? target : B.dipX + (target - B.dipX) * Math.min(1, dt * 10);
+      else if (B.dipX != null && B.amp < 0.3) B.dipX = null;
+      for (const p of B.planks) {
+        p.dx = 0;
+        if (p.state === 'fall') {
+          p.t += dt; p.vy += 700 * dt; const py = p.y; p.y += p.vy * dt; p.dy = p.y - py;
+          if (p.t >= W.back) { p.state = 'grow'; p.t = 0; p.active = true; p.vy = 0; }
+          continue;
+        }
+        if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + 8, y: p.y }); }
+        if (p.state === 'shake') {
+          p.t += dt;
+          if (p.t >= W.hold) { p.state = 'fall'; p.t = 0; p.active = false; p.vy = 30; this.emit('plankFall', { x: p.x + 8, y: p.y }); continue; }
+        }
+        if (p.state === 'grow') { p.t += dt; if (p.t >= 0.4) p.state = 'idle'; }
+        const ny = this.deckY(B, p.x + 8);
+        p.dy = ny - p.y; p.y = ny;
       }
     }
   }

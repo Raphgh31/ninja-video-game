@@ -27,7 +27,7 @@ npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #nive
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA + KARASU) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : le jeu en un seul fichier ; dist/kage-test.html : version de test (skins sans achat, chapitres et zones en un clic)
-npm test             # carte mentale + build + version autonome + 76 tests de bout en bout + 23 tests de la Forêt, dans Chromium
+npm test             # carte mentale + build + version autonome + 76 tests de bout en bout + 26 tests de la Forêt, dans Chromium
 ```
 
 Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).

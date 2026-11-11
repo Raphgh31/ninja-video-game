@@ -28,13 +28,32 @@ P.z7 = () => { const l = __kage.level; let c = Z(7).x0 + 8; while (!l.ledge(c, 9
   const t = bot.runner(60, { sprintGap: 5, dashGap: 6, aim: true, rest: true, until: (p) => { if (p.y > 18 * 16 && !fell) { fell = true; falls.push(bot.col()); } return fell || p.x > (Z(8).x0 - 18) * 16; } });
   return ['z7', t, falls, bot.col(), bot.row(), Z(8).x0]; };
 // fin de la canopée : on entre dans l'arbre creux et on tombe sous terre ; puis tout le souterrain
-P.z8b = () => { const l = __kage.level; const log = [];
-  let sc = Z(8).x0; const open = (c) => { for (let r = 26; r < 36; r++) if (l.solid(c, r)) return false; return true; }; while (!open(sc)) sc++;
-  bot.place(Z(8).x0 + 1, 36);
-  let t = bot.runner(40, { dashGap: 5, rest: true, until: (p) => p.x > (sc + 1) * 16 + 4 || bot.dead() }); log.push(['au puits', t.toFixed(1), bot.col(), bot.row(), bot.p.hp]);
-  t = bot.wallClimb(10, 29, 1); bot.run(0.6, () => { bot.set({ right: true }); }); log.push(['grimpe', t.toFixed(1), bot.col(), bot.row()]);
-  t = bot.runner(40, { dashGap: 5, rest: true, until: (p) => p.x > Z(9).x0 * 16 + 20 || bot.dead() }); log.push(['sortie', t.toFixed(1), bot.col(), bot.row(), bot.p.hp]);
+P.z8b = () => { const l = __kage.level; const log = []; const h = l.props.find((p) => p.type === 'hollow_giant');
+  // de la grande salle (sous l'arbre creux) jusqu'à la sortie : courir, glisser, sauter, dasher ; contre un haut mur, sauts muraux
+  bot.place(h.x + 3, 46); let sc = 0;
+  for (let i = 0; i < 12 && bot.p.x <= Z(9).x0 * 16 + 20 && !bot.dead(); i++) {
+    bot._stuck = 0;
+    const t = bot.runner(40, { dashGap: 5, rest: true, until: (p) => { if (p.x > Z(9).x0 * 16 + 20 || bot.dead()) return true;
+      const c = Math.floor(p.x / 16), r = Math.round(p.y / 16);
+      bot._stuck = p.onGround && Math.abs(p.vx) < 1 && l.solid(c + 1, r - 1) && l.solid(c + 1, r - 4) ? bot._stuck + 1 : 0; return bot._stuck > 30; } });
+    log.push(['→', t.toFixed(1), bot.col(), bot.row(), bot.p.hp]);
+    if (bot.p.x > Z(9).x0 * 16 + 20 || bot.dead()) break;
+    sc = bot.col(); bot.wallClimb(10, bot.row() - 11, 1, 1); bot.run(1, () => { bot.set({ right: true }); return bot.p.onGround; }); log.push(['grimpe', bot.col(), bot.row()]);
+  }
   return ['z8b', sc, log, Z(9).x0, __kage.save.ryo]; };
+/** Du bout de la canopée, on entre dans l'arbre creux et on descend de palier en palier jusqu'à la caverne. */
+P.pit = () => { const l = __kage.level, h = l.props.find((p) => p.type === 'hollow_giant'), pit = h.x + 1; const log = [];
+  let c = pit - 1; while (!l.ledge(c, 10) && c > pit - 8) c--; bot.place(c, 10);
+  let dir = 1;
+  for (let i = 0; i < 8 && !bot.dead() && bot.row() < 46; i++) {
+    bot.run(2.5, (p) => { bot.set({ right: dir > 0, left: dir < 0 }); return !p.onGround && p.vy > 0; });
+    bot.clear(); bot.run(2.5, (p) => p.onGround || bot.dead());
+    log.push([bot.col(), bot.row(), bot.p.state]);
+    // sur un nœud du bois : on repart par le côté libre
+    const r = bot.row();
+    dir = l.ledge(pit + 2, r) ? -1 : 1;
+  }
+  return ['pit', log, bot.row(), bot.dead()]; };
 P.z9 = () => { const f = __kage.level.forest, st = f.statue, l = __kage.level; const log = [];
   bot.place(Math.floor((st.cx - 64 - 40) / 16));
   bot.run(4, (p) => { bot.set({ right: p.x < st.cx - 64 - 8 }); return p.x >= st.cx - 64 - 8; });

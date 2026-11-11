@@ -145,8 +145,15 @@ export class ForetWorld {
     }
   }
 
-  /** Bourrelets de mousse et de terre qui débordent dans le vide, contre un flanc. */
+  /** Bourrelets de mousse et de terre qui débordent dans le vide, contre un flanc ; sous un plafond, la terre pend un peu. */
   bulges(pix, tx, ty) {
+    const up = this.kind(tx, ty - 1);
+    if ((up === 1 || up === 2) && this.kind(tx, ty) === 0 && this.ch(tx, ty) !== "~") {
+      for (let px = 0; px < TILE; px++) {
+        const x = tx * TILE + px, hang = Math.round((noise1(x * 0.16 + ty * 3.1, 76) - 0.38) * 6);
+        for (let q = 0; q < hang; q++) pix.set(x, ty * TILE + q, up === 2 ? C.RUIN[1] : this.under(x, ty * TILE) ? '#0a141a' : C.HUMUS[1]);
+      }
+    }
     for (const side of [-1, 1]) {
       const k = this.kind(tx - side, ty);
       if (k !== 1 && k !== 2) continue;
@@ -194,7 +201,9 @@ export class ForetWorld {
 
   humus(x, y, dTop, dBot, dL, dR, wet, fL = 999, fR = 999) {
     const d = this.dark;
-    if (!wet && d && x > d.x0 && x < d.x1 && y > d.y0 + 6 + (bayer(x, y) + noise1(x * 0.05, 74) * 0.6) * 30) return this.caveRock(x, y, dTop, dBot, dL, dR);
+    // la roche bleu-vert de la caverne ; vers la sortie, elle redevient peu à peu la terre de la forêt (tramé)
+    const out = d?.fade && x > d.x1 - d.fade ? (x - (d.x1 - d.fade)) / d.fade : 0;
+    if (!wet && d && x > d.x0 && x < d.x1 && y > d.y0 + 6 + (bayer(x, y) + noise1(x * 0.05, 74) * 0.6) * 30 && !(out > 0 && (bayer(x, y) * 0.7 + noise1(y * 0.2, 75) * 0.3) < out)) return this.caveRock(x, y, dTop, dBot, dL, dR);
     if (!wet && dTop >= 44 && dBot >= 16 && !this.under(x, y)) return this.cliff(x, y, fL, fR);
     const under = this.under(x, y);
     if (wet && dTop < 10) {

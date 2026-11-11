@@ -38,6 +38,9 @@ window.bot = {
   groundAt(c, fromRow, depth = 3) {
     const l = this.k.level;
     for (let r = fromRow; r < fromRow + depth; r++) if (l.solid(c, r) || l.ledge(c, r)) return true;
+    // les planches du pont suspendu (plateformes mobiles) comptent comme un sol
+    const plats = (l.forest?.bridges ?? []).flatMap((b) => b.planks);
+    for (const p of plats) if (p.active && c * 16 + 8 >= p.x && c * 16 + 8 < p.x + p.w && p.y >= fromRow * 16 - 20 && p.y < (fromRow + depth) * 16) return true;
     return false;
   },
   /**

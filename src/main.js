@@ -455,6 +455,8 @@ level.onEvent = (n, d) => {
     case 'spanFall': sfxAt('spanFall', d); fx.dust(d.x, d.y + 8, 7, { spread: d.w * 0.6, up: 18, life: 0.8 }); fx.shake(0.7, 0.15); break;
     case 'crumbleCreak': sfxAt('crumbleCreak', d); fx.dust(d.x, d.y + 4, 3, { spread: 20, up: -6, life: 0.5, palette: 'dirt' }); break;
     case 'crumbleFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y, 5, { palette: 'dirt', speed: 40, up: 6 }); break;
+    case 'bridgeCreak': sfxAt('crumbleCreak', d, {}, 0.7); break;
+    case 'plankFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y + 4, 4, { palette: 'dirt', speed: 30, up: 4 }); break;
     case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
     case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
     case 'jawOpen': sfx('jawOpen'); fx.shake(0.7, 4.2); if (save) { save.statue = true; persist(); } break;

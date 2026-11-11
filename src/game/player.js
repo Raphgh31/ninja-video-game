@@ -393,6 +393,7 @@ export class Player {
     this.move(dt);
     // dégâts de chute : la hauteur se compte depuis le dernier appui (sol, glissade murale, liane)
     if (this.onGround) {
+      if (!wasGround) this.lastFall = this.y - this.fallFrom;
       if (!wasGround && this.y - this.fallFrom > P.fallLimit) {
         this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });
         this.fallFrom = this.y;
@@ -440,6 +441,10 @@ export class Player {
     if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump') && this.level.forest?.tryGrab(this, input)) return;
 
     if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
+      this.die();
+    } else if (this.level.hitsSpike(this.box()) && this.y - this.fallFrom > P.fallLimit) {
+      // tombé de trop haut dans l'eau (ou sur des pics) : la chute est mortelle, comme sur le sol
+      this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });
       this.die();
     } else if (this.level.hitsSpike(this.box())) {
       if (this.hurt(DAMAGE_TAKEN.spikes, this.x - this.facing) && this.state !== 'death') {
@@ -539,6 +544,7 @@ export class Player {
 
   move(dt) {
     const lv = this.level;
+    const prevRide = this.ride;
     // porté par une plateforme mobile (tronc flottant) : il la suit
     if (this.ride?.active) this.x += this.ride.dx;
     // horizontal
@@ -577,7 +583,12 @@ export class Player {
     // plateformes mobiles de la forêt : on se pose dessus en retombant
     this.ride = null;
     if (!this.onGround && this.vy >= 0 && lv.forest) {
-      const p = lv.forest.platformUnder(b, this.vy * dt);
+      let p = lv.forest.platformUnder(b, this.vy * dt);
+      // porté par une plateforme qui descend (le pont qui oscille) : il reste posé dessus, il ne s'en décolle pas
+      if (!p && prevRide?.active && b.x + b.w > prevRide.x + 1 && b.x < prevRide.x + prevRide.w - 1) {
+        const gap = prevRide.y - (b.y + b.h);
+        if (gap >= 0 && gap < 8) p = prevRide;
+      }
       if (p) {
         this.y -= b.y + b.h - p.y;
         this.vy = 0;

@@ -116,9 +116,37 @@ async function main() {
     expect(r[0] && r[1] < 14 && !r[2], JSON.stringify(r));
   });
 
-  await test('zone 8 : le souterrain se traverse (glissades, mare, puits de racines)', async () => {
+  await test('zone 8 : la caverne aux perles se traverse (racines, galerie, mare, clairière, puits de racines)', async () => {
     const r = await run('z8b');
     expect(r[2][r[2].length - 1][2] >= r[3], JSON.stringify(r));
+  });
+
+  await test('zone 8 : par l\'arbre creux, on descend de palier en palier, puis une chute de 10 cases (sans dégâts) dans la caverne', async () => {
+    const r = await run('pit');
+    expect(r[2] === 46 && !r[3], JSON.stringify(r));
+  });
+
+  await test('zone 7 : le pont suspendu ploie et oscille quand KAGE s\'y pose ; une planche pourrie lâche si on s\'y attarde', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, B = f.bridges[0], p = B.planks.find((q) => q.rotten);
+      bot.place(Math.floor(B.x0 / 16) - 1, 8); bot.clear();
+      const pl = bot.p; pl.x = p.x + 8; pl.y = B.y - 30; pl.vy = 0; pl.onGround = false; pl.fallFrom = pl.y;
+      let amp = 0, rode = false;
+      bot.run(1.6, (q) => { amp = Math.max(amp, B.amp); if (q.ride === p) rode = true; return p.state === 'fall'; });
+      return [rode, +amp.toFixed(1), p.state, B.sag];
+    });
+    expect(r[0] && r[1] > 1 && r[2] === 'fall', JSON.stringify(r));
+  });
+
+  await test('zone 7 : au sol, de l\'eau entre les îlots des lianes : on ne traverse pas la canopée par en bas', async () => {
+    const r = await ev(() => {
+      const l = __kage.level, z = l.zones[6]; let water = 0;
+      for (let c = z.x0 + 8; c < z.x1 - 10; c++) if (l.at(c, 22) === '~') water++;
+      bot.place(z.x0 + 2, 22); const hp = bot.p.hp;
+      bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.hp < hp || p.x > (z.x0 + 60) * 16 });
+      return [water, bot.p.hp < hp, bot.col(), z.x0 + 60];
+    });
+    expect(r[0] > 40 && r[1] && r[2] < r[3], JSON.stringify(r));
   });
 
   await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {

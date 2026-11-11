@@ -6,7 +6,7 @@ Copier-coller le texte ci-dessous comme premier message d'une nouvelle session C
 
 Bonjour ! On reprend mon jeu **The Ninja Game** (le ninja s'appelle KAGE), un jeu de plateforme 2D rapide en pixel art (Vite + JavaScript, Canvas 2D, tout le décor est peint en code). Réponds toujours en français.
 
-Le **chapitre 2, la Forêt**, a une **première version complète** (12 zones jouables, peintes, sonorisées, raccordées au chapitre 1 par la porte du temple, 23 tests). Travaille sur la branche `claude/message-nouvelle-conversation-docs-t945e2`. Je vais te donner mes retours après avoir joué ; applique exactement ce que je demande, montre-moi le résultat (captures zoomées), et ne fusionne rien avant que je le demande. **Économise la consommation** : lis seulement ce qui est utile, vérifie par lots.
+Le **chapitre 2, la Forêt**, a une **première version complète** (12 zones jouables, peintes, sonorisées, raccordées au chapitre 1 par la porte du temple, 26 tests). Travaille sur la branche `claude/message-nouvelle-conversation-docs-t945e2`. Je vais te donner mes retours après avoir joué ; applique exactement ce que je demande, montre-moi le résultat (captures zoomées), et ne fusionne rien avant que je le demande. **Économise la consommation** : lis seulement ce qui est utile, vérifie par lots.
 
 **Lis d'abord, dans l'ordre :**
 1. `CLAUDE.md` : règles du projet et ma façon de travailler ;
@@ -14,7 +14,7 @@ Le **chapitre 2, la Forêt**, a une **première version complète** (12 zones jo
 3. `docs/GUIDE_CHAPITRE.md` : les leçons du chapitre 1 (à respecter dans chaque retouche) ;
 4. `docs/REPRISE.md` seulement au besoin.
 
-Aperçu des 12 zones : `docs/foret/apercu_zones.png`. Lance `npm install`, puis `npm run sprites` et `npm test` (76 + 23 tests) pour connaître l'état réel.
+Aperçu des 12 zones : `docs/foret/apercu_zones.png`. Lance `npm install`, puis `npm run sprites` et `npm test` (76 + 26 tests) pour connaître l'état réel.
 
 **Les artefacts** (à republier à chaque étape, avec `npm run standalone`) :
 - « The Ninja Game », le jeu pour tout le monde : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (`dist/kage-standalone.html`) ;
