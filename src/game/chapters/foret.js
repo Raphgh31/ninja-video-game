@@ -419,7 +419,7 @@ function build() {
   // ZONE 11 — La descente vertigineuse : un éboulis de pierres moussues dévale
   // la pente derrière KAGE. Gradins, brèches, un tronc couché sous lequel on glisse.
   // ===========================================================================
-  zone('11', 'La descente vertigineuse', { mood: 'couchant' });
+  zone('11', 'La descente vertigineuse', { mood: 'couchant', bgSlope: true });
   x = b.x; ground(10, G10);
   lantern(x + 2, G10);
   const slide0 = x + 7;
@@ -458,7 +458,7 @@ function build() {
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,
   // la dernière lanterne, et l'horizon.
   // ===========================================================================
-  zone('12', 'La lisière crépusculaire', { mood: 'crepuscule' });
+  zone('12', 'La lisière crépusculaire', { mood: 'crepuscule', bgRow: FORET_ROWS.vallee });
   x = b.x; ground(14, G12);
   lantern(x + 3, G12);
   coins([x + 6, x + 8, x + 10], G12 - 2);

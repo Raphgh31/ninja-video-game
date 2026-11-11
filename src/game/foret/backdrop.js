@@ -261,9 +261,28 @@ export class ForetBackdrop {
     }
   }
 
+  /**
+   * Sol de référence du fond à cette abscisse (en cases) : celui de la lisière,
+   * sauf où la zone en fixe un autre (bgRow) ; une zone en pente (bgSlope) passe
+   * doucement de celui d'avant à celui d'après (la grande descente).
+   */
+  refRow(x) {
+    const zs = this.zones;
+    let i = zs.findIndex((z) => x >= z.px0 && x < z.px1);
+    if (i < 0) i = x < zs[0].px0 ? 0 : zs.length - 1;
+    const at = (k) => { for (let j = k; j >= 0; j--) if (zs[j].bgRow != null) return zs[j].bgRow; return REF_ROW; };
+    const z = zs[i];
+    if (z.bgSlope && zs[i + 1]) {
+      const t = Math.max(0, Math.min(1, (x - z.px0) / (z.px1 - z.px0)));
+      const a = at(i - 1), b = zs[i + 1].bgRow ?? a;
+      return a + (b - a) * (t * t * (3 - 2 * t));
+    }
+    return at(i);
+  }
+
   /** Base d'un plan à l'écran : il suit la caméra en hauteur d'une fraction fy. */
   planeY(pl, cam, viewH) {
-    const ref = viewH * GROUND_AT, gy = REF_ROW * TILE - cam.y;
+    const ref = viewH * GROUND_AT, gy = this.refRow(cam.x + 240) * TILE - cam.y;
     return this.q(ref + (gy - ref) * pl.fy) - GY;
   }
 
