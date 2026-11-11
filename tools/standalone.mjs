@@ -52,8 +52,8 @@ const css = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.css'));
 html = html.replace(/<link rel="stylesheet"[^>]*>/, () =>
   `<style>${readFileSync(join(dist, 'assets', css), 'utf8')}</style>`);
 html = html.replace(/<script type="module"[^>]*><\/script>/, () =>
-  `<script>window.__KAGE_EMBED=${JSON.stringify(embed)};${process.env.KAGE_TEST ? 'window.__KAGE_TEST=true;' : ''}${process.env.KAGE_SKINLAB ? 'window.__KAGE_SKINLAB=true;' : ''}</script>\n` +
+  `<script>window.__KAGE_EMBED=${JSON.stringify(embed)};${process.env.KAGE_TEST ? 'window.__KAGE_TEST=true;' : ''}</script>\n` +
   `<script type="module">${readFileSync(join(dist, 'assets', js), 'utf8').replace(/<\/script/g, '<\\/script')}</script>`);
-const out = process.env.KAGE_SKINLAB ? 'kage-skins.html' : process.env.KAGE_TEST ? 'kage-test.html' : 'kage-standalone.html';
+const out = process.env.KAGE_TEST ? 'kage-test.html' : 'kage-standalone.html';
 writeFileSync(join(dist, out), html);
 console.log(`dist/${out} (${Math.round(html.length / 1024)} Ko)`);

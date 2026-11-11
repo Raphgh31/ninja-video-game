@@ -5,7 +5,7 @@ import { TempleGate, INTERIORS, DEFAULT_INTERIOR } from './temple.js';
 import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
 import { TILE } from './tiles.js';
-import { hillGeom, atticGeom, paintRoofCover, roofCoverBox, chestSprite, CHEST, craneBundle, cranePit } from './props.js';
+import { hillGeom, atticGeom, paintRoofCover, roofCoverBox, chestSprite, CHEST, drawChest, craneBundle, cranePit } from './props.js';
 
 const R = Math.round;
 
@@ -280,24 +280,9 @@ export class Live {
 
   /** Le vieux coffre : il s'entrouvre, puis le couvercle bascule en arrière ; fermé, sa serrure brille par moments. */
   chest(ctx, cam, ch) {
-    const t = this.level.time - ch.openedAt;
-    const st = !ch.open ? 0 : t < 0.14 ? 1 : 2;
-    const jolt = ch.open && t < 0.3 ? (t < 0.14 ? -1 : 0) : 0;
-    const sx = R(ch.x - CHEST.cx - cam.x), sy = R(ch.y - CHEST.h - cam.y) + jolt;
-    ctx.drawImage(this.chestImg[st], sx, sy);
-    if (!ch.open) {
-      const k = (this.level.time * 0.6 + ch.x * 0.01) % 2.2;
-      if (k < 0.25) {
-        const a = 1 - Math.abs(k - 0.125) / 0.125;
-        ctx.globalAlpha = Math.max(0, a);
-        ctx.fillStyle = '#fff3c4';
-        const lx = sx + CHEST.cx, ly = sy + CHEST.h - 11;
-        ctx.fillRect(lx, ly - 2, 1, 5);
-        ctx.fillRect(lx - 2, ly, 5, 1);
-        ctx.globalAlpha = 1;
-      }
-    }
+    drawChest(ctx, this.chestImg, ch, cam, this.level.time, this.level.time, this.level.player);
   }
+
 
   /**
    * La grue de bambou : mât planté dans le plateau, flèche qui avance au-dessus du

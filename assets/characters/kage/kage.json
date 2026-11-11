@@ -1093,6 +1093,116 @@
           "duration": 100
         }
       ]
+    },
+    "vine": {
+      "row": 20,
+      "frameCount": 2,
+      "fps": 3,
+      "loop": true,
+      "loopStart": 0,
+      "state": "vine",
+      "strip": "anims/kage_vine.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 333
+        },
+        {
+          "x": 59,
+          "y": 760,
+          "w": 57,
+          "h": 36,
+          "duration": 333
+        }
+      ]
+    },
+    "vine_swing": {
+      "row": 21,
+      "frameCount": 5,
+      "fps": 8,
+      "loop": false,
+      "loopStart": 0,
+      "state": "vine",
+      "strip": "anims/kage_vine_swing.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 798,
+          "w": 57,
+          "h": 36,
+          "duration": 125
+        },
+        {
+          "x": 59,
+          "y": 798,
+          "w": 57,
+          "h": 36,
+          "duration": 125
+        },
+        {
+          "x": 118,
+          "y": 798,
+          "w": 57,
+          "h": 36,
+          "duration": 125
+        },
+        {
+          "x": 177,
+          "y": 798,
+          "w": 57,
+          "h": 36,
+          "duration": 125
+        },
+        {
+          "x": 236,
+          "y": 798,
+          "w": 57,
+          "h": 36,
+          "duration": 125
+        }
+      ]
+    },
+    "vine_climb": {
+      "row": 22,
+      "frameCount": 4,
+      "fps": 7,
+      "loop": true,
+      "loopStart": 0,
+      "state": "vine",
+      "strip": "anims/kage_vine_climb.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 836,
+          "w": 57,
+          "h": 36,
+          "duration": 143
+        },
+        {
+          "x": 59,
+          "y": 836,
+          "w": 57,
+          "h": 36,
+          "duration": 143
+        },
+        {
+          "x": 118,
+          "y": 836,
+          "w": 57,
+          "h": 36,
+          "duration": 143
+        },
+        {
+          "x": 177,
+          "y": 836,
+          "w": 57,
+          "h": 36,
+          "duration": 143
+        }
+      ]
     }
   },
   "views": {

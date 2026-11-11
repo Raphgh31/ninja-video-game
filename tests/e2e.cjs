@@ -37,7 +37,9 @@ async function main() {
     for (const key of ['ArrowLeft', 'ArrowRight', 'ShiftLeft', 'Space']) await k.up(key);
     await wait(120);
   };
+  // SEUL=« texte » : ne lance que les tests dont le nom contient ce texte (mise au point rapide)
   async function test(name, fn) {
+    if (process.env.SEUL && !name.includes(process.env.SEUL)) return;
     try {
       await fn();
       results.push(['ok', name]);
@@ -532,6 +534,26 @@ async function main() {
     expect(shown && i[0] === 9 && i[1] >= 9 && i.slice(2).join() === 'true,true,false,KARASU-KASHI', `titre ${shown}, ${i.join()}`);
   });
 
+  await test('potager : dégâts de chute — de la poutre de la serre (10 cases), KAGE se pose ; du toit (13 cases), il meurt', async () => {
+    const drop = async (roof) => {
+      await pg.evaluate((roof) => {
+        const g = window.__kage, pl = g.player, l = g.level;
+        const s = l.backdrops.find((b) => b.type === 'serre');
+        // la poutre dépasse de la serre (on se laisse tomber dehors) ; le toit s'arrête à son bord
+        const row = roof ? s.y0 : s.y1 - 10, col = roof ? s.x0 : s.x1 + 1;   // (le toit : par son bout gauche, rien en dessous)
+        pl.x = col * 16 + 8; pl.y = row * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.invuln = 0; pl.hp = 5; pl.setState('idle');
+      }, roof);
+      const key = roof ? 'ArrowLeft' : 'ArrowRight';
+      await PK.down(key); await pw(220); await PK.up(key);
+      let died = false;
+      for (let i = 0; i < 20 && !died; i++) { await pw(60); died = await pg.evaluate(() => window.__kage.player.state === 'death'); }
+      await pw(1400);
+      return died;
+    };
+    const beam = await drop(false), roof = await drop(true);
+    expect(!beam && roof, `poutre : mort ${beam}, toit : mort ${roof}`);
+  });
+
   await test('potager : la musique démarre au premier geste, avec son introduction puis sa boucle', async () => {
     await pw(1500);
     const m = await pg.evaluate(() => { const m = window.__kage.music, v = m.voices.main; return [m.playing && m.active === 'main', v.source?.loop, v.source?.loopStart, v.source?.loopEnd, v.buffer?.duration ?? 0]; });
@@ -815,12 +837,12 @@ async function main() {
     expect(at.top >= 5 && hay.y >= at.step.y0 * 16 && hay.y <= at.step.y1 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
   });
 
-  await test('potager : le coffre du grenier s\'ouvre (↑) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {
+  await test('potager : le coffre du grenier s\'ouvre (↑, sans bouton) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {
     const ch = await pg.evaluate(() => { const c = window.__kage.level.chests[0]; return { id: c.id, x: c.x, y: c.y, open: c.open }; });
     const put = (x, y) => pg.evaluate(([x, y]) => { const g = window.__kage, pl = g.player; pl.x = x; pl.y = y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 0;
       for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, [x, y]);
     await put(ch.x - 12, ch.y); await pw(250);
-    const label = await pg.evaluate(() => !document.querySelector('.talk').hidden && document.querySelector('[data-talk]').textContent);
+    const label = await pg.evaluate(() => document.querySelector('.talk').hidden ? 'aucun' : document.querySelector('[data-talk]').textContent);   // plus de bouton : le coffre scintille
     const ryo0 = await pg.evaluate(() => window.__kage.save.ryo);
     await PK.press('ArrowUp'); await pw(1400);
     const st = await pg.evaluate((id) => { const l = window.__kage.level, k = l.coins.filter((c) => c.id.startsWith('k' + id)); return { open: l.chests[0].open, n: k.length, flying: k.filter((c) => c.fly).length, talk: document.querySelector('.talk').hidden }; }, ch.id);
@@ -833,7 +855,7 @@ async function main() {
       return l.coins.filter((c) => c.x / 16 > gr.gx0 + 20 && c.x / 16 < gr.gx1 && Math.floor(c.y / 16) === 13).map((c) => c.x); });
     for (const x of beam) { await put(x, 14 * 16); await pw(40); }
     const beamGot = await pg.evaluate((xs) => window.__kage.level.coins.filter((c) => xs.includes(c.x) && c.taken).length, beam);
-    expect(label === 'Ouvrir le coffre' && st.open && st.n === 10 && st.flying === 0 && st.talk && ryo1 - ryo0 === 10
+    expect(label === 'aucun' && st.open && st.n === 10 && st.flying === 0 && st.talk && ryo1 - ryo0 === 10
       && saved.chests.includes(ch.id) && beam.length === 3 && beamGot === 3,
       `bouton « ${label} », coffre ${JSON.stringify(st)}, ryō +${ryo1 - ryo0}, sauvegarde ${saved.chests}, poutre ${beam.length} (ramassés ${beamGot})`);
   });
@@ -942,23 +964,29 @@ async function main() {
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 
-  await test('cabine des skins : le Potager s\'ouvre sans écran titre, la barre change le skin (clic et touches 1, 2…)', async () => {
+  await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
     const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-skins.html')); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
+    await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await lp.waitForFunction(() => window.__kage);
+    await lp.evaluate(() => localStorage.clear()); await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
     const r0 = await lp.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.run.paused, window.__kage.skin, document.querySelectorAll('.skinlab button').length]);
-    await lp.click('.skinlab [data-skin="encre"]'); await lp.waitForTimeout(100);
-    const r1 = await lp.evaluate(() => window.__kage.skin);
     await lp.keyboard.press('2'); await lp.waitForTimeout(100);
     const r2 = await lp.evaluate(() => window.__kage.skin);
+    await lp.click('.skinlab [data-skin="encre"]'); await lp.waitForTimeout(100);
+    const r1 = await lp.evaluate(() => window.__kage.skin);
+    // zone suivante, deux fois : KAGE est posé dans la zone 3, à sa lanterne
+    await lp.click('[data-zone="next"]'); await lp.waitForTimeout(150);
+    await lp.click('[data-zone="next"]'); await lp.waitForTimeout(400);
+    const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
+    const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,vagabond,2' && r1 === 'encre' && r2 === 'vagabond', `ouverture ${r0.join()}, clic ${r1}, touche 2 ${r2}`);
+    expect(r0.join() === 'true,false,encre,2' && r2 === 'vagabond' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
   await test('version de test : tous les skins se portent sans achat', async () => {
     const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
     await tp.evaluate(() => localStorage.clear()); await tp.reload(); await tp.waitForFunction(() => window.__kage); await tp.waitForTimeout(300);
-    await tp.click('[data-new]'); await tp.waitForTimeout(200);
     await tp.evaluate(() => {
       const g = window.__kage, pl = g.player, l = g.level, tx = Math.floor(l.merchant.x / 16) - 1;
       let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;
@@ -1098,13 +1126,21 @@ async function main() {
     expect(st === 'defeated' && (await gateOpen()), `corbeau ${st}, porte ouverte ${await gateOpen()}`);
   });
 
-  await test('potager : la sortie termine le chapitre', async () => {
+  await test('potager : la sortie mène au chapitre 2 — fondu au noir, titre de la Forêt, la partie continue (ryō gardés)', async () => {
     const gx = await pg.evaluate(() => Math.floor(window.__kage.level.goal.x / 16));
-    // KAGE continue d'avancer, passe derrière la porte (on ne le voit plus), puis la fin du chapitre
+    const ryo0 = (await SAVE()).ryo;
+    // KAGE continue d'avancer, passe derrière la porte (on ne le voit plus), puis le fondu
     await pat(gx - 8); await PK.down('ArrowRight'); await pw(2600); await PK.up('ArrowRight'); await pw(600);
-    const r = await pg.evaluate(() => [!document.querySelector('.win').hidden, document.querySelector('.win__title').textContent]);
+    const card = await pg.evaluate(() => { const c = document.querySelector('.chapter-card'); return [!c.hidden, c.textContent.replace(/\s+/g, ' ').trim()]; });
     const s = await SAVE();
-    expect(r[0] && /Potager/.test(r[1]) && s.done, `fin ${r.join(' / ')}, sauvegarde terminée ${s && s.done}`);
+    expect(card[0] && /La Forêt/.test(card[1]) && s.chapter === 'foret' && s.intro && s.ryo === ryo0, `carte ${card.join(' / ')}, sauvegarde ${JSON.stringify(s && { c: s.chapter, ryo: s.ryo, intro: s.intro })}`);
+    // la page se recharge sur la Forêt : pas d'écran titre, KAGE au départ, la carte s'efface
+    await pg.waitForFunction(() => window.__kage && window.__kage.level.theme === 'foret', null, { timeout: 20000 });
+    await pw(800);
+    const r = await pg.evaluate(() => [document.querySelector('.title-screen').hidden, Math.floor(window.__kage.player.x / 16), !document.querySelector('.chapter-card').hidden]);
+    await pw(5000);
+    const r2 = await pg.evaluate(() => [document.querySelector('.chapter-card').hidden, window.__kage.save.ryo]);
+    expect(r[0] && r[1] < 10 && r[2] && r2[0] && r2[1] === ryo0, `forêt : titre caché ${r[0]}, colonne ${r[1]}, carte ${r[2]} → ${r2.join(' / ')}`);
   });
 
   await test('aucune erreur dans la console', async () => {

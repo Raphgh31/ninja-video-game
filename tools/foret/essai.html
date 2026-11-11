@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#111"><canvas id="board"></canvas>
+<script type="module">
+import { mock } from './scene.js';
+import { MOODS } from '/src/game/foret/palette.js';
+const kage = new Image(); kage.src = '/characters/kage/kage_sheet.png'; await kage.decode();
+const q = new URLSearchParams(location.search), k = +(q.get('k') || 3), W = +(q.get('w') || 448), H = +(q.get('h') || 252);
+const names = (q.get('m') || 'sousbois').split(',');
+const b = document.getElementById('board'); b.width = W * k; b.height = H * k * names.length;
+const g = b.getContext('2d'); g.imageSmoothingEnabled = false;
+const t0 = performance.now();
+names.forEach((n, i) => g.drawImage(mock(MOODS[n], W, H, kage), 0, i * H * k, W * k, H * k));
+window.__ms = Math.round(performance.now() - t0); window.__done = true;
+</script>

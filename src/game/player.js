@@ -10,6 +10,9 @@ const P = {
   accel: 1400,
   friction: 1800,
   airFriction: 450,  // freinage en l'air quand on lâche la direction (garde l'élan, utile pour le dash au double appui)
+  flingDrag: 70,
+  fallLimit: 168,    // chute mortelle au-delà de 10,5 cases entre le sol quitté et le sol d'arrivée
+                     // (la poutre de la serre, 10 cases au-dessus du sol, est la limite sans dégâts ; le toit, 13 cases, tue)     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
   maxFall: 420,
   jump: 315,
@@ -72,6 +75,12 @@ export class Player {
     this.fxTimer = 0;
     this.fastDir = 0;         // sens de la dernière course rapide (pour le dérapage)
     this.fastTimer = 0;
+    this.vine = null;         // liane tenue (chapitre 2)
+    this.vineCd = 0;
+    this.fling = false;       // élan d'une liane en cours (en l'air)
+    this.fallFrom = this.y;   // hauteur du dernier appui (dégâts de chute)
+    this.lastVine = null;
+    this.ride = null;         // plateforme mobile sous ses pieds
     this.level.resetTargets?.();
     this.energy?.reset();
     this.hp = HEALTH.max;
@@ -147,6 +156,7 @@ export class Player {
     this.wallCoyote = Math.max(0, this.wallCoyote - dt);
     this.throwCd = Math.max(0, this.throwCd - dt);
     this.kickCd = Math.max(0, (this.kickCd ?? 0) - dt);
+    this.vineCd = Math.max(0, this.vineCd - dt);
     this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
     const L = input.isHeld('left'), R = input.isHeld('right');
@@ -162,6 +172,12 @@ export class Player {
       case 'respawn':
         this.anim.update(dt);
         if (this.anim.finished) this.setState('idle');
+        return;
+      case 'vine':
+        // accroché à une liane : balancier, grimpe et lâcher sont gérés par la forêt
+        this.level.forest.rideVine(this, dt, input);
+        this.fallFrom = this.y;   // accroché : la chute se compte depuis le lâcher
+        this.energy.update(dt, { resting: true });
         return;
       case 'dash':
         this.vy = 0;
@@ -298,7 +314,13 @@ export class Player {
           break;
         }
         const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run);
-        if (this.wallLock <= 0) {
+        if (this.onGround) this.fling = false;
+        if (this.fling && dir !== -Math.sign(this.vx) && Math.abs(this.vx) > Math.abs(target)) {
+          // élan d'une liane : il porte KAGE, les commandes ne le brident pas
+          this.vx -= Math.sign(this.vx) * P.flingDrag * dt;
+          if (dir !== 0) this.facing = dir;
+        } else if (this.wallLock <= 0) {
+          this.fling = false;
           const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
           else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
@@ -321,7 +343,7 @@ export class Player {
             break;
           }
         }
-        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump') {
+        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
         const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;
@@ -369,6 +391,17 @@ export class Player {
     const wasGround = this.onGround;
     const fallSpeed = this.vy;
     this.move(dt);
+    // dégâts de chute : la hauteur se compte depuis le dernier appui (sol, glissade murale, liane)
+    if (this.onGround) {
+      if (!wasGround) this.lastFall = this.y - this.fallFrom;
+      if (!wasGround && this.y - this.fallFrom > P.fallLimit) {
+        this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });
+        this.fallFrom = this.y;
+        this.die();
+        return;
+      }
+      this.fallFrom = this.y;
+    } else if (this.state === 'wall_slide') this.fallFrom = this.y;
 
     if (this.onGround) {
       this.coyote = P.coyote;
@@ -404,7 +437,14 @@ export class Player {
       }
     }
 
-    if (this.y > this.level.height + 64) {
+    // en l'air, une direction tenue : il attrape la liane qu'il touche
+    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump') && this.level.forest?.tryGrab(this, input)) return;
+
+    if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
+      this.die();
+    } else if (this.level.hitsSpike(this.box()) && this.y - this.fallFrom > P.fallLimit) {
+      // tombé de trop haut dans l'eau (ou sur des pics) : la chute est mortelle, comme sur le sol
+      this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });
       this.die();
     } else if (this.level.hitsSpike(this.box())) {
       if (this.hurt(DAMAGE_TAKEN.spikes, this.x - this.facing) && this.state !== 'death') {
@@ -413,7 +453,7 @@ export class Player {
         this.vx = 0;
         this.vy = 0;
       }
-    } else if (this.onGround && this.state !== 'hurt') {
+    } else if (this.onGround && !this.ride && this.state !== 'hurt') {
       this.safe = { x: this.x, y: this.y };
     }
     this.energy.update(dt, {
@@ -504,6 +544,9 @@ export class Player {
 
   move(dt) {
     const lv = this.level;
+    const prevRide = this.ride;
+    // porté par une plateforme mobile (tronc flottant) : il la suit
+    if (this.ride?.active) this.x += this.ride.dx;
     // horizontal
     this.x += this.vx * dt;
     let b = this.box();
@@ -535,6 +578,23 @@ export class Player {
       const ty = Math.floor(b.y / TILE);
       for (let tx = x0; tx <= x1; tx++) {
         if (lv.solid(tx, ty)) { this.y += (ty + 1) * TILE - b.y; this.vy = 0; break; }
+      }
+    }
+    // plateformes mobiles de la forêt : on se pose dessus en retombant
+    this.ride = null;
+    if (!this.onGround && this.vy >= 0 && lv.forest) {
+      let p = lv.forest.platformUnder(b, this.vy * dt);
+      // porté par une plateforme qui descend (le pont qui oscille) : il reste posé dessus, il ne s'en décolle pas
+      if (!p && prevRide?.active && b.x + b.w > prevRide.x + 1 && b.x < prevRide.x + prevRide.w - 1) {
+        const gap = prevRide.y - (b.y + b.h);
+        if (gap >= 0 && gap < 8) p = prevRide;
+      }
+      if (p) {
+        this.y -= b.y + b.h - p.y;
+        this.vy = 0;
+        this.onGround = true;
+        this.ride = p;
+        p.load = true;
       }
     }
   }

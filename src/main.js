@@ -2,6 +2,7 @@ import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
+import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
 import { Shurikens } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
@@ -10,11 +11,12 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
+import { pixelUI } from './engine/pixelui.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -54,9 +56,14 @@ if (touchCanvas) {
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 const stage = canvas.parentElement;
+// calque de l'interface : à la taille de l'image de jeu, en pixels de jeu, puis
+// agrandi comme elle ; tous ses textes sont tracés avec la police en pixels
+const uiLayer = document.querySelector('.ui');
+/** Change un texte seulement s'il a changé (chaque changement redessine son canvas). */
+const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
 if (MOBILE) {
-  // le bouton du son et l'écran de fin tournent avec le jeu
-  stage.append(document.querySelector('.mute'), document.querySelector('.win'));
+  // le bouton du son tourne avec le jeu, à l'échelle de ses pixels
+  uiLayer.append(document.querySelector('.mute'));
 }
 const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
@@ -110,6 +117,11 @@ function fit() {
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
+  uiLayer.style.width = `${VIEW_W}px`;
+  uiLayer.style.height = `${VIEW_H}px`;
+  uiLayer.style.transform = `scale(${SCALE})`;
+  uiLayer.style.setProperty('--cx', `${Math.floor(VIEW_W / 2)}px`);
+  uiLayer.style.setProperty('--cy', `${Math.floor(VIEW_H / 2)}px`);
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
   touch?.layout(touchView.w, touchView.h, touchView.scale);
@@ -123,9 +135,16 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
-// cabine d'essayage des skins (artefact de test dédié, window.__KAGE_SKINLAB) : le Potager sans écran titre + barre des skins
-const SKIN_LAB = !!globalThis.__KAGE_SKINLAB;
-const LEVEL_ID = location.hash === '#terrain' ? 'terrain' : location.hash === '#niveau-1' ? 'niveau-1' : 'potager';
+// version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
+// et un panneau en haut à droite : skins sans achat, choix du chapitre, saut de zone en zone
+const SKIN_LAB = TEST_BUILD;
+const labGet = (k) => { try { return localStorage.getItem(`kage.lab.${k}`); } catch { return null; } };
+const labSet = (k, v) => { try { localStorage.setItem(`kage.lab.${k}`, v); } catch { /* rien */ } };
+const hashId = location.hash.slice(1);
+// sans ancre : le chapitre de la partie en cours (la sauvegarde suit KAGE d'un chapitre à l'autre)
+const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
+const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
+  : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -225,6 +244,11 @@ player.onEvent = (n, d) => {
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
     case 'kick_breath': sfx('breath'); break;
+    // lianes de la Forêt
+    case 'fall_death': sfx('land', { strength: 1 }); fx.shake(2, 0.25); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
+    case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
+    case 'vine_release': sfx('vineRelease'); break;
+    case 'vine_step': sfx('vineStep'); break;
     case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
@@ -425,6 +449,24 @@ level.onEvent = (n, d) => {
       fx.drift(d.x, d.y, 4, { palette: 'straw', speed: 40 });
       fx.shake(1.2, 0.2);
       break;
+    // la Forêt : pont qui s'effondre, bois vermoulu, troncs flottants, statue, éboulis, oiseaux
+    case 'collapseStart': sfx('collapseStart'); fx.shake(0.8, 0.6); break;
+    case 'spanWarn': sfxAt('spanWarn', d); fx.dust(d.x, d.y, 5, { spread: d.w * 0.5, up: 10, life: 0.6, palette: 'stone' }); break;
+    case 'spanFall': sfxAt('spanFall', d); fx.dust(d.x, d.y + 8, 7, { spread: d.w * 0.6, up: 18, life: 0.8 }); fx.shake(0.7, 0.15); break;
+    case 'crumbleCreak': sfxAt('crumbleCreak', d); fx.dust(d.x, d.y + 4, 3, { spread: 20, up: -6, life: 0.5, palette: 'dirt' }); break;
+    case 'crumbleFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y, 5, { palette: 'dirt', speed: 40, up: 6 }); break;
+    case 'bridgeCreak': sfxAt('crumbleCreak', d, {}, 0.7); break;
+    case 'plankFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y + 4, 4, { palette: 'dirt', speed: 30, up: 4 }); break;
+    case 'branchCrack': sfxAt('crumbleCreak', d, {}, 1.2); fx.dust(d.x - 8, d.y + 2, 4, { spread: 14, up: -4, life: 0.6, palette: 'dirt' }); break;
+    case 'branchSnap': sfxAt('crumbleFall', d, {}, 1.3); fx.sparks(d.x - 4, d.y + 2, 7, { speed: 70, palette: 'dirt' }); fx.drift(d.x - d.w / 2, d.y - 4, 9, { palette: 'leaf', speed: 45, up: 20, life: 1.6 }); fx.shake(0.5, 0.12); break;
+    case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
+    case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
+    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 2.8); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
+    case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
+    case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
+    case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;
+    case 'birds': sfxAt('birds', d); fx.drift(d.x, d.y - 4, 3, { palette: 'feather', speed: 30, up: 20 }); break;
     case 'craneLand':
       sfx('boulderLand');
       fx.shake(2.4, 0.4);
@@ -457,6 +499,7 @@ for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
 if (boss) boss.bar = new HealthBar(KARASU.hp);
 player.onRespawn = () => {
+  level.forest?.reset(level.spawn);
   snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
@@ -466,6 +509,7 @@ player.onRespawn = () => {
 };
 const input = new Input();
 touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
+if (touch) touch.onTap = (u, v) => tapChest(u, v);
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
   touchCanvas.addEventListener('pointerdown', () => {
@@ -478,12 +522,29 @@ let debug = false;
 
 const stateEl = document.querySelector('[data-state]');
 for (const a of document.querySelectorAll('.levels a')) if (a.dataset.level === LEVEL_ID) a.setAttribute('aria-current', 'page');
+let labZone = null;   // libellé « Zone 03 » du panneau de test
 if (SKIN_LAB) setupSkinLab();
 
-/** Cabine d'essayage : une vignette par skin en haut de l'image ; clic ou touches 1, 2… */
+/**
+ * Panneau de la version de test, en haut à droite de l'image : une vignette par
+ * skin (clic ou touches 1, 2…), les chapitres, et le saut de zone en zone.
+ */
 function setupSkinLab() {
   document.querySelector('.levels').style.display = 'none';
-  document.title = 'The Ninja Game — cabine des skins';
+  document.title = 'The Ninja Game — Test';
+  const lab = document.createElement('div');
+  lab.className = 'lab';
+  const stop = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  const button = (label, title, onClick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    if (label) b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener('click', () => { onClick(); b.blur(); });
+    stop(b);
+    return b;
+  };
+  // --- skins ---
   const bar = document.createElement('div');
   bar.className = 'skinlab';
   bar.setAttribute('role', 'toolbar');
@@ -491,10 +552,8 @@ function setupSkinLab() {
   const f = meta.animations.idle.frames[0];
   const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
   const buttons = ids.map((id, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
+    const b = button('', `${skins[id].name} (touche ${i + 1})`, () => pick(id));
     b.dataset.skin = id;
-    b.title = `${skins[id].name} (touche ${i + 1})`;
     const cv = document.createElement('canvas');
     cv.width = 32; cv.height = 26;
     const c = cv.getContext('2d');
@@ -503,21 +562,75 @@ function setupSkinLab() {
     const name = document.createElement('span');
     name.textContent = skins[id].name;
     b.append(cv, name);
-    b.addEventListener('click', () => pick(id));
-    b.addEventListener('pointerdown', (e) => e.stopPropagation());
     bar.append(b);
     return b;
   });
   function pick(id) {
     wearSkin(id);
+    labSet('skin', id);
     for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
   }
   addEventListener('keydown', (e) => {
     const n = Number(e.key);
     if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
   });
-  document.querySelector('.stage').append(bar);
-  pick(ids.find((id) => id !== 'encre') ?? 'encre');
+  lab.append(bar);
+  // --- chapitres : un clic recharge la page sur le chapitre choisi ---
+  const chapters = Object.entries(LEVELS).filter(([, l]) => l.chapter != null).sort((a, b) => a[1].chapter - b[1].chapter);
+  const row = document.createElement('div');
+  row.className = 'lab__row';
+  row.dataset.chapters = '';
+  for (const [id, l] of chapters) {
+    const b = button(`Chapitre ${l.chapter}`, l.name, () => {
+      if (id === LEVEL_ID) { gotoZone(0); return; }
+      labSet('chapter', id);
+      location.hash = `#${id}`;
+      location.reload();
+    });
+    b.dataset.labChapter = id;
+    b.setAttribute('aria-pressed', String(id === LEVEL_ID));
+    row.append(b);
+  }
+  lab.append(row);
+  // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
+  if (level.zones.length) {
+    const zr = document.createElement('div');
+    zr.className = 'lab__row';
+    zr.dataset.zones = '';
+    const cur = () => Math.max(0, level.zones.indexOf(level.zoneAt(player.x)));
+    labZone = document.createElement('span');
+    labZone.textContent = `Zone ${level.zones[0].id}`;
+    const prev = button('←', 'Zone précédente', () => gotoZone(cur() - 1));
+    prev.dataset.zone = 'prev';
+    const next = button('→', 'Zone suivante', () => gotoZone(cur() + 1));
+    next.dataset.zone = 'next';
+    zr.append(prev, labZone, next);
+    lab.append(zr);
+  }
+  uiLayer.append(lab);
+  pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
+}
+
+/** Version de test : pose KAGE au début de la zone i (à sa lanterne s'il y en a une). */
+function gotoZone(i) {
+  const z = level.zones[Math.max(0, Math.min(level.zones.length - 1, i))];
+  if (!z || !save) return;
+  const cp = level.checkpoints.find((k) => k.x >= z.x0 * 16 && k.x < z.x1 * 16);
+  if (cp) {
+    level.checkpoints.forEach((k) => { k.lit = k.x <= cp.x; });
+    level.spawn = { x: cp.x, y: cp.y };
+  } else {
+    const tx = z.x0 + 3;
+    let ty = 0;
+    while (ty < level.h && !level.solid(tx, ty)) ty++;
+    level.checkpoints.forEach((k) => { k.lit = k.x < tx * 16; });
+    level.spawn = { x: tx * 16 + 8, y: ty * 16 };
+  }
+  player.respawn(true);
+  startX = player.x;
+  for (const h of level.hints) if (h.x * 16 < player.x - 48) hintsDone.add(h.kind);
+  hint = null;
+  snapCamera();
 }
 
 function update(dt) {
@@ -534,6 +647,7 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
+  level.forest?.update(dt, player);
   shurikens.update(dt);
   for (const t of enemies) {
     t.update(dt, player);
@@ -608,7 +722,34 @@ function update(dt) {
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
   if (boss) updateBossUi(dt);
   updateCamera(dt);
+  if (level.theme === 'foret') forestSound(dt);
   input.endFrame();
+}
+
+// ---- l'ambiance de la Forêt ------------------------------------------------------
+// Une nappe discrète qui suit la lumière de la zone ; l'éboulis gronde tant qu'il dévale.
+const FOREST_AMB = {
+  matin: { wind: 0.5, birds: 1, creak: 0.15 },
+  sousbois: { wind: 0.35, birds: 0.35, drops: 0.25, creak: 0.35 },
+  canopee: { wind: 1, birds: 0.8, creak: 0.3 },
+  souterrain: { drops: 1, cave: 0.7 },
+  sanctuaire: { wind: 0.25, drops: 0.7, cave: 0.3 },
+  couchant: { wind: 0.6, birds: 0.35, creak: 0.3 },
+  crepuscule: { wind: 0.35, crickets: 1, birds: 0.1 },
+};
+let slideRumble = 0;
+function forestSound(dt) {
+  const z = level.zones.find((zz) => player.x >= zz.px0 && player.x < zz.px1);
+  const under = level.forest?.dark && player.x > level.forest.dark.x0 && player.x < level.forest.dark.x1 && player.y > level.forest.dark.y0 + 48;
+  const mix = { ...(FOREST_AMB[under ? 'souterrain' : z?.mood] ?? FOREST_AMB.sousbois) };
+  if (z?.id === '06') mix.water = 1;                       // le torrent
+  if (z?.id === '03') mix.water = 0.25;                     // les mares (un filet d'eau)
+  ambience(dt, run.paused || run.won ? null : mix);
+  const S = level.forest?.slide;
+  if (S?.active) {
+    slideRumble -= dt;
+    if (slideRumble <= 0) { slideRumble = 0.42; sfxAt('slideRumble', { x: S.x, y: player.y }); }
+  }
 }
 
 // ---- caméra posée -------------------------------------------------------------
@@ -630,7 +771,7 @@ const CAM = {
   top: 0.1,        // la tête de KAGE ne sort jamais par le haut (10 % de marge)
   bottom: 0.97,    // ni ses pieds par le bas
 };
-const camGround = { y: null };                 // sol de référence du palier en cours
+const camGround = { y: null, k: CAM.ground };                 // sol de référence du palier en cours
 const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
 let camVX = 0;                                 // vitesse horizontale (amorti)
 
@@ -647,9 +788,15 @@ function targetX() {
 }
 
 /** Lance un recadrage vertical vers le palier dont le sol est groundY. */
+/** Hauteur du sol dans l'image : celle de la caméra, ou celle imposée par la zone (la statue tient entière dans l'image). */
+function camGroundAt(x) {
+  const z = level.zones?.find((zz) => x >= zz.px0 && x < zz.px1);
+  return z?.camGround ?? CAM.ground;
+}
+
 function retargetY(groundY) {
   camGround.y = groundY;
-  const to = clampCamY(groundY - VIEW_H * CAM.ground);
+  const to = clampCamY(groundY - VIEW_H * camGroundAt(player.x));
   if (Math.abs(to - camV.to) < 1 && camV.t < 1) return;
   camV.from = camera.y;
   camV.to = to;
@@ -669,21 +816,37 @@ function updateCamera(dt) {
   if (camGround.y == null) retargetY(player.y);
   const alive = player.state !== 'death' && player.state !== 'respawn';
   if (alive && player.onGround && Math.abs(player.y - camGround.y) > CAM.step) retargetY(player.y);
+  // cadrage imposé par la zone (la statue) : on recadre en entrant et en sortant
+  const gAt = camGroundAt(player.x);
+  if (alive && gAt !== camGround.k) { camGround.k = gAt; if (player.onGround) retargetY(player.y); }
   // garde-fous : KAGE ne sort jamais de l'image (puits, grandes chutes)
   const y = camV.t < 1 ? camV.to : camera.y;
   if (alive && player.y - 31 < y + VIEW_H * CAM.top) retargetY(player.y - 31 + VIEW_H * (CAM.ground - 0.3));   // tête ramenée à 30 %
-  else if (alive && player.y > y + VIEW_H * CAM.bottom) retargetY(player.y + 32);
+  // vers le bas, seulement s'il descend vers un vrai sol (pas dans l'eau, un ravin, ou hors de la carte) :
+  // sinon l'image reste figée et KAGE sort de l'écran par le bas
+  else if (alive && player.y > y + VIEW_H * CAM.bottom && groundBelow(player.x, player.y) != null) retargetY(player.y + 32);
   if (camV.t < 1) {
     camV.t = Math.min(1, camV.t + dt / camV.dur);
     camera.y = camV.from + (camV.to - camV.from) * ease(camV.t);
   }
 }
 
+/** Ligne du premier vrai sol sous (x, y) (tuile pleine ou passerelle), ou null : eau, vide, bas de la carte. */
+function groundBelow(x, y) {
+  const tx = Math.floor(x / 16);
+  for (let ty = Math.floor(y / 16); ty < level.h; ty++) {
+    const c = level.at(tx, ty);
+    if (c === '~' || c === 'v' || c === '^') return null;
+    if (level.solid(tx, ty) || level.ledge(tx, ty)) return ty;
+  }
+  return null;
+}
+
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
   camGround.y = player.y;
   camera.x = clampCamX(player.x - VIEW_W * 0.42);
-  camera.y = clampCamY(player.y - VIEW_H * CAM.ground);
+  camera.y = clampCamY(player.y - VIEW_H * camGroundAt(player.x));
   camV.to = camera.y; camV.t = 1; camVX = 0;
 }
 
@@ -754,7 +917,7 @@ function draw() {
     ctx.fillStyle = '#ffd400';
     ctx.fillRect(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 1, 1);
   }
-  stateEl.textContent = `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`;
+  setText(stateEl, `${player.state} · frame ${player.anim.frame + 1}/${player.anim.anim.frameCount} · énergie ${Math.round(player.energy.value * 100)} % · vie ${player.hp}/${HEALTH.max}`);
 }
 
 // ---- chapitre : sauvegarde, écran titre, zones, aides, marchand ---------------
@@ -789,6 +952,7 @@ const HINTS = {
   wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
   rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
   airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
+  vine: ['← → tenue : s\'accrocher à la liane — tout relâcher : la lâcher', 'Joystick tenu : s\'accrocher à la liane — le relâcher : la lâcher'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
@@ -801,6 +965,7 @@ const HINT_USED = {
   wall: () => player.state === 'wall_jump',
   rope: () => level.cranes.some((c) => c.cut),
   airAttack: () => player.state === 'air_attack',
+  vine: () => player.state === 'vine',
 };
 
 function updateChapterUi(dt) {
@@ -812,6 +977,7 @@ function updateChapterUi(dt) {
     zoneTimer = 3.2;
     ui.zone.querySelector('[data-zone-num]').textContent = `Zone ${z.id}`;
     ui.zone.querySelector('[data-zone-name]').textContent = z.name;
+    if (labZone) setText(labZone, `Zone ${z.id}`);
   }
   zoneTimer = Math.max(0, zoneTimer - dt);
   ui.zone.classList.toggle('on', zoneTimer > 0);
@@ -827,7 +993,7 @@ function updateChapterUi(dt) {
       hint = null;
     }
   }
-  ui.hint.textContent = hint ? HINTS[hint.kind][MOBILE ? 1 : 0] : '';
+  if (hint) setText(ui.hint, HINTS[hint.kind][MOBILE ? 1 : 0]);
   ui.hint.classList.toggle('on', !!hint);
   // sauvegarde
   savedFlash = Math.max(0, savedFlash - dt);
@@ -838,8 +1004,9 @@ function updateChapterUi(dt) {
   const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && alive;
   // coffre : « Ouvrir le coffre » quand on se tient devant, encore fermé
   chestHere = !near && alive ? level.chestNear(player.x, player.y) : null;
-  ui.talk.hidden = !near && !chestHere;
-  ui.talkLabel.textContent = chestHere ? 'Ouvrir le coffre' : 'Parler au marchand';
+  // (le coffre n'a plus de bouton : il tressaute et scintille, on l'ouvre avec ↑ ou en le touchant)
+  ui.talk.hidden = !near;
+  setText(ui.talkLabel, 'Parler au marchand');
   if (input.wasPressed('up')) talkAction();
 }
 
@@ -850,6 +1017,15 @@ function talkAction() {
 }
 
 let chestHere = null;
+/** Tactile : un doigt posé sur un coffre fermé, KAGE tout près, l'ouvre. Renvoie true si l'appui est pris. */
+function tapChest(u, v) {
+  if (!level?.chests?.length || player.state === 'death' || player.state === 'respawn') return false;
+  const wx = camera.x + u * VIEW_W, wy = camera.y + v * VIEW_H;
+  const ch = level.chests.find((c) => !c.open && Math.abs(wx - c.x) < 24 && wy > c.y - 36 && wy < c.y + 8);
+  if (!ch || Math.abs(player.x - ch.x) > 48 || Math.abs(player.y - ch.y) > 40) return false;
+  openChest(ch);
+  return true;
+}
 function openChest(ch) {
   const coins = level.openChest(ch);
   if (!coins.length) return;
@@ -936,9 +1112,57 @@ if (CHAPTER) {
   const cont = title.querySelector('[data-continue]');
   cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
   cont.addEventListener('click', () => startChapter(true));
-  title.querySelector('[data-new]').addEventListener('click', () => startChapter(false));
+  title.querySelector('[data-new]').addEventListener('click', () => {
+    // une nouvelle partie commence toujours au chapitre 1
+    if (LEVEL_ID !== 'potager' && !hashId && !TEST_BUILD) { clearSave(); location.reload(); return; }
+    startChapter(false);
+  });
   (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
-  if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+  if (existing && existing.chapter === LEVEL_ID && existing.intro) {
+    // on arrive du chapitre précédent : pas d'écran titre, la carte du chapitre s'efface sur la forêt
+    startChapter(true);
+    delete save.intro;
+    persist();
+    chapterCard(level.intro, true);
+  } else if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+}
+
+/** Carte de chapitre : noire, le titre ; fadeOut = elle part de noir et s'efface sur le jeu. */
+function chapterCard(t, fadeOut) {
+  const el = document.querySelector('.chapter-card');
+  if (!el || !t) return el;
+  el.querySelector('[data-card-pre]').textContent = t.pre ?? '';
+  el.querySelector('[data-card-num]').textContent = t.num ?? '';
+  el.querySelector('[data-card-name]').textContent = t.name ?? '';
+  el.querySelector('[data-card-line]').textContent = t.line ?? '';
+  el.hidden = false;
+  if (fadeOut) {
+    el.classList.add('on');
+    run.paused = true;
+    setTimeout(() => { run.paused = false; el.classList.add('out'); el.classList.remove('on'); }, 2400);
+    setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 5200);
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+  }
+  return el;
+}
+
+/** Fin d'un chapitre qui a une suite : fondu au noir, titre du suivant, puis on y entre (même partie). */
+function nextChapter() {
+  const id = level.nextId, def = LEVELS[id];
+  const ns = emptySave(id);
+  for (const k of ['ryo', 'skins', 'skin', 'merchantMet', 'bossDefeated', 'time', 'falls']) if (save?.[k] != null) ns[k] = save[k];
+  ns.time = run.time;
+  ns.prev = [...(save?.prev ?? []), LEVEL_ID];
+  ns.intro = true;
+  writeSave(ns);
+  if (TEST_BUILD) labSet('chapter', id);
+  chapterCard(def.intro ?? { num: `Chapitre ${def.chapter}`, name: def.name }, false);
+  music.setLevel(0, 2.5);
+  setTimeout(() => {
+    if (location.hash) location.replace(location.pathname + location.search);
+    else location.reload();
+  }, 4600);
 }
 
 // barre de vie du boss : fine, en haut de l'image, avec son nom ; la part perdue
@@ -987,10 +1211,11 @@ function win() {
   run.won = true;
   music.setLevel(0, 3);
   sfx('win');
+  if (CHAPTER && level.nextId && LEVELS[level.nextId] && !hashId) { save.done = true; nextChapter(); return; }
   const el = document.querySelector('.win');
   if (CHAPTER) {
     el.querySelector('.win__title').textContent = `${level.name} — terminé`;
-    el.querySelector('[data-next]').textContent = level.next ? `Au loin s'étendent ${level.next.toLowerCase()}… la suite de l'aventure arrive bientôt.` : '';
+    el.querySelector('[data-next]').textContent = level.endText ?? (level.next ? `Au loin s'étendent ${level.next.toLowerCase()}… la suite de l'aventure arrive bientôt.` : '');
     el.querySelector('[data-ryo-row]').hidden = false;
     el.querySelector('[data-ryo]').textContent = String(save.ryo);
     save.done = true;
@@ -1029,20 +1254,26 @@ function drawTime(c, right, y, t, label = null) {
 
 // Boucle à pas fixe (120 Hz) pour une physique stable quel que soit l'écran.
 const STEP = 1 / 120;
+let manual = false;   // tests : le temps n'avance que par __kage.step()
 let acc = 0;
 let last = performance.now();
 function frame(now) {
   acc += Math.min(0.1, (now - last) / 1000);
   last = now;
   while (acc >= STEP) {
-    update(STEP);
+    if (!manual) update(STEP);
     acc -= STEP;
   }
   draw();
   requestAnimationFrame(frame);
 }
 fit();
+pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('.mute')]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; } };
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; },
+  /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
+  step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
+  resume() { manual = false; },
+};

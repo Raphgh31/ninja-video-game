@@ -1,0 +1,53 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#111"><canvas id="board"></canvas>
+<script type="module">
+// Planche de la statue oubliée (zone 9) : ses trois états, à la taille du jeu.
+import { paintStatue, drawStatue, ruinWall, pavement, STATUE as S } from '/src/game/foret/statue.js';
+import { canvas, pick, bayer } from '/src/game/potager/paint.js';
+import * as C from '/src/game/foret/palette.js';
+import * as L from '/src/game/foret/layers.js';
+import { renderText } from '/src/engine/pixelfont.js';
+
+const kage = new Image(); kage.src = '/characters/kage/kage_sheet.png'; await kage.decode();
+const t0 = performance.now();
+const art = paintStatue();
+const PW = 232, PH = 252, GY = 240, K = 2;
+const b = document.getElementById('board'); b.width = 24 + (PW * K + 24) * 3; b.height = 150 + PH * K + 96;
+const g = b.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#0d1317'; g.fillRect(0, 0, b.width, b.height);
+const text = (s, x, y, o = {}) => { const c = renderText(s, { color: o.color ?? '#e9e5da', font: o.font ?? 'small', spacing: o.spacing ?? 0, maxW: o.maxW ?? 0 }); const k = o.k ?? 2; g.drawImage(c, x, y, c.width * k, c.height * k); };
+text('ZONE 9 — LA STATUE OUBLIÉE', 24, 14, { font: 'big', spacing: 1 });
+text('Visage de pierre sculpté en relief, éclairé du haut à gauche ; chevelure de feuillage et de lianes (les mèches où KAGE grimpe). 228 pixels de haut : elle tient dans l\'image.', 24, 66, { color: '#8fa3a0', maxW: 720 });
+
+function panel(state, kx) {
+  const bg = new L.Sheet(PW, PH);
+  // la pénombre du sanctuaire, une clarté qui tombe d'en haut
+  for (let y = 0; y < PH; y++) for (let x = 0; x < PW; x++) {
+    const d = Math.hypot((x - PW / 2) / 150, (y - 70) / 240);
+    bg.set(x, y, pick(['#0a0f1c', '#0f1728', '#152236', '#1c3145', '#274557'], 0.75 - d, x, y, 0.6));
+  }
+  ruinWall(bg, -6, 0, 30, GY, 3, 0.16);
+  ruinWall(bg, PW - 24, 0, 30, GY, 5, 0.22);
+  pavement(bg, 0, PW, GY, PH - GY, 7, (x) => 0.2 * Math.max(0, 1 - Math.abs(x - PW / 2 + 20) / 70));
+  const c = canvas(PW, PH), cg = c.getContext('2d');
+  cg.drawImage(bg.done(), 0, 0);
+  drawStatue(cg, art, Math.round(PW / 2 - S.cx), GY, state);
+  const fx = new L.Sheet(PW, PH);
+  L.paintRays(fx, [{ x: 30, w: 26, len: PH }, { x: 78, w: 12, len: PH * 0.9 }, { x: 120, w: 20, len: PH * 0.8 }], '#eaffd0', 0.42, 0.3);
+  for (const [x, s] of [[14, 9], [40, 7], [200, 10], [222, 8]]) L.fern(fx, x, GY, s, C.FERN, x);
+  for (let x = 2; x < PW; x += 9) if (Math.abs(x - PW / 2) > 34) L.grassTuft(fx, x, GY - 1, 3 + (x % 4), C.FERN, x);
+  cg.drawImage(fx.done(), 0, 0);
+  cg.drawImage(kage, 0, 0, 57, 36, kx - 19, GY - 35, 57, 36);
+  return c;
+}
+const states = [
+  ['1. Endormie', 'Yeux éteints, bouche close. Les joints de la mâchoire ne sont que deux fissures.', {}, 48],
+  ['2. Un œil rallumé', 'KAGE grimpe aux lianes et rallume la lanterne de pierre de l\'orbite.', { eyes: [1, 0] }, 48],
+  ['3. Éveillée', 'Les deux yeux allumés, la mâchoire s\'enfonce dans le sol : la suite passe par sa bouche.', { eyes: [1, 1], jaw: 1 }, 100],
+];
+states.forEach(([title, note, st, kx], i) => {
+  const x = 24 + i * (PW * K + 24);
+  text(title, x, 118);
+  g.drawImage(panel(st, kx), x, 150, PW * K, PH * K);
+  text(note, x, 150 + PH * K + 10, { color: '#8fa3a0', maxW: 226 });
+});
+window.__ms = Math.round(performance.now() - t0); window.__done = true;
+</script>

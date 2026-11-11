@@ -2,6 +2,8 @@
 // Les cartes sont dans maps.js.
 import { LEVELS } from './maps.js';
 import { PotagerArt } from './potager/index.js';
+import { ForetArt } from './foret/index.js';
+import { Forest } from './foret/mechanics.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
@@ -21,6 +23,9 @@ export class Level {
     this.boss = def.boss ?? null;     // { type, x, y } : le boss du chapitre (et son perchoir)   // { src, loopStart, loopEnd } : musique du chapitre
     this.legacyCheckpoints = def.legacyCheckpoints ?? null;   // colonnes des lanternes d'origine (anciennes sauvegardes)
     this.next = def.next ?? null;
+    this.nextId = def.nextId ?? null;        // chapitre suivant (on y enchaîne après l'arrivée)
+    this.intro = def.intro ?? null;          // carte de titre à l'entrée du chapitre
+    this.endText = def.endText ?? null;
     this.zones = (def.zones ?? []).map((z) => ({ ...z, px0: z.x0 * TILE, px1: z.x1 * TILE }));
     this.props = def.props ?? [];
     this.hints = def.hints ?? [];
@@ -75,9 +80,11 @@ export class Level {
     // plateformes fragiles de l'arène du boss : { x0, w, row (cases), ground (ligne du sol dessous) }
     this.scaffolds = (def.boss?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
     for (const c of this.cranes) this.fillCrane(c, c.top);
+    // mécaniques vivantes de la Forêt (chapitre 2) : pont qui s'effondre, lianes, statue, éboulis…
+    this.forest = def.forest ? new Forest(this, def.forest) : null;
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
-    this.art = this.theme === 'potager' ? new PotagerArt(this) : null;
+    this.art = this.theme === 'potager' ? new PotagerArt(this) : this.theme === 'foret' ? new ForetArt(this) : null;
   }
 
   // --- cibles d'entraînement -------------------------------------------------
@@ -273,7 +280,8 @@ export class Level {
 
   solid(tx, ty) {
     const c = this.at(tx, ty);
-    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6);
+    return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6)
+      || (c === 'J' && !this.forest?.statueOpen);
   }
 
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la
@@ -468,11 +476,27 @@ export class Level {
     if (ch.open) return [];
     ch.open = true;
     ch.openedAt = silent ? -9 : this.time;
-    // places : rangée basse de part et d'autre du coffre, rangée haute au-dessus
-    const spots = [[-64, 8], [-40, 8], [40, 8], [64, 8], [88, 8], [-52, 20], [-28, 20], [0, 22], [28, 20], [52, 20]];
+    // places : deux rangées, de part et d'autre du coffre et au-dessus, les plus proches d'abord ;
+    // seulement là où il y a un sol (terre, planche ou branche) et de l'air au-dessus : jamais dans un
+    // mur, jamais dans le vide. S'il n'y a pas assez de place, le coffre donne moins de ryō.
+    const row = Math.round(ch.y / TILE);
+    const floor = (tx) => this.solid(tx, row) || this.ledge(tx, row);
+    const free = (x, y) => !this.solid(Math.floor(x / TILE), Math.floor(y / TILE));
+    const spots = [];
+    for (const dy of [8, 20]) for (let k = -8; k <= 8; k++) {
+      const dx = k * 12 + (dy === 20 ? 6 : 0);
+      if (dy === 8 && Math.abs(dx) < 20) continue;                     // (le coffre est là)
+      const x = ch.x + dx, tx = Math.floor(x / TILE);
+      if (!floor(tx) || !free(x, ch.y - dy) || !free(x, ch.y - 2)) continue;
+      // pas de mur entre le coffre et la pièce
+      let ok = true;
+      for (let q = Math.min(ch.x, x); q <= Math.max(ch.x, x); q += 4) if (!free(q, ch.y - 4) || !floor(Math.floor(q / TILE))) { ok = false; break; }
+      if (ok) spots.push([dx, dy]);
+    }
+    spots.sort((a, b) => Math.abs(a[0]) + a[1] * 1.6 - (Math.abs(b[0]) + b[1] * 1.6));
     const out = [];
-    for (let i = 0; i < ch.ryo; i++) {
-      const [dx, dy] = spots[i % spots.length];
+    for (let i = 0; i < Math.min(ch.ryo, spots.length); i++) {
+      const [dx, dy] = spots[i];
       const c = { id: `k${ch.id}_${i}`, x: ch.x + dx, y: ch.y - dy, taken: false };
       if (!silent) c.fly = { x0: ch.x + (i % 5) * 3 - 6, y0: ch.y - 12, t0: this.time + 0.18 + i * 0.045, dur: 0.6, h: 26 + (i % 3) * 8 };
       this.coins.push(c);
@@ -488,6 +512,7 @@ export class Level {
 
   /** Applique une sauvegarde : ryō déjà pris, caisses déjà brisées, coffres ouverts. */
   applySave(save) {
+    this.forest?.applySave(save);
     const taken = new Set(save.coins ?? []);
     for (const id of save.chests ?? []) {
       const ch = this.chests.find((c) => c.id === id);
@@ -548,6 +573,14 @@ export class Level {
       }
     }
     return this.goal && px >= this.goal.x && Math.abs(py - this.goal.y) < 48;
+  }
+
+  /** Le vide d'un ravin (« v ») : on y meurt. */
+  hitsVoid(box) {
+    const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);
+    const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.at(tx, ty) === 'v') return true;
+    return false;
   }
 
   /** Les pics ne tuent que dans leur moitié basse (plus juste pour le joueur). */

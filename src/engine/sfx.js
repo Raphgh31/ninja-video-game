@@ -391,12 +391,137 @@ const SOUNDS = {
     ring({ f: 1900, vol: 0.022, dur: 0.5, delay: 0.42 });
     ring({ f: 2550, vol: 0.016, dur: 0.45, delay: 0.52 });
   },
+  // ---- la Forêt (chapitre 2) ----
+  // le pont va s'effondrer : grondement sourd qui monte
+  collapseStart: () => {
+    tone({ f: 48, to: 38, dur: 1.4, type: 'triangle', vol: 0.12, attack: 0.25 });
+    air({ dur: 1.4, vol: 0.12, type: 'lowpass', q: 0.7, f: [[0, 160], [0.5, 320], [1, 120]], g: [[0, 0.05], [0.4, 1], [1, 0.01]], am: { rate: 9, depth: 0.6 } });
+  },
+  // une travée s'annonce : pierre qui se fend, gravier
+  spanWarn: () => {
+    noise({ dur: 0.06, vol: 0.1, type: 'bandpass', f: 1900, q: 2.5 });
+    air({ dur: 0.45, vol: 0.06, q: 2, f: [[0, 700], [1, 300]], g: [[0, 1], [0.2, 0.5], [1, 0.01]], am: { rate: 30, depth: 0.9, type: 'square' } });
+  },
+  // elle tombe : bloc lourd, éclats
+  spanFall: () => {
+    tone({ f: 85, to: 36, dur: 0.5, type: 'triangle', vol: 0.12 });
+    noise({ dur: 0.4, vol: 0.16, type: 'lowpass', f: 520, to: 110 });
+    for (let i = 0; i < 3; i++) noise({ dur: 0.04, vol: 0.05, type: 'bandpass', f: 1600 + i * 500, q: 3, delay: 0.1 + i * 0.08 });
+  },
+  // planche vermoulue : elle craque sous le pied, puis cède
+  crumbleCreak: () => air({ dur: 0.45, vol: 0.05, q: 9, f: [[0, 420], [0.5, 640], [1, 380]], g: [[0, 0.1], [0.3, 1], [1, 0.05]], am: { rate: 22, depth: 0.85, type: 'sawtooth' } }),
+  crumbleFall: () => {
+    for (let i = 0; i < 3; i++) noise({ dur: 0.05, vol: 0.08, type: 'bandpass', f: 1300 + i * 300, q: 2.5, delay: i * 0.04 });
+    noise({ dur: 0.25, vol: 0.07, type: 'lowpass', f: 600, to: 200, delay: 0.1 });
+  },
+  // un tronc s'enfonce sous KAGE : clapotis, bulles
+  logDip: () => {
+    air({ dur: 0.35, vol: 0.039, type: 'lowpass', q: 0.8, f: [[0, 1400], [1, 500]], g: [[0, 1], [0.3, 0.5], [1, 0.01]] });   // −5 dB (l'eau)
+    for (let i = 0; i < 3; i++) tone({ f: rnd(500, 900), to: rnd(900, 1400), dur: 0.05, type: 'sine', vol: 0.01, delay: 0.08 + i * 0.07 });
+  },
+  // lianes : on s'y accroche (feuilles froissées, la liane se tend), on lâche (souffle), on grimpe
+  vineGrab: ({ still = false } = {}) => {
+    air({ dur: 0.18, vol: 0.07, q: 1.2, f: [[0, 3200], [1, 1600]], g: [[0, 1], [0.4, 0.5], [1, 0.01]], am: { rate: 45, depth: 0.7 } });
+    if (!still) air({ dur: 0.3, vol: 0.03, q: 10, f: [[0, 260], [0.5, 340], [1, 240]], g: [[0, 0.1], [0.3, 1], [1, 0.02]], am: { rate: 14, depth: 0.7, type: 'sawtooth' }, delay: 0.04 });
+  },
+  vineRelease: () => air({ dur: 0.22, vol: 0.06, q: 0.8, f: [[0, 600], [0.5, 1500], [1, 700]], g: [[0, 0.1], [0.4, 1], [1, 0.01]] }),
+  vineStep: () => air({ dur: 0.08, vol: 0.035, q: 1.5, f: [[0, 2800], [1, 1800]], g: [[0, 1], [1, 0.01]], am: { rate: 50, depth: 0.6 } }),
+  // un œil de la statue se rallume : clochettes de pierre, lueur
+  eyeLit: ({ both = false } = {}) => {
+    [880, 1319, 1760].forEach((f, i) => tone({ f, dur: 0.9, type: 'sine', vol: 0.035, attack: 0.01, delay: i * 0.09 }));
+    if (both) [1175, 1568, 2349].forEach((f, i) => tone({ f, dur: 1.2, type: 'sine', vol: 0.03, attack: 0.02, delay: 0.35 + i * 0.1 }));
+    air({ dur: 0.9, vol: 0.03, type: 'highpass', q: 0.7, f: [[0, 3000], [1, 6000]], g: [[0, 0.05], [0.3, 1], [1, 0.01]] });
+  },
+  // la mâchoire de pierre s'abaisse (4 s) : meule qui gronde, poussière
+  jawOpen: () => {
+    tone({ f: 55, to: 46, dur: 4.2, type: 'triangle', vol: 0.11, attack: 0.4 });
+    air({ dur: 4.3, vol: 0.1, type: 'bandpass', q: 1.2, f: [[0, 260], [0.5, 380], [1, 200]], g: [[0, 0.05], [0.1, 1], [0.9, 0.8], [1, 0.01]], am: { rate: 7, depth: 0.7, type: 'sawtooth' } });
+  },
+  jawDone: () => { tone({ f: 70, to: 32, dur: 0.6, type: 'sine', vol: 0.16 }); noise({ dur: 0.45, vol: 0.18, type: 'lowpass', f: 380, to: 90 }); },
+  // l'éboulis se met en marche, roule (répété tant qu'il dévale), écrase, s'arrête
+  slideStart: () => {
+    tone({ f: 44, to: 34, dur: 1.6, type: 'triangle', vol: 0.14, attack: 0.1 });
+    noise({ dur: 1.2, vol: 0.18, type: 'lowpass', f: 420, to: 160, attack: 0.15 });
+    for (let i = 0; i < 6; i++) noise({ dur: 0.05, vol: 0.06, type: 'bandpass', f: 1200 + i * 260, q: 3, delay: 0.2 + i * 0.12 });
+  },
+  slideRumble: () => {
+    noise({ dur: 0.5, vol: 0.12, type: 'lowpass', f: 300, to: 140, attack: 0.05 });
+    tone({ f: rnd(50, 64), to: 40, dur: 0.45, type: 'triangle', vol: 0.07 });
+    for (let i = 0; i < 2; i++) noise({ dur: 0.04, vol: 0.05, type: 'bandpass', f: rnd(1300, 2600), q: 3, delay: rnd(0, 0.35) });
+  },
+  slideHit: () => { noise({ dur: 0.6, vol: 0.26, type: 'lowpass', f: 600, to: 100 }); tone({ f: 70, to: 30, dur: 0.6, type: 'sine', vol: 0.18 }); },
+  slideEnd: () => { tone({ f: 60, to: 30, dur: 0.8, type: 'triangle', vol: 0.14 }); noise({ dur: 0.7, vol: 0.18, type: 'lowpass', f: 400, to: 80 }); },
+  // des oiseaux s'envolent : battements d'ailes serrés, un petit cri
+  birds: () => {
+    for (let i = 0; i < 5; i++) air({ dur: 0.07, vol: 0.05, type: 'bandpass', q: 1, f: [[0, 900], [1, 2200]], g: [[0, 0.1], [0.4, 1], [1, 0.01]], delay: i * 0.055 + rnd(0, 0.02) });
+    tone({ f: 3100, to: 2500, dur: 0.07, type: 'sine', vol: 0.02, delay: 0.05 });
+  },
   gateCreak: () => {
     tone({ f: 95, to: 120, dur: 1.4, type: 'triangle', vol: 0.06, attack: 0.2 });
     air({ dur: 1.5, vol: 0.05, q: 6, f: [[0, 380], [0.5, 520], [1, 300]], g: [[0, 0.05], [0.2, 1], [0.8, 0.8], [1, 0.01]], am: { rate: 11, depth: 0.8, type: 'sawtooth' } });
     noise({ dur: 0.5, vol: 0.12, type: 'lowpass', f: 240, to: 110, delay: 1.3 });
   },
 };
+
+// ---------------------------------------------------------------------------
+// ambiance de la Forêt : des nappes en stéréo (vent à gauche et à droite, eau
+// courante, grondement de caverne) et de petits événements au hasard (oiseaux,
+// gouttes, craquements, grillons), très discrets. mix = { wind, birds, drops,
+// creak, water, cave, crickets } de 0 à 1, selon la zone.
+// ---------------------------------------------------------------------------
+let amb = null;
+function panned(pan, gain) {
+  const g = ac.createGain();
+  g.gain.value = gain;
+  if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; g.connect(p).connect(master); } else g.connect(master);
+  setTimeout(() => g.disconnect(), 3000);
+  return g;
+}
+function ambBuild() {
+  const bed = (type, f, q, pan) => {
+    const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+    const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    const g = ac.createGain(); g.gain.value = 0.0001;
+    src.connect(fl).connect(g);
+    if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; g.connect(p).connect(master); } else g.connect(master);
+    src.start(0, Math.random() * 0.9);
+    return { fl, g };
+  };
+  amb = { windL: bed('bandpass', 480, 0.7, -0.7), windR: bed('bandpass', 620, 0.7, 0.7), water: bed('lowpass', 1100, 0.4, 0.15), cave: bed('lowpass', 120, 1.2, 0), t: 0, tick: 0, next: { birds: 1, drops: 0.5, creak: 3, crickets: 0.3 } };
+}
+const AMB_EVENTS = {
+  birds: () => { const f = rnd(2400, 3600), n = 2 + Math.floor(Math.random() * 3); for (let i = 0; i < n; i++) tone({ f: f * rnd(0.95, 1.1), to: f * rnd(0.8, 1.3), dur: 0.06, type: 'sine', vol: 0.02, delay: i * rnd(0.08, 0.14) }); },
+  drops: () => { const f = rnd(1500, 2600); tone({ f, to: f * 1.6, dur: 0.05, type: 'sine', vol: 0.022 }); tone({ f: f * 0.5, dur: 0.12, type: 'sine', vol: 0.008, delay: 0.05 }); },
+  creak: () => air({ dur: 0.7, vol: 0.022, q: 10, f: [[0, 240], [0.5, 330], [1, 220]], g: [[0, 0.1], [0.4, 1], [1, 0.05]], am: { rate: 12, depth: 0.8, type: 'sawtooth' } }),
+  crickets: () => { for (let i = 0; i < 4; i++) tone({ f: 4400, dur: 0.03, type: 'square', vol: 0.004, delay: i * 0.06 }); },
+};
+/** À appeler à chaque image dans la Forêt (dt en s) ; mix = null pour tout éteindre. */
+export function ambience(dt, mix) {
+  if (!ac || ac.state !== 'running' || muted) return;
+  if (!amb) { if (!mix) return; ambBuild(); }
+  amb.t += dt; amb.tick += dt;
+  const m = mix ?? {};
+  if (amb.tick > 0.1) {
+    amb.tick = 0;
+    const t = ac.currentTime, gust = 0.55 + 0.45 * Math.sin(amb.t * 0.21) * Math.sin(amb.t * 0.13 + 1);
+    amb.windL.g.gain.setTargetAtTime(Math.max(0.0001, (m.wind ?? 0) * 0.07 * gust), t, 0.4);
+    amb.windR.g.gain.setTargetAtTime(Math.max(0.0001, (m.wind ?? 0) * 0.07 * (1.1 - gust * 0.6)), t, 0.4);
+    amb.windL.fl.frequency.setTargetAtTime(380 + gust * 420, t, 0.6);
+    amb.windR.fl.frequency.setTargetAtTime(520 + (1 - gust) * 380, t, 0.6);
+    amb.water.g.gain.setTargetAtTime(Math.max(0.0001, (m.water ?? 0) * 0.05), t, 0.5);   // −6 dB : le torrent laissait trop peu de place à la musique (demande de l'utilisateur)
+    amb.cave.g.gain.setTargetAtTime(Math.max(0.0001, (m.cave ?? 0) * 0.12), t, 0.6);
+  }
+  if (!mix) return;
+  for (const [k, fn] of Object.entries(AMB_EVENTS)) {
+    const level = m[k] ?? 0;
+    amb.next[k] -= dt;
+    if (amb.next[k] > 0) continue;
+    amb.next[k] = rnd(1.2, 4.5) / Math.max(0.15, level);
+    if (level <= 0.05) continue;
+    out = panned(rnd(-0.85, 0.85), Math.min(1, level));
+    fn();
+  }
+}
 
 /**
  * Joue un son par son nom (sans effet si l'audio n'est pas encore débloqué).
