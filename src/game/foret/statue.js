@@ -15,10 +15,10 @@ export const STATUE = {
   cx: 104,                   // axe du cou
   top: 38, chin: 192,        // haut du crâne et bas du menton (tête droite)
   half: 62,                  // demi-largeur du visage
-  tilt: 0.03,                // à peine inclinée sur le côté : elle penche surtout vers l'avant (PITCH)
+  tilt: 0.07,                // un peu inclinée vers la droite, comme une statue qui commence à s'affaisser
   pivot: { x: 104, y: 188 }, // elle penche autour du haut du cou
   neck: { top: 162, half0: 29, half1: 35 },
-  eyeU: 0.36, eyeV: 0.52,    // les yeux, en coordonnées du visage (la tête penchée les fait descendre)
+  eyeU: 0.36, eyeV: 0.55,    // les yeux, en coordonnées du visage (la tête penchée les fait descendre)
 };
 const S = STATUE;
 const FH = S.chin - S.top;
@@ -37,7 +37,6 @@ export const eyeCenter = (side) => { const p = fromHead(side * S.eyeU, S.eyeV + 
 
 // pierre de la statue : gris-bleu, lumières un peu vertes (le soleil traverse les feuilles)
 const STONE = ['#101824', '#1b2936', '#2b4152', '#405e6b', '#5c8187', '#86a99f', '#b6cdb4'];
-const LASH = '#0a0f17';
 
 const gauss = (t) => Math.exp(-t * t);
 const hat = (t) => Math.exp(-t * t * t * t);
@@ -58,14 +57,12 @@ function headHalf(v) {
  */
 // penchée vers l'avant : le front plonge vers le sol ; vu de face, les traits descendent, le nez s'allonge
 // vers le bas, la bouche se rapproche du nez et le menton rentre
-const PITCH = 0.22;
-const fv = (v) => v - 0.08 + Math.max(0, v - 0.55) * 0.35;
+const PITCH = 0.3;
+const fv = (v) => v - 0.105 + Math.max(0, v - 0.55) * 0.45;
 /** Un profil en arête (et non en cloche) : des volumes taillés, aux bords nets. */
 const tri = (t) => Math.max(0, 1 - Math.abs(t));
 const hat8 = (t) => Math.exp(-(t ** 8));
 
-/** La ligne des cils d'un œil baissé (en hauteur des traits) : un arc à peine creusé vers le bas. */
-const lashV = (au) => 0.468 + 0.018 * (1 - ((au - S.eyeU) / 0.18) ** 2);
 
 /** Relief du visage en (u, v), -1 hors de la pierre. */
 function face(u, v) {
@@ -83,7 +80,7 @@ function face(u, v) {
   const vb = 0.37 + 0.045 * ((au - 0.37) / 0.27) ** 2 - (au < 0.37 ? (0.018 * (0.37 - au)) / 0.25 : 0);
   z += 0.12 * tri((V - vb) / 0.05) * tri((au - 0.38) / 0.36) * (1 - 0.35 * gauss(u / 0.08));
   // orbites profondes ; la paupière du haut, lourde, baissée ; la paupière du bas, à peine
-  z -= 0.13 * gauss(Math.hypot((au - S.eyeU) / 0.22, (V - 0.445) / (V < 0.445 ? 0.07 : 0.04)));   // des orbites peu creusées : pas de cerne
+  z -= 0.17 * gauss(Math.hypot((au - S.eyeU) / 0.22, (V - 0.44) / (V < 0.44 ? 0.07 : 0.05)));    // les orbites, sous l'arcade
   z += 0.06 * gauss(Math.hypot((au - S.eyeU) / 0.17, (V - 0.452) / 0.03));
   // le nez : une arête droite qui part du front, un bout arrondi, de petites narines
   const nt = (V - 0.39) / 0.235;
@@ -158,22 +155,15 @@ function carve(pix) {
     lum -= 0.02;
     if (onFace) lum += 0.07 * gauss(Math.hypot((h.u + 0.15) * 0.9, (h.v - 0.4) * 1.4) / 0.6);   // le jour tombe sur le haut du visage, côté gauche
     if (onFace) {
-      const V = fv(h.v), e = Math.hypot((Math.abs(h.u) - S.eyeU) / 0.21, (V - 0.445) / 0.06);
-      if (e < 0.75 && V < lashV(Math.abs(h.u)) - 0.012) lum *= 0.8 + 0.2 * e;      // une ombre légère sur la paupière, sous l'arcade
+      // les yeux : une seule grande zone d'ombre sous l'arcade, sans aucun trait ; plus sombre en haut
+      // (sous le sourcil), elle s'éclaircit vers le bas : un regard baissé vers le sol
+      const V = fv(h.v), du = (Math.abs(h.u) - S.eyeU) / 0.22, dv = (V - 0.445) / (V < 0.445 ? 0.055 : 0.07);
+      const e = Math.hypot(du, dv);
+      if (e < 1) lum *= 0.26 + 0.74 * Math.pow(e, 1.8) + (dv > 0 ? 0.1 * dv : 0);
     }
     lum = Math.round(lum * 9) / 9;                                                // des aplats : les ombres tombent net
     let c = pick(STONE, lum, x, y, 0.06);
     if (w.d2 - w.d < 0.5 && ih(Math.round(w.id * 97), 0, 4) < 0.2) c = STONE[Math.max(0, Math.floor(lum * 6) - 1)];   // fissure
-    if (onFace) {
-      const au = Math.abs(h.u);
-      // les yeux baissés : la ligne des cils, et le pli de la paupière
-      const V = fv(h.v);
-      if (Math.abs(au - S.eyeU) < 0.18) {
-        const lv = lashV(au);
-        if (Math.abs(V - lv) < 0.007) c = LASH;
-        else if (V > lv && V < lv + 0.013 && au > S.eyeU) c = STONE[0];             // les cils, côté extérieur
-      }
-    }
     // mousse sur ce qui regarde le ciel, et dans les creux humides (jamais sur les yeux)
     const up = -zy * inv;
     const nearEye = onFace && Math.hypot((Math.abs(h.u) - S.eyeU) / 0.24, (fv(h.v) - 0.455) / 0.06) < 1.2;
@@ -245,13 +235,16 @@ function hair(pix) {
   // la couronne : un dôme de grandes feuilles, éclairé par le dessus
   L.leafMass(pix, [0, 0, S.w - 1, S.top + 60], crown, light, ramp, 31, { density: 0.66, size: 2, wide: 2, step: 4 });
   // des fougères plantées dans la couronne
-  for (const [u, sz] of [[-0.95, 11], [-0.45, 14], [0.05, 16], [0.55, 13], [1.0, 10]]) {
+  for (const [u, sz] of [[-0.75, 11], [-0.4, 14], [0.05, 16], [0.5, 13]]) {
     const p = fromHead(u, top(u) + 0.06);
     L.fern(pix, Math.round(p.x), Math.round(p.y), sz, C.FERN, 40 + Math.round(u * 20));
   }
   // au pied : des fougères et des buissons cachent la naissance des épaules
   for (const [dx, rw, rh] of [[-58, 14, 9], [-30, 11, 7], [44, 13, 8], [70, 12, 9], [16, 8, 5]]) L.bush(pix, S.cx + dx, S.h - 1, rw, rh, shade(1), 120 + dx);
-  for (const [dx, sz] of [[-66, 15], [-40, 12], [58, 14], [30, 10]]) L.fern(pix, S.cx + dx, S.h - 1, sz, C.FERN, 130 + dx);
+  for (const [dx, sz] of [[-66, 15], [-40, 12], [58, 14], [30, 10], [-18, 7], [6, 6], [-50, 8], [80, 8], [44, 7]]) L.fern(pix, S.cx + dx, S.h - 1, sz, C.FERN, 130 + dx);
+  // sur le cou : un peu de lierre et de mousse qui grimpent
+  for (const [dx, dy, rw, rh] of [[-24, -40, 6, 4], [-18, -22, 4, 3], [20, -30, 5, 3], [26, -14, 6, 4], [-8, -56, 3, 2]]) L.bush(pix, S.cx + dx, S.h + dy, rw, rh, ramp.slice(1), 170 + dx);
+  for (const [dx, dy, len] of [[-22, -44, 14], [22, -34, 10], [-6, -60, 8]]) L.strand(pix, S.cx + dx, S.h + dy, len, ramp, 180 + dx, 0.6, 0, 1);
   // de la mousse et quelques feuilles sur le visage : l'arête du nez, la joue droite, le bas de la joue gauche
   for (const [u, v, rw, rh] of [[0.02, 0.4, 4, 3], [0.66, 0.74, 6, 3], [-0.78, 0.6, 5, 3]]) {
     const p = fromHead(u, v);
@@ -260,9 +253,25 @@ function hair(pix) {
 }
 
 /** Peint la statue une fois pour toutes : { stone, hair }. */
+/** Des fissures sur le cou : la pierre a commencé à céder (des zigzags sombres, un bord clair). */
+function cracks(pix) {
+  const onNeck = (x, y) => neck(x, y) >= 0 && face(toHead(x, y).u, toHead(x, y).v) < neck(x, y);
+  for (const [x0, y0, len, dir, seed] of [[96, 176, 46, 0.35, 1], [114, 182, 28, -0.4, 2], [88, 206, 22, 0.6, 3], [118, 212, 18, -0.2, 4]]) {
+    let x = x0, y = y0;
+    for (let k = 0; k < len; k++) {
+      y += 1; x += (ih(k, seed, 191) < 0.5 ? -1 : 1) * (ih(k, seed, 192) < 0.4 ? 1 : 0) + (ih(k, seed, 193) < Math.abs(dir) ? Math.sign(dir) : 0);
+      if (!onNeck(x, y)) continue;
+      pix.set(x, y, STONE[0]);
+      if (onNeck(x + 1, y)) pix.set(x + 1, y, STONE[3]);                            // le bord éclairé de la fente
+      if (k % 9 === 4 && onNeck(x - 2, y + 1)) { pix.set(x - 1, y + 1, STONE[0]); pix.set(x - 2, y + 2, STONE[0]); }   // une fente secondaire
+    }
+  }
+}
+
 export function paintStatue() {
   const stone = new L.Sheet(S.w, S.h);
   carve(stone);
+  cracks(stone);
   const h = new L.Sheet(S.w, S.h);
   hair(h);
   return { stone: stone.done(), hair: h.done() };

@@ -151,11 +151,12 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **la porte de pierre** (`stone_gate` dans `props.js`, `drawGate` dans `live.js`) : un pilier maçonné à droite de la tête, un linteau sculpté aux deux yeux clos gravés (ils s'allument avec ceux de la statue), un pilastre, un seuil ; la dalle (deux panneaux, un œil gravé, un anneau) remonte dans le mur en 2,8 s (`FOREST.statue.gateTime`) et découvre le tunnel. L'éboulis mal ordonné a disparu ;
 - les lianes et les yeux de la mécanique sont calculés depuis la peinture (`eyeCenter`) ; le pilote de la zone 9 grimpe aux hauteurs des nouveaux yeux.
 
-### Retours n° 9 (11 novembre 2026), en cours : la statue au plus près du modèle
+### Retours n° 9 (11 novembre 2026), appliqués : la statue au plus près du modèle
 - proportions : visage plus plein (entre-deux), cou plus court et plus épais, relief et ombres plus marqués (profondeur `KZ` 58, occlusion des creux, ombres portées plus sombres) ;
 - la tête penche vers le sol (`PITCH`, `fv`) : le front grandit, les traits descendent ; les yeux sont des orbites profondes sous des arcades lourdes qui y jettent leur ombre, paupières baissées ; les lianes du milieu s'arrêtent sur le front ;
 - retouche suivante : la tête penche un peu vers la droite (`STATUE.tilt` 0,1) et moins vers le sol (`PITCH` 0,09) ; traits plus taillés (profils en arête `tri`, volume de base plus plan, mâchoire anguleuse), ombres en aplats nets, moins de lumière, plus de cerne sous les yeux ; feuillage : la couronne n'est plus un chapeau mais huit grappes inégales séparées de trous, les lianes plus éparses et de longueurs très variées (plus longues à droite) ;
 - retouche suivante : la tête ne penche presque plus sur le côté (`tilt` 0,03) mais vers l'avant, le front qui plonge vers le sol (`PITCH` 0,22, `fv` : traits plus bas, nez long, bouche proche du nez, menton rentré) ; plus d'ombre noire autour des yeux (orbites peu creusées, pas d'occlusion autour des yeux) ; le feuillage descend sur le front (grappes en plus), qui n'est plus dégarni ;
+- dernière retouche avant la mise en ligne : plus de trait sous les yeux, seulement une grande zone d'ombre sous l'arcade, plus sombre (le regard baissé) ; la tête penche davantage vers l'avant (`PITCH` 0,3) et un peu vers la droite (`tilt` 0,07), comme une statue qui commence à s'affaisser ; des fissures sur le cou (`cracks`), du lierre et de la mousse qui y grimpent, de petites fougères au pied ;
 - **l'allumage des yeux est retiré du dessin** (demande de Raph : un nouveau mécanisme, sur le haut de la tête, viendra plus tard). En attendant, un déclencheur invisible devant chaque œil ouvre encore la porte.
 
 ## 9. Reste à faire
