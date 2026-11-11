@@ -154,6 +154,7 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 ### Retours n° 9 (11 novembre 2026), en cours : la statue au plus près du modèle
 - proportions : visage plus plein (entre-deux), cou plus court et plus épais, relief et ombres plus marqués (profondeur `KZ` 58, occlusion des creux, ombres portées plus sombres) ;
 - la tête penche vers le sol (`PITCH`, `fv`) : le front grandit, les traits descendent ; les yeux sont des orbites profondes sous des arcades lourdes qui y jettent leur ombre, paupières baissées ; les lianes du milieu s'arrêtent sur le front ;
+- retouche suivante : la tête penche un peu vers la droite (`STATUE.tilt` 0,1) et moins vers le sol (`PITCH` 0,09) ; traits plus taillés (profils en arête `tri`, volume de base plus plan, mâchoire anguleuse), ombres en aplats nets, moins de lumière, plus de cerne sous les yeux ; feuillage : la couronne n'est plus un chapeau mais huit grappes inégales séparées de trous, les lianes plus éparses et de longueurs très variées (plus longues à droite) ;
 - **l'allumage des yeux est retiré du dessin** (demande de Raph : un nouveau mécanisme, sur le haut de la tête, viendra plus tard). En attendant, un déclencheur invisible devant chaque œil ouvre encore la porte.
 
 ## 9. Reste à faire
