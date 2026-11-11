@@ -457,6 +457,8 @@ level.onEvent = (n, d) => {
     case 'crumbleFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y, 5, { palette: 'dirt', speed: 40, up: 6 }); break;
     case 'bridgeCreak': sfxAt('crumbleCreak', d, {}, 0.7); break;
     case 'plankFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y + 4, 4, { palette: 'dirt', speed: 30, up: 4 }); break;
+    case 'branchCrack': sfxAt('crumbleCreak', d, {}, 1.2); fx.dust(d.x - 8, d.y + 2, 4, { spread: 14, up: -4, life: 0.6, palette: 'dirt' }); break;
+    case 'branchSnap': sfxAt('crumbleFall', d, {}, 1.3); fx.sparks(d.x - 4, d.y + 2, 7, { speed: 70, palette: 'dirt' }); fx.drift(d.x - d.w / 2, d.y - 4, 9, { palette: 'leaf', speed: 45, up: 20, life: 1.6 }); fx.shake(0.5, 0.12); break;
     case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
     case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
     case 'jawOpen': sfx('jawOpen'); fx.shake(0.7, 4.2); if (save) { save.statue = true; persist(); } break;
@@ -507,6 +509,7 @@ player.onRespawn = () => {
 };
 const input = new Input();
 touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
+if (touch) touch.onTap = (u, v) => tapChest(u, v);
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)
   touchCanvas.addEventListener('pointerdown', () => {
@@ -1001,8 +1004,9 @@ function updateChapterUi(dt) {
   const near = m && Math.abs(player.x - m.x) < 30 && Math.abs(player.y - m.y) < 24 && alive;
   // coffre : « Ouvrir le coffre » quand on se tient devant, encore fermé
   chestHere = !near && alive ? level.chestNear(player.x, player.y) : null;
-  ui.talk.hidden = !near && !chestHere;
-  setText(ui.talkLabel, chestHere ? 'Ouvrir le coffre' : 'Parler au marchand');
+  // (le coffre n'a plus de bouton : il tressaute et scintille, on l'ouvre avec ↑ ou en le touchant)
+  ui.talk.hidden = !near;
+  setText(ui.talkLabel, 'Parler au marchand');
   if (input.wasPressed('up')) talkAction();
 }
 
@@ -1013,6 +1017,15 @@ function talkAction() {
 }
 
 let chestHere = null;
+/** Tactile : un doigt posé sur un coffre fermé, KAGE tout près, l'ouvre. Renvoie true si l'appui est pris. */
+function tapChest(u, v) {
+  if (!level?.chests?.length || player.state === 'death' || player.state === 'respawn') return false;
+  const wx = camera.x + u * VIEW_W, wy = camera.y + v * VIEW_H;
+  const ch = level.chests.find((c) => !c.open && Math.abs(wx - c.x) < 24 && wy > c.y - 36 && wy < c.y + 8);
+  if (!ch || Math.abs(player.x - ch.x) > 48 || Math.abs(player.y - ch.y) > 40) return false;
+  openChest(ch);
+  return true;
+}
 function openChest(ch) {
   const coins = level.openChest(ch);
   if (!coins.length) return;

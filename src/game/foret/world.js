@@ -209,6 +209,7 @@ export class ForetWorld {
     // la roche bleu-vert de la caverne ; vers la sortie, elle redevient peu à peu la terre de la forêt (tramé)
     const out = d?.fade && x > d.x1 - d.fade ? (x - (d.x1 - d.fade)) / d.fade : 0;
     if (!wet && d && x > d.x0 && x < d.x1 && y > d.y0 + 6 + (bayer(x, y) + noise1(x * 0.05, 74) * 0.6) * 30 && !(out > 0 && (bayer(x, y) * 0.7 + noise1(y * 0.2, 75) * 0.3) < out)) return this.caveRock(x, y, dTop, dBot, dL, dR);
+    if (!wet && d?.deep && x > d.deep.x0 && x <= d.x0 && y > d.deep.y0 + noise1(x * 0.05, 76) * 40) return this.caveRock(x, y, dTop, dBot, dL, dR);   // (la roche continue en profondeur)
     if (!wet && dTop >= 44 && dBot >= 16 && !this.underDark(x, y)) return this.cliff(x, y, fL, fR);
     const under = this.under(x, y);
     if (wet && dTop < 10) {

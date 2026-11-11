@@ -42,6 +42,63 @@ export function atticGeom(p) {
  * le coffre est centré (CHEST.cx).
  */
 export const CHEST = { w: 40, h: 34, cx: 20 };
+
+/**
+ * Dessine un coffre, et l'invitation à l'ouvrir (plus de bouton : demande de Raph). Fermé, un reflet
+ * doré balaie le coffre de loin en loin ; quand KAGE approche, il tressaute et une lueur dorée pulse
+ * derrière lui ; juste devant, il tressaute plus souvent et de petites étincelles scintillent autour
+ * du couvercle (on l'ouvre avec ↑, ou en le touchant du doigt).
+ */
+export function drawChest(ctx, imgs, ch, cam, time, lvTime, player) {
+  const R = Math.round, t = lvTime - ch.openedAt;
+  const st = !ch.open ? 0 : t < 0.14 ? 1 : 2;
+  let jx = 0, jy = ch.open && t < 0.14 ? -1 : 0, near = 0;
+  if (!ch.open && player && player.state !== 'death') {
+    const dx = Math.abs(player.x - ch.x), dy = Math.abs(player.y - ch.y);
+    near = dx < 26 && dy < 12 ? 2 : dx < 120 && dy < 64 ? 1 : 0;
+  }
+  if (near) {
+    // le sursaut : trois petits tremblements et un saut d'un pixel
+    const per = near === 2 ? 0.9 : 1.7, ph = ((time + ch.x * 0.01) % per) / per;
+    if (ph < 0.2) { jx = R(Math.sin((ph / 0.2) * Math.PI * 6)); jy = ph < 0.1 ? -1 : 0; }
+  }
+  const sx = R(ch.x - CHEST.cx - cam.x), sy = R(ch.y - CHEST.h - cam.y);
+  if (near) {
+    // la lueur dorée qui pulse derrière le coffre
+    const a = near === 2 ? 0.26 + 0.12 * Math.sin(time * 5) : 0.12 + 0.05 * Math.sin(time * 3);
+    const g = ctx.createRadialGradient(sx + CHEST.cx, sy + CHEST.h - 10, 2, sx + CHEST.cx, sy + CHEST.h - 10, 30);
+    g.addColorStop(0, `rgba(255,214,110,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(255,214,110,0)');
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(sx - 12, sy - 8, CHEST.w + 24, CHEST.h + 12); ctx.restore();
+  }
+  if (ch.open) { ctx.drawImage(imgs[st], sx, sy + jy); return; }
+  // le reflet : une bande claire qui traverse le coffre en biais, toutes les 2,6 s (plus souvent quand on est près)
+  const per = near ? 1.6 : 2.6, k = ((time + ch.x * 0.013) % per) / 0.5;
+  if (k < 1) {
+    const c = (ch._fx ??= document.createElement('canvas'));
+    c.width = CHEST.w; c.height = CHEST.h;
+    const g = c.getContext('2d');
+    g.drawImage(imgs[0], 0, 0);
+    g.globalCompositeOperation = 'source-atop';
+    const bx = -12 + k * (CHEST.w + 24);
+    g.fillStyle = 'rgba(255,246,200,0.55)';
+    g.beginPath(); g.moveTo(bx, 0); g.lineTo(bx + 5, 0); g.lineTo(bx - 9, CHEST.h); g.lineTo(bx - 14, CHEST.h); g.fill();
+    g.fillStyle = 'rgba(255,246,200,0.25)';
+    g.beginPath(); g.moveTo(bx + 7, 0); g.lineTo(bx + 9, 0); g.lineTo(bx - 5, CHEST.h); g.lineTo(bx - 7, CHEST.h); g.fill();
+    ctx.drawImage(c, sx + jx, sy + jy);
+  } else ctx.drawImage(imgs[0], sx + jx, sy + jy);
+  if (near === 2) {
+    // des étincelles autour du couvercle
+    for (const [ox, oy, f] of [[-15, -22, 0], [13, -25, 1.3], [1, -31, 2.4], [18, -14, 3.1]]) {
+      const tw = Math.sin(time * 4 + f * 2.1);
+      if (tw < 0.2) continue;
+      const x = R(ch.x + ox - cam.x), y = R(ch.y + oy - cam.y - (time * 6 + f * 3) % 4);
+      ctx.globalAlpha = Math.min(1, tw * 1.2);
+      ctx.fillStyle = '#fff3b0'; ctx.fillRect(x, y, 1, 1);
+      if (tw > 0.6) { ctx.fillStyle = '#ffd56e'; ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1); ctx.fillRect(x, y - 1, 1, 1); ctx.fillRect(x, y + 1, 1, 1); }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
 export function chestSprite(state, Brush, canvas) {
   const cv = canvas(CHEST.w, CHEST.h), b = new Brush(cv.getContext('2d')), W = C.WOOD;
   const IRON = '#55585f', IRON_L = '#8a8e96', BRASS = '#b08a3a', BRASS_L = '#e2c070', DARK = '#120c07';

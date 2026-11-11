@@ -476,11 +476,27 @@ export class Level {
     if (ch.open) return [];
     ch.open = true;
     ch.openedAt = silent ? -9 : this.time;
-    // places : rangée basse de part et d'autre du coffre, rangée haute au-dessus
-    const spots = [[-64, 8], [-40, 8], [40, 8], [64, 8], [88, 8], [-52, 20], [-28, 20], [0, 22], [28, 20], [52, 20]];
+    // places : deux rangées, de part et d'autre du coffre et au-dessus, les plus proches d'abord ;
+    // seulement là où il y a un sol (terre, planche ou branche) et de l'air au-dessus : jamais dans un
+    // mur, jamais dans le vide. S'il n'y a pas assez de place, le coffre donne moins de ryō.
+    const row = Math.round(ch.y / TILE);
+    const floor = (tx) => this.solid(tx, row) || this.ledge(tx, row);
+    const free = (x, y) => !this.solid(Math.floor(x / TILE), Math.floor(y / TILE));
+    const spots = [];
+    for (const dy of [8, 20]) for (let k = -8; k <= 8; k++) {
+      const dx = k * 12 + (dy === 20 ? 6 : 0);
+      if (dy === 8 && Math.abs(dx) < 20) continue;                     // (le coffre est là)
+      const x = ch.x + dx, tx = Math.floor(x / TILE);
+      if (!floor(tx) || !free(x, ch.y - dy) || !free(x, ch.y - 2)) continue;
+      // pas de mur entre le coffre et la pièce
+      let ok = true;
+      for (let q = Math.min(ch.x, x); q <= Math.max(ch.x, x); q += 4) if (!free(q, ch.y - 4) || !floor(Math.floor(q / TILE))) { ok = false; break; }
+      if (ok) spots.push([dx, dy]);
+    }
+    spots.sort((a, b) => Math.abs(a[0]) + a[1] * 1.6 - (Math.abs(b[0]) + b[1] * 1.6));
     const out = [];
-    for (let i = 0; i < ch.ryo; i++) {
-      const [dx, dy] = spots[i % spots.length];
+    for (let i = 0; i < Math.min(ch.ryo, spots.length); i++) {
+      const [dx, dy] = spots[i];
       const c = { id: `k${ch.id}_${i}`, x: ch.x + dx, y: ch.y - dy, taken: false };
       if (!silent) c.fly = { x0: ch.x + (i % 5) * 3 - 6, y0: ch.y - 12, t0: this.time + 0.18 + i * 0.045, dur: 0.6, h: 26 + (i % 3) * 8 };
       this.coins.push(c);

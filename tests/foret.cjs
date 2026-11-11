@@ -192,6 +192,34 @@ async function main() {
     expect(r[0] >= 14 && r[1] < r[2], JSON.stringify(r));
   });
 
+  await test('zone 7 : la grande branche de l\'arbre du nid rompt sous KAGE presque aussitôt, et revient à la réapparition', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, q = f.snaps[0];
+      bot.place(Math.floor(q.x / 16) + 1, Math.round(q.y0 / 16)); bot.clear();
+      let broke = -1, t = 0;
+      bot.run(1.5, () => { t += 1 / 120; if (broke < 0 && !q.active) broke = t; return false; });
+      const fell = bot.p.y > q.y0 + 40 || bot.p.state === 'death';
+      bot.run(9, () => q.state === 'idle');          // KAGE tombe, meurt, réapparaît
+      return [+broke.toFixed(2), fell, q.state, q.active];
+    });
+    expect(r[0] > 0.2 && r[0] < 0.6 && r[1] && r[2] === 'idle' && r[3], JSON.stringify(r));
+  });
+
+  await test('coffres : leurs ryō tombent sur un sol, jamais dans un mur ni dans le vide', async () => {
+    const r = await ev(() => {
+      const l = __kage.level, bad = [];
+      for (const ch of l.chests) {
+        const row = Math.round(ch.y / 16);
+        for (const c of l.openChest(ch, true)) {
+          const tx = Math.floor(c.x / 16);
+          if (l.solid(tx, Math.floor(c.y / 16)) || !(l.solid(tx, row) || l.ledge(tx, row))) bad.push([ch.id, tx, Math.floor(c.y / 16)]);
+        }
+      }
+      return [l.chests.length, bad];
+    });
+    expect(r[0] >= 4 && r[1].length === 0, JSON.stringify(r));
+  });
+
   await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {
     const r = await ev(() => {
       const st = __kage.level.forest.statue; bot.place(Math.floor(st.cx / 16) - 2, st.ground / 16);

@@ -84,7 +84,8 @@ export class ForetProps {
         case 'hollow_giant': {
           mask(p.x, 1, p.top, p.y - 1); mask(p.x + p.w - 1, 1, p.top, p.y - 1);
           // le boyau continue sous terre : l'intérieur sombre descend jusqu'au fond du puits (on ne voit jamais le décor à travers)
-          let bot = p.y; while (bot < level.h - 1 && level.rows[bot][p.x + 2] !== '#') bot++;
+          // (il s'arrête au plafond de la caverne : là où la paroi gauche du boyau s'ouvre)
+          let bot = p.y; while (bot < level.h - 1 && level.rows[bot][p.x + 2] !== '#' && !(bot > p.y && level.rows[bot][p.x] !== '#')) bot++;
           p.shaftBottom = bot;
           add('behind', X - 30, (p.top - 8) * TILE, p.w * TILE + 60, (bot - p.top + 9) * TILE, (pix) => hollowGiant(pix, level, p, 'behind'));
           add('over', X - 30, (p.top - 8) * TILE, p.w * TILE + 60, (p.y - p.top + 9) * TILE, (pix) => hollowGiant(pix, level, p, 'over'));
@@ -423,6 +424,13 @@ function climbTrunk(pix, cx, base, top, seed) {
 }
 
 /** Une grosse branche horizontale (x0 → x1 au niveau Y du dessus), feuilles dessous et au bout. */
+/** Une branche feuillue seule, dans sa propre image (la branche qui rompt, dessinée par live.js). */
+export function limbSprite(x0, x1, Y, dir, seed) {
+  const X = Math.floor(Math.min(x0, x1)) - 16, W = Math.ceil(Math.abs(x1 - x0)) + 32, pix = new Window(X, Y - 16, W, 36);
+  limb(pix, x0, x1, Y, dir, seed, true);
+  return { img: pix.done(), x: X, y: Y - 16 };
+}
+
 function limb(pix, x0, x1, Y, dir, seed, leafy) {
   const a = Math.min(x0, x1), b = Math.max(x0, x1), len = b - a;
   for (let x = a; x <= b; x++) {
@@ -484,8 +492,14 @@ function hollowGiant(pix, level, p, layer) {
   const X = p.x * TILE, W = p.w * TILE, top = p.top * TILE, base = p.y * TILE;
   if (layer === 'behind') {
     // l'intérieur : du bois sombre, des fibres verticales, une lueur qui monte d'en bas
-    const inTop = floorTop(level, p.x, p.top) + 6, end = (p.shaftBottom ?? p.y) * TILE, FADE = 120;
-    for (let y = inTop - 8; y < end; y++) for (let x = X + 12; x < X + W - 12; x++) {
+    // le fond du creux commence sous le haut de la paroi gauche (la plus basse, par où l'on entre) :
+    // il ne dépasse jamais du tronc
+    const inTop = floorTop(level, p.x, p.top) + 14, end = (p.shaftBottom ?? p.y) * TILE, FADE = 120;
+    for (let y = inTop - 12; y < end; y++) for (let x = X + 14; x < X + W - 14; x++) {
+      // le haut du fond est la paroi d'en face, cassée : un rebord irrégulier d'écorce éclairée
+      const y0 = inTop - 8 + Math.round((noise1(x * 0.22, 5) - 0.5) * 8 + (ih(x, 1, 6) < 0.25 ? 2 : 0));
+      if (y < y0) continue;
+      if (y < y0 + 2) { pix.set(x, y, y === y0 ? '#955636' : '#75402a'); continue; }
       // en haut, le bois du creux reçoit encore la lumière ; il fonce ligne après ligne vers le noir du
       // boyau : un fondu continu, opaque (on ne voit jamais le décor à travers), sans trame ni grain
       const t = Math.min(1, (y - (inTop - 8)) / FADE), e = t * t * (3 - 2 * t);

@@ -6,11 +6,12 @@
 //     joue de la statue (on passe derrière), l'éboulis, la brume des ravins,
 //     poussières et lucioles, la pénombre du souterrain, le premier plan.
 import { canvas, ih, noise1, noise2, fbm2, pick, bayer, Brush } from '../potager/paint.js';
-import { chestSprite, CHEST } from '../potager/props.js';
+import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { paintStatue, drawStatue, STATUE } from './statue.js';
-import { pearlTreeShape } from './props.js';
+import { pearlTreeShape, limbSprite } from './props.js';
+import { FOREST } from './mechanics.js';
 
 const TILE = 16;
 const R = Math.round;
@@ -175,6 +176,13 @@ export class ForetLive {
     // les arbres à perles de la caverne : leurs perles, leur lumière, leurs papillons
     // la sortie de la caverne : le sol du couloir (pour la lumière qui y entre)
     if (this.f?.dark) { const tx = Math.floor(this.f.dark.x1 / TILE) - 1; let ty = 0; while (ty < level.h && !'#='.includes(this.rows[ty][tx])) ty++; this.exitY = ty * TILE; }
+    // la branche qui rompt (zone 7) : son image, et sa jointure avec le tronc (le pivot)
+    this.snapArt = (this.f?.snaps ?? []).map((q) => {
+      const host = level.props.find((p) => p.type === 'canopy_trunk' && p.x === q.host);
+      const tcx = (q.host * TILE) + 8, half = (host?.w ?? 20) / 2 - 3;
+      const art = limbSprite(q.x - 4, tcx - half, q.y0, -1, Math.floor(q.x / TILE) * 7 + Math.floor(q.y0 / TILE));
+      return { ...art, px: tcx - half - 2, py: q.y0 + 3 };
+    });
     this.pearlTrees = level.props.filter((p) => p.type === 'pearl_tree').map((p) => ({ p, shape: pearlTreeShape(p) }));
     this.butterflies = [];
     for (const { p, shape } of this.pearlTrees) {
@@ -307,6 +315,8 @@ export class ForetLive {
       if (ctx.globalAlpha > 0) ctx.drawImage(this.plank, R(c.x - 4 - cam.x + sh), R(c.y - cam.y));
       ctx.globalAlpha = 1;
     }
+    // la branche qui rompt
+    (f.snaps ?? []).forEach((q, i) => this.drawSnap(ctx, q, this.snapArt[i], cam, vw, vh, time));
     // troncs flottants (l'eau, dessinée devant, cache ce qui s'enfonce)
     for (const l of f.logs) {
       if (!this.vis(l.x - 2, l.y, l.w + 4, 16, cam, vw, vh)) continue;
@@ -331,9 +341,7 @@ export class ForetLive {
     // coffres
     if (this.chestImg) for (const ch of lv.chests) {
       if (!this.vis(ch.x - 24, ch.y - 40, 48, 40, cam, vw, vh)) continue;
-      const t = lv.time - ch.openedAt;
-      const s = !ch.open ? 0 : t < 0.14 ? 1 : 2;
-      ctx.drawImage(this.chestImg[s], R(ch.x - CHEST.cx - cam.x), R(ch.y - CHEST.h - cam.y) + (ch.open && t < 0.14 ? -1 : 0));
+      drawChest(ctx, this.chestImg, ch, cam, time, lv.time, lv.player);
     }
     this.drawBirds(ctx, cam, vw, vh, time);
   }
@@ -699,6 +707,51 @@ export class ForetLive {
     }
     const d = this.f.dark;
     if (!d || d.x1 < cam.x || d.x0 > cam.x + vw || cam.y + vh < d.y0) this.drawPearls(ctx, cam, vw, vh, time);
+  }
+
+  /**
+   * La branche qui rompt : elle tremble et craque (une fissure s'ouvre à la jointure), pivote vers le
+   * bas en restant tenue par quelques fibres, puis se détache et tombe en tournant. Au tronc reste un
+   * moignon aux échardes claires.
+   */
+  drawSnap(ctx, q, A, cam, vw, vh, time) {
+    if (!A || !this.vis(A.x - 40, A.y - 20, A.img.width + 80, 400, cam, vw, vh)) return;
+    const px = A.px, py = A.py;
+    const stub = () => {
+      // le moignon : du bois clair fendu, des échardes
+      const x = R(px - cam.x), y = R(py - cam.y);
+      ctx.fillStyle = '#3d2314'; ctx.fillRect(x - 4, y - 3, 6, 7);
+      ctx.fillStyle = '#57301c'; ctx.fillRect(x - 4, y - 3, 6, 2);
+      ctx.fillStyle = '#d9b98a'; ctx.fillRect(x - 5, y - 2, 1, 1); ctx.fillRect(x - 6, y, 2, 1); ctx.fillRect(x - 5, y + 2, 1, 1);
+      ctx.fillStyle = '#b48a5c'; ctx.fillRect(x - 5, y - 1, 1, 1); ctx.fillRect(x - 5, y + 1, 1, 2); ctx.fillRect(x - 7, y + 1, 1, 1);
+    };
+    if (q.state === 'gone') { stub(); return; }
+    if (q.state === 'idle' || q.state === 'crack') {
+      const k = q.state === 'crack' ? q.t / FOREST.snap.hold : 0;
+      const jit = q.state === 'crack' ? R(Math.sin(time * 75) * (0.4 + k)) : 0;
+      ctx.save();
+      ctx.translate(R(px - cam.x), R(py - cam.y) + (q.y - q.y0));
+      ctx.rotate(-0.035 * k);
+      ctx.drawImage(A.img, R(A.x - px) + jit, R(A.y - py));
+      ctx.restore();
+      if (q.state === 'crack') {
+        // la fissure qui s'ouvre à la jointure
+        const x = R(px - cam.x) - 3, y = R(py - cam.y) + (q.y - q.y0) - 3, n = 2 + Math.floor(k * 5);
+        ctx.fillStyle = '#120a06';
+        for (let j = 0; j < n; j++) ctx.fillRect(x + (j % 2), y + j, 1, 1);
+        if (k > 0.5) { ctx.fillStyle = '#d9b98a'; ctx.fillRect(x + 1, y + 1, 1, 1); }
+      }
+      return;
+    }
+    // pivote, puis tombe
+    stub();
+    ctx.save();
+    ctx.translate(R(px + q.fx - cam.x), R(py + q.fy - cam.y));
+    ctx.rotate(q.ang);
+    ctx.drawImage(A.img, R(A.x - px), R(A.y - py));
+    // le bout arraché : des fibres claires
+    ctx.fillStyle = '#d9b98a'; ctx.fillRect(-1, -2, 2, 1); ctx.fillRect(0, 0, 2, 1); ctx.fillRect(-1, 2, 2, 1);
+    ctx.restore();
   }
 
   /** La pénombre du souterrain : tout est sombre, sauf autour de KAGE et des champignons allumés. */

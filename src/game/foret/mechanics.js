@@ -14,6 +14,7 @@ const TILE = 16;
 export const FOREST = {
   collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
   crumble: { hold: 0.7, back: 2.6 },
+  snap: { hold: 0.38, hinge: 0.16 },   // la branche qui rompt (zone 7) : elle tient 0,38 s, pivote 0,16 s à sa jointure, puis tombe
   bridge: { rotten: [4, 8, 12, 16], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
   vine: {
@@ -64,7 +65,8 @@ export class Forest {
       }
       return B;
     });
-    this.platforms = [...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
+    this.snaps = (def.snaps ?? []).map((q) => ({ kind: 'snap', x: q.x0 * TILE, y: q.row * TILE, y0: q.row * TILE, w: q.w * TILE, host: q.host, state: 'idle', t: 0, active: true, dx: 0, dy: 0, load: false, ang: 0, fx: 0, fy: 0, vx: 0, vy: 0 }));
+    this.platforms = [...this.snaps, ...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
     this.vines = def.vines.map((v, i) => ({ ...v, i, angle: 0, av: 0, rider: null, still: !v.swing }));
     this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, jaw: 0 } : null;
     this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
@@ -89,6 +91,7 @@ export class Forest {
     }
     if (this.collapse) { this.collapse.active = false; this.collapse.t = 0; }
     for (const c of this.crumbles) { c.state = 'idle'; c.t = 0; c.y = c.y0; c.vy = 0; c.active = true; }
+    for (const q of this.snaps) Object.assign(q, { state: 'idle', t: 0, y: q.y0, active: true, ang: 0, fx: 0, fy: 0, vx: 0, vy: 0 });   // la branche revient
     for (const l of this.logs) { l.sink = 0; l.y = l.y0; }
     for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
     for (const v of this.vines) v.rider = null;
@@ -121,6 +124,7 @@ export class Forest {
     const alive = player.state !== 'death' && player.state !== 'respawn';
     this.updateCollapse(dt, player, alive);
     this.updateCrumbles(dt);
+    this.updateSnaps(dt);
     this.updateBridges(dt, player);
     this.updateLogs(dt);
     this.updateVines(dt);
@@ -170,6 +174,34 @@ export class Forest {
       } else if (c.state === 'grow') {
         c.t += dt;
         if (c.t >= 0.35) c.state = 'idle';
+      }
+    }
+  }
+
+  // --- zone 7 : la branche qui rompt -------------------------------------------------------
+  updateSnaps(dt) {
+    const S = FOREST.snap;
+    for (const q of this.snaps) {
+      q.dx = 0; q.dy = 0;
+      if (q.state === 'idle') {
+        if (q.load) { q.state = 'crack'; q.t = 0; this.emit('branchCrack', { x: q.x + q.w, y: q.y }); }
+      } else if (q.state === 'crack') {
+        // elle craque et s'affaisse d'un pixel, puis d'un autre : KAGE la sent céder sous lui
+        q.t += dt;
+        const ny = q.y0 + (q.t > S.hold * 0.45 ? 2 : 1);
+        q.dy = ny - q.y; q.y = ny;
+        if (q.t >= S.hold) { q.state = 'hinge'; q.t = 0; q.active = false; this.emit('branchSnap', { x: q.x + q.w, y: q.y, w: q.w }); }
+      } else if (q.state === 'hinge' || q.state === 'fall') {
+        q.t += dt;
+        if (q.state === 'hinge') {
+          // encore tenue par quelques fibres : elle pivote vers le bas à sa jointure avec le tronc
+          q.ang = -0.42 * Math.pow(Math.min(1, q.t / S.hinge), 1.6);
+          if (q.t >= S.hinge) { q.state = 'fall'; q.t = 0; q.vx = -24; q.vy = 40; }
+        } else {
+          // détachée : elle tombe en tournant, et s'éloigne un peu du tronc
+          q.vy += 900 * dt; q.fx += q.vx * dt; q.fy += q.vy * dt; q.ang -= 1.7 * dt;
+          if (q.t > 2.2) q.state = 'gone';
+        }
       }
     }
   }

@@ -837,12 +837,12 @@ async function main() {
     expect(at.top >= 5 && hay.y >= at.step.y0 * 16 && hay.y <= at.step.y1 * 16 && up.y === at.floor * 16 && up.ground && got >= 4, `ryō au grenier ${at.top}, sur le foin y=${hay.y}, au grenier y=${up.y} (${up.ground}), ramassés ${got}`);
   });
 
-  await test('potager : le coffre du grenier s\'ouvre (↑) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {
+  await test('potager : le coffre du grenier s\'ouvre (↑, sans bouton) et donne 10 ryō ; la poutre du milieu porte 3 ryō', async () => {
     const ch = await pg.evaluate(() => { const c = window.__kage.level.chests[0]; return { id: c.id, x: c.x, y: c.y, open: c.open }; });
     const put = (x, y) => pg.evaluate(([x, y]) => { const g = window.__kage, pl = g.player; pl.x = x; pl.y = y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 0;
       for (const t of g.tates) { t.x = t.home + 4000; t.cooldown = 99; } for (const w of g.waras) { w.x = w.home + 4000; w.rest = 99; } }, [x, y]);
     await put(ch.x - 12, ch.y); await pw(250);
-    const label = await pg.evaluate(() => !document.querySelector('.talk').hidden && document.querySelector('[data-talk]').textContent);
+    const label = await pg.evaluate(() => document.querySelector('.talk').hidden ? 'aucun' : document.querySelector('[data-talk]').textContent);   // plus de bouton : le coffre scintille
     const ryo0 = await pg.evaluate(() => window.__kage.save.ryo);
     await PK.press('ArrowUp'); await pw(1400);
     const st = await pg.evaluate((id) => { const l = window.__kage.level, k = l.coins.filter((c) => c.id.startsWith('k' + id)); return { open: l.chests[0].open, n: k.length, flying: k.filter((c) => c.fly).length, talk: document.querySelector('.talk').hidden }; }, ch.id);
@@ -855,7 +855,7 @@ async function main() {
       return l.coins.filter((c) => c.x / 16 > gr.gx0 + 20 && c.x / 16 < gr.gx1 && Math.floor(c.y / 16) === 13).map((c) => c.x); });
     for (const x of beam) { await put(x, 14 * 16); await pw(40); }
     const beamGot = await pg.evaluate((xs) => window.__kage.level.coins.filter((c) => xs.includes(c.x) && c.taken).length, beam);
-    expect(label === 'Ouvrir le coffre' && st.open && st.n === 10 && st.flying === 0 && st.talk && ryo1 - ryo0 === 10
+    expect(label === 'aucun' && st.open && st.n === 10 && st.flying === 0 && st.talk && ryo1 - ryo0 === 10
       && saved.chests.includes(ch.id) && beam.length === 3 && beamGot === 3,
       `bouton « ${label} », coffre ${JSON.stringify(st)}, ryō +${ryo1 - ryo0}, sauvegarde ${saved.chests}, poutre ${beam.length} (ramassés ${beamGot})`);
   });

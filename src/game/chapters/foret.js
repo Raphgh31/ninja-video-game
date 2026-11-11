@@ -16,7 +16,7 @@ export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { oasis: null, galleries: null, spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { oasis: null, galleries: null, snaps: [], spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -319,12 +319,14 @@ function build() {
   tree(62);                                            // un arbre porte les deux petites branches
   branch(59, G7, 2);                                   // petites branches : 3 cases, puis 4
   branch(64, G7 - 1, 2); coin(c0 + 65, G7 - 3);
-  tree(82, 26);                                        // le grand arbre du nid : quatre branches, 14 cases d'eau avant lui
-  branch(73, G7 - 1, 4); coin(c0 + 69, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
+  tree(82, 26);                                        // le grand arbre du nid, 14 cases d'eau avant lui
+  // la grande branche où l'on se pose en arrivant (7 cases : sprint, saut, dash au sommet) : elle rompt
+  // presque aussitôt (la première fois, on tombe) ; elle revient quand KAGE réapparaît
+  F.snaps.push({ x0: c0 + 73, w: 4, row: G7 - 1, host: c0 + 82 }); coin(c0 + 69, G7 - 4);
   branch(80, G7 + 1, 3);
-  // le nid, au-dessus du chemin : on y monte par deux petites branches
-  branch(76, G7 - 3, 2); branch(80, G7 - 5, 4, { nest: true });
-  b.prop('chest', c0 + 82, G7 - 5, { id: 'nid', ryo: 12 });
+  // le nid : à droite du grand tronc, une petite branche puis celle du nid, le coffre bien en vue
+  branch(84, G7 - 1, 2); branch(84, G7 - 4, 4, { nest: true });
+  b.prop('chest', c0 + 86, G7 - 4, { id: 'nid', ryo: 12 });
   // des lianes pendent sous quelques branches jusqu'au sous-bois, toujours au-dessus de la terre :
   // on s'y accroche pour remonter (↑, puis un bond)
   const VINES = [[12, G7, 3], [36, G7 - 1, 3], [59, G7, 2], [80, G7 + 1, 3], [96, G7 + 1, 3]];
@@ -450,7 +452,9 @@ function build() {
   // le couloir de sortie : la lumière revient peu à peu
   // (le couloir s'évase en bouche de caverne : le plafond monte vers la sortie, la lumière entre)
   x = b.x; for (let i = 0; i < 16; i++) tunnel(1, G9s, G9s - 5 - Math.round(Math.pow(i / 15, 1.6) * 9));
-  F.dark = { x0: (pit - 12) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE, fade: 18 * TILE };
+  // deep : vers l'ouest, en profondeur seulement (sous le sous-bois de la canopée), la roche de la caverne
+  // continue : un écran large ne voit jamais la terre claire du dessus au bord de la grotte
+  F.dark = { x0: (pit - 12) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE, fade: 18 * TILE, deep: { x0: (pit - 60) * TILE, y0: (G8 - 16) * TILE } };
 
   // ===========================================================================
   // ZONE 9 — L'antre de la statue oubliée : le calme. On grimpe aux lianes de sa

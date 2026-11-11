@@ -174,6 +174,8 @@ export class TouchControls {
       this.pointers.set(e.pointerId, { type: 'button', button: b });
       b.down = true;
       this.input.press(b.action);
+    } else if (this.onTap?.(p.x / this.w, p.y / this.h)) {
+      // un appui sur le jeu lui-même (un coffre) : pris par le jeu, pas par le joystick
     } else if (p.x < this.w * 0.5 && !this.stick) {
       // le pouce se pose au centre du joystick : point de départ d'un éventuel coup rapide
       this.stick = { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, outAt: -1, outDir: 0, leftDeadAt: performance.now() / 1000, wasDead: true };

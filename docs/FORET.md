@@ -138,6 +138,14 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **peinture** : un fond de galerie peint (`galleriesBack`, `props.js`) en retrait des murs (ombre sur le pourtour), strates d'argile ocre, lits de cailloux, grosses racines en travers, radicelles dont certaines luisent, spores, la lumière des champignons, de l'arbre et de la lanterne posée en fondu ; rideaux de racines aux entrées (`rootCurtain`) ; les parois prennent la mousse bleu-vert et les spores du souterrain (`world.inGal`) ; une pénombre légère sur les seuls couloirs, éclairée autour de KAGE, de la lanterne, des champignons (qui s'allument à son approche) et de l'arbre (`drawGalleries`, `live.js`) ; le fossé fond au noir ; pas de fougères du premier plan dans les galeries ;
 - test : `zone 5 : par la niche de la lanterne, les galeries mènent au coffre…` ; le pilote de l'ascension ne s'engouffre plus dans la galerie (`wallClimb(…, maxCol)`).
 
+### Retours n° 7 (11 novembre 2026), appliqués : coffres, branche qui rompt, grotte
+- **ryō des coffres** (tous les coffres, `level.openChest`) : ils ne se posent plus qu'au-dessus d'un sol (terre, planche ou branche), sans mur entre eux et le coffre, sur deux rangées, les plus proches d'abord ; s'il manque de place, le coffre en donne moins (nid : 7 au lieu de 12). Test : `coffres : leurs ryō tombent sur un sol…` ;
+- **plus de bouton « Ouvrir le coffre »** (tous les coffres, `drawChest` dans `potager/props.js`) : fermé, un reflet doré le balaie de loin en loin ; quand KAGE approche, il tressaute et une lueur dorée pulse derrière lui ; juste devant, il tressaute plus souvent et des étincelles scintillent autour du couvercle. On l'ouvre avec ↑, ou en le touchant du doigt (`touch.onTap` → `tapChest`, KAGE tout près) ;
+- **le nid** (zone 7) : à droite du grand tronc, une petite branche puis celle du nid, qui partent vers la droite ; le coffre est posé dessus, entièrement hors du tronc ;
+- **la grande branche de l'arbre du nid** (celle où l'on se pose en arrivant) **rompt** au bout de 0,38 s (`F.snaps`, `FOREST.snap`, `drawSnap`) : elle craque et s'affaisse, une fissure s'ouvre à la jointure, elle pivote vers le bas tenue par quelques fibres, puis se détache et tombe en tournant (copeaux, feuilles) ; au tronc reste un moignon aux échardes claires. Elle revient à la réapparition. Test : `la grande branche de l'arbre du nid rompt…` ;
+- **grotte** : l'intérieur de l'arbre creux s'arrête au plafond de la caverne (il formait une colonne brune dans la salle) ; la roche sombre se prolonge en profondeur vers l'ouest (`F.dark.deep`) : un écran large ne voit plus de terre claire au bord gauche de la grotte ;
+- **entrée de l'arbre creux** : le fond commence sous le haut de la paroi gauche, entre les deux parois (il ne dépasse plus du tronc), avec un rebord cassé d'écorce éclairée.
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).
