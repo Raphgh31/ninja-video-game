@@ -10,6 +10,7 @@
 // recopié à chaque image avec son propre défilement : le monde paraît immense.
 import { Pix, Brush, fbm1, fbm2, noise1, noise2, ih, rng, pick, hazeRamp, mix, hex, mixHex, bayer, worley } from './paint.js';
 import * as C from './palette.js';
+import { cloudSprite as fineCloud, cirrusSprite } from '../sky.js';
 
 const TILE = 16;
 const GROUND_ROW = 19;          // haut du sol de référence du chapitre
@@ -30,53 +31,6 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /** Position dans une bande d'un repère vu au centre de l'écran quand KAGE est en worldX. */
 const anchor = (plane, worldX) => (worldX - 240) * plane.fx + 240;
-
-// ---------------------------------------------------------------------------
-// nuages : sprites peints (boules de coton éclairées par le haut à gauche)
-// ---------------------------------------------------------------------------
-function cloudSprite(seed, w, h, flat = 1) {
-  const r = rng(seed);
-  const pix = new Pix(w + 10, h + 6);
-  const base = h + 2;
-  const puffs = [];
-  // rangée basse et large, puis des dômes de plus en plus hauts vers le centre
-  const n = 6 + Math.floor(r() * 4);
-  for (let i = 0; i < n; i++) {
-    const t = (i + 0.5) / n;
-    const rad = (0.25 + 0.55 * Math.sin(t * Math.PI) * (0.65 + r() * 0.5)) * h;
-    puffs.push({ cx: 5 + t * w + (r() - 0.5) * 8, cy: base - rad * (0.5 + r() * 0.3), r: rad });
-  }
-  for (let i = 0; i < 4; i++) {
-    const rad = h * (0.28 + r() * 0.22);
-    puffs.push({ cx: 5 + w * (0.2 + r() * 0.6), cy: base - h * (0.45 + r() * 0.2), r: rad });
-  }
-  // relief : hauteur d'une sphère pour chaque bouffée, la plus haute l'emporte
-  const H = (x, y) => {
-    let best = -1;
-    for (const p of puffs) {
-      const dx = x - p.cx, dy = (y - p.cy) * 1.15 * flat;
-      const q = p.r * p.r - dx * dx - dy * dy;
-      if (q > 0) best = Math.max(best, Math.sqrt(q));
-    }
-    return best;
-  };
-  const L = [-0.45, -0.7, 0.55];
-  for (let y = 0; y < pix.h; y++) {
-    for (let x = 0; x < pix.w; x++) {
-      if (y > base) continue;
-      const z = H(x, y);
-      if (z < 0) continue;
-      const zx = H(x + 1, y) - H(x - 1, y), zy = H(x, y + 1) - H(x, y - 1);
-      const nx = -Math.max(-6, Math.min(6, zx)) / 2, ny = -Math.max(-6, Math.min(6, zy)) / 2, nz = 1;
-      const len = Math.hypot(nx, ny, nz);
-      let v = 0.42 + 0.62 * ((nx * L[0] + ny * L[1] + nz * L[2]) / len);
-      v -= clamp01((y - (base - h * 0.3)) / (h * 0.3)) * 0.3;     // ventre ombré
-      if (z < 1.6 && y < base - 2) v += 0.08;                    // bord lumineux
-      pix.set(x, y, pick(C.CLOUD, clamp01(v), x, y, 0.36));
-    }
-  }
-  return pix.done();
-}
 
 // ---------------------------------------------------------------------------
 // un sommet : flancs, arêtes, ravines, neige ; peint seul, pour pouvoir passer
@@ -831,13 +785,17 @@ export class Backdrop {
     // nuages : grands cumulus dans le ciel, nappes basses autour des montagnes
     const r = rng(500);
     this.clouds = [];
-    for (let i = 0; i < 7; i++) {
-      const w = 80 + r() * 110, h = 22 + r() * 22;
-      this.clouds.push({ img: cloudSprite(600 + i, w, h), x: i * 270 + r() * 120, y: 4 + r() * 60, speed: 1.2 + r() * 2, f: 0.012 + r() * 0.01, high: true });
+    // nuages fins et étirés (sky.js) : quelques cirrus tout en haut, des nuages élégants, des bancs bas
+    for (let i = 0; i < 3; i++) {
+      this.clouds.push({ img: cirrusSprite(650 + i, 150 + r() * 90, 14, '#f4f8fa'), x: i * 620 + r() * 200, y: 2 + r() * 14, speed: 0.6 + r() * 0.5, f: 0.008, high: true });
     }
     for (let i = 0; i < 7; i++) {
-      const w = 90 + r() * 120, h = 9 + r() * 8;
-      this.clouds.push({ img: cloudSprite(700 + i, w, h, 1.8), x: i * 290 + r() * 100, y: 0, dy: -(r() * 46), speed: 2.5 + r() * 3, f: 0.05, high: false });
+      const w = 90 + r() * 120, h = 9 + r() * 9;
+      this.clouds.push({ img: fineCloud(600 + i, w, h, C.CLOUD), x: i * 270 + r() * 120, y: 10 + r() * 56, speed: 1.2 + r() * 2, f: 0.012 + r() * 0.01, high: true });
+    }
+    for (let i = 0; i < 7; i++) {
+      const w = 110 + r() * 130, h = 4 + r() * 5;
+      this.clouds.push({ img: fineCloud(700 + i, w, h, C.CLOUD), x: i * 290 + r() * 100, y: 0, dy: -(r() * 46), speed: 2.5 + r() * 3, f: 0.05, high: false });
     }
   }
 

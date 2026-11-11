@@ -108,6 +108,11 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - canopée : les arbres du fond sont de grands pins à plateaux (comme ceux où KAGE se tient), certains montrent leur cime, de petites lianes pendent ;
 - souterrain : roche bleu-vert, mousse turquoise, fougères, spores lumineuses, lianes à perles de lumière, plus de champignons (turquoise et violets) avec leur halo coloré, pénombre moins dense ; au fond, de grands champignons lumineux et des mares qui luisent.
 
+### Retours n° 2 (11 novembre 2026), appliqués
+- lueur des champignons de la grotte adoucie ;
+- ciel par heure du jour (`SKIES` dans `foret/backdrop.js`, module commun `src/game/sky.js`) : dégradé travaillé, soleil levant au matin, plein ciel à la canopée, soleil couchant, crépuscule et étoiles ; nuages fins teintés par la lumière, cirrus ; halo du soleil sur la forêt lointaine ;
+- nuages du Potager refaits de la même façon (plus fins et élégants).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

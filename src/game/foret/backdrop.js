@@ -15,6 +15,7 @@
 import { canvas, ih, pick, bayer, hazeRamp } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
+import { cloudSprite, cirrusSprite, sunSprite, skyGradient, stars } from '../sky.js';
 
 const TILE = 16;
 const W = 768;                 // largeur d'une bande (elle se répète sans couture)
@@ -228,6 +229,42 @@ function paintSky(mood, h) {
 }
 
 // ---------------------------------------------------------------------------
+// le ciel de chaque heure du jour : dégradé, soleil (levant le matin, couchant le
+// soir), nuages fins teintés par la lumière, cirrus, étoiles au crépuscule
+// ---------------------------------------------------------------------------
+const SKIES = {
+  matin: {
+    stops: [[0, '#6faac4'], [0.3, '#97c6c8'], [0.52, '#cfe1bb'], [0.7, '#f2e2ac'], [0.86, '#ffd6a0'], [1, '#ffe9c4']],
+    sun: { x: 0.3, y: 0.36, r: 10, R: 56, core: '#fffbe8', glow: ['#ffc98a', '#ffe0a8', '#fff2d2'] },
+    clouds: ['#b89aa0', '#dbb9ae', '#f2d4bc', '#fde8d0', '#fff6e8'], cirrus: '#fff0dc', n: 6,
+  },
+  sousbois: {
+    stops: [[0, '#2a7a92'], [0.35, '#4aa2b2'], [0.65, '#86cdc8'], [1, '#c8eee0']],
+    sun: { x: 0.64, y: 0.08, r: 7, R: 40, core: '#fffcea', glow: ['#cdeed6', '#e6f8e6', '#f8fff2'] },
+    clouds: ['#84b4ba', '#a4cdcc', '#c3e2da', '#e0f2ea', '#f6fdf8'], cirrus: '#e8faf2', n: 5,
+  },
+  canopee: {
+    stops: [[0, '#3a80c2'], [0.32, '#5ea4d6'], [0.6, '#96c9e2'], [0.84, '#cce6e6'], [1, '#f2f1d2']],
+    sun: { x: 0.36, y: 0.3, r: 10, R: 56, core: '#fffef2', glow: ['#ffeeb0', '#fff6d6', '#fffdf2'] },
+    clouds: ['#9ab3cf', '#b9cde0', '#d7e3ee', '#f0f5f7', '#fffefa'], cirrus: '#f6fafd', n: 8,
+  },
+  sanctuaire: {
+    stops: [[0, '#0c3444'], [0.4, '#18525e'], [0.75, '#2f7a7e'], [1, '#5ea698']],
+    sun: null, clouds: ['#1e4a54', '#2a5e66', '#3a7476', '#4e8a84', '#68a294'], cirrus: null, n: 3,
+  },
+  couchant: {
+    stops: [[0, '#38386c'], [0.26, '#674c86'], [0.48, '#b4667e'], [0.66, '#ea8a64'], [0.82, '#ffb86c'], [1, '#ffe2a2']],
+    sun: { x: 0.8, y: 0.42, r: 14, R: 70, core: '#fff2c2', glow: ['#ff8e4e', '#ffb468', '#ffdc9c'] },
+    clouds: ['#523868', '#82506e', '#c2706e', '#f2a46e', '#ffd89c'], cirrus: '#ffc49c', n: 7,
+  },
+  crepuscule: {
+    stops: [[0, '#12142e'], [0.3, '#272552'], [0.55, '#55386c'], [0.78, '#9a5276'], [0.92, '#d77868'], [1, '#f2a070']],
+    sun: { x: 0.86, y: 0.5, r: 0, R: 110, core: '#ffb070', glow: ['#c45a5a', '#e57a62', '#ffa874'] },
+    clouds: ['#221c3a', '#3c2a52', '#6a3c62', '#b0586a', '#e88a6c'], cirrus: '#d88a7a', n: 5, stars: 40,
+  },
+};
+
+// ---------------------------------------------------------------------------
 export class ForetBackdrop {
   constructor(level) {
     this.level = level;
@@ -352,11 +389,63 @@ export class ForetBackdrop {
     return this.q(ref + (gy - ref) * pl.fy) - GY;
   }
 
+  /** Le ciel d'une heure du jour : dégradé, étoiles, soleil, nuages (peints une fois). */
+  skyOf(mood, viewH) {
+    const s = this.sets[mood], K = SKIES[mood];
+    if (!K) return null;
+    if (s.skyH !== viewH) { s.sky = skyGradient(K.stops, viewH); s.skyH = viewH; }
+    if (!s.clouds) {
+      let seed = mood.length * 97;
+      s.sun = K.sun ? sunSprite(K.sun.core, K.sun.glow, K.sun.r, K.sun.R) : null;
+      // la lumière du soleil qui déborde sur la forêt lointaine (posée par-dessus les premiers plans)
+      s.sunGlow = K.sun ? sunSprite(K.sun.glow[2], K.sun.glow, 0, 150) : null;
+      s.clouds = [];
+      for (let i = 0; i < K.n; i++) {
+        const big = i % 3 !== 2, w = big ? 100 + ih(i, 1, seed) * 110 : 140 + ih(i, 2, seed) * 120, h = big ? 9 + ih(i, 3, seed) * 9 : 4 + ih(i, 4, seed) * 4;
+        s.clouds.push({ img: cloudSprite(seed + i, w, h, K.clouds), x: i * 330 + ih(i, 5, seed) * 160, y: big ? 0.06 + ih(i, 6, seed) * 0.26 : 0.34 + ih(i, 7, seed) * 0.12, speed: 1 + ih(i, 8, seed) * 1.8, f: 0.01 + (big ? 0 : 0.012) });
+      }
+      if (K.cirrus) for (let i = 0; i < 2; i++) s.clouds.unshift({ img: cirrusSprite(seed + 40 + i, 170 + ih(i, 9, seed) * 80, 14, K.cirrus), x: i * 700 + 120, y: 0.02 + i * 0.05, speed: 0.5, f: 0.006 });
+      s.stars = K.stars ? stars(seed, 900, 120, K.stars) : null;
+    }
+    return s;
+  }
+
   drawMood(ctx, mood, cam, viewW, viewH, time) {
-    const s = this.sets[mood], m = C.MOODS[mood] ?? C.MOODS.sousbois;
-    if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; }
-    ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+    const s = this.sets[mood], m = C.MOODS[mood] ?? C.MOODS.sousbois, K = SKIES[mood];
+    if (K) {
+      this.skyOf(mood, viewH);
+      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      if (s.stars) {
+        ctx.fillStyle = '#f4ecff';
+        for (const st of s.stars) {
+          const a = (0.35 + 0.65 * st.b) * (0.75 + 0.25 * Math.sin(time * 1.3 + st.p));
+          if (st.y > viewH * 0.45) continue;
+          ctx.globalAlpha = a * (1 - st.y / (viewH * 0.45));
+          ctx.fillRect(this.q(((st.x - cam.x * 0.004) % viewW + viewW) % viewW), this.q(st.y * 0.9), 1, 1);
+        }
+        ctx.globalAlpha = 1;
+      }
+      if (s.sun) {
+        const R = K.sun.R + 1;
+        ctx.drawImage(s.sun, this.q(K.sun.x * viewW - R - cam.x * 0.006), this.q(K.sun.y * viewH - R));
+      }
+      const span = 2400;
+      for (const c of s.clouds) {
+        const x = ((c.x + time * c.speed - cam.x * c.f) % span + span) % span - 260;
+        if (x > viewW || x + c.img.width < 0) continue;
+        ctx.drawImage(c.img, this.q(x), this.q(c.y * viewH));
+      }
+    } else {
+      if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; }
+      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+    }
     for (const pl of PLANES) {
+      if (pl.id === 'near' && s.sunGlow) {
+        // le soleil baigne la forêt lointaine : un halo clair, léger, derrière les plans proches
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.16;
+        ctx.drawImage(s.sunGlow, this.q(K.sun.x * viewW - 151 - cam.x * 0.006), this.q(K.sun.y * viewH - 151));
+        ctx.restore();
+      }
       const img = s.planes[pl.id];
       const y = this.planeY(pl, cam, viewH);
       const off = this.q(cam.x * pl.fx + (pl.drift ?? 0) * time);

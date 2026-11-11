@@ -516,7 +516,7 @@ export class ForetLive {
       const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
       if (m.lit <= 0.05 || sx < -40 || sx > vw + 40 || sy < -40 || sy > vh + 40) continue;
       const img = this.tint[(m.x >> 4) % 3 === 1 ? 1 : 0], r = m.big ? 34 : 24;
-      ctx.globalAlpha = m.lit * (0.5 + 0.1 * Math.sin(time * 1.7 + m.x));
+      ctx.globalAlpha = m.lit * (0.3 + 0.06 * Math.sin(time * 1.7 + m.x));   // lueur adoucie (demande de l'utilisateur)
       ctx.drawImage(img, sx - r, sy - 10 - r, r * 2, r * 2);
     }
     ctx.globalAlpha = 1;
