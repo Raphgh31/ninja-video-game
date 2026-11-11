@@ -151,6 +151,11 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 - **la porte de pierre** (`stone_gate` dans `props.js`, `drawGate` dans `live.js`) : un pilier maçonné à droite de la tête, un linteau sculpté aux deux yeux clos gravés (ils s'allument avec ceux de la statue), un pilastre, un seuil ; la dalle (deux panneaux, un œil gravé, un anneau) remonte dans le mur en 2,8 s (`FOREST.statue.gateTime`) et découvre le tunnel. L'éboulis mal ordonné a disparu ;
 - les lianes et les yeux de la mécanique sont calculés depuis la peinture (`eyeCenter`) ; le pilote de la zone 9 grimpe aux hauteurs des nouveaux yeux.
 
+### Retours n° 9 (11 novembre 2026), en cours : la statue au plus près du modèle
+- proportions : visage plus plein (entre-deux), cou plus court et plus épais, relief et ombres plus marqués (profondeur `KZ` 58, occlusion des creux, ombres portées plus sombres) ;
+- la tête penche vers le sol (`PITCH`, `fv`) : le front grandit, les traits descendent ; les yeux sont des orbites profondes sous des arcades lourdes qui y jettent leur ombre, paupières baissées ; les lianes du milieu s'arrêtent sur le front ;
+- **l'allumage des yeux est retiré du dessin** (demande de Raph : un nouveau mécanisme, sur le haut de la tête, viendra plus tard). En attendant, un déclencheur invisible devant chaque œil ouvre encore la porte.
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).
