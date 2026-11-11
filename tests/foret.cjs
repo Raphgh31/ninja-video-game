@@ -146,7 +146,7 @@ async function main() {
       bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.hp < hp || p.x > (z.x0 + 60) * 16 });
       return [water, bot.p.hp < hp, bot.col(), z.x0 + 60];
     });
-    expect(r[0] > 40 && r[1] && r[2] < r[3], JSON.stringify(r));
+    expect(r[0] > 20 && r[1] && r[2] < r[3], JSON.stringify(r));
   });
 
   await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {

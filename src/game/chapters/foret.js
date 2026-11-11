@@ -250,46 +250,69 @@ function build() {
     b.prop('climb_trunk', cx, G6, { top });
     for (let row = G6 - 2, k = 0; row > top; row -= 2, k++) b.row(cx + (k % 2 ? 1 : -2), 2, row, '-');
   };
-  x = b.x; ground(104, G6);                            // le sous-bois de rattrapage, sous toute la canopée
+  x = b.x; ground(108, G6);                            // le sous-bois de rattrapage, sous toute la canopée
   const c0 = x;
+  // Les arbres de la canopée sont posés ici, un par un, et chacun a les pieds sur la terre :
+  // l'eau du sous-bois s'étend entre eux (voir les îlots plus bas). Les branches voisines d'un
+  // arbre en sortent (props.js). Largeur du fût en pixels.
+  const trees = [];                                    // [colonne, largeur du fût]
+  const tree = (cx, w = 20) => { b.prop('canopy_trunk', c0 + cx, G6, { w, seed: cx * 7 + 3 }); trees.push([c0 + cx, w]); };
   climbTree(c0 + 3, G7 - 1);
   const branch = (bx, row, w, extra = {}) => { b.row(c0 + bx, w, row, '-'); b.prop('branch', c0 + bx, row, { w, ...extra }); };
   branch(4, G7, 5);                                    // on arrive en haut de la première remontée
   lantern(c0 + 6, G7);
+  tree(11);
   branch(12, G7, 3); coin(c0 + 13, G7 - 2);            // 3 cases : un saut
   // le pont suspendu, d'un grand tronc à l'autre : de vieilles planches moussues entre deux cordes,
-  // certaines lâchent sous le pied (il faut avancer) ; il ploie et oscille quand KAGE y saute
-  b.prop('bridge_tree', c0 + 17, G6, { top: 0 }); b.prop('bridge_tree', c0 + 30, G6, { top: 0, flip: true });
-  F.bridges.push({ x0: (c0 + 18) * TILE, x1: (c0 + 30) * TILE, y: (G7 - 1) * TILE, sag: 11 });
-  coin(c0 + 21, G7 - 3); coin(c0 + 24, G7 - 4); coin(c0 + 27, G7 - 3);
-  branch(36, G7, 4); coin(c0 + 33, G7 - 3);            // 6 cases : dash
-  climbTree(c0 + 42, G7);                              // remontée du milieu
-  branch(43, G7 + 1, 5);
-  lantern(c0 + 45, G7 + 1);
-  branch(51, G7, 2);                                   // petites branches : 3 cases, puis 4
-  branch(56, G7 - 1, 2); coin(c0 + 57, G7 - 3);
-  branch(65, G7 - 1, 4); coin(c0 + 61, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
-  branch(72, G7 + 1, 3);
+  // certaines lâchent sous le pied (il faut avancer) ; il ploie et oscille quand KAGE y saute.
+  // Les deux troncs sont écartés de 17 cases : dessous, une eau trop large pour être sautée.
+  b.prop('bridge_tree', c0 + 17, G6, { top: 0 }); b.prop('bridge_tree', c0 + 34, G6, { top: 0, flip: true });
+  trees.push([c0 + 17, 24], [c0 + 34, 24]);
+  F.bridges.push({ x0: (c0 + 18) * TILE, x1: (c0 + 34) * TILE, y: (G7 - 1) * TILE, sag: 13 });
+  coin(c0 + 21, G7 - 3); coin(c0 + 24, G7 - 4); coin(c0 + 28, G7 - 4); coin(c0 + 31, G7 - 3);
+  tree(39);
+  branch(40, G7, 4); coin(c0 + 37, G7 - 3);            // 6 cases : dash
+  climbTree(c0 + 46, G7);                              // remontée du milieu
+  branch(47, G7 + 1, 5);
+  lantern(c0 + 49, G7 + 1);
+  tree(57);                                            // un arbre porte les deux petites branches
+  branch(55, G7, 2);                                   // petites branches : 3 cases, puis 4
+  branch(60, G7 - 1, 2); coin(c0 + 61, G7 - 3);
+  tree(74, 26);                                        // le grand arbre du nid : quatre branches
+  branch(69, G7 - 1, 4); coin(c0 + 65, G7 - 4);        // 7 cases : sprint, saut, dash au sommet
+  branch(76, G7 + 1, 3);
   // le nid, au-dessus du chemin : on y monte par deux petites branches
-  branch(68, G7 - 3, 2); branch(72, G7 - 5, 4, { nest: true });
-  b.prop('chest', c0 + 74, G7 - 5, { id: 'nid', ryo: 12 });
+  branch(72, G7 - 3, 2); branch(76, G7 - 5, 4, { nest: true });
+  b.prop('chest', c0 + 78, G7 - 5, { id: 'nid', ryo: 12 });
   // des lianes pendent sous quelques branches jusqu'au sous-bois : on s'y accroche pour remonter (↑, puis un bond)
-  for (const [bx, row, w] of [[12, G7, 3], [27, G7 - 1, 3], [51, G7, 2], [65, G7 - 1, 4], [88, G7 + 1, 3]]) {
-    vine(c0 + bx + w / 2, row + 0.15 + (bx === 27 ? 0.5 : 0), G6 - row - 0.55 - (bx === 27 ? 0.5 : 0));   // (celle-ci pend sous le pont)
+  const VINES = [[12, G7, 3], [31, G7 - 1, 3], [55, G7, 2], [69, G7 - 1, 4], [92, G7 + 1, 3]];
+  for (const [bx, row, w] of VINES) {
+    const deck = bx === 31 ? 0.5 : 0;                  // celle-ci pend sous le pont
+    vine(c0 + bx + w / 2, row + 0.15 + deck, G6 - row - 0.55 - deck);
   }
-  // au sol, de l'eau entre les îlots des lianes et des remontées : on ne traverse pas la canopée par en bas
-  const islands = [[c0 - 8, c0 + 7], [c0 + 39, c0 + 46], [c0 + 77, c0 + 84], [c0 + 90, c0 + 104],
-    ...[[12, 3], [27, 3], [51, 2], [65, 4], [88, 3]].map(([bx, w]) => [c0 + bx + Math.floor(w / 2) - 2, c0 + bx + Math.floor(w / 2) + 2])];
-  for (let cx = c0; cx < c0 + 104; cx++) {
-    if (islands.some(([a, z]) => cx >= a && cx <= z)) continue;
+  climbTree(c0 + 84, G7 + 1);                          // dernière remontée
+  branch(85, G7 + 2, 4);
+  tree(95);                                            // entre les deux dernières branches
+  branch(92, G7 + 1, 3); coin(c0 + 90, G7 - 1);        // 3 cases
+  // au bout : le grand arbre creux ; on entre par le haut et on se laisse glisser jusque sous terre
+  const pit = c0 + 100;
+  branch(96, G7 + 1, 4);
+  // au sol, de l'eau partout, sauf sous les pieds des arbres, autour des remontées et sous les lianes :
+  // de grandes étendues (9 cases et plus sous le pont et après la deuxième remontée) qu'on ne saute pas
+  const land = new Set();
+  const keep = (a, z) => { for (let c = a; c <= z; c++) land.add(c); };
+  keep(c0 - 8, c0 + 7); keep(c0 + 94, c0 + 108);       // le départ, et le pied de l'arbre creux
+  for (const cx of [c0 + 46, c0 + 84]) keep(cx - 3, cx + 4);
+  for (const [bx, , w] of VINES) keep(c0 + bx + Math.floor(w / 2) - 2, c0 + bx + Math.floor(w / 2) + 2);
+  // le pied d'un arbre s'évase (racines) jusqu'à ~1,12 fois la largeur du fût de chaque côté, plus une case de rive
+  for (const [cx, w] of trees) keep(Math.floor((cx * TILE + 8 - 1.12 * w) / TILE) - 1, Math.floor((cx * TILE + 8 + 1.12 * w) / TILE) + 1);
+  for (let cx = c0; cx < c0 + 108; cx++) if (!land.has(cx)) {
+    // pas de flaque de moins de 3 cases : la terre reprend
+    let a = cx; while (a > c0 && !land.has(a - 1)) a--;
+    let z = cx; while (z < c0 + 107 && !land.has(z + 1)) z++;
+    if (z - a + 1 < 3) continue;
     b.cols[cx][G6] = '~'; b.cols[cx][G6 + 1] = '~';
   }
-  climbTree(c0 + 80, G7 + 1);                          // dernière remontée
-  branch(81, G7 + 2, 4);
-  branch(88, G7 + 1, 3); coin(c0 + 86, G7 - 1);        // 3 cases
-  // au bout : le grand arbre creux ; on entre par le haut et on se laisse glisser jusque sous terre
-  const pit = c0 + 96;
-  branch(92, G7 + 1, 4);
   const G8 = FORET_ROWS.souterrain;
 
   // ===========================================================================

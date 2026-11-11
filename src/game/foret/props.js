@@ -111,6 +111,12 @@ export class ForetProps {
           add('behind', X - 52, 0, 120, Y + 6, (pix) => branchTree(pix, X + 8, deckY, Y + 4, 0, p.x * 3 + 1, 24));
           break;
         }
+        case 'canopy_trunk': {
+          // un arbre de la canopée, posé à la main (foret.js) : ses branches voisines en sortent
+          const top = Math.min(...level.props.filter((q) => q.type === 'branch' && Math.abs(q.x - p.x) <= 5).map((q) => q.y), p.y - 12) * TILE;
+          add('behind', X - 52, 0, 120, Y + 6, (pix) => branchTree(pix, X + 8, top, Y + 4, 0, p.seed ?? p.x * 3, p.w ?? 20));
+          break;
+        }
         case 'pearl_tree': {
           const sz = PEARL_SIZE[p.s ?? 1];
           add('behind', X + 8 - sz.w, Y - sz.h - 8, sz.w * 2, sz.h + 14, (pix) => pearlTree(pix, p));
@@ -148,6 +154,7 @@ export class ForetProps {
   branches(add) {
     const lv = this.level, climbs = lv.props.filter((p) => p.type === 'climb_trunk'), statue = lv.props.find((p) => p.type === 'statue');
     const decl = lv.props.filter((p) => p.type === 'branch');
+    const trees = lv.props.filter((p) => p.type === 'canopy_trunk');
     for (let ty = 0; ty < lv.h; ty++) {
       const row = lv.rows[ty];
       for (let tx = 0; tx < lv.w; tx++) {
@@ -164,6 +171,15 @@ export class ForetProps {
         if (hg) { add('over', X - 4, Y - 4, W + 8, 14, (pix) => limb(pix, X - 2, X + W + 2, Y, tx === hg.x + 1 ? -1 : 1, tx * 7 + ty, false)); continue; }
         const climb = climbs.find((c) => Math.abs(c.x - tx) <= 3 && ty >= c.top - 1 && ty < c.y);
         const d = decl.find((p) => p.x === tx && p.y === ty);
+        // un arbre posé à côté (canopée) : la branche sort de son fût, pas d'arbre en plus
+        const dist = (a) => (a.x < tx ? tx - a.x : a.x > tx + w - 1 ? a.x - (tx + w - 1) : 0);
+        const host = !climb && trees.filter((a) => ty < a.y && dist(a) <= 3).sort((a, b) => dist(a) - dist(b))[0];
+        if (host) {
+          const side = tx + w / 2 > host.x + 0.5 ? 1 : -1, tcx = host.x * TILE + 8, half = (host.w ?? 20) / 2 - 3;
+          add('over', Math.min(X, tcx) - 12, Y - 12, Math.abs(tcx - (side > 0 ? X + W : X)) + 24, 28, (pix) => limb(pix, side > 0 ? tcx + half : X - 4, side > 0 ? X + W + 4 : tcx - half, Y, side, tx * 7 + ty, true));
+          if (d?.nest) add('over', X + W / 2 - 18, Y - 14, 36, 18, (pix) => nest(pix, X + W / 2, Y));
+          continue;
+        }
         if (climb) {
           // marche le long d'un tronc de remontée : une grosse branche qui sort du tronc
           const side = tx + w / 2 > climb.x + 0.5 ? 1 : -1;

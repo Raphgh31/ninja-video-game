@@ -131,18 +131,23 @@ function haloSprite(r) {
   return c;
 }
 
-/** Bande du premier plan (frondes et herbes sombres, contour adouci) pour une lumière. */
+/** Bande du premier plan (herbes sombres, contour adouci) pour une lumière, et ses grandes frondes à part
+ *  (chacune son image et son pied : on ne la dessine pas si son pied tombe sur l'eau). */
 function foreStrip(mood) {
   const W = 768, H = 70;
   const p = new L.Strip(W, H);
   const F = mood.fore, ramp = [F[0], F[0], F[1], F[1], F[2], F[3]];
-  for (let i = 0; i < 9; i++) {
-    const x = Math.floor(ih(i, 1, 91) * W), len = 26 + Math.floor(ih(i, 2, 91) * 40);
-    L.frond(p, x, H + 4, len, -Math.PI / 2 + (ih(i, 3, 91) - 0.5) * 1.6, (ih(i, 4, 91) - 0.5) * 2.2, F, len);
-  }
   for (let x = 0; x < W; x += 3) if (ih(x, 7, 91) < 0.35) L.grassTuft(p, x, H, 3 + Math.floor(ih(x, 8, 91) * 9), ramp, x);
   L.soften(p, F[0]);
-  return p.done();
+  const fronds = [];
+  for (let i = 0; i < 9; i++) {
+    const x = Math.floor(ih(i, 1, 91) * W), len = 26 + Math.floor(ih(i, 2, 91) * 40), fw = len * 2 + 24;
+    const q = new L.Strip(fw, H);
+    L.frond(q, fw / 2, H + 4, len, -Math.PI / 2 + (ih(i, 3, 91) - 0.5) * 1.6, (ih(i, 4, 91) - 0.5) * 2.2, F, len);
+    L.soften(q, F[0]);
+    fronds.push({ x, w: fw, img: q.done() });
+  }
+  return { grass: p.done(), fronds };
 }
 
 export class ForetLive {
@@ -702,15 +707,33 @@ export class ForetLive {
   /** Premier plan : frondes et herbes sombres en bas de l'image (la lumière de la zone). */
   drawFore(ctx, cam, vw, vh) {
     const list = this.art.backdrop.weights(cam, vw, vh);
+    // rien ne pousse sur l'eau : la bande est découpée au-dessus des colonnes où l'on voit de l'eau en bas de l'image
+    const lv = this.level, r0 = Math.floor((cam.y + vh - 62) / 16), r1 = Math.floor((cam.y + vh) / 16);
+    const wet = (tx) => { for (let r = r0; r <= r1; r++) if (lv.at(tx, r) === '~') return true; return false; };
+    let clip = null, run = null;
+    const flush = () => { if (!run) return; clip ??= (() => { const q = new Path2D(); q.rect(0, vh - 62, vw, 70); return q; })(); clip.rect(R(run[0] * 16 - cam.x) - 6, vh - 62, (run[1] - run[0] + 1) * 16 + 12, 70); run = null; };
+    for (let tx = Math.floor(cam.x / 16); tx * 16 < cam.x + vw; tx++) {
+      if (wet(tx)) { if (run) run[1] = tx; else run = [tx, tx]; } else flush();
+    }
+    flush();
+    if (clip) { ctx.save(); ctx.clip(clip, 'evenodd'); }
     for (const [i, o] of list.entries()) {
       const m = C.MOODS[o.mood];
       if (!m || m.cave) continue;
-      const img = (this.fore[o.mood] ??= foreStrip(m));
+      const fs = (this.fore[o.mood] ??= foreStrip(m));
       ctx.globalAlpha = i === 0 ? 1 : o.w;
       const off = (((cam.x * 1.25) % 768) + 768) % 768;
       let dx = -(off % 1), x = Math.floor(off);
-      while (dx < vw) { const w = Math.min(768 - x, vw - dx + 1); ctx.drawImage(img, x, 0, w, 70, R(dx), vh - 62, w, 70); dx += w; x = 0; }
+      while (dx < vw) { const w = Math.min(768 - x, vw - dx + 1); ctx.drawImage(fs.grass, x, 0, w, 70, R(dx), vh - 62, w, 70); dx += w; x = 0; }
+      for (const f of fs.fronds) for (let sx = f.x - off - 768; sx < vw + f.w; sx += 768) {
+        if (sx < -f.w) continue;
+        let over = false;                                   // ni le pied ni les feuilles au-dessus de l'eau
+        for (let t = Math.floor((cam.x + sx - f.w / 2 + 12) / 16); t <= Math.floor((cam.x + sx + f.w / 2 - 12) / 16); t++) if (wet(t)) { over = true; break; }
+        if (over) continue;
+        ctx.drawImage(f.img, R(sx - f.w / 2), vh - 62);
+      }
     }
     ctx.globalAlpha = 1;
+    if (clip) ctx.restore();
   }
 }
