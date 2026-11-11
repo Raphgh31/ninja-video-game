@@ -284,6 +284,7 @@ export class Forest {
     player.lastVine = v;
     player.vineCd = V.cooldown;
     player.airDash = true;
+    player.fling = true;
     player.jumpBuffer = 0;
     player.emit('vine_release', { jump });
     if (dash) {

@@ -10,6 +10,7 @@ const P = {
   accel: 1400,
   friction: 1800,
   airFriction: 450,  // freinage en l'air quand on lâche la direction (garde l'élan, utile pour le dash au double appui)
+  flingDrag: 70,     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
   maxFall: 420,
   jump: 315,
@@ -74,6 +75,7 @@ export class Player {
     this.fastTimer = 0;
     this.vine = null;         // liane tenue (chapitre 2)
     this.vineCd = 0;
+    this.fling = false;       // élan d'une liane en cours (en l'air)
     this.lastVine = null;
     this.ride = null;         // plateforme mobile sous ses pieds
     this.level.resetTargets?.();
@@ -308,7 +310,13 @@ export class Player {
           break;
         }
         const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run);
-        if (this.wallLock <= 0) {
+        if (this.onGround) this.fling = false;
+        if (this.fling && dir !== -Math.sign(this.vx) && Math.abs(this.vx) > Math.abs(target)) {
+          // élan d'une liane : il porte KAGE, les commandes ne le brident pas
+          this.vx -= Math.sign(this.vx) * P.flingDrag * dt;
+          if (dir !== 0) this.facing = dir;
+        } else if (this.wallLock <= 0) {
+          this.fling = false;
           const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
           else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
@@ -331,7 +339,7 @@ export class Player {
             break;
           }
         }
-        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump') {
+        if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
         const dashDir = input.wasPressed('dash_right') ? 1 : input.wasPressed('dash_left') ? -1 : 0;

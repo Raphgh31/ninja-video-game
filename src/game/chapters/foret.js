@@ -386,26 +386,26 @@ function build() {
   b.hint('vine', x + 4);
   const KILL10 = G9 + 14;
   const AY = G9 - 17;                                    // hauteur des branches où pendent les lianes
-  const swing = (cx, len = 14, phase = 0, amp = 0.5) => { vine(cx, AY, len, amp, phase); b.prop('vine_branch', cx, AY); };
+  const swing = (cx, len = 18, phase = 0, amp = 0.5) => { vine(cx, AY, len, amp, phase); b.prop('vine_branch', cx, AY); };
   const pillar = (n, top, lamp = false) => { const p0 = b.x; ground(n, top); b.prop('rock_pillar', p0, top, { w: n }); if (lamp) lantern(p0 + Math.floor(n / 2), top); return p0; };
   // une liane, pour apprendre : elle ramène tout près du bord
   x = b.x; chasm(12, KILL10);
-  swing(x + 6, 15, 0);
+  swing(x + 6, 18, 0);
   coins([x + 6], G9 - 1);
   pillar(5, G9, false);
   // deux lianes à la suite
   x = b.x; chasm(21, KILL10);
-  swing(x + 6, 15, 0); swing(x + 15, 15, Math.PI);
+  swing(x + 6, 18, 0); swing(x + 15, 18, Math.PI);
   coins([x + 10], G9 - 4);
   pillar(5, G9, true);
   // trois lianes, la dernière plus courte : il faut lâcher plus haut
   x = b.x; chasm(29, KILL10);
-  swing(x + 6, 15, 0); swing(x + 15, 14, Math.PI); swing(x + 23, 13, 0);
+  swing(x + 6, 18, 0); swing(x + 15, 17, Math.PI); swing(x + 23, 16, 0);
   coins([x + 10, x + 19], G9 - 5);
   pillar(5, G9 - 1, true);
   // le final : une liane, puis la corniche, plus haute et trop loin : on lâche au sommet de la courbe et on dashe
-  x = b.x; chasm(20, KILL10);
-  swing(x + 6, 14, 0, 0.55);
+  x = b.x; chasm(25, KILL10);
+  swing(x + 6, 17, 0, 0.55);
   coins([x + 12], G9 - 8);
   const G10 = G9 - 4;
   x = b.x; ground(6, G10);
@@ -493,5 +493,7 @@ export const FORET = {
   forest: F,
   theme: 'foret',
   chapter: 2,
+  // musique : la piste fournie par Raph, introduction puis boucle sans couture (tools/musique_boucle.py)
+  music: { src: './music/foret.mp3', loopStart: 12.28, loopEnd: 152.27 },
   next: null,
 };
