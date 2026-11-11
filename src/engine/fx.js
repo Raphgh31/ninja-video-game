@@ -10,6 +10,10 @@ const COLORS = {
   dirt: ['#4a3322', '#6b4a2e', '#8a6844', '#3a281a'],     // mottes de terre
   paper: ['#efe6cf', '#ddd0ad', '#b8322a'],               // talisman déchiré
   fire: ['#fff3c4', '#f6c453', '#e0782c', '#9b3b22'],     // explosion d'un navet
+  water: ['#a6eede', '#5ccdc8', '#e6fbf4'],               // éclaboussures (Forêt)
+  leaf: ['#2e8b57', '#4fae4e', '#83cf4c', '#1b4d3e'],     // feuilles (lianes, lierre)
+  stone: ['#5c6f7b', '#7d9099', '#3a4a57', '#a3b3b6'],    // éclats de pierre
+  glow: ['#c4fbff', '#6fd6ee', '#5f7fe6'],                // lueur des yeux de la statue
 };
 
 export class Fx {

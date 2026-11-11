@@ -230,7 +230,7 @@ function build() {
   b.prop('boulder', x, G6 - 1, { w: 4, wet: true });
   lantern(x + 1, G6 - 1);
   // troisième bras : les troncs sont plus espacés, le dernier demande un dash
-  x = b.x; water(21, G6);
+  x = b.x; water(20, G6);
   log(x + 1, x + 3, 2, 12, 0.3); log(x + 6, x + 8, 2, 14, 0.8); log(x + 11, x + 12, 2, 8, 0.4);
   coins([x + 4, x + 9], G6 - 3); coin(x + 16, G6 - 3);
   x = b.x; ground(16, G6);

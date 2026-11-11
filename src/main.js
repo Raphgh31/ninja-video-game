@@ -11,7 +11,7 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
@@ -241,6 +241,10 @@ player.onEvent = (n, d) => {
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
     case 'kick_breath': sfx('breath'); break;
+    // lianes de la Forêt
+    case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
+    case 'vine_release': sfx('vineRelease'); break;
+    case 'vine_step': sfx('vineStep'); break;
     case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
@@ -441,6 +445,20 @@ level.onEvent = (n, d) => {
       fx.drift(d.x, d.y, 4, { palette: 'straw', speed: 40 });
       fx.shake(1.2, 0.2);
       break;
+    // la Forêt : pont qui s'effondre, bois vermoulu, troncs flottants, statue, éboulis, oiseaux
+    case 'collapseStart': sfx('collapseStart'); fx.shake(0.8, 0.6); break;
+    case 'spanWarn': sfxAt('spanWarn', d); fx.dust(d.x, d.y, 5, { spread: d.w * 0.5, up: 10, life: 0.6, palette: 'stone' }); break;
+    case 'spanFall': sfxAt('spanFall', d); fx.dust(d.x, d.y + 8, 7, { spread: d.w * 0.6, up: 18, life: 0.8 }); fx.shake(0.7, 0.15); break;
+    case 'crumbleCreak': sfxAt('crumbleCreak', d); fx.dust(d.x, d.y + 4, 3, { spread: 20, up: -6, life: 0.5, palette: 'dirt' }); break;
+    case 'crumbleFall': sfxAt('crumbleFall', d); fx.drift(d.x, d.y, 5, { palette: 'dirt', speed: 40, up: 6 }); break;
+    case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
+    case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
+    case 'jawOpen': sfx('jawOpen'); fx.shake(0.7, 4.2); if (save) { save.statue = true; persist(); } break;
+    case 'jawDone': sfx('jawDone'); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 40, up: 14, life: 0.9 }); break;
+    case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
+    case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
+    case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;
+    case 'birds': sfxAt('birds', d); fx.drift(d.x, d.y - 4, 3, { palette: 'feather', speed: 30, up: 20 }); break;
     case 'craneLand':
       sfx('boulderLand');
       fx.shake(2.4, 0.4);
@@ -695,7 +713,34 @@ function update(dt) {
   for (const t of enemies) t.bar.update(dt, Math.max(0, t.hp));
   if (boss) updateBossUi(dt);
   updateCamera(dt);
+  if (level.theme === 'foret') forestSound(dt);
   input.endFrame();
+}
+
+// ---- l'ambiance de la Forêt ------------------------------------------------------
+// Une nappe discrète qui suit la lumière de la zone ; l'éboulis gronde tant qu'il dévale.
+const FOREST_AMB = {
+  matin: { wind: 0.5, birds: 1, creak: 0.15 },
+  sousbois: { wind: 0.35, birds: 0.35, drops: 0.25, creak: 0.35 },
+  canopee: { wind: 1, birds: 0.8, creak: 0.3 },
+  souterrain: { drops: 1, cave: 0.7 },
+  sanctuaire: { wind: 0.25, drops: 0.7, cave: 0.3 },
+  couchant: { wind: 0.6, birds: 0.35, creak: 0.3 },
+  crepuscule: { wind: 0.35, crickets: 1, birds: 0.1 },
+};
+let slideRumble = 0;
+function forestSound(dt) {
+  const z = level.zones.find((zz) => player.x >= zz.px0 && player.x < zz.px1);
+  const under = level.forest?.dark && player.x > level.forest.dark.x0 && player.x < level.forest.dark.x1 && player.y > level.forest.dark.y0 + 48;
+  const mix = { ...(FOREST_AMB[under ? 'souterrain' : z?.mood] ?? FOREST_AMB.sousbois) };
+  if (z?.id === '06') mix.water = 1;                       // le torrent
+  if (z?.id === '03') mix.water = 0.25;                     // les mares (un filet d'eau)
+  ambience(dt, run.paused || run.won ? null : mix);
+  const S = level.forest?.slide;
+  if (S?.active) {
+    slideRumble -= dt;
+    if (slideRumble <= 0) { slideRumble = 0.42; sfxAt('slideRumble', { x: S.x, y: player.y }); }
+  }
 }
 
 // ---- caméra posée -------------------------------------------------------------
