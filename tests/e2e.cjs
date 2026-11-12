@@ -1105,8 +1105,12 @@ async function main() {
     await ip3.evaluate(async () => { const it = window.__kage.intro; if (it.out) { it.stopVoice(0); await it.out.ac.suspend(); } it.gated = true; it.clock = null; });
     await ip3.keyboard.press('KeyX');
     const heard = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
+    // l'intro déjà lancée sans musique (le premier geste n'a rien débloqué) : le geste suivant la relance
+    await ip3.evaluate(async () => { const it = window.__kage.intro; it.stopVoice(0); await it.out.ac.suspend(); it.clock = null; });
+    await ip3.keyboard.press('KeyX');
+    const again = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
     await ictx.close();
-    expect(heard, 'la musique de l\'intro ne part pas quand le son est débloqué par le geste lui-même');
+    expect(heard && again, `la musique de l'intro ne part pas (son débloqué par le geste : ${heard}, au geste suivant : ${again})`);
     expect(e.join() === 'true,true,false,true,true', `jouée jusqu'au bout, puis en boucle ${e}`);
     expect(a.join() === 'true,true,true,true,true' && (g[0] || g[1] > 0) && b.join() === 'true,false,true,true,true' && c.join() === 'true,true,false' && d.join() === ',0',
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);

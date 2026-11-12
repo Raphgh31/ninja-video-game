@@ -235,7 +235,7 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
 /* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image) */
-.lab { position: absolute; z-index: 3; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }
+.lab { position: absolute; z-index: 6; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }   /* au-dessus de l'intro (3), du menu (4) et des cartes de chapitre (5) */
 .skinlab, .lab__row { pointer-events: auto; display: flex; align-items: center; gap: 2px; padding: 2px;
   background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
 .lab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;

@@ -160,18 +160,35 @@ export class Intro {
     this.gated = false;
     this.t = 0;
     this.last = 0;
-    if (!sound) return;
-    // (le geste vient de demander la reprise du son : elle n'est pas encore faite, on l'attend)
-    const out = audioOutput();
-    if (!out) return;
-    if (out.ac.state !== 'running') await out.ac.resume().catch(() => {});
-    const bytes = await this.bytes;
-    if (!bytes || this.closing || out.ac.state !== 'running') return;
-    try { this.buffer ??= await out.ac.decodeAudioData(bytes.slice(0)); } catch { return; }
-    if (this.closing) return;
-    this.out = out;
-    this.clock = { ac: out.ac, t0: out.ac.currentTime - this.t };
-    this.playFrom(this.t);
+    if (sound) await this.wake();
+  }
+
+  /**
+   * Lance la musique si elle ne joue pas encore (à appeler à chaque geste, comme la musique du jeu :
+   * un navigateur peut refuser le son au premier geste — sur téléphone, le doigt qui se pose ne compte
+   * pas, celui qui se lève si). Elle part à l'endroit voulu pour l'instant de l'intro : tout reste calé.
+   */
+  async wake() {
+    if (this.gated || this.closing || this.clock || this.waking) return;
+    this.waking = true;
+    try {
+      // (le geste vient de demander la reprise du son : elle n'est pas encore faite, on l'attend un peu)
+      const out = audioOutput();
+      if (!out) return;
+      if (out.ac.state !== 'running') await Promise.race([out.ac.resume().catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+      if (out.ac.state !== 'running') return;
+      const bytes = await this.bytes;
+      if (!bytes || this.closing) return;
+      this.buffer ??= await out.ac.decodeAudioData(bytes.slice(0));
+      if (this.closing || this.clock) return;
+      this.out = out;
+      this.clock = { ac: out.ac, t0: out.ac.currentTime - this.t };
+      this.playFrom(this.t);
+    } catch (e) {
+      console.warn('musique de l\'intro : ' + e.message);
+    } finally {
+      this.waking = false;
+    }
   }
 
   /** Lance la musique pour qu'elle soit, à l'instant t de l'intro, là où elle doit être (fade : montée en s). */

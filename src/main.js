@@ -11,7 +11,7 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { ambience, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
@@ -618,6 +618,18 @@ function setupSkinLab() {
   again.dataset.labIntro = '';
   row.append(again);
   lab.append(row);
+  // témoin du son (pour comprendre, sur l'appareil de l'utilisateur, pourquoi une musique ne sort pas)
+  const sound = document.createElement('div');
+  sound.className = 'lab__row lab__sound';
+  const soundText = document.createElement('span');
+  sound.append(soundText);
+  lab.append(sound);
+  const SOUND = { running: 'en marche', suspended: 'suspendu', interrupted: 'interrompu', closed: 'fermé' };
+  setInterval(() => {
+    const ac = audioOutput()?.ac;
+    const it = !intro || intro.closing ? 'finie' : intro.gated ? 'en attente' : intro.voice ? 'musique' : intro.waking ? 'démarrage…' : 'sans musique';
+    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
+  }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
   if (level.zones.length) {
     const zr = document.createElement('div');
@@ -1171,6 +1183,12 @@ function skipIntro() {
 }
 addEventListener('keydown', skipIntro, true);
 stage.addEventListener('pointerdown', skipIntro);
+// tant que la musique de l'intro n'a pas démarré, chaque geste retente de la lancer (comme celle du jeu)
+for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) {
+  addEventListener(t, () => {
+    if (intro && !intro.closing && !intro.gated && !intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
+  }, { capture: true, passive: true });
+}
 /** La partie commence : l'intro s'efface sur le jeu. */
 function endIntro() {
   const title = document.querySelector('.title-screen');
