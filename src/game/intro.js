@@ -224,8 +224,6 @@ export class Intro {
       return { ...pose, x: Math.round(a * P0.x + b * C.x + c * P2.x), y: Math.round(a * P0.y + b * C.y + c * P2.y), rim: false };
     }
     // posé : il atterrit, puis attend sur le sommet
-    if (this.anim.name !== 'land' && this.anim.name !== 'idle') this.anim.play('land');
-    if (this.anim.name === 'land' && this.anim.finished) this.anim.play('idle');
     return { name: this.anim.name, i: this.anim.frame, x: this.peak.x, y: this.peak.y, rim: false };
   }
 
@@ -273,7 +271,12 @@ export class Intro {
   /** Avance de dt secondes (le menu s'annonce une fois, à son heure). */
   update(dt) {
     this.t += dt;
-    if (this.t >= INTRO.kage + INTRO.kageTime) this.anim.update(dt);
+    if (this.t >= INTRO.kage + INTRO.kageTime) {
+      // posé : il atterrit, puis attend sur son sommet
+      if (!this.anim.name) this.anim.play('land');
+      this.anim.update(dt);
+      if (this.anim.name === 'land' && this.anim.finished) this.anim.play('idle');
+    }
     if (!this.menuShown && this.t >= INTRO.menu) { this.menuShown = true; this.onMenu?.(); }
   }
 

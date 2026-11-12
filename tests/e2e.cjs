@@ -1065,7 +1065,13 @@ async function main() {
     const c = await ip.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.intro?.el.classList.contains('out'), window.__kage.run.paused]);
     await ip.waitForTimeout(1600);
     const d = await ip.evaluate(() => [window.__kage.intro, document.querySelectorAll('.intro').length]);
+    // jouée jusqu'au bout (en accéléré, par la boucle de l'intro elle-même) : le menu arrive, KAGE attend sur son sommet
+    const ip2 = await ictx.newPage();
+    await ip2.goto(PAGE); await ip2.waitForFunction(() => window.__kage && window.__kage.intro);
+    const e = await ip2.evaluate(() => { const it = window.__kage.intro; it.stop(); for (let i = 0; i < 16 * 60; i++) { it.update(1 / 60); it.draw(); }
+      return [it.menuShown, it.anim.name, document.querySelector('.title-screen').classList.contains('waiting')]; });
     await ictx.close();
+    expect(e.join() === 'true,idle,false', `jouée jusqu'au bout ${e}`);
     expect(a.join() === 'true,true,true,true,true' && b.join() === 'true,false,idle,true' && c.join() === 'true,true,false' && d.join() === ',0',
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
