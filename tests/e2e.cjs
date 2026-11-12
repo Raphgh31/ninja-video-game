@@ -1058,7 +1058,8 @@ async function main() {
     const a = await ip.evaluate(() => { const it = window.__kage.intro, v = window.__kage.view(), t = document.querySelector('.title-screen');
       return [it.el.width === v.w && it.el.height === v.h, t.classList.contains('waiting'), window.__kage.run.paused, it.t > 0 && it.t < 6,
         it.peak.x > it.moonX && it.peak.y > 0 && it.titleY > it.moonY1 && it.menuY + 30 <= v.h]; });
-    await ip.keyboard.press('KeyZ'); await ip.waitForTimeout(500);
+    await ip.keyboard.press('KeyZ');
+    await ip.waitForFunction(() => document.activeElement?.dataset.new != null, null, { timeout: 3000 }).catch(() => {});
     const b = await ip.evaluate(() => { const it = window.__kage.intro; return [it.menuShown, document.querySelector('.title-screen').classList.contains('waiting'), it.kage(it.t)?.name, document.activeElement?.dataset.new != null]; });
     await ip.click('[data-new]'); await ip.waitForTimeout(400);
     const c = await ip.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.intro?.el.classList.contains('out'), window.__kage.run.paused]);
