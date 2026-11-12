@@ -11,7 +11,7 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { ambience, isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
@@ -511,7 +511,8 @@ refreshMute();
 const music = new Music();
 music.load(level.music);
 music.add('boss', level.bossMusic);
-const onGesture = () => { unlockAudio(); music.start(); };
+// (pendant l'introduction, c'est sa propre musique qui joue : celle du chapitre attend la fin)
+const onGesture = () => { unlockAudio(); if (!intro || intro.closing) music.start(); };
 for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
 
 // barres de vie fines au-dessus de chaque personnage
@@ -1135,8 +1136,9 @@ let introKick = null;   // le coup de pied sauté de l'intro (kage_intro_kick.pn
 async function playIntro() {
   introKick ??= await loadImage(`./characters/kage/${meta.intro.image}`);
   const title = document.querySelector('.title-screen');
-  if (intro) { intro.stop(); intro.el.remove(); }
-  intro = new Intro(meta, introKick, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null);
+  if (intro) { intro.stop(); intro.stopVoice?.(0.3); intro.el.remove(); }
+  if (music.playing) music.setLevel(0, 0.8);    // (version de test : on rejoue l'intro en pleine partie)
+  intro = new Intro(meta, introKick, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null, { touch: MOBILE });
   uiLayer.append(intro.el);
   placeIntro();
   title.hidden = false;
@@ -1149,15 +1151,24 @@ async function playIntro() {
     // un peu plus tard : la touche qui a passé l'intro ne doit pas aussi choisir dans le menu
     setTimeout(() => { if (intro === it) { const c = title.querySelector('[data-continue]'); (c.hidden ? title.querySelector('[data-new]') : c).focus(); } }, 350);
   };
+  // la musique finit : le menu s'efface avec l'image, puis l'intro recommence (le menu revient à son heure)
+  it.onFade = () => { title.classList.add('waiting'); document.activeElement?.blur?.(); };
   it.start();
+  // sans son (coupé), ou son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
+  if (isMuted()) it.begin(false);
+  else if (musicOutput()?.ac.state === 'running') it.begin(true);
 }
 /** Place l'intro et le menu sur l'image de jeu (à chaque changement de taille). */
 function placeIntro() {
   intro.resize(VIEW_W, VIEW_H);
   document.querySelector('.title-screen').style.setProperty('--menu-y', `${intro.menuY}px`);
 }
-/** Une touche ou un toucher pendant l'intro l'amène à sa fin. */
-function skipIntro() { if (intro && !intro.closing && !intro.menuShown) intro.skip(); }
+/** Le premier geste lance l'intro et sa musique ; ensuite, une touche ou un toucher l'amène à sa fin. */
+function skipIntro() {
+  if (!intro || intro.closing) return;
+  if (intro.gated) { unlockAudio(); intro.begin(!isMuted()); return; }
+  if (!intro.menuShown) intro.skip();
+}
 addEventListener('keydown', skipIntro, true);
 stage.addEventListener('pointerdown', skipIntro);
 /** La partie commence : l'intro s'efface sur le jeu. */
@@ -1168,6 +1179,9 @@ function endIntro() {
   const it = intro;
   it.closing = true;
   it.close(() => { if (intro === it) intro = null; });
+  // la musique de l'intro s'éteint en fondu, celle du chapitre monte
+  music.setLevel(1, 0);
+  music.start();
 }
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');

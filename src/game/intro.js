@@ -7,31 +7,48 @@
 //   3. KAGE arrive en ombre chinoise, en coup de pied sauté, jusqu'au centre de la lune : là,
 //      l'image se fige ;
 //   4. le menu apparaît (boutons de l'écran titre, sans cadre) ; au choix, l'intro s'efface sur le jeu.
+// Musique (assets/music/intro.mp3) : les navigateurs ne jouent aucun son avant un geste, alors l'intro
+// attend d'abord, sur le noir, « Appuie sur une touche » ; ce geste lance l'image et la musique
+// ensemble, et l'horloge de l'intro devient celle de la musique (la première vraie note tombe quand
+// KAGE se fige). La musique finie (≈ 1 min), fondu au noir et volume à zéro, puis tout recommence.
 // Une touche ou un toucher pendant l'intro l'amène à sa fin. Tout est dessiné à la résolution du
 // jeu (1 pixel = 1 pixel de jeu), dans son propre canvas posé dans le calque de l'interface.
 import { renderText, measure, FONTS } from '../engine/pixelfont.js';
 import { canvas, pick, noise2, ih, rgb, mixHex } from './potager/paint.js';
 import { paintFar, paintMid } from './potager/backdrop.js';
+import { musicOutput } from '../engine/sfx.js';
+import { bytesOf } from '../engine/bytes.js';
+import { MUSIC } from '../engine/music.js';
 
 const INK = '#e9e5da', BLACK = '#05080a';
 const TITLE = 'THE NINJA GAME';
 const FONT = { font: 'title', spacing: 1.25 };
 
-/** Le déroulé, en secondes depuis le début. */
+/**
+ * Le déroulé, en secondes depuis le début (après le geste qui lance l'intro). Calé sur la musique
+ * (assets/music/intro.mp3, préparée par tools/musique_boucle.py entier) : son long son monte pendant
+ * que le titre puis les montagnes apparaissent, et sa première vraie note tombe à l'instant où KAGE
+ * se fige, jambe tendue, au centre de la lune.
+ */
 export const INTRO = {
-  letters: 0.9,      // première lettre
-  letterGap: 0.26,   // une lettre toutes les…
+  letters: 0.8,      // première lettre
+  letterGap: 0.24,   // une lettre toutes les…
   letterFade: 0.8,   // fondu d'une lettre
-  brush: 5.2,        // le coup de pinceau…
+  brush: 4.8,        // le coup de pinceau…
   brushTime: 0.9,    // …tiré en
-  moon: 6.7,         // la lune commence à monter
-  moonTime: 5.2,     // …et finit de monter
-  kage: 12.1,        // KAGE entre dans l'image…
-  kageTime: 1.1,     // …et arrive au centre de la lune : l'image se fige
-  menu: 13.7,        // le menu apparaît
+  moon: 6.0,         // la lune commence à monter (ciel et montagnes apparus vers 10,1 s)
+  moonTime: 4.7,     // …et finit de monter
+  kage: 10.9,        // KAGE entre dans l'image…
+  kageTime: 1.1,     // …et arrive au centre de la lune : l'image se fige (12 s), sur la première note
+  menu: 12.5,        // le menu apparaît
   fadeOut: 1.6,      // l'intro s'efface sur le jeu
+  cycleFade: 3,      // à la fin de la musique : fondu au noir et volume à zéro, puis tout recommence
+  // la musique : note = attaque de la première vraie note, length = durée (secondes du fichier)
+  music: { src: './music/intro.mp3', note: 10.3, length: 62.132 },
 };
 const FREEZE = INTRO.kage + INTRO.kageTime;
+const MUSIC_AT = FREEZE - INTRO.music.note;          // la musique part à 1,7 s
+const CYCLE = MUSIC_AT + INTRO.music.length;         // puis tout recommence (≈ 63,8 s)
 
 // les couleurs de la nuit
 const SKY = ['#04060c', '#060a14', '#0a101f', '#0f182b', '#15203a'];
@@ -110,7 +127,7 @@ export class Intro {
    * (kage_intro_kick.png : l'élan, l'armé, le coup) ; far : la grande chaîne déjà peinte par le
    * Potager s'il est chargé (sinon on la peint, comme la chaîne voisine).
    */
-  constructor(meta, kick, far = null) {
+  constructor(meta, kick, far = null, { touch = false } = {}) {
     this.meta = meta;
     this.kick = kick;
     this.far = far ?? paintFar(480);
@@ -126,6 +143,69 @@ export class Intro {
     this.sil = new Map();          // silhouettes de KAGE déjà découpées
     this.raf = 0;
     this.last = 0;
+    // en attente du geste qui lance l'intro et sa musique (les navigateurs ne jouent aucun son avant)
+    this.gated = true;
+    this.prompt = renderText(touch ? 'Touche l\'écran' : 'Appuie sur une touche', { color: '#9aa09c' });
+    this.clock = null;             // { ac, t0 } : avec le son, t = ac.currentTime - t0
+    this.voice = null;             // la musique en cours { s, g }
+    this.bytes = bytesOf(INTRO.music.src).catch(() => null);
+  }
+
+  /**
+   * Quitte l'attente : l'intro commence. Avec le son, son horloge devient celle de la musique
+   * (l'image et la note restent calées même si des images sautent).
+   */
+  async begin(sound = true) {
+    if (!this.gated) return;
+    this.gated = false;
+    this.t = 0;
+    this.last = 0;
+    if (!sound) return;
+    const out = musicOutput();
+    if (!out) return;
+    if (out.ac.state !== 'running') await out.ac.resume().catch(() => {});
+    const bytes = await this.bytes;
+    if (!bytes || this.closing || out.ac.state !== 'running') return;
+    try { this.buffer ??= await out.ac.decodeAudioData(bytes.slice(0)); } catch { return; }
+    if (this.closing) return;
+    this.out = out;
+    this.clock = { ac: out.ac, t0: out.ac.currentTime - this.t };
+    this.playFrom(this.t);
+  }
+
+  /** Lance la musique pour qu'elle soit, à l'instant t de l'intro, là où elle doit être (fade : montée en s). */
+  playFrom(t, fade = 0) {
+    this.stopVoice(0.05);
+    const { ac, bus } = this.out, M = INTRO.music;
+    const now = ac.currentTime, pos = t - MUSIC_AT;
+    const when = pos < 0 ? now - pos : now, offset = Math.max(0, pos);
+    if (offset >= M.length) return;
+    const end = when + (M.length - offset), fadeAt = end - INTRO.cycleFade;
+    const vol = Math.max(0.0001, MUSIC.volume * (M.gain ?? 1));
+    const s = ac.createBufferSource(), g = ac.createGain();
+    s.buffer = this.buffer;
+    g.gain.setValueAtTime(fade ? 0.0001 : vol, now);
+    if (fade) g.gain.exponentialRampToValueAtTime(vol, now + fade);
+    // la fin : le volume descend jusqu'à zéro pendant le fondu au noir
+    if (fadeAt > now + fade) { g.gain.setValueAtTime(vol, fadeAt); g.gain.exponentialRampToValueAtTime(0.0001, end); }
+    s.connect(g).connect(bus);
+    s.start(when, offset);
+    s.stop(end + 0.05);
+    this.voice = { s, g };
+  }
+
+  /** Éteint la musique en `fade` secondes. */
+  stopVoice(fade) {
+    const v = this.voice;
+    if (!v) return;
+    this.voice = null;
+    const t = this.out.ac.currentTime;
+    try {
+      v.g.gain.cancelScheduledValues(t);
+      v.g.gain.setValueAtTime(Math.max(0.0001, v.g.gain.value), t);
+      v.g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+      v.s.stop(t + fade + 0.02);
+    } catch { /* déjà arrêtée */ }
   }
 
   /** (Re)compose la scène pour une image de w × h pixels de jeu. */
@@ -243,6 +323,13 @@ export class Intro {
     const { g, w, h } = this;
     const t = Math.min(this.t, FREEZE);
     g.fillStyle = BLACK; g.fillRect(0, 0, w, h);
+    if (this.gated) {
+      // l'attente : une invitation discrète, qui respire lentement
+      g.globalAlpha = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * 2.4));
+      g.drawImage(this.prompt, Math.round((w - this.prompt.width) / 2), Math.round(h / 2 - this.prompt.height / 2));
+      g.globalAlpha = 1;
+      return;
+    }
     // la lune monte et éclaircit le ciel ; les montagnes sortent du noir avec elle
     const m = (t - INTRO.moon) / INTRO.moonTime;
     const light = smooth(m * 1.15);
@@ -278,18 +365,36 @@ export class Intro {
       const s = this.silhouette(k.i), { pivot } = this.meta;
       g.drawImage(s.c, k.x - pivot.x, k.y - pivot.y);
     }
+    // la fin de la musique : fondu au noir avant de tout recommencer
+    const f = (this.t - (CYCLE - INTRO.cycleFade)) / INTRO.cycleFade;
+    if (f > 0) { g.globalAlpha = clamp01(f); g.fillStyle = BLACK; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
   }
 
-  /** Avance de dt secondes (le menu s'annonce une fois, à son heure). */
+  /**
+   * Avance (avec le son, l'heure est celle de la musique). Le menu s'annonce à son heure ; au début
+   * du fondu de fin, onFade (le menu s'efface) ; la musique finie, tout recommence (onCycle).
+   */
   update(dt) {
-    this.t += dt;
-    if (!this.menuShown && this.t >= INTRO.menu) { this.menuShown = true; this.onMenu?.(); }
+    if (this.gated) return;
+    if (this.clock) this.t = this.clock.ac.currentTime - this.clock.t0;
+    else this.t += dt;
+    if (this.t >= CYCLE) {
+      this.t -= CYCLE;
+      this.menuShown = false;
+      this.fading = false;
+      if (this.clock) { this.clock.t0 += CYCLE; this.playFrom(this.t); }
+      this.onCycle?.();
+    }
+    const fadeAt = CYCLE - INTRO.cycleFade;
+    if (!this.menuShown && this.t >= INTRO.menu && this.t < fadeAt) { this.menuShown = true; this.onMenu?.(); }
+    if (!this.fading && this.t >= fadeAt) { this.fading = true; this.onFade?.(); }
   }
 
-  /** Passe directement à la fin : tout est en place, KAGE figé au centre de la lune. */
+  /** Passe directement à la fin : tout est en place, KAGE figé au centre de la lune (la musique suit). */
   skip() {
-    if (this.t >= INTRO.menu) return;
+    if (this.gated || this.t >= INTRO.menu) return;
     this.t = INTRO.menu;
+    if (this.clock) { this.clock.t0 = this.clock.ac.currentTime - this.t; this.playFrom(this.t, 0.4); }
     this.update(0);
   }
 
@@ -311,6 +416,7 @@ export class Intro {
   /** S'efface sur le jeu, puis se retire ; done() quand c'est fini. */
   close(done) {
     this.el.classList.add('out');
+    if (this.voice) this.stopVoice(INTRO.fadeOut);
     setTimeout(() => { this.stop(); this.el.remove(); done?.(); }, INTRO.fadeOut * 1000);
   }
 }
