@@ -248,7 +248,10 @@ export class ForetProps {
         const bole = row[tx + w] === '|' ? 1 : row[tx - 1] === '|' ? -1 : 0;
         if (bole) {
           const edge = bole > 0 ? (tx + w) * TILE + 3 : tx * TILE - 3;
-          add('over', X - 16, Y - 14, W + 32, 32, (pix) => limb(pix, bole > 0 ? X - 4 : edge, bole > 0 ? edge : X + W + 4, Y, -bole, tx * 7 + ty, true));
+          // l'arbre aux cavités (un tronc jouable couronné) : de vieilles branches naturelles, effilées
+          const crowned = lv.props.some((p) => p.type === 'tree_crown' && Math.abs((bole > 0 ? tx + w : tx - 3) - p.x) <= 1);
+          if (crowned) add('over', X - 30, Y - 22, W + 60, 46, (pix) => oldBough(pix, bole > 0 ? X - 4 : edge, bole > 0 ? edge : X + W + 4, Y, -bole, tx * 7 + ty));
+          else add('over', X - 16, Y - 14, W + 32, 32, (pix) => limb(pix, bole > 0 ? X - 4 : edge, bole > 0 ? edge : X + W + 4, Y, -bole, tx * 7 + ty, true));
           continue;
         }
         if (climb) {
@@ -501,6 +504,50 @@ function limb(pix, x0, x1, Y, dir, seed, leafy, ramp = C.LEAF) {
     L.bush(pix, dir > 0 ? b - 2 : a + 2, Y + 3, 12, 8, ramp, seed + 3);
     for (let x = a + 4; x < b - 4; x += 5) if (ih(x, 3, seed) < 0.45) L.strand(pix, x, Y + 6, 4 + Math.floor(ih(x, 4, seed) * 9), ramp, seed + x, 0.5);
   }
+  for (let x = a + 2; x < b; x += 3) if (ih(x, 5, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 6, seed) * 2), C.FERN, x);
+}
+
+/**
+ * Une vieille branche de l'arbre aux cavités, de x0 à x1 (dir : côté du bout). Épaisse au tronc (un collet
+ * qui s'y fond), elle s'effile jusqu'au bout, où un rameau se relève ; le dessus reste plat là où l'on
+ * marche, moussu ; quelques rameaux portent des touffes de feuilles, une grosse touffe coiffe le bout.
+ */
+function oldBough(pix, x0, x1, Y, dir, seed) {
+  const a = Math.min(x0, x1), b = Math.max(x0, x1), len = b - a;
+  const at = (t) => (dir > 0 ? a + t * len : b - t * len);
+  for (let x = a; x <= b; x++) {
+    const t = dir > 0 ? (x - a) / len : (b - x) / len;               // 0 côté tronc, 1 au bout
+    const collar = Math.max(0, 1 - t * len / 9);                      // le collet, contre le tronc
+    const th = Math.max(3, Math.round(10 - t * 6 + collar * 6 + (noise1(x * 0.21, seed) - 0.5) * 2));
+    const top = Y + Math.round((noise1(x * 0.11, seed + 1) - 0.5) * 1.2) - Math.round(collar * 3);
+    for (let j = 0; j < th + (top < Y ? Y - top : 0); j++) {
+      const y = top + j, k = j / th;
+      const v = 0.8 - k * 0.7 + (noise2(x * 0.45, y * 0.6, seed) - 0.5) * 0.18 - (Math.abs(noise2(x * 0.06, y * 0.5, seed + 2) - 0.5) < 0.04 ? 0.25 : 0);
+      const moss = j <= 1 && y <= Y + 1 ? (ih(x, 1, seed) < 0.62 ? C.MOSS[5] : C.MOSS[4]) : j === 2 && ih(x, 2, seed) < 0.4 ? C.MOSS[3] : null;
+      pix.set(x, y, moss ?? pick(C.BARK, v, x, y));
+    }
+  }
+  // le bout : un rameau qui se relève, au-delà de la partie où l'on marche
+  const tipX = dir > 0 ? b : a;
+  for (let i = 0; i < 9; i++) {
+    const x = tipX + dir * i, y = Y + 1 - Math.round((i / 9) ** 1.6 * 6);
+    pix.set(x, y, C.BARK[2]); pix.set(x, y + 1, C.BARK[1]);
+  }
+  L.bush(pix, tipX + dir * 9, Y - 4, 14, 9, C.LEAF, seed + 3);
+  // des rameaux le long de la branche : vers le bas surtout (le dessus reste libre), une touffe au bout de chacun
+  for (let k = 0; k < 3; k++) {
+    if (ih(k, 4, seed) < 0.3) continue;
+    const t = 0.3 + k * 0.22 + (ih(k, 5, seed) - 0.5) * 0.1, x = Math.round(at(t)), down = ih(k, 6, seed) < 0.75;
+    const n = 6 + Math.floor(ih(k, 7, seed) * 7);
+    let ex = x, ey = Y;
+    for (let i = 0; i < n; i++) {
+      ex = x + dir * Math.round(i * 0.7); ey = down ? Y + 6 + Math.round(i * 0.6) : Y - 1 - Math.round(i * 0.8);
+      pix.set(ex, ey, C.BARK[1]);
+    }
+    L.bush(pix, ex, ey + (down ? 1 : -2), 8 + Math.floor(ih(k, 8, seed) * 5), 6, C.LEAF, seed + 10 + k);
+  }
+  // des brins de mousse et de feuilles qui pendent, et des touffes d'herbe sur le dessus
+  for (let x = a + 6; x < b - 3; x += 5) if (ih(x, 3, seed) < 0.4) L.strand(pix, x, Y + 7, 3 + Math.floor(ih(x, 4, seed) * 8), C.LEAF, seed + x, 0.5);
   for (let x = a + 2; x < b; x += 3) if (ih(x, 5, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 6, seed) * 2), C.FERN, x);
 }
 

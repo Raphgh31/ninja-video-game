@@ -112,23 +112,26 @@ function build() {
   b.hint('wall', x + 10);
   // premier passage : la racine fait 6 cases de haut
   x = b.x; ground(3, G1); hollow(x, 3, G1);
-  // DÉTOUR — l'arbre aux cavités : des branches montent le long du grand tronc, côté lumière, jusqu'à
-  // sa couronne de feuillage (21 cases). Deux creux dans l'écorce, au bout d'une branche, gardent des
-  // ryō ; tout en haut, dans la plus grande cavité, un coffre. Chaque branche dépasse celle du dessus :
-  // on redescend en se laissant tomber de l'une à l'autre
+  // DÉTOUR — l'arbre aux cavités : des branches montent le long du grand tronc jusqu'à sa couronne
+  // (21 cases), plus longues à mesure qu'on monte, comme un vieil arbre qui s'ouvre vers la lumière —
+  // avec ses exceptions : une grande branche basse, la plus longue, et des branches plus courtes sous la
+  // couronne. Un nœud creux traverse le tronc à 12 cases : on passe de l'autre côté, où deux branches
+  // dominent la racine géante. Deux creux d'écorce gardent des ryō ; le coffre est au fond de la plus
+  // haute cavité. On redescend sans dégâts, même en sprintant : la grande branche basse rattrape toute
+  // chute d'en haut (jamais plus de 10 cases), et à droite on retombe sur la racine
+  const tCav = x;                                      // (le tronc de l'arbre aux cavités : ses branches de droite viennent après la racine)
   {
     const t = x;                                       // le tronc : colonnes t à t + 2
     const bough = (n, row) => b.row(t - n, n, row, '-');   // une branche qui sort du tronc vers la gauche
     const hole = (row, h) => carve(t, 2, row - h, row - 1);   // un creux dans l'écorce, au ras de la branche
-    // (comme un sapin : chaque branche dépasse celle du dessus de 1 à 2 cases ; en courant, une
-    // chute de 3 cases porte KAGE 1,5 case plus loin : il retombe toujours sur la suivante)
-    bough(13, G1 - 3);
-    bough(11, G1 - 6); hole(G1 - 6, 2); coins([t, t + 1], G1 - 7);
-    bough(10, G1 - 9); coin(t - 10, G1 - 11);
-    bough(8, G1 - 12); coins([t - 8, t - 7], G1 - 14);
-    bough(6, G1 - 15); hole(G1 - 15, 2); coin(t + 1, G1 - 16);
-    bough(5, G1 - 18);
-    bough(3, G1 - 21); hole(G1 - 21, 3);
+    bough(4, G1 - 3);
+    bough(7, G1 - 6); hole(G1 - 6, 2); coins([t, t + 1], G1 - 7);
+    bough(15, G1 - 9); coins([t - 14, t - 13], G1 - 11);   // la grande branche basse (elle rattrape même un sprint d'en haut)
+    bough(7, G1 - 12);
+    carve(t, 3, G1 - 14, G1 - 13);                     // le nœud creux qui traverse le tronc
+    bough(9, G1 - 15); hole(G1 - 15, 2); coin(t + 1, G1 - 16); coin(t - 8, G1 - 17);
+    bough(10, G1 - 18);
+    bough(6, G1 - 21); hole(G1 - 21, 3);
     b.prop('chest', t, G1 - 21, { id: 'cavites', ryo: 12, dx: 9 });   // (au fond du creux, contre le bois)
     b.prop('tree_crown', t, G1 - 21, { w: 3, top: G1 - 36, seed: 41 });
   }
@@ -137,6 +140,10 @@ function build() {
   x = b.x; ground(6, G1 - 6);                          // la racine géante : on marche dessus
   b.prop('giant_root', x, G1 - 6, { w: 6, h: 6 });
   coins([x + 2, x + 4], G1 - 8);
+  // l'arbre aux cavités, de l'autre côté du nœud creux : deux branches au-dessus de la racine géante
+  // (si l'on en tombe, on retombe sur la racine : 6 et 9 cases plus bas)
+  b.row(tCav + 3, 5, G1 - 12, '-'); coin(tCav + 6, G1 - 14);
+  b.row(tCav + 3, 4, G1 - 15, '-'); coins([tCav + 4, tCav + 5], G1 - 17);
   // une cache au pied de la racine, côté puits, derrière un rideau de lierre (deux coups de sabre)
   carve(x, 3, G1 - 2, G1 - 1);
   b.cols[x][G1 - 2] = 'B'; b.cols[x][G1 - 1] = 'B';
