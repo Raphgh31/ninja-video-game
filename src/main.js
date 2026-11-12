@@ -270,7 +270,7 @@ player.onEvent = (n, d) => {
     case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
     case 'vine_release': sfx('vineRelease'); break;
     case 'vine_step': sfx('vineStep'); break;
-    case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
+    case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
       fx.shake(2, 0.2);
@@ -985,7 +985,7 @@ const HINT_USED = {
   jump: () => player.state === 'jump' || player.isFlipping(),
   sprint: () => player.state === 'sprint',
   dash: () => player.state === 'dash',
-  kick: () => player.state === 'kick',
+  kick: () => player.state === 'kick' || player.state === 'air_kick',
   attack: () => player.state === 'attack' || player.state === 'air_attack' || player.state === 'flip_attack',
   slide: () => player.state === 'slide',
   wall: () => player.state === 'wall_jump',

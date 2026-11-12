@@ -243,6 +243,8 @@ def main():
                             "note": "coup du salto : le coup aérien après un salto, plus large (4 dégâts)"},
             "kick": {"x": 18, "y": 11, "w": 21, "h": 13, "frames": [1, 2],
                      "note": "coup de pied de côté (détente et impact)"},
+            "air_kick": {"x": 19, "y": 13, "w": 20, "h": 12, "frames": [2],
+                         "note": "coup de pied sauté (en l'air) : la jambe tendue, talon en avant"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
         }.items()},

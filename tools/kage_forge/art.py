@@ -6,6 +6,7 @@ reçoit le contour. Chaque frame est posée individuellement.
 """
 from core import A, G, S, Frame
 from rig import pose
+from intro_kick import AIR_KICK, AIR_KICK_DURATIONS
 
 
 def F(grid, *retouches, **meta):
@@ -938,6 +939,9 @@ ANIMS = {
     "skid":          dict(frames=SKID,    fps=12, loop=True,  state="skid"),
     "kick":          dict(frames=KICK,    fps=14, loop=False, state="kick",
                           durations=[70, 50, 120, 90, 130]),
+    # coup de pied en l'air : le coup de pied sauté de l'introduction (intro_kick.py)
+    "air_kick":      dict(frames=AIR_KICK, fps=14, loop=False, state="air_kick",
+                          durations=AIR_KICK_DURATIONS),
     "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),

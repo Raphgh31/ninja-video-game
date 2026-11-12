@@ -310,6 +310,20 @@ async function main() {
     expect(c.state === 'kick', `après le délai : état ${c.state}`);
   });
 
+  await test('coup de pied sauté : en l\'air, le coup de pied a sa propre animation (celle de l\'intro) et frappe jambe tendue', async () => {
+    await reset(); await wait(450);   // délai du coup de pied précédent
+    await k.down('Space'); await wait(120); await k.up('Space');
+    await k.press('KeyB'); await wait(30);
+    const a = await S();
+    let box = null, f = -1;
+    for (let i = 0; i < 40 && !box; i++) { [box, f] = await ev(() => { const p = window.__kage.player, b = p.kickBox(); return [b && { x: b.x, w: b.w, px: p.x }, p.anim.frame]; }); if (!box) await wait(10); }
+    for (let i = 0; i < 120; i++) { const s = await S(); if (s.state !== 'air_kick' && s.state !== 'fall') break; await wait(15); }
+    const c = await S();
+    expect(a.state === 'air_kick' && box && f === 2 && box.x > box.px && ['land', 'idle', 'run'].includes(c.state),
+      `état ${a.state}, zone ${JSON.stringify(box)} (image ${f}), à la fin ${c.state}`);
+    await wait(400);   // le délai du coup de pied, pour les tests suivants
+  });
+
   // ---- WARA ------------------------------------------------------------------
   // place le premier WARA en x, au repos (ni bond ni moulinet sauf si demandé)
   const wara = (x, o = {}) => ev(([x, o]) => {

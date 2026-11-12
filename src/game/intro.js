@@ -51,26 +51,27 @@ const dot = (g, x, y, c) => { g.fillStyle = c; g.fillRect(x, y, 1, 1); };
 
 /**
  * Le coup de pinceau, de gauche à droite : attaque arrondie, large à la base (5 pixels), qui
- * s'amincit jusqu'à un pixel, fin sèche et cassée ; quelques gouttes d'encre projetées autour de
+ * s'amincit jusqu'à un pixel, fin sèche et cassée, très légèrement incurvé ; quelques gouttes d'encre projetées autour de
  * l'attaque, le long du trait, et au-delà de la fin. Chaque pixel : [x, y, u] (u : quand il apparaît).
  */
 function brushPixels(half) {
   const out = [];
   const L = 2 * half;
+  const bow = (u) => Math.round(2 * 4 * clamp01(u) * (1 - clamp01(u)));   // très légère courbe : 2 px plus bas au milieu
   for (let x = -half; x <= half; x++) {
     const u = (x + half) / L;
     const th = u < 0.012 ? 3 : u < 0.03 ? 4 : Math.max(1, Math.round(5 - 4.4 * clamp01((u - 0.1) / 0.72)));
     for (let r = 0; r < th; r++) {
       const dry = u > 0.55 && th > 1 && noise2(x * 0.22, r * 3.1, 11) < (u - 0.55) * 1.4;   // les poils qui s'écartent
       if (dry || (u > 0.9 && ih(x, 2, 5) < (u - 0.9) * 5)) continue;                       // la fin se casse
-      out.push([x, r - (th >> 1), u]);
+      out.push([x, r - (th >> 1) + bow(u), u]);
     }
   }
   // éclaboussures : des gouttes d'un pixel (parfois deux), plus nombreuses et plus loin à l'attaque
   const drop = (u, dx, dy, big) => {
     const x = Math.round(-half + u * L + dx);
-    out.push([x, dy, Math.min(1, u)]);
-    if (big) out.push([x + 1, dy, Math.min(1, u)]);
+    out.push([x, dy + bow(u), Math.min(1, u)]);
+    if (big) out.push([x + 1, dy + bow(u), Math.min(1, u)]);
   };
   for (let i = 0; i < 7; i++) {                                     // autour de l'attaque
     const u = 0.01 + 0.09 * ih(i, 1, 21), side = ih(i, 2, 21) < 0.55 ? -1 : 1;

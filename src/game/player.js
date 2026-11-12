@@ -177,7 +177,7 @@ export class Player {
   }
 
   setState(s) {
-    if (!['flip', 'backflip', 'fall', 'land', 'air_attack', 'flip_attack'].includes(s)) this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
+    if (!['flip', 'backflip', 'fall', 'land', 'air_attack', 'flip_attack', 'air_kick'].includes(s)) this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
     this.state = s;
     this.timer = 0;
     this.anim.play(s, { restart: true });
@@ -323,13 +323,14 @@ export class Player {
         if (this.anim.finished) this.endSpecial();
         break;
       }
-      case 'kick': {
-        // au sol on se plante sur sa jambe d'appui ; en l'air on garde son élan
+      case 'kick':
+      case 'air_kick': {
+        // au sol on se plante sur sa jambe d'appui ; en l'air (coup de pied sauté) on garde son élan
         if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
         const box = this.kickBox();
         if (box) this.level.hitTargets(box, this.facing);
         // retrait de la jambe : KAGE souffle (le coup lui coûte)
-        if (this.anim.frame >= 3 && !this.breathed) {
+        if (this.state === 'kick' && this.anim.frame >= 3 && !this.breathed) {
           this.breathed = true;
           this.emit('kick_breath');
         }
@@ -481,8 +482,8 @@ export class Player {
         if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
           this.breathed = false;
-          this.emit('kick');
-          this.setState('kick');
+          this.emit('kick', { air: !this.onGround });
+          this.setState(this.onGround ? 'kick' : 'air_kick');   // en l'air : le coup de pied sauté
           break;
         }
         if (input.wasPressed('throw') && this.throwCd <= 0 && (this.canThrow?.() ?? true)) {
@@ -505,7 +506,7 @@ export class Player {
       const light = this.isFlipping() && this.anim.frame <= 8;      // (salto : envolée bridée)
       this.vy = Math.min(P.maxFall, this.vy + P.gravity * (light ? P.flip.gravity : 1) * dt);
       if (this.state === 'wall_slide') this.vy = Math.min(this.vy, P.wallSlide);
-      if (this.state === 'air_attack' || this.state === 'flip_attack') this.vy = Math.min(this.vy, P.airAttackFall);
+      if (this.state === 'air_attack' || this.state === 'flip_attack' || this.state === 'air_kick') this.vy = Math.min(this.vy, P.airAttackFall);
     }
     const wasGround = this.onGround;
     const fallSpeed = this.vy;
@@ -645,10 +646,10 @@ export class Player {
     return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };
   }
 
-  /** Zone de frappe du coup de pied, active pendant la détente et l'impact. */
+  /** Zone de frappe du coup de pied (au sol : détente et impact ; en l'air : la jambe tendue). */
   kickBox() {
-    if (this.state !== 'kick') return null;
-    const a = this.meta.hitbox.kick;
+    if (this.state !== 'kick' && this.state !== 'air_kick') return null;
+    const a = this.meta.hitbox[this.state];
     if (!a.frames.includes(this.anim.frame)) return null;
     const { pivot } = this.meta;
     const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
