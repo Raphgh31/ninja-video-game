@@ -137,6 +137,9 @@ export class ForetWorld {
     // (un creux sous l'écorce peut avoir trois cases de haut : la cavité du coffre de l'arbre aux cavités)
     if (up >= 5 || dn >= (up + dn < 3 && this.kind(tx, ty - 1 - up) === 3 ? 3 : 2)) return false;
     const bark = this.kind(tx, ty - 1 - up) === 3 || this.kind(tx - 1, ty) === 3;
+    // sous terre, la caverne a son propre fond (roche, troncs, lueurs) : pas de « fond de creux » peint
+    // case par case par-dessus — ces carrés presque noirs ressortaient en rectangles dans le halo de KAGE
+    if (!bark && this.underDark(tx * TILE, ty * TILE)) return false;
     return bark || this.under(tx * TILE, ty * TILE) || (!this.air(tx - 1, ty) || !this.air(tx + 1, ty) || !this.air(tx - 2, ty) || !this.air(tx + 2, ty));
   }
 
