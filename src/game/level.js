@@ -281,7 +281,7 @@ export class Level {
   solid(tx, ty) {
     const c = this.at(tx, ty);
     return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6)
-      || (c === 'J' && !this.forest?.statueOpen);
+      || (c === 'J' && !this.forest?.gateOpen?.(ty));   // le bloc de la statue : levé d'une case, il laisse passer en glissade
   }
 
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la

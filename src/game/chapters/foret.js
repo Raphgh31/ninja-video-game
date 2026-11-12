@@ -525,9 +525,12 @@ function build() {
   F.dark = { x0: (pit - 12) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE, fade: 18 * TILE, deep: { x0: (pit - 60) * TILE, y0: (G8 - 16) * TILE } };
 
   // ===========================================================================
-  // ZONE 9 — L'antre de la statue oubliée : le calme. On grimpe aux lianes de sa
-  // chevelure pour rallumer la lanterne de chaque œil ; alors sa mâchoire
-  // s'abaisse, et la suite passe par sa bouche.
+  // ZONE 9 — L'antre de la statue oubliée : le calme. Un gros bloc de pierre, ficelé
+  // d'une corde en croix, ferme le tunnel ; la corde monte très haut, à une poulie.
+  // On grimpe aux lianes de sa chevelure jusqu'à sa tête ; de là seulement, on
+  // attrape une liane qui mène à une grande branche. Au bout, la poulie : on saisit
+  // la corde et on la tire le long de la branche ; lâchée assez loin, elle s'emmêle
+  // dans un rameau, et le bloc reste levé juste assez pour passer en glissade.
   // ===========================================================================
   const G9 = FORET_ROWS.sanctuaire;
   zone('09', "L'antre de la statue oubliée", { mood: 'sanctuaire', camGround: 0.955 });
@@ -544,18 +547,18 @@ function build() {
   const eye = (side) => { const e = eyeCenter(side); return { x: scx - STATUE.cx + e.x, y: sground - STATUE.h + e.y }; };
   const eyeL = eye(-1), eyeR = eye(1);
   // les lianes de sa chevelure : immobiles, on y monte et on en descend ; deux passent devant les yeux
-  vine(sx - 4.4, G9 - 13.6, 12.3);                      // la grande mèche de gauche, jusqu'au sol
-  vine(eyeL.x / TILE, G9 - 13.4, 7.4);                  // devant l'œil gauche
-  vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 13.2, 6);     // un brin court sur l'arête du nez : le relais
-  vine(eyeR.x / TILE, G9 - 13.4, 7.6);                  // devant l'œil droit
-  vine(sx + 3.8, G9 - 13.6, 9.4);                       // la mèche de droite
+  // (elles partent de l'intérieur du feuillage, une touffe cache leur départ : live.js)
+  vine(sx - 3.9, G9 - 12.2, 10.9);                      // la grande mèche de gauche, jusqu'au sol
+  vine(eyeL.x / TILE, G9 - 12.6, 6.6);                  // devant l'œil gauche
+  vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 12.6, 5.4);   // un brin court sur l'arête du nez : le relais
+  vine(eyeR.x / TILE, G9 - 12.6, 6.8);                  // devant l'œil droit
+  vine(sx + 3.8, G9 - 12.6, 8.4);                       // la mèche de droite
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
   b.prop('chest', sx + 1, G9 - 13, { id: 'couronne', ryo: 15 });
   coins([sx - 2, sx - 1], G9 - 15);
   F.statue = { cx: scx, ground: sground, eyes: [eyeL, eyeR] };
   b.prop('statue', sx, G9);
-  // à sa droite, un pilier de pierre maçonnée ; une porte de pierre y ferme un petit tunnel :
-  // quand les deux yeux sont allumés, la dalle remonte dans le mur
+  // à sa droite, un pilier de pierre maçonnée ; un gros bloc de pierre y ferme un petit tunnel
   ground(2, G9, '=');
   x = b.x;
   for (let i = 0; i < 12; i++) {
@@ -566,7 +569,18 @@ function build() {
   b.cols[x][G9 - 1] = 'J'; b.cols[x][G9 - 2] = 'J';
   F.statue.door = x;
   b.prop('stone_gate', x, G9);
-  b.prop('cliff', x + 1, G9, { w: 11 });           // (son fond commence une case plus tôt : derrière la dalle)
+  b.prop('cliff', x + 1, G9, { w: 11 });           // (son fond commence une case plus tôt : derrière le bloc)
+  // la grande branche : elle sort de la falaise, au-dessus du tunnel, et file vers la gauche au-dessus de
+  // la tête de la statue ; une liane en pend, qu'on n'attrape que depuis la tête (son bout est 2,5 cases
+  // au-dessus de la couronne : hors de portée du sol)
+  const BR = G9 - 23, door = x;
+  b.row(sx - 4, door - (sx - 4), BR, '-');
+  b.prop('rope_branch', sx - 4, BR, { x1: door, ground: G9 });
+  vine(sx - 1, BR + 0.15, 23 - 13 - 2.5 - 0.15);
+  b.hint('haul', sx + 2, BR);                          // (sur la branche seulement)
+  // la poulie, posée sur le bout de la branche contre la falaise ; la corde descend au bloc et revient le
+  // long de la branche, où on la saisit ; un rameau, trois cases plus loin, l'arrêtera au retour
+  F.rope = { door, ground: G9 * TILE, branchY: BR * TILE, pulleyX: door * TILE + 8 - 13, end: door * TILE - 34, twig: door * TILE - 34 - 48, max: 96 };
 
   // ===========================================================================
   // ZONE 10 — Le souffle des lianes : de longues lianes se balancent au-dessus

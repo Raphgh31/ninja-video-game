@@ -149,6 +149,7 @@ const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
 const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
+if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
   bgCanvas.hidden = false;
@@ -483,7 +484,12 @@ level.onEvent = (n, d) => {
     case 'branchSnap': sfxAt('crumbleFall', d, {}, 1.3); fx.sparks(d.x - 4, d.y + 2, 7, { speed: 70, palette: 'dirt' }); fx.drift(d.x - d.w / 2, d.y - 4, 9, { palette: 'leaf', speed: 45, up: 20, life: 1.6 }); fx.shake(0.5, 0.12); break;
     case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
     case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
-    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 2.8); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 1.2); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    // la corde de la statue : la saisir, la tirer (elle grince, le bloc racle), la lâcher, le bloc qui retombe
+    case 'ropeGrab': sfx('vineGrab', { still: true }); break;
+    case 'ropeRelease': sfx('vineRelease'); break;
+    case 'ropeStrain': sfxAt('crumbleCreak', d); break;
+    case 'blockFall': sfx('land', { strength: 1 }); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 18, up: 6, life: 0.6 }); break;
     case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
     case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
     case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
@@ -992,6 +998,7 @@ const HINTS = {
   wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
   rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
   airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
+  haul: ['↑ : saisir la corde — ← : tirer — Espace : lâcher', 'Saut : saisir la corde — joystick : tirer — saut : lâcher'],
   vine: ['← → tenue : s\'accrocher à la liane — tout relâcher : la lâcher', 'Joystick tenu : s\'accrocher à la liane — le relâcher : la lâcher'],
 };
 const HINT_USED = {
@@ -1005,6 +1012,7 @@ const HINT_USED = {
   wall: () => player.state === 'wall_jump',
   rope: () => level.cranes.some((c) => c.cut),
   airAttack: () => player.state === 'air_attack' || player.state === 'flip_attack',
+  haul: () => player.state === 'rope_pull',
   vine: () => player.state === 'vine',
 };
 
@@ -1023,7 +1031,7 @@ function updateChapterUi(dt) {
   ui.zone.classList.toggle('on', zoneTimer > 0);
   // aides : une seule commande à la fois, au moment où elle sert
   for (const h of level.hints) {
-    if (hintsDone.has(h.kind) || player.x < h.x * 16) continue;
+    if (hintsDone.has(h.kind) || player.x < h.x * 16 || (h.y != null && Math.abs(player.y - h.y * 16) > 40)) continue;
     if (!hint || hint.kind !== h.kind) hint = { kind: h.kind, t: 0 };
   }
   if (hint) {

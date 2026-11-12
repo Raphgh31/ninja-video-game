@@ -269,6 +269,12 @@ export class Player {
         this.anim.update(dt);
         if (this.anim.finished) this.setState('idle');
         return;
+      case 'rope_pull':
+        // la corde de la statue : tirer, laisser filer et lâcher sont gérés par la forêt
+        this.level.forest.haulRope(this, dt, input);
+        this.fallFrom = this.y;
+        this.energy.update(dt, { walking: true });
+        return;
       case 'vine':
         // accroché à une liane : balancier, grimpe et lâcher sont gérés par la forêt
         this.level.forest.rideVine(this, dt, input);
@@ -439,6 +445,8 @@ export class Player {
           if (dir !== 0 && !flipping) this.facing = dir;   // (pendant un salto, KAGE garde son orientation)
         }
 
+        // la corde de la statue (zone 9) : ↑ près de son bout (ou le saut, sur téléphone) la saisit, avant tout saut
+        if (this.level.forest?.tryRope(this, input)) break;
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = -P.jump;
           this.energy.spend(ENERGY.jump);   // le saut reste toujours possible

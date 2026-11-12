@@ -38,6 +38,9 @@ export const FOREST = {
     maxSpeed: 300,     // vitesse rendue au lâcher, au plus (px/s)
   },
   statue: { reach: 22, delay: 0.9, gateTime: 2.8 },   // la dalle de la porte remonte en 2,8 s
+  // la corde de la statue : tirée le long de la branche, elle lève le bloc (lift = pull × ratio) ; lâchée,
+  // elle revient vers la poulie (le bloc retombe) — sauf si son bout a dépassé le rameau, qui l'arrête
+  rope: { reach: 14, pull: 24, give: 46, ret: 150, ratio: 1 / 3, past: 8, strainEvery: 0.55 },
   slide: { margin: 6 },
 };
 
@@ -73,18 +76,24 @@ export class Forest {
     this.platforms = [...this.snaps, ...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
     this.vines = def.vines.map((v, i) => ({ ...v, i, angle: 0, av: 0, rider: null, still: !v.swing }));
     this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, gate: 0 } : null;
+    // la corde : rest (au repos, son bout près de la poulie), held (tenue par KAGE), back (elle revient),
+    // caught (emmêlée dans le rameau : le bloc reste levé d'une case)
+    this.rope = def.rope ? { ...def.rope, state: 'rest', pull: 0, lift: 0, holder: null, strain: 0, t: 0 } : null;
     this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
     this.dark = def.dark ?? null;
   }
 
   emit(name, data = {}) { this.level.onEvent?.(name, data); }
 
-  /** La statue est-elle ouverte (la porte de pierre ne bloque plus) ? */
-  get statueOpen() { return !!this.statue && this.statue.gate >= 0.85; }
+  /** La statue est-elle ouverte (le bloc, levé, laisse passer en glissade) ? */
+  get statueOpen() { return this.rope?.state === 'caught'; }
+
+  /** Une case « J » (le bloc) est-elle libre ? Seulement la rangée du bas, quand la corde est coincée. */
+  gateOpen(ty) { return this.rope?.state === 'caught' && ty === Math.round(this.rope.ground / TILE) - 1; }
 
   // --- sauvegarde ---------------------------------------------------------------
   applySave(s) {
-    if (this.statue && s?.statue) { this.statue.lit = [true, true]; this.statue.wake = 0; this.statue.gate = 1; }
+    if (this.rope && s?.statue) this.catchRope(true);
   }
 
   // --- réapparition de KAGE : tout se remet en place ------------------------------
@@ -133,6 +142,7 @@ export class Forest {
     this.updateLogs(dt);
     this.updateVines(dt);
     this.updateStatue(dt, player, alive);
+    this.updateRope(dt);
     this.updateSlide(dt, player, alive);
     for (const p of this.platforms) p.load = false;
   }
@@ -414,31 +424,90 @@ export class Forest {
     }
   }
 
-  // --- zone 9 : la statue -------------------------------------------------------------------
-  updateStatue(dt, player, alive) {
-    const s = this.statue;
-    if (!s) return;
-    const S = FOREST.statue;
-    if (alive) {
-      s.eyes.forEach((e, i) => {
-        if (s.lit[i]) return;
-        if (Math.abs(player.x - e.x) < S.reach && Math.abs(player.y - 14 - e.y) < S.reach) {
-          s.lit[i] = true; s.litAt[i] = this.time;
-          this.emit('eyeLit', { x: e.x, y: e.y, both: s.lit[0] && s.lit[1] });
-        }
-      });
+  // --- zone 9 : la corde de la statue ---------------------------------------------------------------
+  /** Où est le bout de la corde (là où KAGE la saisit) ; il recule à mesure qu'on tire. */
+  ropeEnd() { const r = this.rope; return r.end - r.pull; }
+
+  /**
+   * KAGE au sol sur la branche, tout près du bout de la corde : ↑ (au clavier), ou le bouton de saut sur
+   * téléphone (comme pour une liane), la lui fait saisir. Renvoie true s'il l'a saisie.
+   */
+  tryRope(player, input) {
+    const r = this.rope;
+    if (!r || r.state !== 'rest' || !player.onGround || Math.abs(player.y - r.branchY) > 3) return false;
+    if (Math.abs(player.x - (this.ropeEnd() - 6)) > FOREST.rope.reach) return false;
+    const want = input.wasPressed('up') || (this.touch && input.wasPressed('jump'));
+    if (!want) return false;
+    input.pressed.delete('up'); input.pressed.delete('jump'); player.jumpBuffer = 0;
+    r.state = 'held'; r.holder = player; r.strain = 0;
+    player.facing = -1; player.vx = 0; player.vy = 0;
+    player.x = this.ropeEnd() - 6;
+    player.setState('rope_pull');
+    this.emit('ropeGrab', { x: player.x, y: player.y });
+    return true;
+  }
+
+  /**
+   * KAGE tient la corde (état rope_pull) : il la tire en s'éloignant de la poulie (lentement, il peine),
+   * il la laisse filer en revenant vers elle ; le saut la lâche. Le bloc suit (lift = pull × ratio).
+   */
+  haulRope(player, dt, input) {
+    const r = this.rope, R = FOREST.rope;
+    if (input.wasPressed('jump') || !r || r.state !== 'held') {
+      input.pressed.delete('jump'); player.jumpBuffer = 0;
+      this.releaseRope(player);
+      return;
     }
-    if (s.lit[0] && s.lit[1] && s.gate < 1) {
-      if (s.wake < 0) s.wake = this.time;
-      if (this.time - s.wake >= S.delay) {
-        const dx = s.door * TILE + 8;
-        if (s.gate === 0) this.emit('gateOpen', { x: dx, y: s.ground });
-        const before = s.gate;
-        s.gate = Math.min(1, s.gate + dt / S.gateTime);
-        if (before < 1 && s.gate >= 1) this.emit('gateDone', { x: dx, y: s.ground });
-      }
+    const L = input.isHeld('left'), Rt = input.isHeld('right');
+    const before = r.pull;
+    if (L && !Rt) r.pull = Math.min(r.max, r.pull + R.pull * dt);
+    else if (Rt && !L) r.pull = Math.max(0, r.pull - R.give * dt);
+    const moved = r.pull - before;
+    r.lift = r.pull * R.ratio;
+    player.x = this.ropeEnd() - 6; player.y = r.branchY; player.vx = 0; player.vy = 0;
+    player.onGround = true; player.facing = -1;
+    // l'animation n'avance que s'il marche ; à l'arrêt, il reste arc-bouté
+    if (moved !== 0) player.anim.update(dt * (moved > 0 ? 1 : 0.8));
+    if (moved > 0) {
+      r.strain -= dt;
+      if (r.strain <= 0) { r.strain = R.strainEvery; this.emit('ropeStrain', { x: player.x, y: player.y, lift: r.lift }); }
     }
   }
+
+  /** KAGE lâche la corde : elle revient vers la poulie (si son bout a dépassé le rameau, il l'arrêtera). */
+  releaseRope(player) {
+    const r = this.rope;
+    if (r && r.state === 'held') {
+      r.state = 'back'; r.holder = null;
+      r.snag = r.pull >= (r.end - r.twig) + FOREST.rope.past;
+      this.emit('ropeRelease', { x: player.x, y: player.y });
+    }
+    if (player.state === 'rope_pull') { player.setState('idle'); player.jumpBuffer = 0; }
+  }
+
+  /** La corde se coince dans le rameau : le bloc reste levé d'une case (sauvegardé). */
+  catchRope(quiet = false) {
+    const r = this.rope;
+    r.state = 'caught'; r.pull = r.end - r.twig; r.lift = TILE; r.holder = null;
+    if (!quiet) this.emit('gateOpen', { x: r.door * TILE + 8, y: r.ground });
+  }
+
+  updateRope(dt) {
+    const r = this.rope;
+    if (!r) return;
+    r.t += dt;
+    if (r.state !== 'back') return;
+    // elle revient, de plus en plus vite (le poids du bloc) ; le bloc redescend avec elle
+    r.v = Math.min(FOREST.rope.ret * 2.2, (r.v ?? 30) + FOREST.rope.ret * 3 * dt);
+    r.pull = Math.max(0, r.pull - r.v * dt);
+    const stop = r.end - r.twig;
+    if (r.snag && r.pull <= stop) { r.v = 0; this.catchRope(); return; }
+    r.lift = Math.min(r.lift, r.pull * FOREST.rope.ratio);
+    if (r.pull <= 0) { r.state = 'rest'; r.v = 0; r.lift = 0; this.emit('blockFall', { x: r.door * TILE + 8, y: r.ground }); }
+  }
+
+  /** Les yeux de la statue : plus de déclencheur (le mécanisme est la corde) ; gardé pour la peinture. */
+  updateStatue() {}
 
   // --- zone 11 : l'éboulis ------------------------------------------------------------------
   updateSlide(dt, player, alive) {

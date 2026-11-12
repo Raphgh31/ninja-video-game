@@ -66,6 +66,14 @@ export class ForetProps {
           add('over', X - 8, Y - 6, p.w * TILE + 16, hpx + 12, (pix) => boulder(pix, X, Y, p.w * TILE, hpx, p.x, p.wet));
           break;
         }
+        case 'rope_branch': {
+          // la grande branche de la statue : elle sort de la falaise au-dessus du tunnel (zone 9)
+          const xr = p.x1 * TILE, G = p.ground * TILE;
+          // l'arbre qui s'agrippe au pilier (comme aux temples envahis) : derrière, son tronc et ses racines
+          add('front', xr - 30, Y - 200, 110, G - Y + 204, (pix) => pillarTree(pix, xr + 26, Y, G, xr, p.x * 3 + 9));
+          add('over', X - 40, Y - 70, xr - X + 80, 120, (pix) => ropeBranch(pix, X, xr, Y, p.x1 * TILE - 82, p.x * 3 + 5));
+          break;
+        }
         case 'river_rock': {
           // un rocher pointu dans le lit du torrent, derrière les rondins : le pied noyé (l'eau, dessinée
           // devant, le cache), l'écume autour (live.js) ; on ne s'y pose pas
@@ -223,6 +231,8 @@ export class ForetProps {
           add('over', X - 8, Y - 6, W + 16, 14, (pix) => leafMat(pix, X, Y, W, tx));
           continue;
         }
+        // la grande branche de la statue : elle se dessine elle-même (prop rope_branch)
+        if (lv.props.some((p) => p.type === 'rope_branch' && p.y === ty && tx >= p.x && tx < p.x1)) continue;
         // les racines en marche de l'arche (zone 3) : elle les dessine elle-même
         if (lv.props.some((p) => p.type === 'root_arch' && p.steps.some((q) => q[1] === ty && tx >= q[0] && tx < q[0] + q[2]))) continue;
         // la plateforme, l'échelle et le toit de la cabane du guetteur : elle les dessine elle-même
@@ -376,6 +386,77 @@ function birch(pix, cx, base, h, seed) {
 }
 
 /** Rocher moussu qui remplit exactement son bloc (son dessus est à la hauteur des pieds de KAGE). */
+/**
+ * Le grand arbre agrippé au pilier de la statue (zone 9) : un tronc épais plaqué contre la maçonnerie (cx),
+ * qui monte vers la canopée au-dessus de l'image ; sous la branche (Y), ses racines ruissellent le long
+ * des pierres jusqu'au sol (G), en laissant libre l'entrée du tunnel (à door).
+ */
+function pillarTree(pix, cx, Y, G, door, seed) {
+  // le tronc : un cylindre éclairé à gauche, sillons verticaux, mousse
+  for (let y = Y - 200; y < Y + 26; y++) {
+    const half = 12 + Math.max(0, (y - Y) / 26) * 6 + (noise1(y * 0.05, seed) - 0.5) * 2;
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) {
+      const u = (x - (cx - half)) / (2 * half);
+      let v = 0.82 - u * 0.66 + (noise2(x * 0.5, y * 0.08, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.32, y * 0.025, seed + 1) - 0.5) < 0.05) v -= 0.3;
+      const moss = u < 0.35 && fbm2(x * 0.1, y * 0.06, 2, seed + 2) > 0.58;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.4 + (1 - u) * 0.4, x, y) : pick(C.BARK, v, x, y));
+    }
+  }
+  // le départ de la grande branche : un collet épais, du tronc jusqu'au bord du pilier (la poulie est juste à gauche)
+  for (let x = door - 2; x <= cx - 8; x++) {
+    const t = (x - (door - 2)) / Math.max(1, cx - 8 - (door - 2)), th = Math.round(15 + t * 9);
+    for (let j = 0; j < th; j++) {
+      const y = Y - Math.round(t * 4) + j, k = j / th;
+      const moss = j <= 1 ? (ih(x, 1, seed) < 0.6 ? C.MOSS[5] : C.MOSS[4]) : null;
+      pix.set(x, y, moss ?? pick(C.BARK, 0.8 - k * 0.7 + (noise2(x * 0.4, y * 0.4, seed + 5) - 0.5) * 0.2, x, y));
+    }
+  }
+  // en haut, il se perd dans le feuillage
+  for (let k = 0; k < 4; k++) L.bush(pix, cx - 18 + k * 12, Y - 196 + (k % 2) * 8, 22, 14, C.LEAF, seed + k);
+  // les racines : elles descendent le long du pilier, s'écartent de l'entrée du tunnel (à gauche, la porte)
+  // (seule celle de gauche descend jusqu'au sol, devant le pilier ; les autres s'arrêtent au-dessus du
+  // plafond du tunnel, pour ne jamais cacher KAGE qui y glisse)
+  const roots = [[-8, door - 9, 5, G + 2], [-2, door + 26, 6, G - 3 * TILE], [4, door + 14, 4, G - 4 * TILE], [9, door + 38, 5, G - 3 * TILE - 6], [-11, door + 2, 3, G - 3 * TILE - 2]];
+  for (const [i, [dx, xg, w, yEnd]] of roots.entries()) rootStroke(pix, cx + dx, Y + 18, xg, yEnd, w, 2, (i % 2 ? 8 : -6), seed + 30 + i, 1);
+}
+
+/**
+ * La grande branche de la statue (zone 9), de X0 (son bout, à gauche) à X1 (la falaise) ; dessus plat à Y
+ * (on y marche). Massive contre la roche (un collet, des racines qui l'agrippent), elle s'effile vers la
+ * gauche ; des touffes de feuilles dessous et au bout, de la mousse, des brins qui pendent ; un rameau
+ * dressé à twigX, où la corde s'emmêlera au retour.
+ */
+function ropeBranch(pix, X0, X1, Y, twigX, seed) {
+  const len = X1 - X0;
+  for (let x = X0 - 6; x <= X1 + 6; x++) {
+    const t = (X1 - x) / len;                                            // 0 contre la falaise, 1 au bout
+    const th = Math.max(5, Math.round(16 - t * 9 + Math.max(0, 1 - (X1 - x) / 22) * 10 + (noise1(x * 0.17, seed) - 0.5) * 2));
+    const top = Y + (x > X1 - 10 ? -Math.round((x - (X1 - 10)) * 0.6) : 0) + Math.round((noise1(x * 0.09, seed + 1) - 0.5) * 1.2);
+    for (let y = top; y < Y + th; y++) {
+      const k = (y - top) / (Y + th - top);
+      let v = 0.82 - k * 0.72 + (noise2(x * 0.4, y * 0.5, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.05, y * 0.45, seed + 2) - 0.5) < 0.04) v -= 0.28;     // les sillons de l'écorce
+      const moss = y - top <= 1 ? (ih(x, 1, seed) < 0.65 ? C.MOSS[5] : C.MOSS[4]) : y - top === 2 && ih(x, 2, seed) < 0.45 ? C.MOSS[3] : null;
+      pix.set(x, y, moss ?? pick(C.BARK, v, x, y));
+    }
+  }
+  // contre la falaise : des racines qui s'enfoncent dans les fissures de la roche
+  for (let k = 0; k < 4; k++) rootStroke(pix, X1 - 4, Y + 4 + k * 3, X1 + 10 + k * 5, Y - 30 + k * 22, 5 - (k % 2), 1, (k % 2 ? 4 : -4), seed + 20 + k);
+  // le bout : un rameau qui se relève, une grosse touffe
+  for (let i = 0; i < 10; i++) { const x = X0 - 6 - i, y = Y + 2 - Math.round((i / 10) ** 1.5 * 7); pix.set(x, y, C.BARK[2]); pix.set(x, y + 1, C.BARK[1]); }
+  L.bush(pix, X0 - 16, Y - 6, 18, 11, C.LEAF, seed + 3);
+  // des touffes sous la branche (le dessus reste libre), de la mousse et des brins qui pendent
+  for (let x = X0 + 10; x < X1 - 20; x += 22 + Math.floor(ih(x, 3, seed) * 14)) L.bush(pix, x, Y + 14, 12 + Math.floor(ih(x, 4, seed) * 8), 7, C.LEAF, seed + x);
+  for (let x = X0 + 4; x < X1 - 6; x += 4) if (ih(x, 5, seed) < 0.45) L.strand(pix, x, Y + 10 + Math.floor(ih(x, 6, seed) * 4), 4 + Math.floor(ih(x, 7, seed) * 12), C.LEAF, seed + x, 0.5);
+  for (let x = X0; x < X1 - 4; x += 3) if (ih(x, 8, seed) < 0.45) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 9, seed) * 2), C.FERN, x);
+  // le rameau : dressé de biais sur le dessus, deux brindilles, quelques feuilles
+  const tx = Math.round(twigX);
+  for (let i = 0; i < 9; i++) { const x = tx + Math.round(i * 0.45), y = Y - 1 - i; pix.set(x, y, C.BARK[3]); pix.set(x + 1, y, C.BARK[2]); }
+  for (let i = 0; i < 4; i++) { pix.set(tx + 4 + i, Y - 7 - Math.round(i * 0.5), C.BARK[2]); pix.set(tx + 1 - i, Y - 5 - i, C.BARK[2]); }
+  for (const [dx, dy] of [[8, -9], [-3, -9], [5, -11]]) { pix.set(tx + dx, Y + dy, C.LEAF[4]); pix.set(tx + dx + 1, Y + dy, C.LEAF[3]); pix.set(tx + dx, Y + dy - 1, C.LEAF[5]); }
+}
+
 /**
  * Un rocher du torrent (décor) : pointu, de biais, luisant d'eau ; base à cy (la ligne d'eau), w de large,
  * h de haut au-dessus de l'eau ; plus bas, il continue sous l'eau (cachée devant lui).

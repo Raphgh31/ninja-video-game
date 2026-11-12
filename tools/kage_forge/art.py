@@ -7,6 +7,7 @@ reçoit le contour. Chaque frame est posée individuellement.
 from core import A, G, S, Frame
 from rig import pose
 from intro_kick import AIR_KICK, AIR_KICK_DURATIONS
+from rope import ROPE_PULL, ROPE_PULL_DURATIONS, ROPE_GRIP, ROPE_SHOULDER
 
 
 def F(grid, *retouches, **meta):
@@ -942,6 +943,9 @@ ANIMS = {
     # coup de pied en l'air : le coup de pied sauté de l'introduction (intro_kick.py)
     "air_kick":      dict(frames=AIR_KICK, fps=14, loop=False, state="air_kick",
                           durations=AIR_KICK_DURATIONS),
+    # tirer la corde de la statue (zone 9 de la Forêt) : rope.py ; la corde est tracée par le jeu
+    "rope_pull":     dict(frames=ROPE_PULL, fps=5, loop=True, state="rope_pull",
+                          durations=ROPE_PULL_DURATIONS, grip=ROPE_GRIP, shoulder=ROPE_SHOULDER),
     "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),

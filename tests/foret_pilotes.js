@@ -57,23 +57,7 @@ P.pit = () => { const l = __kage.level, h = l.props.find((p) => p.type === 'holl
     dir = l.ledge(pit + 2, r) ? -1 : 1;
   }
   return ['pit', log, bot.row(), bot.dead()]; };
-P.z9 = () => { const f = __kage.level.forest, st = f.statue, l = __kage.level; const log = [];
-  bot.place(Math.floor((st.cx - 64 - 40) / 16));
-  bot.run(4, (p) => { bot.set({ right: p.x < st.cx - 64 - 8 }); return p.x >= st.cx - 64 - 8; });
-  bot.clear(); bot.set({ up: true, right: true }); bot.tap('jump');
-  bot.run(1.5, (p) => p.state === 'vine'); log.push(['liane 0', bot.p.state, Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
-  bot.clear(); bot.set({ up: true });
-  bot.run(6, (p) => st.ground - p.y >= 96); log.push(['monté', Math.round(st.ground - bot.p.y), bot.p.state]);
-  const hop = (name) => { bot.clear(); bot.set({ right: true }); bot.tap('jump'); bot.run(0.05); bot.run(1.2, (p) => p.state === 'vine' || p.onGround); log.push([name, bot.p.state, Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y), f.vines.indexOf(bot.p.vine)]); };
-  const level = (h) => { bot.clear(); bot.run(3, (p) => { const d = st.ground - p.y - h; bot.set({ up: d < -2, down: d > 2 }); return Math.abs(d) <= 2; }); bot.clear(); bot.set({ up: true }); bot.run(0.05); };
-  // la hauteur à laquelle KAGE passe devant chaque œil (il s'allume à moins de 22 px)
-  const hL = st.ground - st.eyes[0].y - 14, hR = st.ground - st.eyes[1].y - 14;
-  hop('liane 1'); level(hL); log.push(['œil gauche', st.lit[0]]);
-  bot.clear(); bot.set({ up: true }); bot.run(0.3);
-  hop('liane 2'); level(Math.max(hL, hR) + 4); hop('liane 3'); level(hR); log.push(['œil droit', st.lit[1], Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
-  bot.clear(); bot.run(5); log.push(['porte', +st.gate.toFixed(2), bot.p.state, bot.col(), bot.row(), f.statueOpen]);
-  const t = bot.runner(12, { until: (p) => p.x > Z(10).x0 * 16 + 30 }); log.push(['sortie', t.toFixed(1), bot.col(), Z(10).x0]);
-  return ['z9', log]; };
+// (zone 9 : le mécanisme de la corde est testé pas à pas dans tests/foret.cjs)
 // zone 11 : l'éboulis
 P.z11idle = () => { const S = __kage.level.forest.slide; bot.place(Math.floor(S.trigger / 16) + 2); bot.run(0.3, () => { bot.set({ right: true }); }); bot.clear(); const t = bot.run(12, () => bot.dead()); return ['z11 immobile', t.toFixed(1), bot.dead()]; };
 P.z11 = (sprint) => { const S = __kage.level.forest.slide; bot.place(Z(11).x0 + 3); let min = 1e9;

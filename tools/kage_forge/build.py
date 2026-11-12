@@ -284,6 +284,8 @@ def main():
                if "release" in a else {}),
             **{key: {**a[key], **dict(zip("xy", scale.point(a[key]["x"], a[key]["y"])))}
                for key in ("impact", "glint") if key in a},
+            # des points image par image (la corde : la prise des mains, le haut de l'épaule)
+            **{key: [list(scale.point(x, y)) for x, y in a[key]] for key in ("grip", "shoulder") if key in a},
             "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],

@@ -277,24 +277,63 @@ async function main() {
     expect(r[0] >= 4 && r[1].length === 0, JSON.stringify(r));
   });
 
-  await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {
+  await test('zone 9 : le bloc ficelé ferme le tunnel, même en glissade, tant que la corde n\'est pas coincée', async () => {
     const r = await ev(() => {
-      const st = __kage.level.forest.statue; bot.place(Math.floor(st.cx / 16) - 2, st.ground / 16);
-      bot.run(3, () => { bot.set({ right: true }); });
-      return [Math.floor(bot.p.x / 16), st.door, __kage.level.forest.statueOpen];
+      const f = __kage.level.forest, R = f.rope; bot.place(R.door - 4, R.ground / 16);
+      bot.run(2, () => { bot.set({ right: true }); });
+      const walk = bot.col();
+      bot.place(R.door - 4, R.ground / 16); bot.run(0.4, () => { bot.set({ right: true }); }); bot.tap('down'); bot.run(1.2, () => { bot.set({ right: true }); });
+      return [walk, bot.col(), R.door, f.statueOpen];
     });
-    expect(r[0] < r[1] && !r[2], JSON.stringify(r));
+    expect(r[0] < r[2] && r[1] < r[2] && !r[3], JSON.stringify(r));
   });
 
-  await test('zone 9 : par les lianes, KAGE rallume les deux yeux ; la porte de pierre remonte ; on passe par le tunnel', async () => {
-    const r = await run('z9');
-    const log = Object.fromEntries(r[1].map((e) => [e[0], e.slice(1)]));
-    expect(log['œil gauche'][0] && log['œil droit'][0] && log.porte[0] === 1 && log.sortie[1] >= log.sortie[2], JSON.stringify(r));
+  await test('zone 9 : la liane de la grande branche ne s\'attrape que depuis la tête de la statue ; elle mène à la branche', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, st = f.statue, R = f.rope, G = st.ground / 16;
+      const vN = f.vines.find((v) => Math.abs(v.ax - st.cx) < 200 && Math.abs(v.ay - R.branchY) < 8), v0 = f.vines.filter((v) => Math.abs(v.ax - st.cx) < 96).sort((a, b) => a.ax - b.ax)[0];
+      const climbTo = (v, approach) => {
+        bot.run(2, (p) => { bot.set({ right: approach > 0 ? p.x < v.ax - 10 : false, left: approach < 0 ? p.x > v.ax + 10 : false, up: true }); if (p.onGround && Math.abs(p.x - v.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+        const got = bot.p.vine === v; bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+        bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+        return got;
+      };
+      // depuis le sol, sous la liane de la branche : hors de portée
+      bot.place(Math.floor(vN.ax / 16) - 1, G); bot.run(1.5, (p) => { bot.set({ right: p.x < vN.ax - 10, up: true }); if (p.onGround && Math.abs(p.x - vN.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+      const fromGround = bot.p.vine === vN; bot.clear(); bot.run(1);
+      // la grande mèche de gauche (depuis le sol), puis, d'un saut, la liane de l'œil gauche, jusqu'en haut : la couronne
+      bot.place(Math.floor(v0.ax / 16) - 2, G);
+      bot.run(2, (p) => { bot.set({ right: p.x < v0.ax - 10, up: true }); if (p.onGround && Math.abs(p.x - v0.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+      const lock = bot.p.vine === v0; bot.clear(); bot.set({ up: true }); bot.run(6, (p) => st.ground - p.y >= 96);
+      const v1 = f.vines.filter((v) => Math.abs(v.ax - st.cx) < 96).sort((a, b) => a.ax - b.ax)[1];
+      bot.clear(); bot.set({ right: true }); bot.tap('jump'); bot.run(0.05); bot.run(1.2, (p) => p.state === 'vine' || p.onGround);
+      bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+      bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+      const crown = bot.row(); void v1;
+      // de la couronne : la main sous la liane de la branche, un saut ↑ tenu l'attrape ; on grimpe ; un bond sur la branche
+      bot.run(3, (p) => { const h = p.x + p.facing * 6 - vN.ax; bot.set({ right: h < -3, left: h > 3, up: true }); return Math.abs(h) <= 3 && p.onGround; });
+      bot.set({ left: false, right: false, up: true }); bot.tap('jump'); bot.run(1.2, (p) => p.state === 'vine');
+      const got = bot.p.vine === vN; bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+      bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+      return [fromGround, lock, crown, G - 13, got, bot.row(), Math.round(R.branchY / 16), bot.dead()];
+    });
+    expect(!r[0] && r[1] && r[2] === r[3] && r[4] && r[5] === r[6] && !r[7], JSON.stringify(r));
   });
 
-  await test('zone 9 : la statue éveillée est enregistrée', async () => {
-    const s = await ev(() => __kage.save.statue);
-    expect(s === true, `save.statue = ${s}`);
+  await test('zone 9 : la corde — lâchée trop tôt, le bloc retombe ; tirée au-delà du rameau, elle s\'y coince ; le bloc levé ne se passe qu\'en glissade', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, R = f.rope, pl = bot.p;
+      const onBranch = () => { bot.place(Math.floor(R.end / 16), Math.round(R.branchY / 16)); pl.x = R.end - 30; pl.y = R.branchY; pl.vy = 0; __kage.step(4); bot.run(1, (p) => { bot.set({ right: p.x < R.end - 8 }); return p.x >= R.end - 8; }); bot.clear(); };
+      const haul = (s) => { bot.tap('up'); bot.run(0.1); const held = pl.state === 'rope_pull'; bot.run(s, () => { bot.set({ left: true }); }); const pull = R.pull; bot.clear(); bot.tap('jump'); bot.run(3); return [held, Math.round(pull)]; };
+      onBranch(); const early = haul(1); const back = [R.state, Math.round(R.lift)];
+      onBranch(); const far = haul(3.6); const caught = [R.state, Math.round(R.lift), __kage.level.solid(R.door, R.ground / 16 - 1), __kage.level.solid(R.door, R.ground / 16 - 2)];
+      // en bas : debout, on bute ; en glissade, on passe
+      bot.place(R.door - 4, R.ground / 16); bot.run(1.5, () => { bot.set({ right: true }); }); const walk = bot.col();
+      bot.place(R.door - 4, R.ground / 16); bot.run(0.4, () => { bot.set({ right: true }); }); bot.tap('down'); bot.run(1.5, () => { bot.set({ right: true }); }); bot.clear(); bot.run(0.5);
+      return { early, back, far, caught, walk, slide: bot.col(), door: R.door, saved: __kage.save.statue };
+    });
+    expect(r.early[0] && r.back[0] === 'rest' && r.back[1] === 0 && r.far[0] && r.caught[0] === 'caught' && r.caught[1] === 16 && !r.caught[2] && r.caught[3]
+      && r.walk < r.door && r.slide > r.door && r.saved === true, JSON.stringify(r));
   });
 
   await test('zone 10 : de liane en liane ; au bout, lâcher au sommet de la courbe et dasher vers la corniche', async () => {
