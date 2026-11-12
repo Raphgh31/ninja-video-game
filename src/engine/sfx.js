@@ -231,6 +231,20 @@ const SOUNDS = {
     air({ dur: 0.26, vol: 0.16, q: 1.6, f: [[0, 1200], [0.35, 4200], [1, 900]], g: [[0, 0.02], [0.3, 1], [1, 0.01]], delay: 0.14 });
     air({ dur: 0.2, vol: 0.07, type: 'lowpass', q: 0.6, f: [[0, 300], [0.4, 900], [1, 250]], g: [[0, 0.02], [0.35, 1], [1, 0.01]], delay: 0.15 });
   },
+  // coup du salto : la lame dressée chante (charge métallique qui monte), puis grand souffle abattu
+  swingPower: () => {
+    tone({ f: 1500, to: 2600, dur: 0.24, type: 'triangle', vol: 0.035 });
+    tone({ f: 2250, to: 3900, dur: 0.24, type: 'sine', vol: 0.02 });
+    air({ dur: 0.3, vol: 0.19, q: 1.5, f: [[0, 1000], [0.35, 4600], [1, 700]], g: [[0, 0.02], [0.3, 1], [1, 0.01]], delay: 0.25 });
+    air({ dur: 0.24, vol: 0.09, type: 'lowpass', q: 0.6, f: [[0, 260], [0.4, 900], [1, 200]], g: [[0, 0.02], [0.35, 1], [1, 0.01]], delay: 0.26 });
+  },
+  // la lame arrive en bas : éclat clair (tintement) et coup sourd
+  bladeFlash: () => {
+    tone({ f: 3100, to: 2400, dur: 0.3, type: 'sine', vol: 0.045 });
+    tone({ f: 4650, to: 3600, dur: 0.18, type: 'sine', vol: 0.02 });
+    tone({ f: 120, to: 55, dur: 0.18, type: 'sine', vol: 0.12 });
+    noise({ dur: 0.08, vol: 0.06, type: 'lowpass', f: 500 });
+  },
   // sabre qui touche un ennemi : claquement de lame, tintement métallique et choc dans le corps
   bladeHit: ({ heavy = false } = {}) => {
     const k = heavy ? 1.25 : 1;

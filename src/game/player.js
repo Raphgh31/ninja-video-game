@@ -70,7 +70,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.timer = 0;
     this.airDash = true;
-    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false; this.flipK = 1;
+    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false; this.flipK = 1; this.flipDone = false;
     this.wallLock = 0;
     this.wallCoyote = 0;
     this.lastWall = 0;        // côté du dernier mur touché
@@ -124,6 +124,7 @@ export class Player {
     this.flipEnd = Infinity;
     this.flipSpun = false;
     this.flipUsed = true;
+    this.flipDone = true;                // (le prochain coup de sabre en l'air sera le coup du salto)
     this.jumpBuffer = 0;                 // (ce deuxième appui ne relance pas un saut à la réception)
   }
 
@@ -176,7 +177,7 @@ export class Player {
   }
 
   setState(s) {
-    if (s !== 'flip' && s !== 'backflip' && s !== 'fall' && s !== 'land') this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
+    if (!['flip', 'backflip', 'fall', 'land', 'air_attack', 'flip_attack'].includes(s)) this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
     this.state = s;
     this.timer = 0;
     this.anim.play(s, { restart: true });
@@ -295,13 +296,27 @@ export class Player {
         else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
       case 'attack':
-      case 'air_attack': {
+      case 'air_attack':
+      case 'flip_attack': {
         // au sol : légère fente pendant le dégainé et le demi-cercle ; en l'air : on garde l'élan
         const f = this.anim.frame;
         const lunge = this.state === 'attack' && this.onGround;
         const want = lunge ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.onGround ? 0 : this.vx;
         // coup aérien : léger plongeon pendant la frappe (images 3 à 5)
         if (this.state === 'air_attack' && !this.onGround && f >= 2 && f <= 4) this.vy = Math.max(this.vy, P.airChopPlunge);
+        if (this.state === 'flip_attack') {
+          // coup du salto : plongeon plus franc pendant la frappe ; reflet sur la lame pendant la
+          // charge, éclat de lumière quand la lame arrive en bas (main.js : lumière, secousse)
+          if (!this.onGround && f >= 4 && f <= 6) this.vy = Math.max(this.vy, P.airChopPlunge * 1.15);
+          for (const key of ['glint', 'impact']) {
+            const m = this.meta.animations.flip_attack[key];
+            if (m && f === m.frame && this.fxDone !== key + this.attackId) {
+              this.fxDone = key + this.attackId;
+              const { pivot } = this.meta;
+              this.emit(key === 'glint' ? 'blade_glint' : 'blade_flash', { x: this.x + this.facing * (m.x - pivot.x), y: this.y + m.y - pivot.y });
+            }
+          }
+        }
         this.vx += Math.sign(want - this.vx) * Math.min(Math.abs(want - this.vx), P.friction * dt);
         const box = this.attackBox();
         if (box) this.level.hitTargets(box, this.facing);
@@ -456,8 +471,11 @@ export class Player {
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
-          this.emit(this.onGround ? 'swing' : 'swing_heavy');
-          this.setState(this.onGround ? 'attack' : 'air_attack');
+          // en l'air juste après un salto (ou pendant) : le coup du salto, le plus puissant
+          const power = !this.onGround && this.flipDone;
+          this.flipDone = false;
+          this.emit(this.onGround ? 'swing' : power ? 'swing_power' : 'swing_heavy');
+          this.setState(this.onGround ? 'attack' : power ? 'flip_attack' : 'air_attack');
           break;
         }
         if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
@@ -487,7 +505,7 @@ export class Player {
       const light = this.isFlipping() && this.anim.frame <= 8;      // (salto : envolée bridée)
       this.vy = Math.min(P.maxFall, this.vy + P.gravity * (light ? P.flip.gravity : 1) * dt);
       if (this.state === 'wall_slide') this.vy = Math.min(this.vy, P.wallSlide);
-      if (this.state === 'air_attack') this.vy = Math.min(this.vy, P.airAttackFall);
+      if (this.state === 'air_attack' || this.state === 'flip_attack') this.vy = Math.min(this.vy, P.airAttackFall);
     }
     const wasGround = this.onGround;
     const fallSpeed = this.vy;
@@ -509,6 +527,7 @@ export class Player {
       this.airY0 = this.y;               // (salto : sol quitté, sens du départ)
       this.airFacing = this.facing;
       this.flipUsed = false;
+      this.flipDone = false;
       this.flipK = 1;
       this.airDash = true;
       this.lastWallJump = null;
@@ -618,7 +637,7 @@ export class Player {
 
   /** Zone de frappe du sabre, active seulement sur les frames du demi-cercle. */
   attackBox() {
-    if (this.state !== 'attack' && this.state !== 'air_attack') return null;
+    if (this.state !== 'attack' && this.state !== 'air_attack' && this.state !== 'flip_attack') return null;
     const a = this.meta.hitbox[this.state];
     if (!a.frames.includes(this.anim.frame)) return null;
     const { pivot } = this.meta;

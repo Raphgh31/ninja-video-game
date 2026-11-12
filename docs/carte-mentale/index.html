@@ -187,7 +187,7 @@ button { font: inherit; color: inherit; }
 <header class="top">
   <div class="brand">
     <h1>Carte du jeu KAGE</h1>
-    <p id="etat">état au 11 nov. 2026</p>
+    <p id="etat">état au 12 nov. 2026</p>
   </div>
   <label class="search" for="q">
     <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Zm0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm4.6 7.7 3.9 3.9-1.4 1.4-3.9-3.9z" fill="currentColor"/></svg>
@@ -233,9 +233,9 @@ const BRANCHES = [
     keys: ['Cellule 48×32 : 32 colonnes pour le corps, 16 pour le sabre', 'Ancrage (16, 31) sous les pieds, tourné à droite, retourné pour la gauche', 'Palette unique « Encre », appliquée par slots'],
     files: ['docs/kage/README.md', 'assets/characters/kage/skins/encre.json', 'assets/characters/kage/kage.json'],
     links: [['Planche de référence', 'docs/kage/kage_reference.png']], see: ['kage-forge', 'kage-skins'] },
-  { id: 'kage-anims', t: '25 animations', s: 'fait', d: 'De idle à respawn, chacune liée à un état',
+  { id: 'kage-anims', t: '26 animations', s: 'fait', d: 'De idle à respawn, chacune liée à un état',
     txt: "Chaque animation porte le même nom qu'un état de la machine d'états du joueur. Mort et réapparition sont calculées à partir du sprite (découpe en blocs) ; toutes les autres frames sont posées à la main via le rig. Saltos avant et arrière (novembre 2026, flip.py) : salto groupé — impulsion jambes tendues, genoux attrapés en boule, rotation de 45° en 45° (rotation RotSprite, propre au pixel art), ouverture, réception jambes tendues ; les pans du bandeau sont tracés à part, à la traîne du nœud (élan de la rotation, freinage de l'air) : ils pendent sous KAGE à la montée et flottent au-dessus à la descente. En jeu : deuxième appui sur saut, en l'air ; envolée bridée (petit élan, gravité allégée, jamais plus haut d'une demi-case ni plus loin qu'un saut normal) pour un salto lent, environ 0,95 s ; jamais pendant un enchaînement de sauts muraux ni près d'un mur ; en boule, le corps est agrandi, pas la tête.",
-    keys: ['idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3', 'dash 5 · attack 7 · kick 5 · throw 5 · hurt 2', 'wall_slide 2 · wall_jump 2 · air_attack 6 · air_throw 4', 'skid 2 · slide 3 · death 6 · respawn 3', 'vine 2 · vine_swing 5 · vine_climb 4 · flip 11 · backflip 11'],
+    keys: ['idle 4 · run 6 · sprint 6 · walk 4 · jump 4 · fall 3 · land 3', 'dash 5 · attack 7 · kick 5 · throw 5 · hurt 2', 'wall_slide 2 · wall_jump 2 · air_attack 6 · flip_attack 8 · air_throw 4', 'skid 2 · slide 3 · death 6 · respawn 3', 'vine 2 · vine_swing 5 · vine_climb 4 · flip 11 · backflip 11'],
     files: ['tools/kage_forge/art.py', 'tools/kage_forge/flip.py', 'src/game/player.js', 'docs/kage/previews/'],
     links: [['Planche des animations', 'docs/kage/kage_animations.png']], see: ['kage-forge'] },
   { id: 'kage-forge', t: 'Forge des sprites', s: 'fait', d: 'Les PNG sont générés, jamais retouchés',
@@ -244,7 +244,7 @@ const BRANCHES = [
     files: ['tools/kage_forge/rig.py', 'tools/kage_forge/art.py', 'tools/kage_forge/build.py', 'tools/kage_forge/palette.py', 'tools/kage_forge/preview.py', 'assets/characters/kage/', 'tools/kage_forge/scale.py', 'tools/kage_forge/enemies/grow20.py'] },
   { id: 'kage-commandes', t: 'Commandes', s: 'fait', d: 'Clavier et tactile',
     txt: "Au clavier, chaque action a sa touche. Sur téléphone, un joystick flottant sur la moitié gauche et des boutons ronds à droite. Le sprint tactile se fait en poussant le joystick au-delà de son cercle (le contour devient vert) ; le dash, d'un coup de joystick très rapide puis relâché.",
-    keys: ['Courir ← → · Sprint Maj + flèche · Dash double appui', 'Saut Espace · Glissade ↓ ou S', 'Salto : deuxième appui sur saut, en l\'air (direction tenue vers l\'arrière : salto arrière) ; tactile : deuxième appui sur le bouton saut', 'Sabre X ou W · Shuriken C ou V · Coup de pied B ou N', '↑ ou E : parler · H : zones de collision · M : son'],
+    keys: ['Courir ← → · Sprint Maj + flèche · Dash double appui', 'Saut Espace · Glissade ↓ ou S', 'Salto : deuxième appui sur saut, en l\'air (direction tenue vers l\'arrière : salto arrière) ; tactile : deuxième appui sur le bouton saut', 'Sabre X ou W · Shuriken C ou V · Coup de pied B ou N', 'Coup du salto : sabre pendant ou juste après un salto (4 dégâts)', '↑ ou E : parler · H : zones de collision · M : son'],
     files: ['src/engine/input.js', 'src/engine/touch.js'], see: ['tech-mobile'] },
   { id: 'kage-mouvement', t: 'Course, saut, dash', s: 'fait', d: 'Vitesses et réglages de déplacement',
     txt: "Toutes les constantes de mouvement sont dans P, en tête de player.js. Un seul dash en l'air par saut ; le saut mural ne marche pas deux fois de suite sur le même mur ; dérapage au demi-tour en pleine course. Le dash vertical a été supprimé.",
@@ -256,7 +256,7 @@ const BRANCHES = [
     files: ['src/game/energy.js'] },
   { id: 'kage-vie', t: 'Vie et dégâts', s: 'provisoire', d: 'Valeurs à rééquilibrer en jouant',
     txt: "KAGE a 5 points de vie, affichés par une barre fine (1 px) verte au-dessus de la tête. Touché : recul, 0,3 s sans contrôle, 1 s d'invincibilité. Les valeurs de dégâts sont provisoires.",
-    keys: ['Infligés : sabre 2, sabre en l\'air 3, shuriken 1, coup de pied 2', 'Subis : charge de TATE 2, moulinet de WARA 1, plongeon de KARASU-KASHI 2, ses projectiles 1, pics 1', 'Chute hors du niveau = mort'],
+    keys: ['Infligés : sabre 2, sabre en l\'air 3, coup du salto 4 (sabre en l\'air après un salto : la lame tremble, s\'allume, éclat de lumière à l\'impact), shuriken 1, coup de pied 2', 'Subis : charge de TATE 2, moulinet de WARA 1, plongeon de KARASU-KASHI 2, ses projectiles 1, pics 1', 'Chute hors du niveau = mort'],
     files: ['src/game/combat.js', 'src/game/healthbar.js'] },
   { id: 'kage-sabre', t: 'Sabre', s: 'fait', d: 'Demi-cercle au sol, deux mains en l\'air', spr: 'kage_attack_03',
     txt: "Au sol : légère fente, demi-cercle devant, lame longue et large. En l'air : à deux mains, lame levée au-dessus de la tête, temps d'arrêt, puis abattue en plongeant, plus spectaculaire et plus de dégâts.",
@@ -504,7 +504,7 @@ const BRANCHES = [
   { id: 'tech-cartes', t: 'Cartes en ASCII', s: 'fait', d: 'Une lettre par case',
     txt: "Niveaux décrits en texte, légende en tête du fichier : E = TATE, W = WARA, C = gong, D = porte, P = lanterne, G = arrivée, o = ryō, B = caisse, M = marchand, = bois, | bambou, ~ eau, % bloc invisible, - passerelle (traversable par-dessous), _ plateforme fragile de l'arène, K blocs d'une grue (posés par le niveau).",
     files: ['src/game/maps.js', 'src/game/level.js'] },
-  { id: 'tech-tests', t: '79 tests de bout en bout', s: 'fait', d: 'Chaque passage reste faisable',
+  { id: 'tech-tests', t: '80 tests de bout en bout', s: 'fait', d: 'Chaque passage reste faisable',
     txt: "Playwright dans Chromium : terrain d'essai, tactile, niveau 1, Potager. Chaque trou et passage bas a son test de faisabilité et demande bien la mécanique prévue ; aussi la caméra, les sons, la sauvegarde, la boutique et l'achat d'un skin, et le combat contre KARASU-KASHI.",
     keys: ['npm test = build + version autonome + tests'], files: ['tests/e2e.cjs'] },
   { id: 'tech-standalone', t: 'Version en un fichier', s: 'fait', d: 'dist/kage-standalone.html',

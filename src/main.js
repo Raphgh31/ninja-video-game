@@ -244,6 +244,23 @@ player.onEvent = (n, d) => {
     case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
+    case 'swing_power': sfx('swingPower'); break;
+    // coup du salto : reflet sur la lame dressée, puis éclat de lumière quand elle arrive en bas
+    case 'blade_glint': {
+      // le reflet suit la lame dressée pendant toute la charge (tremblement compris)
+      const dx = d.x - player.x, dy = d.y - player.y, f0 = player.facing;
+      fx.flash(d.x, d.y, { size: 6, life: 0.22, halo: 4, follow: () => ({ x: player.x + dx * player.facing * f0 + (player.anim.frame === 2 ? player.facing : 0), y: player.y + dy }) });
+      break;
+    }
+    case 'blade_flash':
+      sfx('bladeFlash');
+      {
+        const dx = d.x - player.x, dy = d.y - player.y, f0 = player.facing;
+        fx.flash(d.x, d.y, { size: 15, life: 0.34, halo: 11, follow: () => ({ x: player.x + dx * player.facing * f0, y: player.y + dy }) });
+      }
+      fx.sparks(d.x, d.y, 7, { speed: 85 });
+      fx.shake(2, 0.22);
+      break;
     case 'kick_breath': sfx('breath'); break;
     // lianes de la Forêt
     case 'fall_death': sfx('land', { strength: 1 }); fx.shake(2, 0.25); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
@@ -656,16 +673,17 @@ function update(dt) {
   }
   const ab = player.attackBox();
   if (ab) {
-    const heavy = player.state === 'air_attack';
+    const power = player.state === 'flip_attack';
+    const heavy = player.state === 'air_attack' || power;
     level.hitGongs(ab);
     for (const t of enemies) {
       swordStrike = true;
-      const r = t.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
+      const r = t.takeHit(ab, player.x, player.attackId, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
       swordStrike = false;
       if (r === 'hit') {
         sfx('bladeHit', { heavy });
-        fx.hitStop(heavy ? 0.11 : 0.07);
-        if (heavy) fx.shake(2, 0.18);
+        fx.hitStop(power ? 0.15 : heavy ? 0.11 : 0.07);
+        if (heavy) fx.shake(power ? 3 : 2, power ? 0.26 : 0.18);
       } else if (r === 'blocked') {
         fx.hitStop(0.04);
       }
@@ -961,11 +979,11 @@ const HINT_USED = {
   sprint: () => player.state === 'sprint',
   dash: () => player.state === 'dash',
   kick: () => player.state === 'kick',
-  attack: () => player.state === 'attack' || player.state === 'air_attack',
+  attack: () => player.state === 'attack' || player.state === 'air_attack' || player.state === 'flip_attack',
   slide: () => player.state === 'slide',
   wall: () => player.state === 'wall_jump',
   rope: () => level.cranes.some((c) => c.cut),
-  airAttack: () => player.state === 'air_attack',
+  airAttack: () => player.state === 'air_attack' || player.state === 'flip_attack',
   vine: () => player.state === 'vine',
 };
 

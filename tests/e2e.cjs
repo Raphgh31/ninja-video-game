@@ -234,6 +234,31 @@ async function main() {
     expect(r.walls >= 2 && !r.seen.includes('flip') && !r.seen.includes('backflip'), JSON.stringify(r));
   });
 
+  await test('coup du salto : sabre en l\'air après un salto = 4 dégâts (3 sans salto), éclat de lumière', async () => {
+    await reset();
+    const r = await ev(() => {
+      const g = window.__kage, inp = g.input, pl = g.player, w = g.waras[0], out = [];
+      for (const flip of [true, false]) {
+        pl.respawn(true); pl.x = 300; pl.y = 192; pl.facing = 1;
+        w.reset(); w.x = 370; w.hp = 10; w.rest = 99;
+        const ev = new Set(), emit = pl.emit; pl.emit = function (n, d) { ev.add(n); return emit.call(this, n, d); };
+        inp.setHeld('right', true);
+        inp.setHeld('jump', true); g.step(12); inp.setHeld('jump', false); g.step(1);
+        if (flip) { inp.setHeld('jump', true); g.step(40); inp.setHeld('jump', false); }
+        inp.pressed.add('attack'); g.step(1);
+        const state = pl.state;
+        for (let n = 0; n < 150 && !pl.onGround; n++) g.step(1);
+        g.step(30);
+        pl.emit = emit; inp.setHeld('right', false);
+        out.push({ state, hp: w.hp, flash: ev.has('blade_flash') });
+      }
+      g.resume();
+      return out;
+    });
+    expect(r[0].state === 'flip_attack' && r[0].hp === 6 && r[0].flash, `après un salto : ${JSON.stringify(r[0])}`);
+    expect(r[1].state === 'air_attack' && r[1].hp === 7 && !r[1].flash, `sans salto : ${JSON.stringify(r[1])}`);
+  });
+
   await test('sabre et shuriken en l\'air', async () => {
     await reset(300);
     await k.press('Space'); await wait(120); await k.press('KeyX'); await wait(30);

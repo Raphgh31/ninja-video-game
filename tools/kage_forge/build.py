@@ -229,6 +229,8 @@ def main():
             "dash": {"x": 10, "y": 15, "w": 13, "h": 16},   # un passage bas d'une case (16 px) se franchit au dash
             "air_attack": {"x": 18, "y": 0, "w": 22, "h": 32, "frames": [2, 3, 4],
                            "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"},
+            "flip_attack": {"x": 17, "y": -2, "w": 24, "h": 34, "frames": [4, 5, 6],
+                            "note": "coup du salto : le coup aérien après un salto, plus large (4 dégâts)"},
             "kick": {"x": 18, "y": 11, "w": 21, "h": 13, "frames": [1, 2],
                      "note": "coup de pied de côté (détente et impact)"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
@@ -266,6 +268,8 @@ def main():
             "strip": f"anims/kage_{k}.png",
             **({"release": {**a["release"], **dict(zip("xy", scale.point(a["release"]["x"], a["release"]["y"])))}}
                if "release" in a else {}),
+            **{key: {**a[key], **dict(zip("xy", scale.point(a[key]["x"], a[key]["y"])))}
+               for key in ("impact", "glint") if key in a},
             "frames": [{"x": c * sx, "y": r * sy, "w": CW, "h": CH,
                         "duration": a.get("durations", [ms] * len(rendered[k]))[c]}
                        for c in range(len(rendered[k]))],
