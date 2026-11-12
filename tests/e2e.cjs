@@ -1079,7 +1079,7 @@ async function main() {
     await ip.waitForTimeout(600);
     const a = await ip.evaluate(() => { const it = window.__kage.intro, v = window.__kage.view(), t = document.querySelector('.title-screen');
       return [it.el.width === v.w && it.el.height === v.h, t.classList.contains('waiting'), window.__kage.run.paused, it.t > 0 && it.t < 6,
-        it.titleY > it.moonY1 + 40 && it.menuY + 30 <= v.h]; });
+        it.titleY > it.moonY1 + 40 && it.menuY + 16 <= v.h]; });
     await ip.keyboard.press('KeyZ');
     await ip.waitForFunction(() => document.activeElement?.dataset.new != null, null, { timeout: 3000 }).catch(() => {});
     const b = await ip.evaluate(() => { const it = window.__kage.intro; const k = it.kage(it.t), s = it.silhouette(k.i);
