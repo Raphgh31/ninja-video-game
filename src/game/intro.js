@@ -31,24 +31,26 @@ const FONT = { font: 'title', spacing: 1.25 };
  * se fige, jambe tendue, au centre de la lune.
  */
 export const INTRO = {
-  letters: 0.8,      // première lettre
-  letterGap: 0.24,   // une lettre toutes les…
-  letterFade: 0.8,   // fondu d'une lettre
-  brush: 4.8,        // le coup de pinceau…
-  brushTime: 0.9,    // …tiré en
-  moon: 6.0,         // la lune commence à monter (ciel et montagnes apparus vers 10,1 s)
-  moonTime: 4.7,     // …et finit de monter
-  kage: 10.9,        // KAGE entre dans l'image…
-  kageTime: 1.1,     // …et arrive au centre de la lune : l'image se fige (12 s), sur la première note
-  menu: 12.5,        // le menu apparaît
+  // la musique part dès le geste ; son long son devient audible vers 1,2 s : le titre s'écrit alors,
+  // lentement, et les montagnes apparaissent juste avant qu'il soit fini, sur le même souffle
+  letters: 1.2,      // première lettre
+  letterGap: 0.36,   // une lettre toutes les…
+  letterFade: 1.0,   // fondu d'une lettre (la dernière est écrite à 6,9 s)
+  brush: 6.5,        // le coup de pinceau…
+  brushTime: 1.0,    // …tiré en
+  moon: 6.2,         // la lune commence à monter, juste avant la dernière lettre (ciel et montagnes apparus vers 9,2 s)
+  moonTime: 3.4,     // …et finit de monter
+  kage: 9.2,         // KAGE entre dans l'image…
+  kageTime: 1.1,     // …et arrive au centre de la lune : l'image se fige (10,3 s), sur la première note
+  menu: 10.8,        // le menu apparaît
   fadeOut: 1.6,      // l'intro s'efface sur le jeu
   cycleFade: 3,      // à la fin de la musique : fondu au noir et volume à zéro, puis tout recommence
   // la musique : note = attaque de la première vraie note, length = durée (secondes du fichier)
   music: { src: './music/intro.mp3', note: 10.3, length: 62.132 },
 };
 const FREEZE = INTRO.kage + INTRO.kageTime;
-const MUSIC_AT = FREEZE - INTRO.music.note;          // la musique part à 1,7 s
-const CYCLE = MUSIC_AT + INTRO.music.length;         // puis tout recommence (≈ 63,8 s)
+const MUSIC_AT = FREEZE - INTRO.music.note;          // la musique part avec l'intro (0 s)
+const CYCLE = MUSIC_AT + INTRO.music.length;         // puis tout recommence (≈ 62,1 s)
 
 // les couleurs de la nuit
 const SKY = ['#04060c', '#060a14', '#0a101f', '#0f182b', '#15203a'];
