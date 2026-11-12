@@ -1103,14 +1103,17 @@ async function main() {
     const ip3 = await ictx.newPage();
     await ip3.goto(PAGE); await ip3.waitForFunction(() => window.__kage && window.__kage.intro); await ip3.waitForTimeout(500);
     await ip3.evaluate(async () => { const it = window.__kage.intro; if (it.out) { it.stopVoice(0); await it.out.ac.suspend(); } it.gated = true; it.clock = null; });
-    await ip3.keyboard.press('KeyX');
+    // au clic : le bouton qui se pose ne la lance pas encore (pas partout permis pour le son), le bouton relâché si
+    await ip3.mouse.move(640, 300); await ip3.mouse.down(); await ip3.waitForTimeout(80);
+    const waited = await ip3.evaluate(() => window.__kage.intro.gated);
+    await ip3.mouse.up();
     const heard = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
     // l'intro déjà lancée sans musique (le premier geste n'a rien débloqué) : le geste suivant la relance
     await ip3.evaluate(async () => { const it = window.__kage.intro; it.stopVoice(0); await it.out.ac.suspend(); it.clock = null; });
     await ip3.keyboard.press('KeyX');
     const again = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
     await ictx.close();
-    expect(heard && again, `la musique de l'intro ne part pas (son débloqué par le geste : ${heard}, au geste suivant : ${again})`);
+    expect(waited && heard && again, `la musique de l'intro (attente au bouton posé : ${waited}, part au clic : ${heard}, au geste suivant : ${again})`);
     expect(e.join() === 'true,true,false,true,true', `jouée jusqu'au bout, puis en boucle ${e}`);
     expect(a.join() === 'true,true,true,true,true' && (g[0] || g[1] > 0) && b.join() === 'true,false,true,true,true' && c.join() === 'true,true,false' && d.join() === ',0',
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);

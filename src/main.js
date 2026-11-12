@@ -1175,20 +1175,26 @@ function placeIntro() {
   intro.resize(VIEW_W, VIEW_H);
   document.querySelector('.title-screen').style.setProperty('--menu-y', `${intro.menuY}px`);
 }
-/** Le premier geste lance l'intro et sa musique ; ensuite, une touche ou un toucher l'amène à sa fin. */
-function skipIntro() {
-  if (!intro || intro.closing) return;
-  if (intro.gated) { unlockAudio(); intro.begin(!isMuted()); return; }
-  if (!intro.menuShown) intro.skip();
+/**
+ * Les gestes pendant l'intro. Le premier la lance avec sa musique : seulement au clic complet, au doigt
+ * levé ou à une touche, les seuls gestes après lesquels tous les navigateurs permettent le son (le
+ * bouton ou le doigt qui se pose ne suffit pas partout : l'intro partait alors muette). Ensuite, une
+ * touche ou un toucher l'amène à sa fin ; et tant que sa musique n'est pas partie, chaque geste la
+ * relance (comme celle du jeu). Les clics du panneau de la version de test ne comptent pas.
+ */
+function introGesture(e) {
+  if (!intro || intro.closing || e.target?.closest?.('.lab')) return;
+  if (e.type !== 'keydown' && !stage.contains(e.target)) return;   // (souris et doigt : sur l'image du jeu seulement)
+  if (intro.gated) {
+    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(!isMuted()); intro.begunAt = performance.now(); }
+    return;
+  }
+  // (le geste qui vient de lancer l'intro ne la passe pas : une touche tenue, ou le clic qui suit le doigt levé)
+  const fresh = performance.now() - (intro.begunAt ?? 0) < 400;
+  if ((e.type === 'keydown' || e.type === 'pointerdown') && !fresh && !intro.menuShown) intro.skip();
+  if (!intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
 }
-addEventListener('keydown', skipIntro, true);
-stage.addEventListener('pointerdown', skipIntro);
-// tant que la musique de l'intro n'a pas démarré, chaque geste retente de la lancer (comme celle du jeu)
-for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) {
-  addEventListener(t, () => {
-    if (intro && !intro.closing && !intro.gated && !intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
-  }, { capture: true, passive: true });
-}
+for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(t, introGesture, { capture: true, passive: true });
 /** La partie commence : l'intro s'efface sur le jeu. */
 function endIntro() {
   const title = document.querySelector('.title-screen');
