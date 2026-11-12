@@ -16,7 +16,7 @@
 import { renderText, measure, FONTS } from '../engine/pixelfont.js';
 import { canvas, pick, noise2, ih, rgb, mixHex } from './potager/paint.js';
 import { paintFar, paintMid } from './potager/backdrop.js';
-import { musicOutput } from '../engine/sfx.js';
+import { audioOutput } from '../engine/sfx.js';
 import { bytesOf } from '../engine/bytes.js';
 import { MUSIC } from '../engine/music.js';
 
@@ -161,7 +161,8 @@ export class Intro {
     this.t = 0;
     this.last = 0;
     if (!sound) return;
-    const out = musicOutput();
+    // (le geste vient de demander la reprise du son : elle n'est pas encore faite, on l'attend)
+    const out = audioOutput();
     if (!out) return;
     if (out.ac.state !== 'running') await out.ac.resume().catch(() => {});
     const bytes = await this.bytes;

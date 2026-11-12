@@ -52,6 +52,15 @@ export function setMuted(m) {
   if (musicBus) musicBus.gain.setTargetAtTime(m ? 0 : 1, ac.currentTime, 0.05);
 }
 
+/**
+ * Contexte audio et sortie de la musique, même s'il n'est pas encore débloqué (null seulement sans
+ * Web Audio) : à reprendre (ac.resume) depuis un geste, et à attendre, avant de jouer.
+ */
+export function audioOutput() {
+  ensure();
+  return ac ? { ac, bus: musicBus } : null;
+}
+
 /** Contexte audio et sortie de la musique, une fois l'audio débloqué (sinon null). */
 export function musicOutput() {
   if (!ensure()) return null;

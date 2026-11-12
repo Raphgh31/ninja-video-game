@@ -1098,7 +1098,15 @@ async function main() {
       let faded = false;
       for (let i = 0; i < 52 * 60; i++) { it.update(1 / 60); if (it.fading && title.classList.contains('waiting')) faded = true; if (it.t < 1) break; }
       return [...r, faded, it.t < 1 && !it.menuShown && !it.gated]; });
+    // comme dans un artefact claude.ai : le son est encore suspendu au moment du geste qui lance l'intro
+    // (il ne se débloque qu'un instant après) ; la musique doit quand même partir
+    const ip3 = await ictx.newPage();
+    await ip3.goto(PAGE); await ip3.waitForFunction(() => window.__kage && window.__kage.intro); await ip3.waitForTimeout(500);
+    await ip3.evaluate(async () => { const it = window.__kage.intro; if (it.out) { it.stopVoice(0); await it.out.ac.suspend(); } it.gated = true; it.clock = null; });
+    await ip3.keyboard.press('KeyX');
+    const heard = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
     await ictx.close();
+    expect(heard, 'la musique de l\'intro ne part pas quand le son est débloqué par le geste lui-même');
     expect(e.join() === 'true,true,false,true,true', `jouée jusqu'au bout, puis en boucle ${e}`);
     expect(a.join() === 'true,true,true,true,true' && (g[0] || g[1] > 0) && b.join() === 'true,false,true,true,true' && c.join() === 'true,true,false' && d.join() === ',0',
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
