@@ -311,23 +311,37 @@ function build() {
   zone('06', 'Le torrent du bois ancien', { mood: 'sousbois' });
   x = b.x; ground(9, G6);
   lantern(x + 2, G6);
-  const log = (c0, c1, w = 2, speed = 12, start = 0) => F.logs.push({ x0: c0 * TILE, x1: c1 * TILE, y: G6 * TILE - 5, w: w * TILE, speed, start });
-  // premier bras : deux troncs lents
-  x = b.x; water(11, G6);
-  log(x + 1, x + 4, 2, 10, 0.2); log(x + 6, x + 9, 2, 12, 0.7);
+  // un rondin : il dérive entre les colonnes c0 et c1 (son bout gauche) ; w : longueur (cases), d : diamètre
+  // (px). Il flotte aux trois cinquièmes hors de l'eau : son dessus est d'autant plus haut que le rondin est gros
+  const log = (c0, c1, w, speed, start, d) => F.logs.push({ x0: c0 * TILE, x1: c1 * TILE, y: G6 * TILE + 3 - Math.round(d * 0.62), w: w * TILE, d, speed, start });
+  // des rochers dans le lit, au fond du courant : on ne s'y pose pas (pointus, battus d'écume)
+  const rapids = (cols) => { for (const [c, s] of cols) b.prop('river_rock', c, G6, { s }); };
+  // premier bras : deux rondins lents
+  x = b.x; water(12, G6);
+  log(x + 1, x + 5, 4, 10, 0.2, 13); log(x + 6, x + 8, 3, 12, 0.7, 11);
+  rapids([[x + 3, 1], [x + 10, 0]]);
   coin(x + 5, G6 - 3);
   x = b.x; ground(3, G6 - 1);                          // rocher
   b.prop('boulder', x, G6 - 1, { w: 3, wet: true });
-  // deuxième bras : trois troncs, celui du milieu remonte le courant (un ryō dessus)
+  // deuxième bras : trois rondins, celui du milieu remonte le courant (un ryō dessus)
   x = b.x; water(16, G6);
-  log(x + 1, x + 4, 2, 13, 0.5); log(x + 6, x + 10, 2, -16, 0.5); log(x + 12, x + 14, 2, 12, 0.1);
+  log(x + 1, x + 4, 4, 13, 0.5, 14); log(x + 6, x + 9, 5, -16, 0.5, 15); log(x + 11, x + 13, 3, 12, 0.1, 11);
+  rapids([[x + 2, 2], [x + 8, 1], [x + 14, 0]]);
   coin(x + 8, G6 - 3);
   x = b.x; ground(4, G6 - 1);                          // rocher du milieu : une lanterne
   b.prop('boulder', x, G6 - 1, { w: 4, wet: true });
   lantern(x + 1, G6 - 1);
-  // troisième bras : les troncs sont plus espacés, le dernier demande un dash
+  // troisième bras : plus large, les rondins s'espacent
+  x = b.x; water(18, G6);
+  log(x + 1, x + 3, 3, 12, 0.3, 12); log(x + 6, x + 9, 5, 14, 0.8, 16); log(x + 12, x + 14, 3, 10, 0.4, 10);
+  rapids([[x + 4, 0], [x + 11, 2], [x + 16, 1]]);
+  coins([x + 5, x + 11], G6 - 3);
+  x = b.x; ground(3, G6 - 1);                          // un dernier rocher pour souffler
+  b.prop('boulder', x, G6 - 1, { w: 3, wet: true });
+  // quatrième bras : le dernier rondin est loin de la rive (6 cases) : il faut le dash
   x = b.x; water(20, G6);
-  log(x + 1, x + 3, 2, 12, 0.3); log(x + 6, x + 8, 2, 14, 0.8); log(x + 11, x + 12, 2, 8, 0.4);
+  log(x + 1, x + 3, 4, 12, 0.3, 13); log(x + 6, x + 8, 3, 14, 0.8, 11); log(x + 10, x + 11, 3, 8, 0.4, 12);
+  rapids([[x + 5, 1], [x + 15, 2], [x + 18, 0]]);
   coins([x + 4, x + 9], G6 - 3); coin(x + 16, G6 - 3);
   x = b.x; ground(16, G6);
   coins([x + 3, x + 6], G6 - 2);

@@ -66,6 +66,13 @@ export class ForetProps {
           add('over', X - 8, Y - 6, p.w * TILE + 16, hpx + 12, (pix) => boulder(pix, X, Y, p.w * TILE, hpx, p.x, p.wet));
           break;
         }
+        case 'river_rock': {
+          // un rocher pointu dans le lit du torrent, derrière les rondins : le pied noyé (l'eau, dessinée
+          // devant, le cache), l'écume autour (live.js) ; on ne s'y pose pas
+          const h = [9, 13, 18][p.s ?? 1], w = [12, 16, 22][p.s ?? 1];
+          add('behind', X - w, Y - h - 4, 2 * w + 16, h + 26, (pix) => riverRock(pix, X + 8, Y + 6, w, h, p.x * 7 + (p.s ?? 1)));
+          break;
+        }
         case 'stump': {
           const base = regionGround(level, p.x, p.w, p.y), hpx = (base - p.y) * TILE;
           mask(p.x, p.w, p.y, base - 1);
@@ -369,6 +376,31 @@ function birch(pix, cx, base, h, seed) {
 }
 
 /** Rocher moussu qui remplit exactement son bloc (son dessus est à la hauteur des pieds de KAGE). */
+/**
+ * Un rocher du torrent (décor) : pointu, de biais, luisant d'eau ; base à cy (la ligne d'eau), w de large,
+ * h de haut au-dessus de l'eau ; plus bas, il continue sous l'eau (cachée devant lui).
+ */
+function riverRock(pix, cx, cy, w, h, seed) {
+  const S = ['#1a2328', '#25323a', '#33454f', '#4a5f69', '#6a808a', '#93a7ad', '#c9d8da'];
+  const lean = (ih(seed, 1, 71) - 0.5) * 0.6, peak = cx + Math.round(lean * w);
+  for (let y = cy - h; y < cy + 14; y++) {
+    const k = Math.min(1, (y - (cy - h)) / h);                          // 0 à la pointe, 1 à la ligne d'eau
+    const half = w * Math.pow(k, 0.7) * (1 + (noise1(y * 0.3, seed) - 0.5) * 0.35) + (y > cy ? (y - cy) * 0.4 : 0);
+    const c0 = peak + (cx - peak) * k;
+    for (let x = Math.floor(c0 - half); x <= Math.ceil(c0 + half); x++) {
+      const u = (x - (c0 - half)) / Math.max(1, 2 * half);             // 0 à gauche (lumière), 1 à droite
+      let v = 0.78 - u * 0.62 - k * 0.12 + (noise2(x * 0.3, y * 0.3, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.15, y * 0.4, seed + 1) - 0.5) < 0.035) v -= 0.3;   // fissures
+      let c = pick(S, v, x, y);
+      if (y > cy - 3 && y <= cy) c = S[1];                              // la ligne mouillée, sombre
+      if (u < 0.25 && k < 0.6 && ih(x, y, seed) < 0.12) c = S[6];       // l'eau qui luit
+      pix.set(x, y, c);
+    }
+  }
+  // un filet de mousse sur le côté abrité, des gouttes au pied
+  for (let y = cy - Math.round(h * 0.5); y < cy - 2; y++) if (ih(y, 2, seed) < 0.5) pix.set(Math.round(cx + w * 0.35 + (cx - peak) * 0.2), y, C.MOSS[2]);
+}
+
 function boulder(pix, X, Y, W, Hh, seed, wet) {
   const moss = wet ? [C.MOSS[0], C.MOSS[1], C.MOSS[2], C.MOSS[2], C.MOSS[3], C.MOSS[4], C.MOSS[4]] : C.MOSS;
   const ramp = wet ? ['#1a2830', '#26393f', '#34505a', '#486b72', '#62878b', '#88a9a6'] : C.ROCK;

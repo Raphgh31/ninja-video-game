@@ -23,20 +23,82 @@ function sprite(w, h, paint) {
   return p.done();
 }
 
-/** Tronc flottant : écorce en cylindre couché, coupe claire aux deux bouts. */
-function logSprite(w, seed) {
-  const h = 11;
-  return sprite(w, h, (p) => {
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const v0 = y / (h - 1), cyl = Math.sin(v0 * Math.PI);
-      let v = 0.18 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.08, y * 0.6, seed) - 0.5) * 0.25;
-      let c = Math.abs(fbm2(x * 0.03, y * 0.4, 2, seed) - 0.5) < 0.03 ? C.BARK[0] : pick(C.BARK, v, x, y);
-      if (y < 2 && fbm2(x * 0.15, 0, 2, seed + 1) > 0.55) c = C.MOSS[4 + (y === 0 ? 1 : 0)];
-      const e = Math.min(x, w - 1 - x);
-      if (e < 2) { const d = Math.abs(v0 - 0.5) * 2; c = d > 0.8 ? C.BARK[1] : (e === 0 ? '#d2b07a' : '#b08a58'); }
-      p.set(x, y, c);
+/**
+ * Rondin flottant (zone 6) : un vrai cylindre couché, chacun le sien. w : longueur, d : diamètre (px).
+ * Ombré comme un cylindre éclairé du haut à gauche (un reflet sur le dessus, le ventre sombre et mouillé),
+ * écorce fendue dans la longueur, des nœuds, de la mousse sur le dessus, un ou deux moignons de branches
+ * cassées ; un bout scié (la coupe ronde et ses cernes), l'autre cassé net en échardes ; il s'amincit vers
+ * un bout. Renvoie { img, ox, oy } : le dessus du rondin est à oy dans l'image, son début à ox.
+ */
+function logArt(w, d, seed) {
+  const OY = 8, OX = 4, H = d + OY + 2, W = w + 2 * OX;
+  const taper = (ih(seed, 1, 61) - 0.5) * 0.35;                         // un bout plus épais que l'autre
+  const cutLeft = ih(seed, 2, 61) < 0.5;                                 // le bout scié (l'autre est cassé)
+  const BARK = ['#1d120b', '#2c1b10', '#3d2516', '#54331d', '#6d4528', '#8a5a34', '#a8774a'];
+  const WOOD = ['#7a5432', '#a07446', '#c39a62', '#dcbc84', '#ecd5a4'];
+  const img = sprite(W, H, (p) => {
+    const dd = (x) => d * (1 + taper * (x / w - 0.5)) + (noise1(x * 0.09, seed) - 0.5) * 1.6;     // diamètre local (bosses)
+    const capW = Math.max(3, Math.round(d * 0.32));
+    for (let x = 0; x < w; x++) {
+      const D = dd(x), top = OY + (d - D) / 2;
+      const brokenEnd = (cutLeft ? w - 1 - x : x);                        // distance au bout cassé
+      for (let y = Math.floor(top); y < top + D; y++) {
+        const v = Math.max(0, Math.min(1, (y - top) / D));               // 0 dessus, 1 dessous
+        // le bout cassé : des échardes qui dépassent irrégulièrement
+        if (brokenEnd < 4 && brokenEnd < Math.floor(ih(y, seed, 62) * 5)) continue;
+        // ombrage du cylindre : clair un peu au-dessus de l'axe, reflet étroit, ventre sombre
+        // (la partie visible est le haut : le bord du dessus sombre, un reflet net juste dessous, puis
+        // l'écorce fonce en tournant vers l'eau)
+        let L = 0.95 - Math.abs(v - 0.2) * 1.7 - (v < 0.07 ? 0.4 : 0) + 0.28 * Math.exp(-(((v - 0.18) / 0.06) ** 2));
+        // l'écorce : des fentes dans la longueur (qui ondulent), des crêtes entre elles
+        const lane = v * D / 3 + (noise1(x * 0.06, seed + Math.floor(v * D / 3)) - 0.5) * 1.4;
+        const fis = Math.abs(lane - Math.round(lane)) < 0.16 && ih(Math.floor(x / 7), Math.round(lane), seed) < 0.8;
+        L += (noise2(x * 0.35, y * 0.7, seed) - 0.5) * 0.18 - (fis ? 0.32 : 0);
+        let c = pick(BARK, L, x, y);
+        // la mousse sur le dessus, par plaques
+        if (v < 0.22 && fbm2(x * 0.11, v * 3, 2, seed + 3) > 0.64 + v * 0.4) c = v < 0.08 ? C.MOSS[4] : pick(C.MOSS, 0.75 - v * 1.5, x, y);
+        // le ventre mouillé, bleui par l'eau
+        if (v > 0.78) c = pick(['#0f1a1c', '#1a2a2a', '#28393a'], 1.2 - v, x, y);
+        p.set(OX + x, y, c);
+      }
+    }
+    // des nœuds : un anneau sombre, un cœur plus clair
+    for (let k = 0; k < 1 + Math.floor(ih(seed, 3, 61) * 2); k++) {
+      const kx = Math.round(w * (0.25 + 0.5 * ih(seed, 4 + k, 61))), ky = Math.round(OY + d * (0.35 + 0.25 * ih(seed, 6 + k, 61)));
+      for (let y = -2; y <= 2; y++) for (let x = -3; x <= 3; x++) {
+        const r = Math.hypot(x / 3, y / 1.8);
+        if (r <= 1) p.set(OX + kx + x, ky + y, r > 0.65 ? BARK[0] : r > 0.35 ? BARK[3] : BARK[5]);
+      }
+    }
+    // le bout scié : la coupe ronde, ses cernes, l'écorce qui l'entoure
+    {
+      const x0 = cutLeft ? 0 : w - 1, D = dd(x0), top = OY + (d - D) / 2, cy = top + D / 2;
+      for (let y = Math.floor(top); y < top + D; y++) for (let x = -capW; x <= 0; x++) {
+        const r = Math.hypot(x / capW, (y + 0.5 - cy) / (D / 2));
+        if (r > 1) continue;
+        const ring = Math.floor(r * 5 + ih(Math.floor(r * 10), seed, 63) * 0.4);
+        const c = r > 0.85 ? BARK[1] : ring % 2 ? WOOD[1 + (r < 0.4 ? 1 : 0)] : WOOD[2 + (r < 0.5 ? 1 : 0)];
+        p.set(OX + (cutLeft ? x0 - x - capW : x0 + x + capW), y, (r < 0.12 ? WOOD[0] : c));
+      }
+    }
+    // un ou deux moignons de branches cassées, sur le dessus, dressés de biais
+    for (let k = 0; k < 1 + (ih(seed, 8, 61) < 0.45 ? 1 : 0); k++) {
+      const sx = Math.round(w * (0.3 + 0.45 * ih(seed, 9 + k, 61))), dir = ih(seed, 11 + k, 61) < 0.5 ? -1 : 1, len = 4 + Math.floor(ih(seed, 13 + k, 61) * 4);
+      for (let i = 0; i < len; i++) {
+        const x = OX + sx + Math.round(dir * i * 0.6), y = OY + 1 - i;
+        p.set(x, y, BARK[3]); p.set(x + 1, y, BARK[2]); if (i < 2) p.set(x - 1, y, BARK[4]);
+      }
+      const ex = OX + sx + Math.round(dir * (len - 1) * 0.6), ey = OY + 2 - len;
+      p.set(ex, ey, WOOD[3]); p.set(ex + 1, ey, WOOD[2]); p.set(ex + (dir > 0 ? 1 : 0), ey - 1, WOOD[4]);   // le bois clair de la cassure
+    }
+    // parfois, un champignon en console sur le flanc
+    if (ih(seed, 15, 61) < 0.4) {
+      const fx = OX + Math.round(w * (0.6 + 0.3 * ih(seed, 16, 61))), fy = OY + Math.round(d * 0.45);
+      for (let x = -3; x <= 2; x++) { p.set(fx + x, fy, '#d9c49a'); p.set(fx + x, fy + 1, '#a8885e'); }
+      p.set(fx - 2, fy - 1, '#efe2bf'); p.set(fx - 1, fy - 1, '#efe2bf');
     }
   });
+  return { img, ox: OX, oy: OY };
 }
 
 /** Planche du pont suspendu (16 × 7) : vieux bois patiné, mousse ; pourrie : sombre, fendue. */
@@ -160,7 +222,7 @@ export class ForetLive {
     this.zones = level.zones;
     const f = this.f;
     this.logImg = new Map();
-    for (const l of f?.logs ?? []) if (!this.logImg.has(l.w)) this.logImg.set(l.w, logSprite(l.w + 4, l.w));
+    (f?.logs ?? []).forEach((l, i) => this.logImg.set(l, logArt(l.w, l.d ?? 11, 17 + i * 37)));
     this.plank = f?.crumbles?.length ? plankSprite(f.crumbles[0].w) : null;
     this.slabs = (f?.spans ?? []).map((s, i) => slabSprite(s.w * TILE, 50 + i));
     const kill = this.killRow(f?.spans?.[0]?.x0 ?? 0, f?.spans?.[0]?.row ?? 0);
@@ -320,8 +382,9 @@ export class ForetLive {
     (f.snaps ?? []).forEach((q, i) => this.drawSnap(ctx, q, this.snapArt[i], cam, vw, vh, time));
     // troncs flottants (l'eau, dessinée devant, cache ce qui s'enfonce)
     for (const l of f.logs) {
-      if (!this.vis(l.x - 2, l.y, l.w + 4, 16, cam, vw, vh)) continue;
-      ctx.drawImage(this.logImg.get(l.w), R(l.x - 2 - cam.x), R(l.y - cam.y));
+      const A = this.logImg.get(l);
+      if (!A || !this.vis(l.x - A.ox, l.y - A.oy, A.img.width, A.img.height, cam, vw, vh)) continue;
+      ctx.drawImage(A.img, R(l.x - A.ox - cam.x), R(l.y - A.oy - cam.y));
     }
     // la statue
     const st = f.statue;
@@ -582,6 +645,52 @@ export class ForetLive {
       if (l.x + l.w < w.x || l.x > w.x + w.w) continue;
       ctx.fillStyle = C.WATER[5];
       for (let k = 0; k < 3; k++) ctx.fillRect(R(l.x - 3 - k * 3 - cam.x), y0 + (k % 2), 2, 1);
+    }
+    if (w.flow) this.torrent(ctx, w, x0, y0, cam, time);
+  }
+
+  /**
+   * La vie du torrent : l'écume qui bat le pied des rochers et leur sillage vers l'aval, des embruns qui
+   * jaillissent, des brindilles et des feuilles emportées par le courant.
+   */
+  torrent(ctx, w, x0, y0, cam, time) {
+    this.riverRocks ??= this.level.props.filter((p) => p.type === 'river_rock').map((p) => ({ x: p.x * TILE + 8, w: [12, 16, 22][p.s ?? 1], s: p.s ?? 1 }));
+    const FOAM = ['#ffffff', '#e4f7f5', '#bfe8e6'];
+    for (const r of this.riverRocks) {
+      if (r.x + r.w + 40 < w.x || r.x - r.w > w.x + w.w) continue;
+      const sx = R(r.x - cam.x);
+      // le bourrelet d'écume contre le rocher, qui palpite
+      for (let dx = -r.w - 2; dx <= r.w + 4; dx++) {
+        const k = Math.abs(dx) / (r.w + 3), on = Math.sin(time * 9 + dx * 1.3 + r.x) > k * 1.4 - 0.6;
+        if (!on) continue;
+        ctx.fillStyle = FOAM[k > 0.8 ? 2 : k > 0.5 ? 1 : 0];
+        ctx.fillRect(sx + dx, y0 - (Math.abs(dx) < r.w * 0.6 && Math.sin(time * 13 + dx) > 0.3 ? 1 : 0), 1, 1);
+      }
+      // le sillage : deux traînées d'écume qui s'écartent vers l'aval
+      for (let i = 0; i < 18 + r.s * 6; i++) {
+        const t = ((time * 1.6 + i * 0.13 + r.x * 0.01) % 1), dx = r.w + 3 + t * (34 + r.s * 10), spread = Math.round(t * 3);
+        if (ih(i, 3, r.x) < t * 0.8) continue;
+        ctx.fillStyle = FOAM[1 + (t > 0.5 ? 1 : 0)];
+        ctx.fillRect(sx + R(dx), y0 + 1 + spread * (i % 2), 2, 1);
+      }
+      // des embruns : quelques gouttes jaillissent et retombent
+      for (let i = 0; i < 2 + r.s; i++) {
+        const t = (time * 1.1 + i * 0.37 + r.x * 0.003) % 1.3;
+        if (t > 0.6) continue;
+        const gx = sx - r.w * 0.6 + (ih(i, Math.floor(time * 1.1 + i * 0.37), r.x) - 0.3) * r.w * 1.4, gy = y0 - 2 - (t * 18 - t * t * 30) * (1 + r.s * 0.4);
+        ctx.fillStyle = FOAM[i % 2];
+        ctx.fillRect(R(gx + t * 6), R(gy), 1, 1);
+      }
+    }
+    // ce que le courant emporte : brindilles, feuilles, une écorce (on ne s'y pose pas : elles passent)
+    const n = Math.max(2, Math.floor(w.w / 90));
+    for (let i = 0; i < n; i++) {
+      const sp = 30 + ih(i, 1, w.x) * 18, px = ((ih(i, 2, w.x) * w.w + time * sp) % (w.w + 40)) - 20;
+      if (px < 0 || px > w.w) continue;
+      const x = x0 + R(px), y = y0 + 1 + Math.round(Math.sin(time * 3 + i) * 0.6), kind = Math.floor(ih(i, 3, w.x) * 3);
+      if (kind === 0) { ctx.fillStyle = '#4a2f1c'; ctx.fillRect(x, y, 6, 1); ctx.fillStyle = '#6d4528'; ctx.fillRect(x + 1, y - 1, 2, 1); ctx.fillRect(x + 4, y + 1, 2, 1); }
+      else if (kind === 1) { ctx.fillStyle = C.LEAF[3]; ctx.fillRect(x, y, 3, 1); ctx.fillStyle = C.LEAF[5]; ctx.fillRect(x + 1, y - 1, 1, 1); }
+      else { ctx.fillStyle = '#c98a4a'; ctx.fillRect(x, y, 2, 1); ctx.fillStyle = '#e0b060'; ctx.fillRect(x + 1, y - 1, 1, 1); }
     }
   }
 

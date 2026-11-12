@@ -56,7 +56,7 @@ export class Forest {
     }
     this.crumbles = def.crumbles.map((c) => ({ kind: 'crumble', x: c.x, y: c.y, y0: c.y, w: c.w, state: 'idle', t: 0, active: true, dx: 0, dy: 0, load: false, vy: 0 }));
     this.logs = def.logs.map((l) => ({
-      kind: 'log', x0: l.x0, x1: l.x1, w: l.w, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
+      kind: 'log', x0: l.x0, x1: l.x1, w: l.w, d: l.d ?? 11, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
       x: l.x0 + (l.x1 - l.x0) * (l.start ?? 0), y: l.y, y0: l.y, sink: 0, active: true, dx: 0, dy: 0, load: false, phase: l.x0 * 0.07,
     }));
     // le pont suspendu : des planches espacées, centrées entre les deux troncs ; les pourries lâchent sous le pied
