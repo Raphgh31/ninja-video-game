@@ -583,6 +583,16 @@ export class Level {
     return false;
   }
 
+  /** L'eau (bassins, canaux, torrent, fonds des grands trous) : on y tombe dès qu'on y met les pieds. */
+  hitsWater(box) {
+    const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);
+    const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      if (this.at(tx, ty) === '~' && box.y + box.h > ty * TILE + 4) return true;
+    }
+    return false;
+  }
+
   /** Les pics ne tuent que dans leur moitié basse (plus juste pour le joueur). */
   hitsSpike(box) {
     const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);

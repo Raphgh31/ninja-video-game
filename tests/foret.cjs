@@ -102,8 +102,9 @@ async function main() {
       bot.place(Math.floor(g.x1 / 16) - 2); g.x = g.x1; g.speed = 0;
       const p = bot.p; p.x = g.x + g.w - 6; p.y = g.y; p.vy = 0; __kage.step(2);
       const hp = p.hp;
-      bot.run(1.5, (pp) => { bot.set({ right: true, sprint: true }); if (pp.onGround && pp.ride) bot.tap('jump'); return pp.hp < hp || (pp.onGround && !pp.ride && pp.x > g.x + g.w + 8); });
-      return [p.hp < hp, Math.floor(p.x / 16)];
+      // (l'eau est mortelle : la chute s'y termine)
+      bot.run(1.5, (pp) => { bot.set({ right: true, sprint: true }); if (pp.onGround && pp.ride) bot.tap('jump'); return pp.state === 'death' || (pp.onGround && !pp.ride && pp.x > g.x + g.w + 8); });
+      return [p.state === 'death', Math.floor(p.x / 16)];
     });
     expect(r[0], JSON.stringify(r));
   });
@@ -164,13 +165,36 @@ async function main() {
     expect(r[0] && r[1] > 1 && r[2] === 'fall' && r[3] === 'gone' && !r[4], JSON.stringify(r));
   });
 
+  await test('zone 7 : planches espacées — on court sur le pont entier, mais le trou d\'une planche tombée ne se passe qu\'en sautant', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, B = f.bridges[0];
+      const fresh = () => { for (const q of B.planks) { q.state = 'idle'; q.active = true; q.t = 0; q.vy = 0; q.rotten = false; } B.amp = 0; B.dipX = null; };
+      // KAGE posé sur la planche i, puis sprint vers la droite (jump : sauter juste avant le trou)
+      const cross = (i, jumpAt) => {
+        const p0 = B.planks[i]; bot.place(Math.floor(B.x0 / 16) - 1, 8); bot.clear();
+        const pl = bot.p; pl.x = p0.x + p0.w / 2; pl.y = p0.y - 2; pl.vy = 0; pl.onGround = false; pl.fallFrom = pl.y; __kage.step(4);
+        let jumped = false;
+        bot.run(3, (q) => { bot.set({ right: true, sprint: true }); if (jumpAt != null && !jumped && q.onGround && q.x > jumpAt) { bot.tap('jump'); jumped = true; } return q.state === 'death' || q.x > B.x1 + 24; });
+        return bot.p.state === 'death' ? 'mort' : bot.p.x > B.x1 + 24 ? 'passé' : 'arrêté';
+      };
+      fresh(); const whole = cross(0);
+      fresh(); const hole = B.planks[6]; hole.state = 'gone'; hole.active = false;
+      const sprint = cross(2);
+      fresh(); hole.state = 'gone'; hole.active = false;
+      const jump = cross(2, hole.x - 18);
+      fresh();
+      return [B.planks.length, B.planks[1].x - (B.planks[0].x + B.planks[0].w), whole, sprint, jump];
+    });
+    expect(r[1] <= 6 && r[2] === 'passé' && r[3] === 'mort' && r[4] === 'passé', JSON.stringify(r));
+  });
+
   await test('zone 7 : au sol, de l\'eau entre les îlots des lianes : on ne traverse pas la canopée par en bas', async () => {
     const r = await ev(() => {
       const l = __kage.level, z = l.zones[6]; let water = 0;
       for (let c = z.x0 + 8; c < z.x1 - 10; c++) if (l.at(c, 22) === '~') water++;
       bot.place(z.x0 + 2, 22); const hp = bot.p.hp;
-      bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.hp < hp || p.x > (z.x0 + 60) * 16 });
-      return [water, bot.p.hp < hp, bot.col(), z.x0 + 60];
+      bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.state === 'death' || p.hp < hp || p.x > (z.x0 + 60) * 16 });
+      return [water, bot.p.state === 'death' || bot.p.hp < hp, bot.col(), z.x0 + 60];
     });
     expect(r[0] > 20 && r[1] && r[2] < r[3], JSON.stringify(r));
   });

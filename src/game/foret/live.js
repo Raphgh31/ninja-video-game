@@ -40,12 +40,12 @@ function logSprite(w, seed) {
 }
 
 /** Planche du pont suspendu (16 × 7) : vieux bois patiné, mousse ; pourrie : sombre, fendue. */
-function bridgePlank(seed, rotten) {
-  return sprite(16, 12, (p) => {
+function bridgePlank(seed, rotten, W = 16) {
+  return sprite(W, 12, (p) => {
     const ramp = rotten ? C.ROT : ['#3a2616', '#563a22', '#74522f', '#93703f', '#b08e58'];
-    for (let y = 0; y < 6; y++) for (let x = 0; x < 16; x++) {
-      if ((x === 0 || x === 15) && ih(y, seed, 3) < 0.4) continue;              // bouts irréguliers
-      let v = 0.62 - y * 0.09 + (noise2(x * 0.18 + seed, y * 0.9, seed) - 0.5) * 0.35 - (x > 13 ? 0.12 : 0);
+    for (let y = 0; y < 6; y++) for (let x = 0; x < W; x++) {
+      if ((x === 0 || x === W - 1) && ih(y, seed, 3) < 0.4) continue;              // bouts irréguliers
+      let v = 0.62 - y * 0.09 + (noise2(x * 0.18 + seed, y * 0.9, seed) - 0.5) * 0.35 - (x > W - 3 ? 0.12 : 0);
       if (rotten && Math.abs(x - 6 - (seed % 4)) < 1 && y > 0) { p.set(x, y, ramp[0]); continue; }   // la fente
       let c = pick(ramp, v, x, y);
       if (y === 0) c = ih(x, seed, 4) < (rotten ? 0.7 : 0.45) ? (ih(x, seed, 5) < 0.5 ? C.MOSS[4] : C.MOSS[3]) : ramp[4];
@@ -53,8 +53,8 @@ function bridgePlank(seed, rotten) {
       p.set(x, y, c);
     }
     // les clous, et des franges de mousse qui pendent sous la planche
-    p.set(2, 2, '#2a2420'); p.set(13, 2, '#2a2420');
-    for (let x = 1; x < 15; x += 2) if (ih(x, seed, 6) < (rotten ? 0.5 : 0.3)) for (let q = 0; q < 1 + Math.floor(ih(x, seed, 7) * 5); q++) p.set(x, 6 + q, q ? C.MOSS[1] : C.MOSS[2]);
+    p.set(2, 2, '#2a2420'); p.set(W - 3, 2, '#2a2420');
+    for (let x = 1; x < W - 1; x += 2) if (ih(x, seed, 6) < (rotten ? 0.5 : 0.3)) for (let q = 0; q < 1 + Math.floor(ih(x, seed, 7) * 5); q++) p.set(x, 6 + q, q ? C.MOSS[1] : C.MOSS[2]);
   });
 }
 
@@ -167,8 +167,9 @@ export class ForetLive {
     this.colH = f?.spans?.length ? (kill - f.spans[0].row + 3) * TILE : 0;
     this.columns = (f?.spans ?? []).map((s, i) => columnSprite(Math.round(s.w * TILE * 0.5), this.colH, 70 + i));
     this.ivy = ivySprite();
-    this.planks = [0, 1, 2, 3, 4, 5].map((k) => bridgePlank(k * 7 + 3, false));
-    this.rottenPlanks = [0, 1].map((k) => bridgePlank(k * 11 + 5, true));
+    const PW = FOREST.bridge.plankW;
+    this.planks = [0, 1, 2, 3, 4, 5].map((k) => bridgePlank(k * 7 + 3, false, PW));
+    this.rottenPlanks = [0, 1].map((k) => bridgePlank(k * 11 + 5, true, PW));
     this.chestImg = level.chests?.length ? [0, 1, 2].map((st) => chestSprite(st, Brush, canvas)) : null;
     this.rocks = [7, 9, 11, 8, 10, 6].map((r, i) => boulderFrames(r, 300 + i));
     this.statueArt = null;
@@ -404,7 +405,7 @@ export class ForetLive {
     rope((x) => rail(x, 2), 2, 1);
     for (const p of B.planks) {
       if (!p.active) continue;
-      const cx = p.x + 8;
+      const cx = p.x + p.w / 2;
       for (const [k, dx, col] of [[2, -6, ROPE[1]], [0, 6, ROPE[2]]]) {
         const x = R(cx + dx - cam.x), y0 = R(rail(cx + dx, k) - cam.y), y1 = R(p.y - cam.y);
         ctx.fillStyle = col; ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));

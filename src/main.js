@@ -276,6 +276,7 @@ player.onEvent = (n, d) => {
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
+    case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
     case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls; break;
     case 'respawn': sfx('respawn'); break;
     default:

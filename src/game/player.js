@@ -570,6 +570,10 @@ export class Player {
 
     if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
       this.die();
+    } else if (this.level.hitsWater?.(this.box())) {
+      // l'eau est mortelle dans tout le jeu (demande de l'utilisateur, novembre 2026) : retour à la lanterne
+      this.emit('drown', { x: this.x, y: this.y });
+      this.die();
     } else if (this.level.hitsSpike(this.box()) && this.y - this.fallFrom > P.fallLimit) {
       // tombé de trop haut dans l'eau (ou sur des pics) : la chute est mortelle, comme sur le sol
       this.emit('fall_death', { x: this.x, y: this.y, height: this.y - this.fallFrom });

@@ -12,8 +12,8 @@ P.z2 = () => { const z = __kage.level.zones; bot.place(z[1].x0 + 2); const log =
   return ['z2', log, bot.col(), z[2].x0]; };
 var Z = (i) => __kage.level.zones[i - 1];
 // zone 3 : sans dash on tombe à l'eau ; avec dash on traverse toute la zone
-P.z3nodash = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; bot.runner(6, { until: (p) => p.hp < hp0 || p.x > (Z(3).x0 + 16) * 16 }); return ['z3 sans dash', bot.p.hp < hp0, bot.col()]; };
-P.z3 = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; const lost = []; let hp = hp0; const t = bot.runner(60, { dashGap: 5, rest: true, until: (p) => { if (p.hp < hp) { lost.push(bot.col()); hp = p.hp; } return p.x > Z(4).x0 * 16 + 30; } }); return ['z3', t, lost, bot.col(), Z(4).x0]; };
+P.z3nodash = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; bot.runner(6, { until: (p) => p.state === 'death' || p.hp < hp0 || p.x > (Z(3).x0 + 16) * 16 }); return ['z3 sans dash', bot.p.state === 'death' || bot.p.hp < hp0, bot.col()]; };
+P.z3 = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; const lost = []; let hp = hp0; const t = bot.runner(60, { dashGap: 5, rest: true, until: (p) => { if (p.hp < hp || p.state === 'death') { lost.push(bot.col()); hp = p.hp; return p.state === 'death'; } return p.x > Z(4).x0 * 16 + 30; } }); return ['z3', t, lost, bot.col(), Z(4).x0]; };
 // zone 4 : en courant seulement on meurt ; avec sprint et dash on passe
 P.z4run = () => { const c = __kage.level.forest.collapse; bot.place(Math.floor(c.respawnX / 16)); const t = bot.runner(20, { dashGap: 6, until: (p) => p.x > Z(5).x0 * 16 }); return ['z4 course seule', t, bot.dead(), bot.col(), Z(5).x0]; };
 P.z4 = () => { const c = __kage.level.forest.collapse; bot.place(Math.floor(c.respawnX / 16)); const x1 = c.trigger + 15 * 16; const t = bot.runner(20, { dashGap: 6, sprint: (p) => p.x > x1, until: (p) => p.x > Z(5).x0 * 16 }); return ['z4', t, bot.dead(), bot.col(), Z(5).x0, Math.round(bot.p.energy.value * 100)]; };

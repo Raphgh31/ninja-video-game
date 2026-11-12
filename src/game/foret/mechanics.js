@@ -15,7 +15,9 @@ export const FOREST = {
   collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
   crumble: { hold: 0.7, back: 2.6 },
   snap: { hold: 0.38, hinge: 0.16 },   // la branche qui rompt (zone 7) : elle tient 0,38 s, pivote 0,16 s à sa jointure, puis tombe
-  bridge: { rotten: [4, 8, 12, 16], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
+  // planches de 18 px séparées de 6 px : les jours se marchent sans tomber, mais une planche tombée laisse
+  // un trou de 30 px qu'aucun sprint ne passe sans sauter (une planche ne rattrape KAGE qu'à 9 px sous elle)
+  bridge: { plankW: 18, plankGap: 6, rotten: [2, 5, 8, 10], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
   vine: {
     g: 980,            // pesanteur du balancier
@@ -57,11 +59,13 @@ export class Forest {
       kind: 'log', x0: l.x0, x1: l.x1, w: l.w, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
       x: l.x0 + (l.x1 - l.x0) * (l.start ?? 0), y: l.y, y0: l.y, sink: 0, active: true, dx: 0, dy: 0, load: false, phase: l.x0 * 0.07,
     }));
-    // le pont suspendu : une planche par case ; les planches pourries lâchent sous le pied
+    // le pont suspendu : des planches espacées, centrées entre les deux troncs ; les pourries lâchent sous le pied
     this.bridges = (def.bridges ?? []).map((br) => {
       const B = { ...br, amp: 0, t: 0, dipX: null, loaded: false, planks: [] };
-      for (let x = br.x0, i = 0; x < br.x1; x += TILE, i++) {
-        B.planks.push({ kind: 'plank', bridge: B, i, x, w: TILE, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
+      const { plankW: w, plankGap: g } = FOREST.bridge, n = Math.floor((br.x1 - br.x0 + g) / (w + g));
+      const x0 = br.x0 + Math.floor((br.x1 - br.x0 - (n * (w + g) - g)) / 2);
+      for (let i = 0; i < n; i++) {
+        B.planks.push({ kind: 'plank', bridge: B, i, x: x0 + i * (w + g), w, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
       }
       return B;
     });
@@ -93,7 +97,7 @@ export class Forest {
     for (const c of this.crumbles) { c.state = 'idle'; c.t = 0; c.y = c.y0; c.vy = 0; c.active = true; }
     for (const q of this.snaps) Object.assign(q, { state: 'idle', t: 0, y: q.y0, active: true, ang: 0, fx: 0, fy: 0, vx: 0, vy: 0 });   // la branche revient
     for (const l of this.logs) { l.sink = 0; l.y = l.y0; }
-    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
+    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + p.w / 2); } }
     for (const v of this.vines) v.rider = null;
     if (this.slide) {
       const S = this.slide;
@@ -238,13 +242,13 @@ export class Forest {
           continue;
         }
         if (p.state === 'gone') continue;
-        if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + 8, y: p.y }); }
+        if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + p.w / 2, y: p.y }); }
         if (p.state === 'shake') {
           p.t += dt;
-          if (p.t >= W.hold) { p.state = 'fall'; p.t = 0; p.active = false; p.vy = 30; this.emit('plankFall', { x: p.x + 8, y: p.y }); continue; }
+          if (p.t >= W.hold) { p.state = 'fall'; p.t = 0; p.active = false; p.vy = 30; this.emit('plankFall', { x: p.x + p.w / 2, y: p.y }); continue; }
         }
         if (p.state === 'grow') { p.t += dt; if (p.t >= 0.4) p.state = 'idle'; }
-        const ny = this.deckY(B, p.x + 8);
+        const ny = this.deckY(B, p.x + p.w / 2);
         p.dy = ny - p.y; p.y = ny;
       }
     }
