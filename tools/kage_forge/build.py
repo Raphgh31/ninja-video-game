@@ -18,6 +18,7 @@ from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 from accessories import dress, find_head  # noqa: E402
 import scale  # noqa: E402
 import flip  # noqa: E402
+import intro_kick  # noqa: E402
 
 # toutes les animations : celles posées dans art.py, et les saltos (flip.py, calculés en grand)
 ALL = {**ANIMS, **flip.ANIMS}
@@ -97,6 +98,8 @@ def main():
         problems += qa(k, g)
     for k, g in views.items():
         problems += qa("view_" + k, [g])
+    intro = [render(f) for f in intro_kick.INTRO_KICK]   # coup de pied sauté de l'introduction
+    problems += qa("intro_kick", intro)
     if problems:
         print("\n".join(problems))
         raise SystemExit("Contrôle qualité : échec")
@@ -184,6 +187,13 @@ def main():
         im.save(OUT / "views" / f"kage_view_{k}.png")
     vs.save(OUT / "kage_views.png")
 
+    # coup de pied sauté de l'introduction (intro_kick.py) : une bande à part, hors des animations du jeu
+    ik = [scale.big(g) for g in intro]
+    istrip = Image.new("RGBA", (len(ik) * sx - SPACING, CH), (0, 0, 0, 0))
+    for i, g in enumerate(ik):
+        istrip.paste(to_rgba(g, ref), (i * sx, 0))
+    istrip.save(OUT / "kage_intro_kick.png")
+
     # projectile : shuriken (cellules 12x12, contour auto, partie enfoncée coupée)
     SC = 12
     proj = {}
@@ -241,6 +251,8 @@ def main():
         "animations": {},
         "views": {k: {"x": i * sx, "y": 0, "w": CW, "h": CH, "image": "kage_views.png"}
                   for i, k in enumerate(vorder)},
+        "intro": {"image": "kage_intro_kick.png", "frames": len(ik), "step": sx, "hold": intro_kick.HOLD,
+                  "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"},
         "skins": sorted(skins),
         "accessorySheets": acc_sheets,
         "projectiles": {

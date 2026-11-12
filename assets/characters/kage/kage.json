@@ -1500,6 +1500,13 @@
       "image": "kage_views.png"
     }
   },
+  "intro": {
+    "image": "kage_intro_kick.png",
+    "frames": 3,
+    "step": 59,
+    "hold": 2,
+    "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"
+  },
   "skins": [
     "encre",
     "vagabond"

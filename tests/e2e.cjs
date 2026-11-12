@@ -1050,29 +1050,30 @@ async function main() {
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 
-  await test('introduction : l\'encre, la lune, KAGE sur son sommet ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
+  await test('introduction : l\'encre, la lune, KAGE figé au centre de la lune ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
     const ictx = await rawNewContext({ viewport: { width: 1280, height: 720 } }), ip = await ictx.newPage();
     await ip.goto(PAGE); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
     await ip.evaluate(() => localStorage.clear()); await ip.reload(); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
     await ip.waitForTimeout(600);
     const a = await ip.evaluate(() => { const it = window.__kage.intro, v = window.__kage.view(), t = document.querySelector('.title-screen');
       return [it.el.width === v.w && it.el.height === v.h, t.classList.contains('waiting'), window.__kage.run.paused, it.t > 0 && it.t < 6,
-        it.peak.x > it.moonX && it.peak.y > 0 && it.titleY > it.moonY1 && it.menuY + 30 <= v.h]; });
+        it.titleY > it.moonY1 + 40 && it.menuY + 30 <= v.h]; });
     await ip.keyboard.press('KeyZ');
     await ip.waitForFunction(() => document.activeElement?.dataset.new != null, null, { timeout: 3000 }).catch(() => {});
-    const b = await ip.evaluate(() => { const it = window.__kage.intro; return [it.menuShown, document.querySelector('.title-screen').classList.contains('waiting'), it.kage(it.t)?.name, document.activeElement?.dataset.new != null]; });
+    const b = await ip.evaluate(() => { const it = window.__kage.intro; const k = it.kage(it.t), s = it.silhouette(k.i);
+      return [it.menuShown, document.querySelector('.title-screen').classList.contains('waiting'), k.i === window.__kage.intro.meta.intro.hold, document.activeElement?.dataset.new != null, Math.abs(k.x + s.cx - it.moonX) <= 1 && Math.abs(k.y + s.cy - it.moonY1) <= 1]; });
     await ip.click('[data-new]'); await ip.waitForTimeout(400);
     const c = await ip.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.intro?.el.classList.contains('out'), window.__kage.run.paused]);
     await ip.waitForTimeout(1600);
     const d = await ip.evaluate(() => [window.__kage.intro, document.querySelectorAll('.intro').length]);
-    // jouée jusqu'au bout (en accéléré, par la boucle de l'intro elle-même) : le menu arrive, KAGE attend sur son sommet
+    // jouée jusqu'au bout (en accéléré, par la boucle de l'intro elle-même) : le menu arrive, KAGE est figé en coup de pied
     const ip2 = await ictx.newPage();
     await ip2.goto(PAGE); await ip2.waitForFunction(() => window.__kage && window.__kage.intro);
     const e = await ip2.evaluate(() => { const it = window.__kage.intro; it.stop(); for (let i = 0; i < 16 * 60; i++) { it.update(1 / 60); it.draw(); }
-      return [it.menuShown, it.anim.name, document.querySelector('.title-screen').classList.contains('waiting')]; });
+      return [it.menuShown, it.kage(it.t).i === it.meta.intro.hold, document.querySelector('.title-screen').classList.contains('waiting')]; });
     await ictx.close();
-    expect(e.join() === 'true,idle,false', `jouée jusqu'au bout ${e}`);
-    expect(a.join() === 'true,true,true,true,true' && b.join() === 'true,false,idle,true' && c.join() === 'true,true,false' && d.join() === ',0',
+    expect(e.join() === 'true,true,false', `jouée jusqu'au bout ${e}`);
+    expect(a.join() === 'true,true,true,true,true' && b.join() === 'true,false,true,true,true' && c.join() === 'true,true,false' && d.join() === ',0',
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
 

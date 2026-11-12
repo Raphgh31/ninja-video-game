@@ -1131,10 +1131,12 @@ function startChapter(resume) {
 }
 
 /** Introduction au lancement : l'encre, la lune, KAGE ; puis le menu (les boutons de l'écran titre). */
-function playIntro() {
+let introKick = null;   // le coup de pied sauté de l'intro (kage_intro_kick.png, généré par tools/kage_forge/intro_kick.py)
+async function playIntro() {
+  introKick ??= await loadImage(`./characters/kage/${meta.intro.image}`);
   const title = document.querySelector('.title-screen');
   if (intro) { intro.stop(); intro.el.remove(); }
-  intro = new Intro(meta, look.sheet, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null);
+  intro = new Intro(meta, introKick, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null);
   uiLayer.append(intro.el);
   placeIntro();
   title.hidden = false;
