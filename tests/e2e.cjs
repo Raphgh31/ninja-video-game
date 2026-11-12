@@ -116,10 +116,14 @@ async function main() {
   });
 
   await test('salto au 2e appui sur saut : avant, arrière (← tenue) ; un saut simple n\'en fait pas', async () => {
-    const jumpWith = async (key, second) => {
+    // inAir : la direction n'est tenue qu'une fois en l'air (sinon, tenue au sol, KAGE se retournerait
+    // avant de décoller et le salto serait, à juste titre, un salto avant)
+    const jumpWith = async (key, second, inAir = false) => {
       await reset(); await ev(() => { window.__kage.player.facing = 1; });
-      if (key) await k.down(key);
-      await k.down('Space'); await wait(120); await k.up('Space');
+      if (key && !inAir) await k.down(key);
+      await k.down('Space'); await wait(60);
+      if (key && inAir) await k.down(key);
+      await wait(60); await k.up('Space');
       if (second) { await k.down('Space'); await wait(40); await k.up('Space'); }
       const seen = new Set(), frames = new Set(), facing = new Set();
       let y0 = null, top = 0;
@@ -132,7 +136,7 @@ async function main() {
       if (key) await k.up(key);
       return { seen: [...seen], frames: [...frames].sort((a, b) => a - b), facing: [...facing], top: Math.round(top) };
     };
-    const av = await jumpWith('ArrowRight', true), ar = await jumpWith('ArrowLeft', true), dr = await jumpWith('ArrowRight', false);
+    const av = await jumpWith('ArrowRight', true), ar = await jumpWith('ArrowLeft', true, true), dr = await jumpWith('ArrowRight', false);
     expect(av.seen.includes('flip') && av.frames.includes(5) && av.frames.includes(10), `avant : ${JSON.stringify(av)}`);
     expect(ar.seen.includes('backflip') && ar.facing.join() === '1' && ar.frames.includes(5), `arrière (KAGE garde son orientation) : ${JSON.stringify(ar)}`);
     expect(dr.seen.includes('jump') && !dr.seen.includes('flip') && !dr.seen.includes('backflip'), `saut simple en courant : ${dr.seen.join(',')}`);
