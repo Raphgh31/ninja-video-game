@@ -269,7 +269,7 @@ export class Intro {
     for (let y = 0; y < box.height; y++) for (let xx = 0; xx < box.width; xx++) if (d[(y * box.width + xx) * 4 + 3]) bottom = y;
     this.lineY = this.titleY + bottom + 10;
     this.brush = brushPixels(Math.round(this.titleW / 2) - 14);
-    this.menuY = this.lineY + 9;
+    this.menuY = this.lineY + 15;   // de l'air entre le trait et le menu
     // la lune : monte derrière la chaîne, jusqu'au quart de l'image
     // au-dessus d'un col (là où les crêtes sont les plus basses), et assez haut pour que KAGE, figé
     // en son centre, se découpe tout entier sur le disque clair (jamais devant une montagne)
