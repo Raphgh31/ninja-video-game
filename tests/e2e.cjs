@@ -426,15 +426,24 @@ async function main() {
     expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
   });
 
-  await test('tactile : deuxième appui sur le bouton saut = salto', async () => {
-    await mReset(); await m.evaluate(() => { window.__kage.player.facing = 1; }); await m.waitForTimeout(250);
-    await T('touchStart', [[788, 330, 2]]); await m.waitForTimeout(120); await T('touchEnd', []);
-    await m.waitForTimeout(40);
-    await T('touchStart', [[788, 330, 3]]); await m.waitForTimeout(40); await T('touchEnd', []);
-    const seen = new Set();
-    for (let i = 0; i < 12; i++) { seen.add(await mState()); await m.waitForTimeout(30); }
-    await m.waitForTimeout(600);
-    expect(seen.has('flip'), `états vus : ${[...seen].join(', ')}`);
+  await test('tactile : en l\'air, coup de joystick rapide gardé au bout = salto (avant / arrière), pas de dash ; le 2e appui sur saut n\'en fait plus', async () => {
+    const tryIt = async (gesture) => {
+      await mReset(); await m.evaluate(() => { window.__kage.player.facing = 1; }); await m.waitForTimeout(250);
+      await T('touchStart', [[788, 330, 2]]); await m.waitForTimeout(90); await T('touchEnd', []);   // le saut
+      await m.waitForTimeout(30);
+      const held = await gesture();
+      const seen = new Set();
+      for (let i = 0; i < 14; i++) { seen.add(await mState()); await m.waitForTimeout(25); }
+      if (held) await T('touchEnd', []);
+      await m.waitForTimeout(700);
+      return [...seen];
+    };
+    const flick = (dir) => async () => { await T('touchStart', [[90, 300, 1]]); await m.waitForTimeout(20); await T('touchMove', [[90 + dir * 17, 300, 1]]); await T('touchMove', [[90 + dir * 34, 300, 1]]); return true; };
+    const avant = await tryIt(flick(1)), arriere = await tryIt(flick(-1));
+    const tape = await tryIt(async () => { await T('touchStart', [[788, 330, 3]]); await m.waitForTimeout(40); await T('touchEnd', []); });
+    expect(avant.includes('flip') && !avant.includes('dash'), `coup en avant gardé : ${avant.join(', ')}`);
+    expect(arriere.includes('backflip') && !arriere.includes('dash'), `coup en arrière gardé : ${arriere.join(', ')}`);
+    expect(!tape.includes('flip') && !tape.includes('backflip'), `2e appui sur saut : ${tape.join(', ')}`);
   });
 
   await test('tactile : dash au coup de joystick relâché, pas au retour au centre', async () => {

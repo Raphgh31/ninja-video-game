@@ -153,6 +153,8 @@ if (level.art) {
 }
 addEventListener('hashchange', () => location.reload());
 const player = new Player(meta, level);
+// salto : au clavier, deuxième appui sur saut en l'air ; sur téléphone, coup de joystick rapide gardé au bout (touch.js)
+player.tapFlip = !MOBILE;
 level.player = player;   // le décor réagit à KAGE (le kappa plonge, etc.)
 const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
@@ -652,6 +654,7 @@ function gotoZone(i) {
 }
 
 function update(dt) {
+  touch?.poll();                         // (coup de joystick maintenu : salto)
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
   if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }

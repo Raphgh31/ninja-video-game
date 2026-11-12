@@ -454,9 +454,13 @@ export class Player {
             break;
           }
         }
-        // deuxième appui sur saut, en l'air : salto (arrière si la direction tenue s'oppose au sens du départ)
-        if (input.wasPressed('jump') && this.state !== 'wall_slide' && this.canFlip()) {
-          this.startFlip(dir !== 0 && dir === -this.airFacing ? 'backflip' : 'flip');
+        // salto (arrière si la direction s'oppose au sens du départ) : au clavier, deuxième appui sur saut
+        // en l'air ; sur téléphone, coup de joystick rapide dont le pouce reste au bout (touch.js)
+        const flick = input.wasPressed('flip_right') ? 1 : input.wasPressed('flip_left') ? -1 : 0;
+        const tap = this.tapFlip !== false && input.wasPressed('jump');
+        if ((flick || tap) && this.state !== 'wall_slide' && this.canFlip()) {
+          const d = flick || dir;
+          this.startFlip(d !== 0 && d === -this.airFacing ? 'backflip' : 'flip');
         }
         if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;

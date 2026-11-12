@@ -1,7 +1,8 @@
 // Commandes tactiles dessinées dans le jeu (pixel art) :
 // - joystick flottant sous le pouce gauche : gauche/droite = courir ; pousser
 //   au-delà du cercle (contre un « mur » qui résiste) = sprinter ; bas = glissade ;
-//   coup très rapide et court vers un côté puis relâché = dash ;
+//   coup très rapide et court vers un côté puis relâché = dash ; le même coup,
+//   mais le pouce gardé au bout (pas relâché), en l'air = salto (avant ou arrière) ;
 // - boutons ronds sous le pouce droit : saut (le plus gros), sabre, coup de pied,
 //   shuriken.
 // Les positions sont en pixels du jeu ; les doigts sont convertis via l'échelle.
@@ -13,6 +14,7 @@ const STICK = {
   flickFast: 0.08,   // ... en moins de 0,08 s depuis la zone morte...
   flickBack: 0.15,   // ... puis de relâcher le joystick en moins de 0,15 s,
   flickFlat: 2,      // ... avec un geste franchement horizontal (|dx| > 2 × |dy|)
+  flipHold: 0.15,    // le même coup, le pouce gardé au bout au-delà de 0,15 s (pas de dash) : salto
   down: 0.6,         // vers le bas au-delà de 60 % = glissade
   // sprint : le pouce peut sortir du cercle, mais il résiste (« mur » invisible)
   wall: 0.5,         // au-delà du cercle, le pouce suit le doigt deux fois moins vite
@@ -275,6 +277,19 @@ export class TouchControls {
       } else {
         s.outAt = Infinity;   // poussée lente : simple course
       }
+    }
+  }
+
+  /**
+   * À chaque image : un coup rapide dont le pouce reste au bout, sans être relâché, au-delà du
+   * délai du dash, devient un salto (le joueur décide : il n'a d'effet qu'en l'air).
+   */
+  poll() {
+    const s = this.stick;
+    if (!s || s.outAt < 0 || s.outAt === Infinity) return;
+    if (performance.now() / 1000 - s.outAt > STICK.flipHold) {
+      this.input.pressed.add(s.outDir > 0 ? 'flip_right' : 'flip_left');
+      s.outAt = -1;                          // (le relâchement qui suivra ne fera pas de dash)
     }
   }
 
