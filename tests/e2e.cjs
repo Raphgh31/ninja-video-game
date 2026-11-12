@@ -12,6 +12,11 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 async function main() {
   const browser = await chromium.launch();
+  // l'introduction du lancement est passée dans les tests (window.__KAGE_SKIP_INTRO) ; un test la joue
+  const rawNewContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await rawNewContext(o); await c.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return c; };
+  const rawNewPage = browser.newPage.bind(browser);
+  browser.newPage = async (o) => { const p = await rawNewPage(o); await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return p; };
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -1043,6 +1048,25 @@ async function main() {
       && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 80,
       `rayon ${rows.join()} · pauvre ${poor.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
+  });
+
+  await test('introduction : l\'encre, la lune, KAGE sur son sommet ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
+    const ictx = await rawNewContext({ viewport: { width: 1280, height: 720 } }), ip = await ictx.newPage();
+    await ip.goto(PAGE); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
+    await ip.evaluate(() => localStorage.clear()); await ip.reload(); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
+    await ip.waitForTimeout(600);
+    const a = await ip.evaluate(() => { const it = window.__kage.intro, v = window.__kage.view(), t = document.querySelector('.title-screen');
+      return [it.el.width === v.w && it.el.height === v.h, t.classList.contains('waiting'), window.__kage.run.paused, it.t > 0.3 && it.t < 3,
+        it.peak.x > it.moonX && it.peak.y > 0 && it.titleY > it.moonY1 && it.menuY + 30 <= v.h]; });
+    await ip.keyboard.press('KeyZ'); await ip.waitForTimeout(500);
+    const b = await ip.evaluate(() => { const it = window.__kage.intro; return [it.menuShown, document.querySelector('.title-screen').classList.contains('waiting'), it.kage(it.t)?.name, document.activeElement?.dataset.new != null]; });
+    await ip.click('[data-new]'); await ip.waitForTimeout(400);
+    const c = await ip.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.intro?.el.classList.contains('out'), window.__kage.run.paused]);
+    await ip.waitForTimeout(1600);
+    const d = await ip.evaluate(() => [window.__kage.intro, document.querySelectorAll('.intro').length]);
+    await ictx.close();
+    expect(a.join() === 'true,true,true,true,true' && b.join() === 'true,false,idle,true' && c.join() === 'true,true,false' && d.join() === ',0',
+      `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
 
   await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {

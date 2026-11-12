@@ -17,6 +17,7 @@ import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
+import { Intro } from './game/intro.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -32,6 +33,7 @@ let VIEW_W = DESK_W;
 let VIEW_H = DESK_H;
 let SCALE = 1;
 let touch = null;   // commandes tactiles (créées une fois les sprites chargés)
+let intro = null;   // introduction au lancement (src/game/intro.js), tant qu'elle est à l'écran
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
@@ -125,6 +127,7 @@ function fit() {
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
   touch?.layout(touchView.w, touchView.h, touchView.scale);
+  if (intro) placeIntro();
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -602,6 +605,7 @@ function setupSkinLab() {
     const b = button(`Chapitre ${l.chapter}`, l.name, () => {
       if (id === LEVEL_ID) { gotoZone(0); return; }
       labSet('chapter', id);
+      sessionStorage.setItem('kage-sans-intro', '1');   // on change de chapitre : pas d'intro
       location.hash = `#${id}`;
       location.reload();
     });
@@ -609,6 +613,9 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
+  again.dataset.labIntro = '';
+  row.append(again);
   lab.append(row);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
   if (level.zones.length) {
@@ -1120,6 +1127,45 @@ function startChapter(resume) {
   run.title = false;
   run.paused = false;
   persist();
+  endIntro();
+}
+
+/** Introduction au lancement : l'encre, la lune, KAGE ; puis le menu (les boutons de l'écran titre). */
+function playIntro() {
+  const title = document.querySelector('.title-screen');
+  if (intro) { intro.stop(); intro.el.remove(); }
+  intro = new Intro(meta, look.sheet, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null);
+  uiLayer.append(intro.el);
+  placeIntro();
+  title.hidden = false;
+  title.classList.add('with-intro', 'waiting');
+  run.title = true;
+  run.paused = true;
+  const it = intro;
+  it.onMenu = () => {
+    title.classList.remove('waiting');
+    // un peu plus tard : la touche qui a passé l'intro ne doit pas aussi choisir dans le menu
+    setTimeout(() => { if (intro === it) { const c = title.querySelector('[data-continue]'); (c.hidden ? title.querySelector('[data-new]') : c).focus(); } }, 350);
+  };
+  it.start();
+}
+/** Place l'intro et le menu sur l'image de jeu (à chaque changement de taille). */
+function placeIntro() {
+  intro.resize(VIEW_W, VIEW_H);
+  document.querySelector('.title-screen').style.setProperty('--menu-y', `${intro.menuY}px`);
+}
+/** Une touche ou un toucher pendant l'intro l'amène à sa fin. */
+function skipIntro() { if (intro && !intro.closing && !intro.menuShown) intro.skip(); }
+addEventListener('keydown', skipIntro, true);
+stage.addEventListener('pointerdown', skipIntro);
+/** La partie commence : l'intro s'efface sur le jeu. */
+function endIntro() {
+  const title = document.querySelector('.title-screen');
+  title.classList.remove('with-intro', 'waiting');
+  if (!intro || intro.closing) return;
+  const it = intro;
+  it.closing = true;
+  it.close(() => { if (intro === it) intro = null; });
 }
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');
@@ -1143,7 +1189,14 @@ if (CHAPTER) {
     delete save.intro;
     persist();
     chapterCard(level.intro, true);
-  } else if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+  } else {
+    if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
+    // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni dans la version
+    // de test quand on vient de changer de chapitre par le panneau
+    const quiet = globalThis.__KAGE_SKIP_INTRO || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
+    sessionStorage.removeItem('kage-sans-intro');
+    if (!quiet) playIntro();
+  }
 }
 
 /** Carte de chapitre : noire, le titre ; fadeOut = elle part de noir et s'efface sur le jeu. */
@@ -1291,7 +1344,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; },
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

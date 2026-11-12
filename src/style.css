@@ -170,6 +170,20 @@ body.mobile .talk { padding-left: 6px; }
 }
 .title-screen button:hover, .title-screen button:focus-visible { background: var(--ink); color: var(--bg); }
 .title-screen button[hidden] { display: none; }
+/* introduction au lancement (src/game/intro.js) : son image, puis le menu sans cadre sous le titre */
+.intro { position: absolute; left: 0; top: 0; z-index: 3; display: block; image-rendering: pixelated; image-rendering: crisp-edges;
+  transition: opacity 1.6s ease-in-out; }
+.intro.out { opacity: 0; }
+.title-screen.with-intro { display: block; background: transparent; }
+.title-screen.with-intro[hidden] { display: none; }
+.title-screen.with-intro .title-screen__name,
+.title-screen.with-intro .title-screen__chapter { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.title-screen.with-intro .title-screen__actions { position: absolute; left: 0; right: 0; top: var(--menu-y, 200px); min-width: 0;
+  justify-items: center; gap: 1px; transition: opacity .9s ease-out; }
+.title-screen.with-intro.waiting .title-screen__actions { opacity: 0; visibility: hidden; }
+.title-screen.with-intro button { border: 0; padding: 1px 6px 2px; color: #6f7672; background: transparent; }
+.title-screen.with-intro button:hover, .title-screen.with-intro button:focus {
+  color: var(--ink); outline: none; }
 
 .shop {
   position: absolute; z-index: 4; left: var(--cx); top: var(--cy); transform: translate(-50%, -50%);

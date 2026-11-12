@@ -11,6 +11,10 @@ const results = [];
 
 async function main() {
   const browser = await chromium.launch();
+  // l'introduction du lancement est passée dans les tests (window.__KAGE_SKIP_INTRO) ; un test la joue
+  const rawNewPage = browser.newPage.bind(browser), rawNewContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await rawNewContext(o); await c.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return c; };
+  browser.newPage = async (o) => { const p = await rawNewPage(o); await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return p; };
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
