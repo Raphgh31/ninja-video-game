@@ -205,6 +205,35 @@ async function main() {
     expect(r[0] > 0.2 && r[0] < 0.6 && r[1] && r[2] === 'idle' && r[3], JSON.stringify(r));
   });
 
+  await test('détours : la cabane du guetteur, l\'arbre aux cavités, l\'arche de racines, le belvédère — on y monte, le coffre s\'ouvre, on redescend sans dégâts', async () => {
+    const r = await ev(() => {
+      const L = __kage.level, out = {};
+      const chest = (id) => {
+        const ch = L.chests.find((c) => c.id === id);
+        bot.run(3, (q) => { bot.set({ right: q.x < ch.x - 6, left: q.x > ch.x + 6 }); return !!L.chestNear(q.x, q.y) && Math.abs(q.x - ch.x) < 8; }); bot.clear();
+        bot.tap('up'); bot.run(2.5); bot.clear(); bot.run(0.2);
+        return ch.open;
+      };
+      const down = (dir, row) => { bot.run(8, (q) => { bot.set({ right: dir > 0, left: dir < 0, sprint: true }); return bot.dead() || (q.onGround && Math.round(q.y / 16) >= row); }); bot.clear(); return !bot.dead() && bot.row() === row; };
+      const id = (k) => L.props.find((p) => p.type === 'chest' && p.id === k);
+      // la cabane : l'échelle de corde, la plateforme à 9 cases, le coffre dans la cabane ; on saute de la plateforme
+      let c = id('guetteur'); bot.place(c.x - 9, 50); bot.boughs(10, c.y);
+      out.guetteur = [bot.row() === c.y, chest('guetteur'), down(1, 50)];
+      // l'arbre aux cavités : sept branches le long du tronc, le coffre dans la plus haute cavité ; on redescend en courant
+      c = id('cavites'); bot.place(c.x - 5, 50); bot.boughs(20, c.y);
+      out.cavites = [bot.row() === c.y, chest('cavites'), down(-1, 50)];
+      // l'arche : deux racines en marche, un saut sur la motte ; on en saute de l'autre côté
+      c = id('arche'); bot.place(c.x - 7, 50); bot.boughs(6, c.y + 3);
+      bot.tap('jump'); bot.run(1, (q, t) => { bot.set({ right: q.vy > -150 }); return t > 0.1 && q.onGround; }); bot.clear();
+      out.arche = [bot.row() === c.y, chest('arche'), down(1, 50)];
+      // le belvédère : on monte d'un côté du cèdre, on redescend de l'autre
+      c = id('belvedere'); bot.place(c.x - 4, 62); bot.boughs(15, c.y);
+      out.belvedere = [bot.row() === c.y, chest('belvedere'), down(1, 62)];
+      return out;
+    });
+    expect(Object.values(r).every((v) => v.every(Boolean)), JSON.stringify(r));
+  });
+
   await test('coffres : leurs ryō tombent sur un sol, jamais dans un mur ni dans le vide', async () => {
     const r = await ev(() => {
       const l = __kage.level, bad = [];

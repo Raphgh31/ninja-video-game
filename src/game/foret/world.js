@@ -133,8 +133,9 @@ export class ForetWorld {
     const c = this.ch(tx, ty);
     if (c === '~' || c === 'v') return false;
     let up = 0; while (up < 5 && this.air(tx, ty - 1 - up)) up++;
-    let dn = 0; while (dn < 2 && this.air(tx, ty + 1 + dn)) dn++;
-    if (up >= 5 || dn >= 2) return false;
+    let dn = 0; while (dn < 4 && this.air(tx, ty + 1 + dn)) dn++;
+    // (un creux sous l'écorce peut avoir trois cases de haut : la cavité du coffre de l'arbre aux cavités)
+    if (up >= 5 || dn >= (up + dn < 3 && this.kind(tx, ty - 1 - up) === 3 ? 3 : 2)) return false;
     const bark = this.kind(tx, ty - 1 - up) === 3 || this.kind(tx - 1, ty) === 3;
     return bark || this.under(tx * TILE, ty * TILE) || (!this.air(tx - 1, ty) || !this.air(tx + 1, ty) || !this.air(tx - 2, ty) || !this.air(tx + 2, ty));
   }
@@ -142,11 +143,56 @@ export class ForetWorld {
   cavity(pix, tx, ty) {
     let up = 0; while (up < 5 && this.air(tx, ty - 1 - up)) up++;
     const bark = this.kind(tx, ty - 1 - up) === 3 || this.kind(tx - 1, ty) === 3;
+    if (bark && this.kind(tx, ty - 1 - up) === 3) return this.barkHollow(pix, tx, ty);
     const ramp = bark ? ['#0b0605', '#140c08', '#1e130c', '#2a1a10'] : ['#07090a', '#0d0f0f', '#141512', '#1c1b16'];
     for (let py = 0; py < TILE; py++) for (let px = 0; px < TILE; px++) {
       const x = tx * TILE + px, y = ty * TILE + py;
       const v = 0.35 + (noise2(x * 0.15, y * 0.15, 31) - 0.5) * 0.35 + (bark ? (noise2(x * 0.6, y * 0.05, 32) - 0.5) * 0.3 : 0) - (py / TILE) * 0.1;
       pix.set(x, y, pick(ramp, v, x, y));
+    }
+  }
+
+  /**
+   * Creux dans l'écorce d'un grand tronc (détours) : une cavité en arc, pas un rectangle. Le haut
+   * s'arrondit dans le bois, un liseré d'écorce claire en fait le tour (côté lumière), le fond est
+   * sombre et chaud, plus clair vers l'ouverture ; un rebord de bois moussu au seuil.
+   */
+  barkHollow(pix, tx, ty) {
+    // l'étendue du creux : les cases vides entre le bois, autour de celle-ci
+    const hole = (a, r) => this.air(a, r) && this.kind(a, r - 1 - (() => { let u = 0; while (u < 5 && this.air(a, r - 1 - u)) u++; return u; })()) === 3;
+    let a = tx; while (a > tx - 4 && hole(a - 1, ty)) a--;
+    let z = tx; while (z < tx + 4 && hole(z + 1, ty)) z++;
+    let t = ty; while (t > ty - 5 && this.air(tx, t - 1)) t--;
+    let bt = ty; while (bt < ty + 4 && this.air(tx, bt + 1)) bt++;
+    const openL = this.air(a - 1, ty) ? 1 : 0, openR = this.air(z + 1, ty) ? 1 : 0;
+    const x0 = a * TILE, x1 = (z + 1) * TILE - 1, y0 = t * TILE, y1 = (bt + 1) * TILE - 1;
+    const cx = (x0 + x1) / 2, rx = (x1 - x0 + 1) / 2 + 2, ry = Math.min(rx * 0.9, (y1 - y0 + 1) * 0.55);
+    const D = ['#080403', '#110906', '#1b0f09', '#28170d', '#3a2213', '#4f301a'];
+    for (let py = 0; py < TILE; py++) for (let px = 0; px < TILE; px++) {
+      const x = tx * TILE + px, y = ty * TILE + py;
+      // la voûte : un demi-ovale au-dessus, des parois droites dessous ; le bord ondule un peu
+      const wob = (noise1(x * 0.3 + y * 0.2, 43) - 0.5) * 1.6;
+      const vy = y0 + ry, nx = (x - cx) / rx;
+      const out = y < vy ? nx * nx + Math.pow((y - vy) / ry, 2) > 1 + wob * 0.05 : false;
+      // côté ouvert : le creux débouche franchement ; côté bois : la paroi arrondit le coin du bas
+      const side = (!openL && x - x0 < 2 + wob) || (!openR && x1 - x < 2 + wob);
+      if (out || side) { pix.set(x, y, this.bark(tx, ty, x, y)); continue; }
+      // distance au bord de la voûte (pour le liseré)
+      const e = y < vy ? 1 - Math.sqrt(nx * nx + Math.pow((y - vy) / ry, 2)) : Math.min(1, (Math.min(x - x0, x1 - x) + 2) / rx);
+      const lip = e * rx;
+      if (lip < 1.6 && y < y1 - 4) { pix.set(x, y, x < cx ? (y < vy ? C.BARK[4] : C.BARK[3]) : C.BARK[1]); continue; }
+      if (lip < 3 && y < y1 - 4) { pix.set(x, y, x < cx ? C.BARK[2] : D[1]); continue; }
+      // le seuil : un rebord de bois usé, moussu sur le dessus (côté ouverture)
+      if (y > y1 - 3) {
+        const top = y === y1 - 2;
+        pix.set(x, y, top ? (noise1(x * 0.4, 44) > 0.55 ? C.MOSS[4] : C.BARK[4]) : C.BARK[2]);
+        continue;
+      }
+      // le fond : sombre et chaud, la lumière entre par l'ouverture et tombe en bas
+      const fromOpen = openL ? (x - x0) / (x1 - x0 + 1) : openR ? (x1 - x) / (x1 - x0 + 1) : 0.5;
+      let v = 0.42 - fromOpen * 0.22 - Math.max(0, 1 - (y - y0) / (ry * 1.6)) * 0.2 + (noise2(x * 0.5, y * 0.08, 45) - 0.5) * 0.18;
+      if (Math.abs(noise2(x * 0.35, y * 0.05, 46) - 0.5) < 0.04) v -= 0.12;                // fibres du bois
+      pix.set(x, y, pick(D, v, x, y));
     }
   }
 

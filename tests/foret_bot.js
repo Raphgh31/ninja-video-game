@@ -85,6 +85,49 @@ window.bot = {
     });
   },
   /**
+   * Monte de branche en branche (« - », traversables par-dessous) : sous la branche suivante,
+   * un saut ; s'arrête quand les pieds sont sur la ligne topRow (détours le long d'un grand tronc).
+   */
+  boughs(seconds, topRow) {
+    let target = null;
+    return this.run(seconds, (p) => {
+      const l = this.k.level, c = Math.floor(p.x / 16), r = Math.round(p.y / 16);
+      if (p.onGround && r <= topRow) { this.clear(); return true; }
+      if (p.onGround) {
+        // la branche la plus proche au-dessus (1 à 4 cases), à moins de 8 colonnes
+        target = null;
+        // d'abord une branche juste au-dessus (on monte tout droit), sinon la plus proche
+        for (let dr = 1; dr <= 3 && !target; dr++) if (l.at(c, r - dr) === '-') { let a = c, z = c; while (l.at(a - 1, r - dr) === '-') a--; while (l.at(z + 1, r - dr) === '-') z++; target = { a, z, row: r - dr }; }
+        for (let dr = 1; dr <= 4 && !target; dr++) {
+          let best = null;
+          for (let dc = -8; dc <= 8; dc++) if (l.at(c + dc, r - dr) === '-' && (!best || Math.abs(dc) < Math.abs(best - c))) best = c + dc;
+          if (best != null) { let a = best, z = best; while (l.at(a - 1, r - dr) === '-') a--; while (l.at(z + 1, r - dr) === '-') z++; target = { a, z, row: r - dr }; }
+        }
+        if (!target) return true;
+        const mid = ((target.a + target.z + 1) / 2) * 16;
+        const under = p.x > target.a * 16 + 4 && p.x < (target.z + 1) * 16 - 4;
+        const dir = p.x < mid ? 1 : -1, cc = Math.floor((p.x + dir * 6) / 16);
+        const edge = !l.solid(cc, r) && !l.ledge(cc, r) && l.at(cc, r) !== '-';   // le sol s'arrête devant : on saute en avançant
+        if (under && Math.abs(p.vx) < 30) { this.set({ left: false, right: false }); this.tap('jump'); }
+        else if (edge) { this.set({ right: dir > 0, left: dir < 0 }); this.tap('jump'); }
+        else this.set({ right: p.x < mid - 4, left: p.x > mid + 4, jump: false });
+      } else if (target) {
+        const mid = ((target.a + target.z + 1) / 2) * 16;
+        this.set({ right: p.x < mid - 6, left: p.x > mid + 6 });
+      }
+      return false;
+    });
+  },
+  /** Marche dans la direction dir jusqu'au sol de la ligne row (on se laisse tomber de branche en branche). */
+  walkDown(seconds, dir, row) {
+    return this.run(seconds, (p) => {
+      if (this.dead()) return true;
+      if (p.onGround && Math.round(p.y / 16) >= row) { this.clear(); return true; }
+      this.set({ right: dir > 0, left: dir < 0, jump: false });
+      return false;
+    });
+  },
+  /**
    * Grimpe un puits en sauts muraux alternés, jusqu'à ce que les pieds passent au-dessus
    * de la ligne topRow (exitDir : en partant vers ce côté, pour se poser sur le bord).
    */

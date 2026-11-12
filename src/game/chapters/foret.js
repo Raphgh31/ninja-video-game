@@ -86,8 +86,20 @@ function build() {
   coins([x + 4, x + 5, x + 6], G1 - 6);
   ground(3, G1 - 1);
   ground(22, G1);
-  b.prop('pine_young', b.x - 16, G1); b.prop('birch', b.x - 10, G1, { s: 0.9 }); b.prop('pine_young', b.x - 5, G1);
+  b.prop('pine_young', b.x - 5, G1);
   coins([b.x - 18, b.x - 14, b.x - 12, b.x - 8, b.x - 3], G1 - 2);
+  // DÉTOUR — la cabane du guetteur : dans un vieux chêne, une plateforme de planches à 9 cases du sol
+  // (on peut toujours en sauter sans se blesser), une échelle de corde, et une petite cabane
+  // d'affût au toit d'écorce ; le coffre y est rangé. Deux ryō sur l'échelle.
+  {
+    const o = b.x - 16;                                // le fût du chêne
+    const deck = G1 - 9;
+    b.row(o - 4, 12, deck, '-');                       // la plateforme
+    b.row(o - 4, 2, G1 - 3, '-'); b.row(o - 4, 2, G1 - 6, '-');   // deux barreaux de l'échelle tiennent le pied
+    coins([o - 4], G1 - 5); coins([o - 3], G1 - 8);
+    b.prop('chest', o + 5, deck, { id: 'guetteur', ryo: 10 });
+    b.prop('treehouse', o, G1, { deck, x0: o - 4, x1: o + 8, ladder: o - 4, hut: o + 3, roof: deck - 3, seed: 23 });
+  }
 
   // ===========================================================================
   // ZONE 2 — Le sentier des fougères ancestrales : des racines géantes barrent le
@@ -100,6 +112,26 @@ function build() {
   b.hint('wall', x + 10);
   // premier passage : la racine fait 6 cases de haut
   x = b.x; ground(3, G1); hollow(x, 3, G1);
+  // DÉTOUR — l'arbre aux cavités : des branches montent le long du grand tronc, côté lumière, jusqu'à
+  // sa couronne de feuillage (21 cases). Deux creux dans l'écorce, au bout d'une branche, gardent des
+  // ryō ; tout en haut, dans la plus grande cavité, un coffre. Chaque branche dépasse celle du dessus :
+  // on redescend en se laissant tomber de l'une à l'autre
+  {
+    const t = x;                                       // le tronc : colonnes t à t + 2
+    const bough = (n, row) => b.row(t - n, n, row, '-');   // une branche qui sort du tronc vers la gauche
+    const hole = (row, h) => carve(t, 2, row - h, row - 1);   // un creux dans l'écorce, au ras de la branche
+    // (comme un sapin : chaque branche dépasse celle du dessus de 1 à 2 cases ; en courant, une
+    // chute de 3 cases porte KAGE 1,5 case plus loin : il retombe toujours sur la suivante)
+    bough(13, G1 - 3);
+    bough(11, G1 - 6); hole(G1 - 6, 2); coins([t, t + 1], G1 - 7);
+    bough(10, G1 - 9); coin(t - 10, G1 - 11);
+    bough(8, G1 - 12); coins([t - 8, t - 7], G1 - 14);
+    bough(6, G1 - 15); hole(G1 - 15, 2); coin(t + 1, G1 - 16);
+    bough(5, G1 - 18);
+    bough(3, G1 - 21); hole(G1 - 21, 3);
+    b.prop('chest', t, G1 - 21, { id: 'cavites', ryo: 12, dx: 9 });   // (au fond du creux, contre le bois)
+    b.prop('tree_crown', t, G1 - 21, { w: 3, top: G1 - 36, seed: 41 });
+  }
   ground(3, G1);                                       // le puits, entre le tronc et la racine
   coins([b.x - 2], G1 - 5);
   x = b.x; ground(6, G1 - 6);                          // la racine géante : on marche dessus
@@ -151,8 +183,22 @@ function build() {
   coins([x - 5, x - 4], G1 - 5);
   b.prop('branch', x - 5, G1 - 4, { w: 2, from: 'center' });
   water(6, G1);
-  ground(16, G1);
+  x = b.x; ground(16, G1);
   coins([b.x - 12, b.x - 9, b.x - 6], G1 - 2);
+  // DÉTOUR — l'arche de racines : un vieil arbre sacré a poussé sur une motte de terre que ses racines
+  // portent au-dessus du sentier, comme une arche. On passe dessous ; ou bien on grimpe par deux
+  // racines en marche (à gauche) jusqu'à la motte : la corde sacrée autour du tronc, un petit
+  // sanctuaire de pierre, le coffre. Elle est à 8 cases du sol : on en redescend en sautant.
+  {
+    const m0 = x + 4, mw = 8, top = G1 - 8;
+    fill(m0, mw, top, G1 - 6);                         // la motte (3 cases d'épaisseur ; 5 cases libres dessous)
+    b.row(x, 2, G1 - 3, '-'); b.row(x + 2, 2, G1 - 5, '-');   // deux racines en marche
+    b.prop('root_arch', m0, top, { w: mw, ground: G1, steps: [[x, G1 - 3, 2], [x + 2, G1 - 5, 2]], seed: 17 });
+    b.prop('sacred_tree', m0 + 1, top, { seed: 29 });
+    b.prop('hokora', m0 + 7, top);
+    b.prop('chest', m0 + 4, top, { id: 'arche', ryo: 10 });
+    coins([m0 + 3, m0 + 4, m0 + 5], top - 3);
+  }
 
   // ===========================================================================
   // ZONE 4 — L'allée des piliers effondrés : un pont de dalles sur des colonnes,
@@ -594,11 +640,25 @@ function build() {
   x = b.x; ground(16, G12);
   b.prop('last_tree', x + 4, G12);
   b.prop('chest', x + 8, G12, { id: 'lisiere', ryo: 20 });
+  const tLast = x + 4;                                 // le dernier grand arbre (son belvédère : plus bas)
   x = b.x; ground(2, G12 - 1); ground(2, G12 - 2);
   b.prop('stump', x, G12 - 1, { w: 2 }); b.prop('stump', x + 2, G12 - 2, { w: 2 });
   coins([x + 2, x + 3], G12 - 4);
   x = b.x; ground(30, G12);
   lantern(x + 6, G12);
+  // DÉTOUR — le belvédère : on grimpe au dernier grand arbre par ses branches, étagées des deux côtés
+  // comme un sapin (en tombant d'une branche, on retombe toujours sur la suivante), jusqu'à la fourche,
+  // à 15 cases : la vallée au soleil couchant, l'horizon, un coffre posé dans la fourche
+  {
+    const t = tLast;                                   // le fût (40 px : de t - 1 à t + 1)
+    // à gauche : 11, 9, 7 et 5 cases ; à droite, une case plus haut : 10, 8, 6 et 4 (les deux côtés alternent)
+    for (const [k, row] of [59, 56, 53, 50].entries()) b.row(t - 2 - (10 - 2 * k), 11 - 2 * k, row, '-');
+    for (const [k, row] of [58, 55, 52, 49].entries()) b.row(t + 2, 10 - 2 * k, row, '-');
+    b.row(t - 4, 9, G12 - 15, '-');                    // la fourche, en travers du fût
+    b.prop('chest', t, G12 - 15, { id: 'belvedere', ryo: 15 });
+    coins([t - 3, t - 2, t + 2, t + 3], G12 - 17);
+    coins([t - 8], G12 - 10); coins([t + 9], G12 - 8);
+  }
   coins([x + 10, x + 13, x + 16], G12 - 2);
   b.prop('horizon', x + 18, G12);
   b.cols[x + 24][G12 - 1] = 'G';

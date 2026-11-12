@@ -32,9 +32,9 @@ export class Level {
     this.backdrops = def.backdrops ?? [];
     this.coins = [];         // ryō : { id, x, y, taken }
     this.crates = new Map(); // caisses : 'tx,ty' -> { tx, ty } (tant qu'elles ne sont pas brisées)
-    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt }
+    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt } ; dx : décalage (px), pour centrer un coffre dans un creux
     this.chests = this.props.filter((p) => p.type === 'chest')
-      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2, y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
+      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2 + (p.dx ?? 0), y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
     this.merchant = null;
     this.time = 0;
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
