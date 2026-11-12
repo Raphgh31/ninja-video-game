@@ -89,7 +89,7 @@ D'après les deux images de référence (bandes de forêt ; tête de pierre géa
 
 ## 8. État d'avancement (11 novembre 2026, fin de la série)
 
-**Première version complète du chapitre**, sur la branche `claude/message-nouvelle-conversation-docs-t945e2` (non fusionnée, en attente des retours de l'utilisateur). Aperçu des 12 zones : `docs/foret/apercu_zones.png` ; carte de chapitre : `docs/foret/carte_chapitre.png`.
+**Première version complète du chapitre**, fusionnée dans `main` (PR #25) ; les retours n° 10 (les détours) sont dans la PR #26, en brouillon, sur la branche `claude/message-nouvelle-conversation-docs-t945e2`. Aperçu des 12 zones : `docs/foret/apercu_zones.png` ; carte de chapitre : `docs/foret/carte_chapitre.png`.
 
 - **Greybox terminé et testé** : `tests/foret.cjs` (22 tests, dans `npm test`) — chaque passage se franchit et la mécanique voulue est nécessaire. Pilotes communs : `tests/foret_pilotes.js` (vol prédit sur les lianes, sauts prédits sur les troncs, souffle sur les rochers) ; sondes : `node tests/foret_sondes.cjs z3 z6b v10 z9 …`.
 - **Réglages issus des essais** : lianes de la zone 10 plus longues (18 cases : elles pendent sous le niveau des piliers, on les attrape en les traversant) ; après un lâcher, KAGE **garde l'élan** jusqu'à l'atterrissage tant qu'il ne pousse pas à contre-sens (`player.fling`, léger freinage `flingDrag`) ; le bond (saut) reste franc sur les lianes immobiles de la statue mais n'est plus qu'un coup de reins (`hop`) sur une liane qui se balance ; au lâcher, KAGE est dégagé s'il est dans une paroi. Ravin final : **22 cases, corniche à G9 − 5** (avec le dash, lâcher entre 0,60 et 0,96 rad ; sans dash, aucun des 32 lâchers essayés n'y arrive). Zone 6 : dernier bras de 20 cases (saut de 6 cases depuis le dernier tronc : dash nécessaire).
@@ -171,5 +171,6 @@ Demande de Raph : « augmente la part d'aventure… de petits chemins, par les a
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).
-2. Ennemis et boss du chapitre (des respirations sont prévues pour les accueillir), marchand de la Forêt (clairière de la zone 12).
-3. Pistes de finition : feuillages de la canopée (aujourd'hui en plateaux, façon pins japonais), arrière du pavillon du temple plus proche de la vraie porte, intérieur du couloir sous l'éboulis de la statue.
+2. **Le mécanisme de la statue** (zone 9, demandé par Raph) : monter sur le haut de sa tête pour ouvrir la porte de pierre ; en attendant, un déclencheur invisible devant chaque œil l'ouvre.
+3. Ennemis et boss du chapitre (des respirations sont prévues pour les accueillir), marchand de la Forêt (clairière de la zone 12).
+4. Pistes de finition : feuillages de la canopée (aujourd'hui en plateaux, façon pins japonais), arrière du pavillon du temple plus proche de la vraie porte, intérieur du couloir sous l'éboulis de la statue.
