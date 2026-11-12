@@ -673,6 +673,23 @@ function clumpCrown(pix, cx, fork, R, seed, n = Math.round(18 * R / 150), ramp =
   for (const [i, t] of tufts.entries()) if (t.y > fork - 80 * k && ih(i, 9, seed) < 0.6) L.strand(pix, Math.round(t.x + (ih(i, 10, seed) - 0.5) * t.rx), Math.round(t.y + t.ry * 0.6), Math.round((8 + Math.floor(ih(i, 11, seed) * 22)) * k), ramp, seed + i, 0.6);
 }
 
+/**
+ * Un « orteil » de racine qui rampe au sol depuis le pied d'un pilier : posé sur la ligne y0, il part vers
+ * dir (-1 ou 1) sur len px, de h0 px de haut à rien ; le dessus moussu, il ondule un peu.
+ */
+function rootToe(pix, x0, y0, len, dir, h0, seed) {
+  for (let i = 0; i <= len; i++) {
+    const u = i / len, h = Math.round(h0 * Math.pow(1 - u, 0.8) + (noise1(i * 0.2, seed) - 0.5) * 1.5);
+    if (h < 1) continue;
+    const x = Math.round(x0 + dir * i), top = y0 - h + Math.round((noise1(i * 0.15, seed + 1) - 0.5) * 2);
+    for (let y = top; y <= y0; y++) {
+      const t = (y - top) / Math.max(1, y0 - top);
+      const moss = y - top < 2 && fbm2(x * 0.12, y * 0.2, 2, seed + 2) > 0.45;
+      pix.set(x, y, moss ? (y === top ? C.MOSS[4] : C.MOSS[3]) : pick(C.BARK, 0.75 - t * 0.45 - u * 0.1 + (noise2(x * 0.4, y * 0.4, seed) - 0.5) * 0.15, x, y));
+    }
+  }
+}
+
 /** Une racine épaisse, de (x0, y0) à (x1, y1), de largeur w0 à w1, courbée de bend (px) ; éclairée à gauche. */
 function rootStroke(pix, x0, y0, x1, y1, w0, w1, bend, seed, mossy = 0) {
   const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 1.3);
@@ -696,19 +713,25 @@ function rootStroke(pix, x0, y0, x1, y1, w0, w1, bend, seed, mossy = 0) {
 function rootArch(pix, p, part) {
   const T = TILE, X0 = p.x * T, X1 = (p.x + p.w) * T, bot = (p.y + 3) * T, G = p.ground * T, seed = p.seed;
   if (part === 'legs') {
+    // des racines-piliers (comme un banian) : larges et évasées au sol, où elles s'étalent en « orteils »
+    // dans la mousse, elles s'affinent en montant vers la motte qu'elles portent
+    const leg = (xg, xt, yt, wg, wt, bend, s, toes = [1, -1]) => {
+      rootStroke(pix, xg, G + 3, xt, yt, wg, wt, bend, s, 1);
+      for (const [k, dir] of toes.entries()) rootToe(pix, xg + dir * (wg * 0.25), G + 2, 10 + wg * (0.7 + 0.5 * ih(k, 3, s)), dir, Math.max(3, wg * 0.42), s + k);
+    };
     // le pied gauche : la grosse racine passe par les deux marches (ses genoux) avant de plonger dans la rive
     const st = [...p.steps].sort((a, b) => a[1] - b[1]);                   // de la plus haute à la plus basse
-    const pts = [[X0 + 10, bot - 8], ...st.map(([c, r, w]) => [(c + w / 2) * T, r * T + 6]), [st[st.length - 1][0] * T - 18, G + 2]];
-    for (let i = 0; i < pts.length - 1; i++) rootStroke(pix, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 17 - i * 2, 15 - i * 2, i % 2 ? 4 : -4, seed + i, 1);
-    rootStroke(pix, X0 + 22, bot - 4, X0 - 20, G + 2, 10, 6, -8, seed + 3, 1);
-    rootStroke(pix, X0 + 2, bot - 14, pts[pts.length - 1][0] - 22, G + 1, 7, 4, -16, seed + 5);
-    // le pied droit : plus massif, il s'évase en doigts dans la mousse
-    rootStroke(pix, X1 - 14, bot - 6, X1 + 40, G + 2, 18, 9, 16, seed + 7, 1);
-    rootStroke(pix, X1 - 26, bot - 4, X1 + 18, G + 2, 10, 5, 8, seed + 9, 1);
-    rootStroke(pix, X1 - 6, bot - 12, X1 + 58, G + 1, 8, 4, 22, seed + 11);
-    // deux racines fines descendent au milieu, loin du passage (derrière KAGE)
-    rootStroke(pix, X0 + 40, bot - 2, X0 + 30, G + 1, 4, 2, 6, seed + 13);
-    rootStroke(pix, X1 - 44, bot - 2, X1 - 36, G + 1, 3, 2, -5, seed + 15);
+    const pts = [[X0 + 10, bot - 8], ...st.map(([c, r, w]) => [(c + w / 2) * T, r * T + 6]), [st[st.length - 1][0] * T - 18, G + 3]];
+    const nSeg = pts.length - 1;
+    for (let i = 0; i < nSeg; i++) rootStroke(pix, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 9 + i * 5, 14 + i * 5, i % 2 ? 4 : -4, seed + i, 1);
+    for (const [k, dir] of [-1, 1].entries()) rootToe(pix, pts[nSeg][0] + dir * 5, G + 2, 18 + k * 8, dir, 9, seed + 40 + k);
+    leg(X0 - 22, X0 + 20, bot - 4, 22, 7, -8, seed + 3);                  // le second pied gauche
+    // le pied droit : le plus massif, deux piliers jumeaux
+    leg(X1 + 38, X1 - 14, bot - 6, 30, 10, 14, seed + 7);
+    leg(X1 + 14, X1 - 28, bot - 3, 20, 7, 7, seed + 9, [-1]);
+    // au milieu, deux racines plus fines (loin du passage, derrière KAGE), évasées elles aussi
+    leg(X0 + 26, X0 + 40, bot - 2, 11, 4, 5, seed + 13, [-1]);
+    leg(X1 - 30, X1 - 44, bot - 2, 10, 4, -5, seed + 15, [1]);
     return;
   }
   // les marches : des genoux de la grosse racine, renflés, le dessus moussu et plat (on s'y pose)
@@ -741,6 +764,14 @@ function rootArch(pix, p, part) {
     pix.set(x, y, c);
   }
   for (let x = X0 - 4; x < X1 + 4; x += 3) if (ih(x, 7, seed) < 0.6) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 8, seed) * 3), C.FERN, x);
+  // les racines qui enserrent la motte : elles montent des piliers et la tiennent par les flancs, de plus
+  // en plus fines (comme des doigts), quelques-unes en travers de la terre
+  const grip = [
+    [X0 + 8, bot - 6, X0 - 5, Y + 7, 6, 2, -5], [X0 + 20, bot - 2, X0 + 2, Y + 13, 4, 1, -3],
+    [X1 - 12, bot - 6, X1 + 5, Y + 6, 7, 2, 5], [X1 - 26, bot - 2, X1 - 4, Y + 12, 4, 1, 3],
+    [X0 + 40, bot + 2, X0 + 50, bot - 7, 3, 1, 2], [X1 - 44, bot + 2, X1 - 54, bot - 6, 3, 1, -2],
+  ];
+  for (const [i, [a0, b0, a1, b1, w0, w1, bend]] of grip.entries()) rootStroke(pix, a0, b0, a1, b1, w0, w1, bend, seed + 60 + i, 1);
   // le chevelu : des radicelles qui pendent sous la boule (plus longues aux bords, courtes au-dessus du passage)
   for (let x = X0 + 6; x < X1 - 6; x += 2 + Math.floor(ih(x, 4, seed) * 3)) {
     const edge = Math.min(x - X0, X1 - x) / (X1 - X0), d = Math.abs(x - mid) / half;
