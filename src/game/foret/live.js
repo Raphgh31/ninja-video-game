@@ -217,7 +217,7 @@ function foreStrip(mood) {
 const ROPE_COL = ['#1c140b', '#6e5430', '#b8955a', '#dcc184', '#f3e3b0'];
 
 /**
- * Trace des brins de corde épais (3 px) et torsadés : d'abord tous les contours, puis les corps,
+ * Trace des brins de corde épais (2 px, cernés : 4 px en tout) et torsadés : d'abord tous les contours, puis les corps,
  * pour qu'un brin qui en touche un autre ne le coupe pas. Les torons sont des rayures en biais qui
  * défilent avec la corde (shift).
  */
@@ -230,12 +230,12 @@ function drawRopeStrands(ctx, strands, cam, vw, vh, shift) {
       if (x < -6 || x > vw + 6 || y < -6 || y > vh + 6) continue;
       if (pass === 0) {
         ctx.fillStyle = ROPE_COL[0];
-        if (flat) ctx.fillRect(x, y - 1, 1, 5); else ctx.fillRect(x - 1, y, 5, 1);
+        if (flat) ctx.fillRect(x, y - 1, 1, 4); else ctx.fillRect(x - 1, y, 4, 1);
         continue;
       }
-      for (let k = 0; k < 3; k++) {
+      for (let k = 0; k < 2; k++) {
         const t = ((i + k + shift) % 4 + 4) % 4;     // la torsade : rayures en biais
-        const c = k === 2 ? (t === 0 ? ROPE_COL[2] : ROPE_COL[1]) : k === 0 ? (t < 2 ? ROPE_COL[4] : ROPE_COL[3]) : (t === 1 || t === 2 ? ROPE_COL[3] : ROPE_COL[2]);
+        const c = k === 0 ? (t < 2 ? ROPE_COL[4] : ROPE_COL[3]) : (t === 1 || t === 2 ? ROPE_COL[2] : ROPE_COL[1]);
         ctx.fillStyle = c;
         if (flat) ctx.fillRect(x, y + k, 1, 1); else ctx.fillRect(x + k, y, 1, 1);
       }
@@ -906,10 +906,10 @@ export class ForetLive {
    * chevrons clignotent vers la gauche (« tirez par là »). Coincée, elle s'enroule sur le rameau.
    */
   drawRopeWorks(ctx, r, cam, vw, vh, time) {
-    const X = r.door * TILE, G = r.ground, cx = r.pulleyX, cy = r.branchY - 16, RAD = 13;
+    const X = r.door * TILE, G = r.ground, cx = r.pulleyX, cy = r.branchY - 16, RAD = 13, RR = RAD - 1;
     const ROPE = ROPE_COL;
     const P = this.level.player;
-    // la corde : chanvre clair et torsadé, trois pixels d'épaisseur cernés de sombre (elle ressort sur
+    // la corde : chanvre clair et torsadé, deux pixels d'épaisseur cernés de sombre (elle ressort sur
     // l'écorce et la pierre) ; chaque brin est mis de côté puis tracé en deux passes (contour, puis corps)
     const strands = [];
     const rope = (x0, y0, x1, y1) => strands.push([x0, y0, x1, y1]);
@@ -937,18 +937,24 @@ export class ForetLive {
     if (this.vis(bx - 4, by - 4, bw + 8, bh + 8, cam, vw, vh)) {
       const jit = r.state === 'held' && r.lift > 0 && r.lift < 30 ? R(Math.sin(time * 40) * 0.5) : 0;
       ctx.drawImage(this.block, R(bx - cam.x) + jit, R(by - cam.y));
-      // la corde en croix sur sa face, et le nœud en haut
-      rope(bx + 3, by + 3, bx + bw - 5, by + bh - 6); rope(bx + bw - 5, by + 3, bx + 3, by + bh - 6); rope(bx + 1, by + bh / 2 - 1, bx + bw - 4, by + bh / 2 - 1);
-      // la corde qui monte du bloc à la poulie (tangente au côté droit de la roue), puis le nœud par-dessus
-      rope(X + 7, by - 3, cx + RAD - 1, cy);
+      // la corde ceinture le bloc : une croix d'un coin à l'autre et une sangle au milieu, qui débordent
+      // de ses arêtes (elles passent derrière) ; deux brins remontent des coins du haut jusqu'au nœud
+      const b0 = bx + jit, b1 = bx + jit + bw - 1, ym = by + R(bh / 2), kxc = cx + RR, kyc = by - 6;
+      rope(b0, by + 1, b1, by + bh - 1); rope(b1, by + 1, b0, by + bh - 1); rope(b0 - 1, ym, b1 + 1, ym);
+      rope(kxc, kyc, b0 + 1, by); rope(kxc, kyc, b1 - 1, by);
+      // la corde qui monte du nœud à la poulie (elle tombe à l'aplomb du côté droit de la roue)
+      rope(kxc, kyc, kxc, cy);
       flush();
-      const kx = R(X + 4 - cam.x), ky = R(by - 5 - cam.y);
-      ctx.fillStyle = ROPE[0]; ctx.fillRect(kx, ky, 8, 7);
-      ctx.fillStyle = ROPE[2]; ctx.fillRect(kx + 1, ky + 1, 6, 5);
-      ctx.fillStyle = ROPE[3]; ctx.fillRect(kx + 1, ky + 1, 4, 2); ctx.fillRect(kx + 2, ky + 4, 3, 1);
-      ctx.fillStyle = ROPE[4]; ctx.fillRect(kx + 2, ky + 1, 2, 1);
-      ctx.fillStyle = ROPE[1]; ctx.fillRect(kx + 5, ky + 3, 2, 3);
-    } else rope(X + 7, by - 3, cx + RAD - 1, cy);
+      // là où la corde passe derrière le bloc : un brin d'ombre qui contourne l'arête
+      ctx.fillStyle = ROPE[1];
+      for (const [qx, qy] of [[b0 - 2, by], [b1 + 2, by], [b0 - 2, by + bh - 2], [b1 + 2, by + bh - 2], [b0 - 2, ym], [b1 + 2, ym]]) ctx.fillRect(R(qx - cam.x), R(qy - cam.y) - 1, 1, 3);
+      const kx = R(kxc - 4 - cam.x), ky = R(kyc - 3 - cam.y);
+      ctx.fillStyle = ROPE[0]; ctx.fillRect(kx + 1, ky, 7, 6);
+      ctx.fillStyle = ROPE[2]; ctx.fillRect(kx + 2, ky + 1, 5, 4);
+      ctx.fillStyle = ROPE[3]; ctx.fillRect(kx + 2, ky + 1, 3, 2); ctx.fillRect(kx + 3, ky + 4, 2, 1);
+      ctx.fillStyle = ROPE[4]; ctx.fillRect(kx + 3, ky + 1, 1, 1);
+      ctx.fillStyle = ROPE[1]; ctx.fillRect(kx + 5, ky + 3, 2, 2);
+    } else rope(cx + RR, by - 6, cx + RR, cy);
     // la poulie : le chevalet sur la branche, la roue qui tourne avec la corde
     if (this.vis(cx - 24, cy - 24, 48, 48, cam, vw, vh)) {
       const WOOD = ['#2a1a10', '#3f2a1a', '#5a3d25', '#765233', '#946a43'];
@@ -969,25 +975,28 @@ export class ForetLive {
         }
         if (c) { ctx.fillStyle = c; ctx.fillRect(sx + x, sy + y, 1, 1); }
       }
-      // la corde passe dans la gorge, par-dessus
-      for (let a = 0; a <= Math.PI; a += 0.05) {
-        const ox = Math.cos(a), oy = -Math.sin(a);
-        for (let k = 0; k < 3; k++) {
-          ctx.fillStyle = k === 2 ? ROPE[0] : ((R(a * RAD) + k + R(r.pull)) >> 1) % 2 ? ROPE[3] : ROPE[2];
-          ctx.fillRect(R(sx + ox * (RAD - 1 + k * 0.9)), R(sy + oy * (RAD - 1 + k * 0.9)), 1, 1);
-        }
-      }
     }
-    // l'autre brin : de la poulie au bout de la corde (sur la branche), ou jusqu'à KAGE
-    const lx = cx - RAD, held = r.state === 'held' && P?.state === 'rope_pull';
+    // l'autre brin. La corde épouse la gorge de la roue depuis son côté droit, passe par-dessus, et la
+    // quitte au point de tangence vers sa cible (l'épaule de KAGE, ou la branche où elle repose) : de là,
+    // une ligne droite, bien tendue, sans angle. φ : angle sur la roue, 0 à droite, π/2 en haut, π à gauche.
+    const held = r.state === 'held' && P?.state === 'rope_pull';
+    const wrapTo = (tx, ty) => {
+      const dx = tx - cx, dy = cy - ty, d = Math.max(RR + 0.5, Math.hypot(dx, dy));
+      const th = (Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2);
+      const ft = Math.max(0.05, th - Math.acos(RR / d));          // la tangente du côté où la corde s'enroule
+      let px = cx + RR, py = cy;
+      for (let f = 0; f < ft;) { f = Math.min(ft, f + 1.4 / RR); const nx = cx + RR * Math.cos(f), ny = cy - RR * Math.sin(f); rope(px, py, nx, ny); px = nx; py = ny; }
+      rope(px, py, tx, ty);
+    };
     if (held) {
       const sh = this.ropePoint(P, 'shoulder');
-      rope(lx, cy, sh.x, sh.y);
+      wrapTo(sh.x, sh.y);
       flush();
     } else {
       const endX = r.state === 'caught' ? r.twig + 3 : r.end - r.pull;
-      rope(lx, cy, lx - 6, r.branchY - 2);
-      rope(lx - 6, r.branchY - 3, endX, r.branchY - 3);
+      const touch = Math.max(endX, cx - RAD - 10);                // là où elle se pose sur la branche
+      wrapTo(touch, r.branchY - 2);
+      if (endX < touch) rope(touch, r.branchY - 2, endX, r.branchY - 2);
       flush();
       if (r.state === 'caught') {
         // emmêlée dans le rameau : deux tours, et le bout qui pend
