@@ -139,6 +139,18 @@ export class ForetProps {
           add('behind', X - 70, base - h - 30, 160, h + 40, (pix) => snag(pix, X + 8, base + 6, h, p.lean ?? 0.1, p.fallen ?? 0, p.x * 5 + 1));
           break;
         }
+        // un arbre plus proche (décor : on passe devant), du sommet de l'image jusqu'au sol de la pente
+        case 'near_tree': {
+          const w = p.w ?? 26, cx = X + 8, base = surfaceY(level, cx, p.y * TILE);
+          add('behind', cx - 90, base - 420, 180, 430, (pix) => nearTree(pix, cx, base, w, p.x * 11 + 3));
+          break;
+        }
+        // des tronçons de bois coupés, posés au sol (décor)
+        case 'log_cut': {
+          const base = surfaceY(level, X + 8, p.y * TILE);
+          add('over', X - 6, base - 22, 64, 26, (pix) => logCuts(pix, X, base, p.n ?? 2, p.x * 13 + 1));
+          break;
+        }
         case 'scree': {
           add('over', X - 4, p.y * TILE - 60, p.w * TILE + 8, 90, (pix) => scree(pix, level, X, p.w * TILE, p.y * TILE, p.x * 3 + 7));
           break;
@@ -1487,7 +1499,7 @@ function rockColumn(pix, X, Y, W, Hh, seed, ledge) {
 
 /** La surface du sol sous x (les pentes comprises), en partant de la rangée y0 (pixels). */
 function surfaceY(level, x, y0) {
-  for (const q of level.forest?.slopes ?? []) if (x >= q.x0 && x < q.x1) return Math.round(q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
+  for (const q of level.forest?.slopes ?? []) if (!q.pile && x >= q.x0 && x < q.x1) return Math.round(q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
   const tx = Math.floor(x / TILE);
   for (let r = Math.floor(y0 / TILE) - 4; r < level.h; r++) if (level.solid(tx, r)) return r * TILE;
   return y0;
@@ -1534,6 +1546,42 @@ function scree(pix, level, X, W, y0, seed) {
       if (xx * xx + yy * yy * 2 > r * r + 1) continue;
       pix.set(x + xx, g + yy, yy === -r ? S[4] : xx > 0 ? S[1] : S[2 + (ih(xx, yy, x) < 0.5 ? 1 : 0)]);
     }
+  }
+}
+
+
+/** Un arbre plus proche que le fond (zone 11) : fût roux, racines qui s'étalent sur la pente, deux ou trois
+ *  branches feuillues dans l'image, du lierre ; jamais deux pareils. */
+function nearTree(pix, cx, base, w, seed) {
+  const bark = L.hazeRamp(C.BARK, '#5a3b52', 0.18), moss = L.hazeRamp(C.MOSS, '#5a3b52', 0.2), leaf = L.hazeRamp(C.LEAF, '#5a3b52', 0.18);
+  L.bigTrunk(pix, cx, w, base + 4, seed, bark, moss, { top: base - 420, roots: 0.8 });
+  const nb = 2 + Math.floor(ih(seed, 1, 3) * 2);
+  for (let q = 0; q < nb; q++) {
+    const side = (q + Math.floor(ih(seed, 2, 3) * 2)) % 2 ? 1 : -1, y0 = base - 120 - Math.floor(ih(q, 3, seed) * 110);
+    const len = 30 + Math.floor(ih(q, 4, seed) * 40), x0 = cx + side * (w / 2 - 3), x1 = x0 + side * len, y1 = y0 - 12 - Math.floor(ih(q, 5, seed) * 26);
+    rootStroke(pix, x0, y0, x1, y1, 6, 1.5, side * 4, seed + q);
+    for (let f = 0; f < 3; f++) L.bush(pix, Math.round(x1 - side * f * 11), Math.round(y1 + 6 + f * 3), 12 + Math.floor(ih(f, q, seed) * 8), 9 + Math.floor(ih(f, q + 2, seed) * 5), leaf, seed + q * 5 + f);
+  }
+  L.strand(pix, cx - Math.round(w * 0.2), base - 150, 40 + Math.floor(ih(seed, 6, 3) * 50), leaf, seed + 9, 0.5);
+}
+
+/** Des tronçons de bois coupés, couchés : écorce, et la coupe claire avec ses cernes. */
+function logCuts(pix, X, base, n, seed) {
+  let x = X;
+  for (let k = 0; k < n; k++) {
+    const len = 10 + Math.floor(ih(k, 1, seed) * 9), d = 7 + Math.floor(ih(k, 2, seed) * 4), top = base - d + 1 - (k === 2 ? d - 2 : 0), x0 = k === 2 ? X + 6 : x;
+    for (let i = 0; i < len; i++) for (let j = 0; j < d; j++) {
+      const v = 0.75 - (j / d) * 0.6 + (noise2((x0 + i) * 0.4, j, seed) - 0.5) * 0.2;
+      pix.set(x0 + i, top + j, Math.abs(noise2((x0 + i) * 0.08, j * 0.6, seed + k) - 0.5) < 0.05 ? C.BARK[0] : pick(C.BARK, v, x0 + i, j));
+    }
+    // la coupe, au bout : un disque clair et ses cernes
+    const cx = x0 + len, cy = top + d / 2;
+    for (let j = -d / 2; j <= d / 2; j++) for (let i = -2; i <= 2; i++) {
+      const r = Math.hypot(i / 2.4, j / (d / 2));
+      if (r > 1) continue;
+      pix.set(cx + i, Math.round(cy + j), r > 0.82 ? C.BARK[2] : Math.sin(r * 9) > 0.2 ? '#c49a62' : '#e0bf86');
+    }
+    if (k !== 1) x += len + 4;
   }
 }
 

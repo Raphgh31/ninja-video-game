@@ -496,6 +496,7 @@ level.onEvent = (n, d) => {
     case 'slideStart': sfx('slideStart'); if (d.pile) { sfx('boulderLand'); fx.shake(2.6, 1.1); } else fx.shake(1, 0.8); slideRumble = 0.5; break;
     case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
     case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;
+    case 'pileCreak': sfxAt('crumbleCreak', d); fx.shake(0.4 + d.k * 0.8, 0.22); break;
     case 'birds': sfxAt('birds', d); fx.drift(d.x, d.y - 4, 3, { palette: 'feather', speed: 30, up: 20 }); break;
     case 'craneLand':
       sfx('boulderLand');

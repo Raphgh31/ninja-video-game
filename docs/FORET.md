@@ -190,6 +190,13 @@ Planches : `docs/foret/arbre_cavites.png`, `docs/foret/arche_racines_avant_apres
 - **sauter au bon moment** (la liane remonte en fin de balancement, de 0,22 à 0,55 rad d'angle, soit ~13° à ~32°) : KAGE profite de sa propulsion et part plus haut et plus loin (`swingQ0`, `swingQ1`, `swingUp`, `swingFwd` ; feuilles et souffle) ; à contretemps, le saut n'est qu'un coup de reins (`hop`). Un bond parfait sur la dernière liane atteint la corniche finale sans dash (le dash reste l'autre façon) ;
 - la branche aux ryō du final : un arbre pousse sur la corniche (`canopy_trunk`), on y grimpe en trois branches.
 
+### Retours n° 14 (13 novembre 2026) : la descente, deuxième version
+- **plus de fossés ni de tronc creux** dans la descente (on y tombait sans les voir) ;
+- **l'amas se franchit** : il barre le chemin, sa surface est faite de pentes (`F.slopes`, `pile: true`) ; KAGE l'escalade et en redescend ; dès qu'il passe le sommet, l'amas tremble sous son poids, de plus en plus, et grince (`pileCreak`) ; quand KAGE a remis pied à terre, il s'effondre (`slide.trigger` = bout de l'amas) et l'éboulis part 0,55 s plus tard ; ses pentes disparaissent avec lui ;
+- **descente plus longue** (~28 s) : sept longues pentes et des replats, des **souches coupées** à sauter (une ou deux cases, `stump`), des **tronçons de bois** couchés (`log_cut`), des **arbres plus proches** (décor, `near_tree` : chacun sa largeur, ses branches, son lierre) ; éboulis à la vitesse de la course (94 → 100 px/s) : il reste sur les talons de KAGE, toute hésitation coûte un sprint ; **courir en descendant une pente ne coûte plus d'énergie** (le sprint, si) ;
+- les pierres de l'éboulis ne bougent plus toutes pareil : chacune son rebond, sa cadence, de grands bonds de loin en loin, un léger flottement, et certaines épousent le sol mieux que la masse (elles décrochent aux ruptures de pente) ;
+- lianes : le bond au bon moment un peu moins puissant (`swingUp` 175, `swingFwd` 66).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

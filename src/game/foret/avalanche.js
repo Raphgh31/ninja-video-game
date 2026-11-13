@@ -98,7 +98,7 @@ export class Avalanche {
     for (let i = 0; i < n; i++) {
       const x = x0 + i, tx = Math.floor(x / TILE);
       let y = NaN;
-      for (const q of forest.slopes ?? []) if (x >= q.x0 && x < q.x1) y = q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0);
+      for (const q of forest.slopes ?? []) if (!q.pile && x >= q.x0 && x < q.x1) y = q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0);
       if (Number.isNaN(y)) for (let r = 18; r < level.h; r++) { const ch = rows[r]?.[tx]; if (ch === 'v') break; if ('#=|'.includes(ch)) { y = r * TILE; break; } }
       g[i] = y;
     }
@@ -121,37 +121,44 @@ export class Avalanche {
       const u = ih(i, 1, 61) * this.L, back = u / this.L, hf = Math.pow(ih(i, 2, 61), 0.85);
       let si = Math.floor(Math.pow(ih(i, 3, 61), 1.6 - back * 0.9) * SIZES.length * (0.55 + back * 0.45 + (1 - hf) * 0.25));
       si = Math.max(0, Math.min(SIZES.length - 1, si));
-      return { u0: u, hf, si, v: i % 3, z: ih(i, 4, 61), vrel: 18 + ih(i, 5, 61) * 34, ph: ih(i, 6, 61) * 6.28, spin: 0.6 + ih(i, 7, 61) * 1.6 };
+      return { u0: u, hf, si, v: i % 3, z: ih(i, 4, 61), vrel: 10 + ih(i, 5, 61) * 48, ph: ih(i, 6, 61) * 6.28, spin: 0.4 + ih(i, 7, 61) * 2.2,
+        amp: 1 + ih(i, 8, 61) * 6, fq: 3 + ih(i, 9, 61) * 7, leap: ih(i, 10, 61) < 0.3 ? 8 + ih(i, 11, 61) * 16 : 0, lq: 0.6 + ih(i, 12, 61) * 1.6, raw: ih(i, 13, 61) * 0.7, wob: ih(i, 14, 61) * 3 };
     }).sort((a, b) => a.z - b.z);
-    // l'amas : un empilement de gros blocs, en assises de plus en plus étroites qui penchent vers la
-    // pente, coiffé d'un énorme bloc fendu ; de petites pierres calées dans les vides (l'ensemble ne
-    // tient que par elles et quelques racines)
+    // l'amas : sa surface (prof, la même que les pentes où KAGE marche) est pavée de blocs dont le dessus
+    // affleure ; dessous, des assises de gros blocs ; de petites cales dans les vides
     if (S.pile) {
-      const P = S.pile, X = P.x, G = P.y, W = P.w;
-      const rows = [[5, 15, 19], [5, 13, 17], [4, 12, 16], [4, 11, 14], [3, 11, 14], [2, 12, 15], [1, 21, 23]];
-      const B = []; let y = G + 2, lean = 0, row = 0;
-      for (const [n, r0, r1] of rows) {
-        const rr = (k) => r0 + Math.floor(ih(row, k, 87) * (r1 - r0 + 1));
-        const span = W * (0.92 - row * 0.12), x0 = X + (W - span) / 2 + lean;
-        let top = 1e9;
-        for (let k = 0; k < n; k++) {
-          const r = rr(k), cx = n === 1 ? x0 + span / 2 : x0 + r * 0.6 + (k * (span - r * 1.2)) / Math.max(1, n - 1) + (ih(row, k + 9, 87) - 0.5) * 6;
-          const cy = y - r * 0.85 + (ih(row, k + 19, 87) - 0.5) * 5;
-          B.push([cx - X, cy - G, r, row]); top = Math.min(top, cy - r * 0.55);
+      const P = S.pile, X = P.x, G = P.y, W = P.w, prof = P.prof;
+      const surf = (x) => { for (let k = 0; k < prof.length - 1; k++) { const [x0, y0] = prof[k], [x1, y1] = prof[k + 1]; if (x >= x0 && x <= x1) return y0 + ((x - x0) * (y1 - y0)) / Math.max(1, x1 - x0); } return G; };
+      const B = [];
+      // dedans : des assises, de bas en haut, aussi larges que l'amas à cette hauteur
+      for (let y = G - 9, row = 0; y > G - P.h + 10; y -= 14, row++) {
+        let xa = X, xb = X + W;
+        while (xa < X + W && surf(xa) > y - 6) xa++;
+        while (xb > X && surf(xb) > y - 6) xb--;
+        for (let x = xa + 6, k = 0; x < xb - 4; k++) {
+          const r = Math.max(8, 15 - row * 1.5 - Math.floor(ih(row, k, 87) * 4));
+          B.push([x + (ih(row, k + 9, 87) - 0.5) * 4, y + (ih(row, k + 19, 87) - 0.5) * 4, r, row]);
+          x += r * 1.45;
         }
-        y = top + 10; lean += 5; row++;
       }
-      // les cales : de petites pierres dans la masse et à son pied
-      for (let k = 0; k < 16; k++) {
-        const u = ih(k, 1, 89), f = ih(k, 2, 89) * 0.8, hh = f * (G - y), half = W * (0.42 - f * 0.3);
-        B.push([W / 2 + (u - 0.5) * 2 * half + f * 25, -hh - 3, 4 + Math.floor(ih(k, 3, 89) * 4), 9]);
+      // la surface : des blocs dont le dessus suit le chemin de KAGE
+      for (let x = X + 4, k = 0; x < X + W - 2; k++) {
+        const r = 8 + Math.floor(ih(k, 3, 88) * 5), y = surf(x);
+        B.push([x, y + r * 0.78, r, 7]);
+        x += r * 1.25;
       }
-      this.pile = B.map(([dx, dy, r, rw], i) => ({ x: X + dx, y: G + dy, r, seed: 800 + i * 13, rot: ih(i, 1, 81) * 6.28, row: rw }));
-      // le dessin : les assises du haut d'abord, les blocs du bas devant elles, les cales par-dessus
-      this.pile.sort((a, b) => (a.row === 9) - (b.row === 9) || b.row - a.row);
+      // les cales
+      for (let k = 0; k < 18; k++) {
+        const x = X + 6 + ih(k, 1, 89) * (W - 12), top = surf(x);
+        B.push([x, top + 6 + ih(k, 2, 89) * (G - top - 8), 4 + Math.floor(ih(k, 3, 89) * 3), 9]);
+      }
+      this.pile = B.map(([x, y, r, rw], i) => ({ x, y, r, seed: 800 + i * 13, rot: ih(i, 1, 81) * 6.28, row: rw }));
+      // le dessin : le dedans (du haut vers le bas), la surface, les cales par-dessus
+      this.pile.sort((a, b) => (a.row === 9) - (b.row === 9) || (a.row === 7) - (b.row === 7) || b.row - a.row);
       for (const b of this.pile) { b.pts = shape(b.r, b.seed); b.img = stone(b.pts, b.rot, b.seed, LIT); }
-      this.top = this.pile.reduce((a, b) => (b.row !== 9 && b.y < a.y ? b : a), this.pile[0]);
-      this.pileX = X; this.pileW = W; this.pileG = G; this.pileH = G - this.top.y + this.top.r;
+      const apex = prof.reduce((a, q) => (q[1] < a[1] ? q : a), prof[0]);
+      this.top = this.pile.filter((b) => b.row === 7).reduce((a, b) => (Math.abs(b.x - apex[0]) < Math.abs(a.x - apex[0]) ? b : a));
+      this.pileX = X; this.pileW = W; this.pileG = G; this.pileH = P.h; this.apexX = apex[0]; this.surf = surf;
     }
   }
 
@@ -196,10 +203,12 @@ export class Avalanche {
   drawPile(ctx, cam, vw, vh, time, S, player) {
     if (!this.pile || S.pileGone) return;
     if (this.pileX + this.pileW + 40 < cam.x || this.pileX - 40 > cam.x + vw) return;
-    const near = player && player.x > this.pileX - 40 && player.x < S.trigger + 20;
-    const shake = near ? Math.min(1, (player.x - (this.pileX - 40)) / (S.trigger - this.pileX + 40)) : 0;
+    // sous le poids de KAGE qui redescend, l'amas tremble de plus en plus ; il grince
+    const on = player && player.x > this.apexX && player.x < this.pileX + this.pileW + 4 && Math.abs(player.y - this.surf(player.x)) < 10;
+    const shake = on ? 0.35 + 0.65 * (player.x - this.apexX) / (this.pileX + this.pileW - this.apexX) : player && player.x > this.pileX && player.x <= this.apexX && Math.abs(player.y - this.surf(player.x)) < 10 ? 0.15 : 0;
+    if (on && (this.creak ?? 0) < time) { this.creak = time + 0.45 + Math.random() * 0.3; this.level.onEvent?.('pileCreak', { x: player.x, y: player.y, k: shake }); }
     for (const b of this.pile) {
-      const j = (b.row >= 3 && b.row !== 9) && shake > 0.25 ? R(Math.sin(time * (26 + b.r) + b.seed) * shake * 1.3) : 0;
+      const j = shake > 0.1 && ih(b.seed, 1, 5) < 0.55 + shake * 0.4 ? R(Math.sin(time * (26 + b.r) + b.seed) * shake * 1.4) : 0;
       ctx.drawImage(b.img.img, R(b.x - b.img.ext - cam.x) + j, R(b.y - b.img.ext - cam.y));
     }
     // les fissures du gros bloc du sommet (il ne tiendra pas)
@@ -208,7 +217,7 @@ export class Avalanche {
     for (let s = 0; s < 22; s++) ctx.fillRect(R(T.x - 9 + s * 0.8 + Math.sin(s * 0.9) * 1.5 - cam.x), R(T.y - 12 + s - cam.y), 1, 1);
     for (let s = 0; s < 9; s++) ctx.fillRect(R(T.x + 4 + s * 0.6 - cam.x), R(T.y - 2 + s * 0.4 - cam.y), 1, 1);
     // des cailloux qui en roulent quand KAGE approche
-    if (shake > 0.2 && Math.sin(time * 7) > 0.9 && this.pebbles.length < 40) this.pebbles.push({ x: T.x + 10, y: T.y + 6, vx: 30 + ih(Math.floor(time * 10), 1, 3) * 40, vy: -20, r: 1, age: 0, life: 1.4 });
+    if (shake > 0.2 && Math.random() < shake * 0.12 && this.pebbles.length < 40) { const px = this.pileX + Math.random() * this.pileW; this.pebbles.push({ x: px, y: this.surf(px) - 2, vx: (px > this.apexX ? 1 : -1) * (20 + Math.random() * 40), vy: -30 - Math.random() * 30, r: 1, age: 0, life: 1.4 }); }
     this.stepPebbles(ctx, cam, vw, vh, time);
   }
 
@@ -237,7 +246,7 @@ export class Avalanche {
       // la base cède d'abord (les blocs du bas jaillissent vers la pente), puis tout s'affaisse, le gros
       // bloc du sommet en dernier
       if (!this.fall) this.fall = this.pile.map((b, i) => {
-        const delay = b.row === 9 ? 0.02 + ih(i, 1, 83) * 0.2 : 0.03 + b.row * 0.06 + ih(i, 5, 83) * 0.06;
+        const delay = b.row === 9 ? 0.02 + ih(i, 1, 83) * 0.2 : b.row === 7 ? 0.15 + ih(i, 6, 83) * 0.3 : 0.03 + b.row * 0.06 + ih(i, 5, 83) * 0.06;
         return { ...b, vx: 35 + ih(i, 2, 83) * 120 + b.row * 12, vy: -(5 + ih(i, 3, 83) * 50), w: (ih(i, 4, 83) - 0.25) * 6, a: 0, delay, set: this.rockFrames(b) };
       });
       // la grande gerbe de poussière de l'effondrement
@@ -253,10 +262,13 @@ export class Avalanche {
       if (x < cam.x - 20 || x > cam.x + vw + 20) continue;
       const H = this.heap(u) * grow;
       if (H <= 0 && u > 8) continue;
-      const hop = live ? Math.abs(Math.sin(time * (5 + m.spin * 2) + m.ph)) * (u < 30 ? 9 : 3) : 0;
-      const y = this.gy(x) - r * 0.8 - m.hf * H - hop;
+      // chaque pierre a son rebond (amplitude, cadence), quelques-unes font de grands bonds de loin en loin,
+      // certaines épousent mieux le sol que la masse (elles décrochent aux ruptures de pente)
+      const hop = live ? Math.abs(Math.sin(time * m.fq + m.ph)) * m.amp * (u < 30 ? 1.8 : 1) + (m.leap ? Math.pow(Math.max(0, Math.sin(time * m.lq + m.ph * 3)), 6) * m.leap : 0) : 0;
+      const base = this.gy(x) + (this.rawGy(x) - this.gy(x)) * m.raw;
+      const y = base - r * 0.8 - m.hf * H - hop, xw = x + (live ? Math.sin(time * 1.7 + m.ph * 2) * m.wob : 0);
       const fr = this.set(m.si, m.v, m.z > 0.35)[(Math.floor((live ? time * m.spin * (14 / r) : 0) + m.ph * 2) % ROT + ROT) % ROT];
-      ctx.drawImage(fr.img, R(x - fr.ext - cam.x), R(y - fr.ext - cam.y));
+      ctx.drawImage(fr.img, R(xw - fr.ext - cam.x), R(y - fr.ext - cam.y));
     }
     // les blocs de l'amas
     if (this.fall) for (const b of this.fall) {

@@ -597,7 +597,8 @@ export class Player {
       this.safe = { x: this.x, y: this.y };
     }
     this.energy.update(dt, {
-      running: this.onGround && (this.state === 'run' || this.state === 'sprint') && Math.abs(this.vx) > 10,
+      // dévaler une pente en courant ne coûte rien (la pente porte KAGE) ; le sprint, si
+      running: this.onGround && (this.state === 'sprint' || (this.state === 'run' && !(this.onSlope && this.vx * (this.slopeDir ?? 0) > 0))) && Math.abs(this.vx) > 10,
       sprinting: this.onGround && this.state === 'sprint',
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
       walking: this.onGround && this.state === 'walk',
@@ -743,7 +744,7 @@ export class Player {
     let onSlope = false;
     if (!this.onGround && this.vy >= 0 && lv.forest?.slopes?.length) {
       const fb = this.box(), sy = lv.forest.slopeY(fb.x + fb.w / 2, fb.y + fb.h, this.vy * dt, this.onSlope);
-      if (sy != null) { this.y -= fb.y + fb.h - sy; this.vy = 0; this.onGround = true; onSlope = true; }
+      if (sy != null) { this.y -= fb.y + fb.h - sy; this.vy = 0; this.onGround = true; onSlope = true; this.slopeDir = lv.forest.slopeDir; }
     }
     this.onSlope = onSlope;
   }

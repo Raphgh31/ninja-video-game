@@ -39,7 +39,7 @@ export class ForetWorld {
     this.hollows = level.forest?.def?.hollows ?? [];
     // les pentes (zone 11) : la hauteur du sol, pixel par pixel, sur leurs colonnes
     this.slopeTop = new Map();
-    for (const q of level.forest?.def?.slopes ?? []) for (let x = q.x0; x < q.x1; x++) this.slopeTop.set(x, q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
+    for (const q of (level.forest?.def?.slopes ?? []).filter((q) => !q.pile)) for (let x = q.x0; x < q.x1; x++) this.slopeTop.set(x, q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
     this.nx = Math.ceil(level.width / CH);
     this.ny = Math.ceil(level.height / CH);
     this.back = new Map();

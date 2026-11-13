@@ -39,7 +39,7 @@ export const FOREST = {
     // sauter au bon moment, quand la liane remonte en fin de balancement (juste avant qu'elle s'arrête),
     // c'est profiter de sa propulsion : KAGE part plus haut et plus loin. q (0 à 1) mesure le bon moment
     // (de swingQ0 à swingQ1 rad d'angle, en remontant) ; bond de swingUp px/s vers le haut, swingFwd vers l'avant
-    swingQ0: 0.22, swingQ1: 0.55, swingUp: 210, swingFwd: 80,
+    swingQ0: 0.22, swingQ1: 0.55, swingUp: 175, swingFwd: 66,
     boost: 1.0,        // l'élan du balancier est rendu à KAGE, tel quel
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
@@ -156,9 +156,10 @@ export class Forest {
   slopeY(x, feet, dy, sticky) {
     for (const s of this.slopes) {
       if (x < s.x0 || x >= s.x1) continue;
+      if (s.pile && this.slide?.pileGone) continue;                       // l'amas s'est effondré
       const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0);
       // il retombe dessus, ou (déjà sur la pente) elle descend un peu sous lui ou monte un peu devant lui
-      if (feet >= y - (sticky ? 7 : 0) && feet - dy <= y + (sticky ? 10 : 4)) return y;
+      if (feet >= y - (sticky ? 7 : 0) && feet - dy <= y + (sticky ? 10 : 4)) { this.slopeDir = Math.sign(s.y1 - s.y0); return y; }
     }
     return null;
   }
