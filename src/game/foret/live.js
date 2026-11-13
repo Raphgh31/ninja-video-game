@@ -10,6 +10,7 @@ import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { paintStatue, drawStatue, STATUE } from './statue.js';
+import { Avalanche } from './avalanche.js';
 import { pearlTreeShape, limbSprite, GATE } from './props.js';
 import { FOREST } from './mechanics.js';
 
@@ -427,6 +428,8 @@ export class ForetLive {
     }
     // la corde de la statue : le bloc, la poulie, la corde (zone 9)
     if (f.rope) this.drawRopeWorks(ctx, f.rope, cam, vw, vh, time);
+    // l'amas instable du sommet de la descente (zone 11), tant qu'il tient
+    if (f.slide?.pile) { this.aval ??= new Avalanche(this.level, f); this.aval.drawPile(ctx, cam, vw, vh, time, f.slide, this.level.player); }
     // lianes (derrière KAGE)
     for (const v of f.vines) this.vine(ctx, v, cam, vw, vh, time);
     // le départ des lianes de la chevelure de la statue : caché sous une touffe de son feuillage
@@ -837,33 +840,9 @@ export class ForetLive {
 
   drawSlide(ctx, cam, vw, vh, time) {
     const S = this.f.slide;
-    if (!S || (!S.active && !S.done)) return;
-    const x = S.x;
-    if (x < cam.x - 120 || x - 140 > cam.x + vw) return;
-    const ground = (px) => { const tx = Math.floor(px / TILE); for (let r = 20; r < this.level.h; r++) if ('#='.includes(this.rows[r][tx])) return r * TILE; return this.level.height; };
-    // nuage de poussière derrière le front
-    for (let k = 0; k < 18; k++) {
-      const px = x - 20 - k * 7 + Math.sin(time * 3 + k) * 4, py = ground(px) - 10 - (k % 5) * 6 - Math.abs(Math.sin(time * 2 + k)) * 8;
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = k % 2 ? '#c9a07a' : '#a8806a';
-      const r = 6 + (k % 4) * 3;
-      ctx.fillRect(R(px - r - cam.x), R(py - r / 2 - cam.y), r * 2, r);
-    }
-    ctx.globalAlpha = 1;
-    // les rochers qui roulent, les petits cailloux devant
-    this.rocks.forEach((fr, i) => {
-      const px = x - 8 - i * 17 + (i % 2) * 6;
-      const r = (fr[0].width - 2) / 2;
-      const hop = S.done ? 0 : Math.abs(Math.sin(time * (6 + i) + i)) * (5 + i % 3 * 3);
-      const py = ground(px) - r - hop;
-      const img = fr[S.done ? 0 : Math.floor(time * 10 + i) % 4];
-      ctx.drawImage(img, R(px - r - cam.x), R(py - r - cam.y));
-    });
-    if (!S.done) for (let k = 0; k < 6; k++) {
-      const px = x + 6 + ((time * 120 + k * 19) % 60), py = ground(px) - 2 - Math.abs(Math.sin(time * 9 + k)) * 6;
-      ctx.fillStyle = C.ROCK[2 + (k % 2)];
-      ctx.fillRect(R(px - cam.x), R(py - cam.y), 2, 2);
-    }
+    if (!S) return;
+    this.aval ??= new Avalanche(this.level, this.f);
+    this.aval.draw(ctx, cam, vw, vh, time, S);
   }
 
   /** Poussières dorées dans les rais (le jour), lucioles (sous-bois, soir), spores (sous terre). */

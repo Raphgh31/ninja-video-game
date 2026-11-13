@@ -493,7 +493,7 @@ level.onEvent = (n, d) => {
     case 'ropeBreath': sfx('breath'); break;
     case 'blockFall': sfx('land', { strength: 1 }); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 18, up: 6, life: 0.6 }); break;
     case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
-    case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
+    case 'slideStart': sfx('slideStart'); if (d.pile) { sfx('boulderLand'); fx.shake(2.6, 1.1); } else fx.shake(1, 0.8); slideRumble = 0.5; break;
     case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
     case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;
     case 'birds': sfxAt('birds', d); fx.drift(d.x, d.y - 4, 3, { palette: 'feather', speed: 30, up: 20 }); break;

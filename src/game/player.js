@@ -738,6 +738,14 @@ export class Player {
         p.load = true;
       }
     }
+    // les pentes (forêt) : un sol en biais qu'on suit en montant comme en descendant (on y reste collé
+    // en courant vers le bas ; un saut s'en détache)
+    let onSlope = false;
+    if (!this.onGround && this.vy >= 0 && lv.forest?.slopes?.length) {
+      const fb = this.box(), sy = lv.forest.slopeY(fb.x + fb.w / 2, fb.y + fb.h, this.vy * dt, this.onSlope);
+      if (sy != null) { this.y -= fb.y + fb.h - sy; this.vy = 0; this.onGround = true; onSlope = true; }
+    }
+    this.onSlope = onSlope;
   }
 
   draw(ctx, sheet, cam) {

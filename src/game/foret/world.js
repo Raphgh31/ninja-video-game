@@ -37,6 +37,9 @@ export class ForetWorld {
     this.dark = level.forest?.dark ?? null;
     this.gal = level.forest?.def?.galleries ?? level.forest?.galleries ?? null;
     this.hollows = level.forest?.def?.hollows ?? [];
+    // les pentes (zone 11) : la hauteur du sol, pixel par pixel, sur leurs colonnes
+    this.slopeTop = new Map();
+    for (const q of level.forest?.def?.slopes ?? []) for (let x = q.x0; x < q.x1; x++) this.slopeTop.set(x, q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
     this.nx = Math.ceil(level.width / CH);
     this.ny = Math.ceil(level.height / CH);
     this.back = new Map();
@@ -55,6 +58,18 @@ export class ForetWorld {
     return k;
   }
   air(tx, ty) { const k = this.kind(tx, ty); return k === 0; }
+  slopeCol(tx) { return this.slopeTop.has(tx * TILE); }
+  /** Une case d'une colonne en pente : la terre commence à la surface en biais (le dessous des tuiles suit). */
+  paintSlopeTile(pix, tx, ty) {
+    for (let px = 0; px < TILE; px++) {
+      const x = tx * TILE + px, st = this.slopeTop.get(x);
+      for (let py = 0; py < TILE; py++) {
+        const y = ty * TILE + py, d = y - Math.round(st);
+        if (d < 0) continue;
+        pix.set(x, y, this.humus(x, y, d, 99, 99, 99, false));
+      }
+    }
+  }
   ch(tx, ty) { return tx < 0 || tx >= this.w || ty < 0 || ty >= this.h ? '.' : this.rows[ty][tx]; }
   under(x, y) { const d = this.dark; return (!!d && x > d.x0 && x < d.x1 && y > d.y0 + 2 * TILE) || this.inGal(x, y); }
   /** Les galeries de terre de la zone 5 (un avant-goût du souterrain). */
@@ -88,6 +103,7 @@ export class ForetWorld {
     for (let ty = Math.floor(y0 / TILE); ty < Math.ceil((y0 + CH) / TILE); ty++) {
       for (let tx = Math.floor(x0 / TILE); tx < Math.ceil((x0 + CH) / TILE); tx++) {
         const k = this.kind(tx, ty);
+        if (this.slopeCol(tx) && k !== 9) { this.paintSlopeTile(pix, tx, ty); continue; }
         if (!k || k === 9) {
           const hb = !k && this.hollowBase(tx, ty);
           if (hb) {
@@ -339,9 +355,24 @@ export class ForetWorld {
   /** Herbes, fougères, fleurs, champignons ; radicelles sous les plafonds. Renvoie true si la couche avant a reçu quelque chose. */
   paintSurface(back, front, tx0, tx1, ty0, ty1) {
     let anyFront = false;
+    // le long des pentes : herbes couchées par le vent de l'éboulis, fougères, cailloux, fleurs
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (!this.slopeCol(tx)) continue;
+      const tyS = Math.floor(this.slopeTop.get(tx * TILE + 8) / TILE);
+      if (tyS < ty0 || tyS > ty1) continue;
+      for (let q = 0; q < 4; q++) {
+        const x = tx * TILE + 1 + q * 4 + Math.floor(ih(tx, q, 140) * 3), y = Math.round(this.slopeTop.get(x)) - 1;
+        if (ih(tx, q, 141) < 0.6) L.grassTuft(back, x, y, 2 + Math.floor(ih(tx, q, 142) * 4), C.FERN, tx * 5 + q);
+      }
+      const r = ih(tx, 0, 143), xm = tx * TILE + 8, ym = Math.round(this.slopeTop.get(xm));
+      if (r < 0.14) L.fern(back, xm, ym, 7 + Math.floor(ih(tx, 1, 144) * 5), C.FERN, tx);
+      else if (r < 0.3) L.rock(back, xm, ym + 2, 3 + Math.floor(ih(tx, 2, 145) * 3), 3 + Math.floor(ih(tx, 3, 146) * 2), tx);
+      else if (r < 0.36) { const f = [C.FLOWER.white, C.FLOWER.yellow, C.FLOWER.violet][Math.floor(ih(tx, 4, 147) * 3)]; for (let q = 0; q < 3; q++) { const fx = xm - 4 + q * 4, fy = Math.round(this.slopeTop.get(fx)), fh = 3 + (q % 2); for (let s2 = 1; s2 < fh; s2++) back.set(fx, fy - s2, C.FERN[2]); back.set(fx, fy - fh, f); } }
+    }
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
       const k = this.kind(tx, ty);
       if (k !== 1 && k !== 2) continue;
+      if (this.slopeCol(tx)) continue;                                  // (la pente a sa propre surface)
       const x = tx * TILE, y = ty * TILE;
       const c = this.ch(tx, ty - 1);
       const under = this.under(x, y);

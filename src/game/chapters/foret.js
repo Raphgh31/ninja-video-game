@@ -17,7 +17,7 @@ export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { oasis: null, galleries: null, snaps: [], spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { oasis: null, galleries: null, snaps: [], spans: [], crumbles: [], logs: [], vines: [], lamps: [], slopes: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -632,43 +632,64 @@ function build() {
   coins([x + 2, x + 3, x + 4], G10 - 7);
 
   // ===========================================================================
-  // ZONE 11 — La descente vertigineuse : un éboulis de pierres moussues dévale
-  // la pente derrière KAGE. Gradins, brèches, un tronc couché sous lequel on glisse.
+  // ZONE 11 — La descente vertigineuse : au sommet, un amas de rochers mal calés,
+  // fendu, retenu par des racines. KAGE passe devant : il s'effondre, et une masse
+  // de pierres dévale la pente derrière lui. Pentes où l'on dévale, brèches à
+  // sauter, deux troncs couchés sous lesquels on glisse.
+  // (refonte de novembre 2026 : l'amas, des pentes au lieu de marches, éboulis bien plus dense)
   // ===========================================================================
   zone('11', 'La descente vertigineuse', { mood: 'couchant', bgSlope: true });
-  x = b.x; ground(10, G10);
-  lantern(x + 2, G10);
-  const slide0 = x + 7;
+  x = b.x; ground(13, G10);
+  lantern(x + 1, G10);
+  const pile = x + 3;                                    // l'amas instable : de x + 3 à x + 10
+  b.prop('rock_pile', pile, G10, { w: 8 });
+  const slide0 = x + 10;
   let g = G10;
   const KILL11 = FORET_ROWS.vallee + 8;
   const step = (n, drop) => { g += drop; const s0 = b.x; ground(n, g); return s0; };
   const gapv = (n) => { const s0 = b.x; chasm(n, KILL11); return s0; };
-  x = step(7, 2); coin(x + 3, g - 2);
-  x = step(8, 3); coins([x + 2, x + 5], g - 2);
+  // une pente : n colonnes, elle descend de drop rangées ; sous elle, les tuiles restent sous la surface
+  const slopeDown = (n, drop) => {
+    const s0 = b.x, y0 = g * TILE, y1 = (g + drop) * TILE;
+    for (let i = 0; i < n; i++) ground(1, Math.ceil((y0 + ((i + 1) / n) * (y1 - y0)) / TILE));
+    F.slopes.push({ x0: s0 * TILE, y0, x1: (s0 + n) * TILE, y1 });
+    g += drop; return s0;
+  };
+  const onSlope = (s0, n, drop, k) => g - drop + (drop * k) / n;        // la rangée de la pente à la colonne s0 + k
+  x = slopeDown(8, 4); coin(x + 4, Math.round(onSlope(x, 8, 4, 4)) - 2);
+  b.prop('scree', x, g - 4, { w: 8 }); b.prop('snag', x + 5, g - 2, { h: 84, lean: 0.12 });
+  x = step(4, 0);
   gapv(3);                                               // brèche : un saut
-  x = step(9, 2); coin(x + 4, g - 2);
-  x = step(6, 3);
+  x = step(5, 2); coin(x + 2, g - 2);
+  b.prop('half_buried', x + 3, g, { r: 16 });
+  x = slopeDown(6, 3); coin(x + 3, Math.round(onSlope(x, 6, 3, 3)) - 2);
+  b.prop('scree', x, g - 3, { w: 6 });
   // un tronc couché en travers : on glisse dessous
-  x = step(9, 2);
+  x = step(8, 0);
   fill(x + 3, 4, g - 3, g - 2, '|');
   b.prop('fallen_log', x + 3, g - 1, { w: 4 });
+  x = slopeDown(10, 5); coins([x + 3, x + 6], Math.round(onSlope(x, 10, 5, 5)) - 2);
+  b.prop('scree', x, g - 5, { w: 10 }); b.prop('snag', x + 2, g - 4, { h: 60, lean: -0.08, fallen: 0.45 }); b.prop('half_buried', x + 8, g, { r: 14 });
   gapv(5);                                               // brèche : sprint
-  x = step(8, 3); coins([x + 2, x + 5], g - 2);
   x = step(7, 2);
   lantern(x + 3, g);                                     // mi-pente : l'éboulis repart d'ici
   const slideMid = x + 3;
-  x = step(8, 3); coin(x + 4, g - 2);
-  gapv(3);                                               // brèche : un saut
-  x = step(8, 2);
-  x = step(6, 3); coins([x + 1, x + 4], g - 2);
+  x = slopeDown(6, 3); b.prop('scree', x, g - 3, { w: 6 });
+  x = step(4, 2); coin(x + 2, g - 2);
+  b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
+  gapv(3);                                               // brèche : un saut, on retombe en pleine pente
+  x = slopeDown(7, 3); coins([x + 2, x + 5], Math.round(onSlope(x, 7, 3, 3)) - 2);
+  b.prop('scree', x, g - 3, { w: 7 }); b.prop('half_buried', x + 6, g, { r: 18 });
+  x = step(3, 0);
   gapv(6);                                               // brèche : dash
   x = step(9, 2);
   fill(x + 4, 3, g - 3, g - 2, '|');                     // second tronc couché
   b.prop('fallen_log', x + 4, g - 1, { w: 3 });
-  x = step(7, 2); coin(x + 3, g - 2);
+  x = slopeDown(8, 3); coin(x + 4, Math.round(onSlope(x, 8, 3, 4)) - 2);
+  b.prop('scree', x, g - 3, { w: 8 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
   const G12 = FORET_ROWS.vallee;
-  x = step(8, G12 - g - 0);
-  F.slide = { trigger: slide0 * TILE, start: (slide0 - 9) * TILE, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 106 };
+  x = step(8, G12 - g);
+  F.slide = { trigger: slide0 * TILE, start: (pile + 6) * TILE, pile: { x: pile * TILE, w: 8 * TILE, y: G10 * TILE }, delay: 1.05, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 104, speedEnd: 112 };
 
   // ===========================================================================
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,

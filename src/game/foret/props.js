@@ -128,6 +128,21 @@ export class ForetProps {
           add('over', X - 10, Y - 18, p.w * TILE + 20, (bottom - p.y) * TILE + 18, (pix) => rockColumn(pix, X, Y, p.w * TILE, (bottom - p.y) * TILE, p.x, p.type === 'rock_ledge'));
           break;
         }
+        // la descente (zone 11) : rochers à demi enterrés, arbres morts cassés par d'anciens éboulis, éboulis de cailloux
+        case 'half_buried': {
+          const r = p.r ?? 12, cx = X + 8, base = surfaceY(level, cx, p.y * TILE);
+          add('over', cx - r * 2 - 4, base - r * 2 - 6, r * 4 + 8, r * 2 + 12, (pix) => { L.rock(pix, cx, base + Math.round(r * 0.35), Math.round(r * 1.3), Math.round(r * 1.25), p.x * 7 + 3); });
+          break;
+        }
+        case 'snag': {
+          const h = p.h ?? 70, base = surfaceY(level, X + 8, p.y * TILE);
+          add('behind', X - 70, base - h - 30, 160, h + 40, (pix) => snag(pix, X + 8, base + 6, h, p.lean ?? 0.1, p.fallen ?? 0, p.x * 5 + 1));
+          break;
+        }
+        case 'scree': {
+          add('over', X - 4, p.y * TILE - 60, p.w * TILE + 8, 90, (pix) => scree(pix, level, X, p.w * TILE, p.y * TILE, p.x * 3 + 7));
+          break;
+        }
         case 'fallen_log': {
           mask(p.x, p.w, p.y - 2, p.y - 1);
           const g = floorBelow(level, p.x - 1, p.y);
@@ -1467,6 +1482,59 @@ function rockColumn(pix, X, Y, W, Hh, seed, ledge) {
   L.strand(pix, X + 2, Y + 3, 14 + Math.floor(ih(seed, 17, 3) * 18), C.LEAF, seed + 18, 0.6);
   if (!ledge) L.strand(pix, X + W - 3, Y + 3, 10 + Math.floor(ih(seed, 19, 3) * 14), C.LEAF, seed + 20, 0.4);
   if (ledge) for (let i = 0; i < 3; i++) L.strand(pix, X + W - 6 - i * 10, Y + 6, 20 + i * 14, C.LEAF, seed + i, 0.7);
+}
+
+
+/** La surface du sol sous x (les pentes comprises), en partant de la rangée y0 (pixels). */
+function surfaceY(level, x, y0) {
+  for (const q of level.forest?.slopes ?? []) if (x >= q.x0 && x < q.x1) return Math.round(q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
+  const tx = Math.floor(x / TILE);
+  for (let r = Math.floor(y0 / TILE) - 4; r < level.h; r++) if (level.solid(tx, r)) return r * TILE;
+  return y0;
+}
+
+/**
+ * Un arbre mort, cassé par un ancien éboulis (zone 11) : un fût gris qui penche, cassé net en échardes ;
+ * fallen : sa partie haute gît à côté, en travers de la pente. Écorce qui pèle, quelques moignons.
+ */
+function snag(pix, cx, base, h, lean, fallen, seed) {
+  const DEAD = ['#2a2220', '#43372f', '#665446', '#8c7766', '#b39d86', '#d6c3a8'];
+  const top = base - h, tx = cx + lean * h;
+  for (let y = top; y <= base; y++) {
+    const u = (base - y) / h, xc = cx + (tx - cx) * u, half = 9 - u * 3 + (noise1(y * 0.2, seed) - 0.5) * 1.4;
+    for (let x = Math.round(xc - half); x <= Math.round(xc + half); x++) {
+      const k = (x - (xc - half)) / (2 * half);
+      let v = 0.75 - k * 0.6 + (noise2(x * 0.6, y * 0.06, seed) - 0.5) * 0.25;
+      if (Math.abs(noise2(x * 0.4, y * 0.03, seed + 1) - 0.5) < 0.05) v -= 0.3;   // les fentes du bois mort
+      pix.set(x, y, pick(DEAD, v, x, y));
+    }
+  }
+  // la cassure : des échardes en dents de scie
+  for (let i = -7; i <= 7; i++) { const sp = 2 + Math.floor(ih(i, 1, seed) * 10); for (let j = 0; j < sp; j++) pix.set(Math.round(tx + i), top - j, j === sp - 1 ? DEAD[4] : DEAD[2 + (i > 0 ? 0 : 1)]); }
+  // deux moignons de branches
+  for (let q = 0; q < 2; q++) { const y = Math.round(top + h * (0.3 + q * 0.3)), x = Math.round(cx + (tx - cx) * (1 - (y - top) / h)), d = q ? 1 : -1; for (let s = 0; s < 6; s++) { pix.set(x + d * (6 + s), y - Math.round(s * 0.6), DEAD[3]); pix.set(x + d * (6 + s), y - Math.round(s * 0.6) + 1, DEAD[1]); } }
+  // le haut, tombé en travers de la pente
+  if (fallen) {
+    const len = 40 + Math.floor(ih(seed, 3, 1) * 30), x0 = tx + 4, y0 = base - 6;
+    for (let s = 0; s < len; s++) {
+      const x = Math.round(x0 + s), y = Math.round(y0 - s * fallen), th = 6 - (s / len) * 3;
+      for (let j = -th; j <= th; j++) pix.set(x, y + j, pick(DEAD, 0.65 - (j + th) / (2 * th) * 0.55 + (noise2(x * 0.5, j, seed) - 0.5) * 0.2, x, j));
+    }
+  }
+}
+
+/** Un éboulis de cailloux le long du sol (pentes comprises) : des pierres de 1 à 4 px, plus denses par endroits. */
+function scree(pix, level, X, W, y0, seed) {
+  const S = ['#2b2522', '#463a33', '#66574b', '#8a7764', '#ad9781'];
+  for (let i = 0; i < W; i += 2) {
+    const x = X + i, d = noise1(x * 0.04, seed);
+    if (ih(x, 1, seed) > 0.45 + d * 0.5) continue;
+    const g = Math.round(surfaceY(level, x, y0)) + 1, r = 1 + Math.floor(ih(x, 2, seed) * (2 + d * 3));
+    for (let yy = -r; yy <= 0; yy++) for (let xx = -r; xx <= r; xx++) {
+      if (xx * xx + yy * yy * 2 > r * r + 1) continue;
+      pix.set(x + xx, g + yy, yy === -r ? S[4] : xx > 0 ? S[1] : S[2 + (ih(xx, yy, x) < 0.5 ? 1 : 0)]);
+    }
+  }
 }
 
 /** Tronc couché (zone 11) : on glisse dessous ; il repose sur deux pierres. */

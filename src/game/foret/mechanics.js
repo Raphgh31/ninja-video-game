@@ -94,7 +94,10 @@ export class Forest {
     // la corde : rest (au repos, son bout près de la poulie), held (tenue par KAGE), back (elle revient),
     // caught (emmêlée dans le rameau : le bloc reste levé d'une case)
     this.rope = def.rope ? { ...def.rope, state: 'rest', pull: 0, lift: 0, holder: null, strain: 0, t: 0 } : null;
-    this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
+    // pentes (zone 11) : segments de sol en biais { x0, y0, x1, y1 } (pixels) ; sous eux, les tuiles
+    // restent au-dessous de la surface (foret.js), la pente seule porte KAGE
+    this.slopes = def.slopes ?? [];
+    this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false, t: 0, wait: 0, pileGone: false } : null;
     this.dark = def.dark ?? null;
   }
 
@@ -125,9 +128,11 @@ export class Forest {
     for (const v of this.vines) v.rider = null;
     if (this.slide) {
       const S = this.slide;
-      S.active = false; S.done = false;
+      S.active = false; S.done = false; S.t = 0; S.wait = 0;
       // reprise à mi-pente : l'éboulis repart de derrière la lanterne, dès que KAGE s'en éloigne
+      // (l'amas du sommet n'est plus là) ; au sommet, l'amas est de nouveau debout
       const mid = spawn && spawn.x > S.trigger;
+      S.pileGone = !!mid;
       S.x = mid ? spawn.x - 11 * TILE : S.start;
       S.from = mid ? spawn.x + 12 : S.trigger;
     }
@@ -143,6 +148,17 @@ export class Forest {
       // (les planches du pont suivent sa courbe : on monte de l'une à l'autre comme sur une petite marche)
       const tol = p.kind === 'plank' ? 9 : 4;
       if (feet >= p.y && feet - dy <= p.y + tol + Math.max(0, p.dy)) return p;
+    }
+    return null;
+  }
+
+  /** Hauteur de la pente sous les pieds (x : milieu des pieds), si KAGE s'y pose ou y reste ; sinon null. */
+  slopeY(x, feet, dy, sticky) {
+    for (const s of this.slopes) {
+      if (x < s.x0 || x >= s.x1) continue;
+      const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0);
+      // il retombe dessus, ou (déjà sur la pente) elle descend un peu sous lui ou monte un peu devant lui
+      if (feet >= y - (sticky ? 7 : 0) && feet - dy <= y + (sticky ? 10 : 4)) return y;
     }
     return null;
   }
@@ -560,9 +576,16 @@ export class Forest {
     const S = this.slide;
     if (!S || S.done) return;
     if (!S.active) {
-      if (alive && player.x > S.from && player.x < S.end) { S.active = true; this.emit('slideStart', { x: S.x }); }
+      if (alive && player.x > S.from && player.x < S.end) {
+        S.active = true; S.t = 0; S.wait = S.pileGone ? 0 : S.delay ?? 0; S.withPile = !S.pileGone;
+        this.emit('slideStart', { x: S.x, pile: !S.pileGone });
+        S.pileGone = true;
+      }
       return;
     }
+    S.t += dt;
+    // l'amas s'effondre d'abord : la masse ne se met en marche qu'une fois les premiers blocs tombés
+    if (S.wait > 0) { S.wait -= dt; if (alive && player.x < S.x - FOREST.slide.margin && player.x > S.start - 120) { this.emit('slideHit', { x: player.x, y: player.y }); player.die(); } return; }
     const k = Math.max(0, Math.min(1, (S.x - S.start) / (S.end - S.start)));
     S.x += (S.speed + (S.speedEnd - S.speed) * k) * dt;
     if (S.x >= S.end) { S.x = S.end; S.active = false; S.done = true; this.emit('slideEnd', { x: S.x }); return; }
