@@ -347,9 +347,9 @@ async function main() {
     expect(!r[4] && r[1] >= 5 && r[2] >= r[3], JSON.stringify(r));
   });
 
-  await test('zone 10 : sans dash, la corniche finale est hors d\'atteinte (32 lâchers essayés, avec ou sans bond)', async () => {
+  await test('zone 10 : sans dash, un simple lâcher n\'atteint jamais la corniche finale ; un bond au bon moment (la liane qui remonte) y arrive', async () => {
     const r = await run('z10brut');
-    expect(r[0] >= 30 && r[1].length === 0, JSON.stringify(r));
+    expect(r[0] >= 30 && r[1].length > 0 && r[1].every((a) => /J$/.test(a)), JSON.stringify(r));
   });
 
   await test('zone 11 : immobile, l\'éboulis emporte KAGE', async () => {

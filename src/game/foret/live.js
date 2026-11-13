@@ -568,28 +568,59 @@ export class ForetLive {
    * boucle feuillue (là où KAGE la saisit). Elle traîne un peu derrière son mouvement.
    */
   swingVine(ctx, v, cam, time) {
-    const len = v.len, s = Math.sin(v.angle), c = Math.cos(v.angle);
+    const len = v.len, F = this.f;
     const STEM = ['#1d2c1a', '#2e4526', '#46652f', '#6d8f3c'], TW = ['#3b5a2a', '#88b04e'];
     const LEAF = C.LEAF, FL = ['#f4d3e0', '#e9a8c0', '#ffd98a'];
-    const bend = -(v.av ?? 0) * 0.04, rider = v.rider;
-    const at = (d) => {
-      const t = d / len, off = bend * d * (1 - t) * (rider ? 0.3 : 1) + Math.sin(time * 1.1 + d * 0.07 + v.i) * 0.5 * t;
-      return [v.ax + s * d + c * off - cam.x, v.ay + c * d - s * off - cam.y];
+    // la liane est une chaîne souple (intégration de Verlet, pour le dessin seulement : le jeu garde son
+    // pendule) : son accroche est fixe ; chaque maillon est rappelé doucement vers la droite du pendule,
+    // si bien qu'elle suit le balancement en traînant, ondule et fouette ; quand KAGE la tient, le maillon
+    // de sa main est collé à sa main, la corde au-dessus se tend, le bout en dessous pend et se débat
+    const N = 20, seg = len / N;
+    const ch = v.chain ??= { p: Array.from({ length: N + 1 }, (_, i) => [v.ax + Math.sin(v.angle) * i * seg, v.ay + Math.cos(v.angle) * i * seg]), q: null, t: time };
+    ch.q ??= ch.p.map((a) => a.slice());
+    const dt = Math.min(1 / 30, Math.max(0, time - ch.t)); ch.t = time;
+    if (dt > 0) {
+      const sa = Math.sin(v.angle), ca = Math.cos(v.angle), rider = v.rider, rr = rider?.vineR ?? 0, hold = rider ? Math.min(N, Math.round(rr / seg)) : -1;
+      for (let i = 1; i <= N; i++) {
+        const P = ch.p[i], Q = ch.q[i], vx = (P[0] - Q[0]) * 0.985, vy = (P[1] - Q[1]) * 0.985;
+        Q[0] = P[0]; Q[1] = P[1];
+        P[0] += vx; P[1] += vy + 260 * dt * dt;
+        // rappel vers le pendule : ferme près de l'accroche et au-dessus de la main, lâche vers le bout
+        const t = i / N, k = rider ? (i <= hold ? 0.18 : 0.012) : 0.035 + 0.05 * (1 - t);
+        const tx = v.ax + sa * i * seg + Math.sin(time * 2.3 + i * 0.55 + v.i) * 0.6 * t, ty = v.ay + ca * i * seg;
+        P[0] += (tx - P[0]) * k; P[1] += (ty - P[1]) * k;
+      }
+      for (let it = 0; it < 8; it++) {
+        if (rider) { const h = F.vinePoint(v, rr); ch.p[hold][0] = h.x; ch.p[hold][1] = h.y; }
+        for (let i = 0; i < N; i++) {
+          const A = ch.p[i], B = ch.p[i + 1], dx = B[0] - A[0], dy = B[1] - A[1], d = Math.hypot(dx, dy) || 1, e = (d - seg) / d;
+          if (i === 0) { B[0] -= dx * e; B[1] -= dy * e; }
+          else { A[0] += dx * e * 0.5; A[1] += dy * e * 0.5; B[0] -= dx * e * 0.5; B[1] -= dy * e * 0.5; }
+        }
+        ch.p[0][0] = v.ax; ch.p[0][1] = v.ay;
+      }
+    }
+    // un point (et la direction de la liane) à la distance d de l'accroche
+    const at3 = (d) => {
+      const f = Math.max(0, Math.min(N - 1e-6, d / seg)), i = Math.floor(f), u = f - i, A = ch.p[i], B = ch.p[i + 1];
+      const dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy) || 1;
+      return [A[0] + dx * u - cam.x, A[1] + dy * u - cam.y, dx / l, dy / l];
     };
+    const at = (d) => at3(d);
     const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(R(x), R(y), 1, 1); };
     // la vrille, côté caché (derrière la tige)
-    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w >= 0) continue; const [x, y] = at(d); px(x + c * w * 2, y - s * w * 2, TW[0]); }
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w >= 0) continue; const [x, y, s, c] = at(d); px(x + c * w * 2, y - s * w * 2, TW[0]); }
     // la tige
     for (let d = 0; d <= len; d++) {
-      const [x, y] = at(d);
+      const [x, y, s, c] = at(d);
       px(x - c * 0.5, y + s * 0.5, d % 11 < 2 ? STEM[3] : STEM[2]);
       px(x + c * 0.7, y - s * 0.7, STEM[1]);
     }
     // la vrille, côté visible
-    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w < 0) continue; const [x, y] = at(d); px(x + c * w * 2, y - s * w * 2, TW[1]); }
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w < 0) continue; const [x, y, s, c] = at(d); px(x + c * w * 2, y - s * w * 2, TW[1]); }
     // les feuilles : en cœur, alternées, un peu plus grandes vers le bas ; des fleurs de loin en loin
     for (let d = 6, k = 0; d <= len - 3; d += 6 + ((d * 7 + v.i) % 3), k++) {
-      const [x, y] = at(d), side = k % 2 ? 1 : -1, big = d > len * 0.5 ? 1 : 0;
+      const [x, y, s, c] = at(d), side = k % 2 ? 1 : -1, big = d > len * 0.5 ? 1 : 0;
       const ox = c * side, oy = -s * side;                             // perpendiculaire à la liane
       const lx = x + ox * 2.5, ly = y + oy * 2.5 + 1;
       const dark = side > 0 ? 0 : 1;                                  // la face à l'ombre
@@ -598,7 +629,7 @@ export class ForetLive {
       if ((k + v.i) % 4 === 1) { const fx = x - ox * 2.5, fy = y - oy * 2.5; px(fx, fy, FL[0]); px(fx + 1, fy, FL[1]); px(fx, fy + 1, FL[1]); px(fx + 0.5, fy + 0.5, FL[2]); }
     }
     // au bout : une boucle de tige et une touffe de feuilles
-    const [ex, ey] = at(len);
+    const [ex, ey, s, c] = at(len);
     const L2 = [[-2, 0], [-2, 1], [-1, 2], [0, 3], [1, 2], [2, 1], [2, 0]];
     for (const [dx, dy] of L2) px(ex + dx * c + dy * s, ey + dy * c - dx * s, STEM[2]);
     for (const [dx, dy, col] of [[-3, -1, LEAF[3]], [3, -1, LEAF[2]], [-2, 3, LEAF[4]], [2, 3, LEAF[2]], [0, 4, LEAF[3]], [-3, 2, LEAF[1]], [3, 2, LEAF[1]]]) px(ex + dx * c + dy * s, ey + dy * c - dx * s, col);

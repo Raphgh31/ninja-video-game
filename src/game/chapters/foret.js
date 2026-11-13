@@ -598,34 +598,37 @@ function build() {
   b.hint('vine', x + 4);
   const KILL10 = G9 + 14;
   const AY = G9 - 10;                                    // hauteur des branches où pendent les lianes
-  const swing = (cx, len = 7.5, phase = 0, amp = 0.2, ay = AY) => { vine(cx, ay, len, amp, phase); b.prop('vine_branch', cx, ay, { len }); };
+  const swing = (cx, len = 8.2, phase = 0, amp = 0.2, ay = AY) => { vine(cx, ay, len, amp, phase); b.prop('vine_branch', cx, ay, { len }); };
   const pillar = (n, top, lamp = false) => { const p0 = b.x; ground(n, top); b.prop('rock_pillar', p0, top, { w: n }); if (lamp) lantern(p0 + Math.floor(n / 2), top); return p0; };
   // une liane, pour apprendre : elle ramène tout près du bord
   x = b.x; chasm(8, KILL10);
-  swing(x + 3.5, 7.5, 0);
+  swing(x + 3.5, 8.2, 0);
   coins([x + 4], G9 - 1);
   pillar(5, G9, false);
   // deux lianes à la suite
   x = b.x; chasm(15, KILL10);
-  swing(x + 3.5, 7.5, 0); swing(x + 10, 7.5, Math.PI);
+  swing(x + 3.5, 8.2, 0); swing(x + 10, 8.2, Math.PI);
   coins([x + 7], G9 - 3);
   pillar(5, G9, true);
   // trois lianes, la dernière plus courte : il faut lâcher plus haut
   x = b.x; chasm(21, KILL10);
-  swing(x + 3.5, 7.5, 0); swing(x + 10, 7.5, Math.PI); swing(x + 16, 6.8, 0);
+  swing(x + 3.5, 8.2, 0); swing(x + 10, 8.2, Math.PI); swing(x + 16, 7.4, 0);
   coins([x + 7, x + 13], G9 - 4);
   pillar(5, G9 - 1, true);
   // le final : une liane accrochée plus haut, puis la corniche, plus haute et trop loin : on lâche au sommet
   // de la courbe et on dashe
   x = b.x; chasm(11, KILL10);
-  swing(x + 3.5, 7.5, 0, 0.25, AY - 2);
+  swing(x + 3.5, 8.2, 0, 0.25, AY - 2);
   coins([x + 8], G9 - 8);
   const G10 = G9 - 5;
   x = b.x; ground(6, G10);
   b.prop('rock_ledge', x, G10, { w: 6 });
-  // tout en haut, une corniche pour un dash parfait : cinq ryō
+  // tout en haut, la branche aux ryō : un arbre pousse sur la corniche, on y grimpe de branche en branche
+  // (ou on l'atteint d'un bond parfait depuis la dernière liane)
+  b.prop('canopy_trunk', x + 3, G10, { seed: 41, w: 18 });
+  b.row(x + 4, 2, G10 - 2, '-');
+  b.row(x + 1, 2, G10 - 4, '-');
   b.row(x + 2, 3, G10 - 6, '-');
-  b.prop('branch', x + 2, G10 - 6, { w: 3, from: 'right' });
   coins([x + 2, x + 3, x + 4], G10 - 7);
 
   // ===========================================================================

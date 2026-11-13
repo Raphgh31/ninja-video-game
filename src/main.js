@@ -269,7 +269,7 @@ player.onEvent = (n, d) => {
     // lianes de la Forêt
     case 'fall_death': sfx('land', { strength: 1 }); fx.shake(2, 0.25); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
     case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
-    case 'vine_release': sfx('vineRelease'); break;
+    case 'vine_release': sfx('vineRelease'); if (d.perfect) { sfx('flip'); fx.drift(d.x, d.y - 20, 5, { palette: 'leaf', speed: 50, up: 20, life: 0.8, g: 40 }); } break;
     case 'vine_step': sfx('vineStep'); break;
     case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':

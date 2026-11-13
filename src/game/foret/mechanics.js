@@ -35,7 +35,11 @@ export const FOREST = {
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
     jumpUp: 320,       // impulsion du bond pour quitter une liane immobile (statue, canopée : de quoi passer sur la branche)
-    hop: 0,            // sur une liane qui se balance, sauter revient à lâcher (l'élan vient du balancier)
+    hop: 30,           // sur une liane qui se balance, sauter à contretemps n'est qu'un coup de reins
+    // sauter au bon moment, quand la liane remonte en fin de balancement (juste avant qu'elle s'arrête),
+    // c'est profiter de sa propulsion : KAGE part plus haut et plus loin. q (0 à 1) mesure le bon moment
+    // (de swingQ0 à swingQ1 rad d'angle, en remontant) ; bond de swingUp px/s vers le haut, swingFwd vers l'avant
+    swingQ0: 0.22, swingQ1: 0.55, swingUp: 210, swingFwd: 80,
     boost: 1.0,        // l'élan du balancier est rendu à KAGE, tel quel
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
@@ -409,8 +413,15 @@ export class Forest {
     player.vy = -vt * Math.sin(v.angle);
     // le bond : franc sur une liane immobile (on passe d'une mèche à l'autre), un simple
     // coup de reins sur une liane qui se balance (l'élan vient du balancier, pas du saut)
+    let perfect = false;
     if (jump && v.still) { player.vy = Math.min(player.vy, 0) - V.jumpUp; player.vx += dir * 70; }
-    else if (jump) player.vy -= V.hop;
+    else if (jump) {
+      const out = Math.sign(v.av) === Math.sign(v.angle) && Math.abs(v.av) > 0.05;     // elle remonte
+      const q = out ? Math.max(0, Math.min(1, (Math.abs(v.angle) - V.swingQ0) / (V.swingQ1 - V.swingQ0))) : 0;
+      player.vy -= V.hop + V.swingUp * q;
+      player.vx += Math.sign(v.av) * V.swingFwd * q;
+      perfect = q > 0.6;
+    }
     v.rider = null;
     player.vine = null;
     player.lastVine = v;
@@ -427,7 +438,7 @@ export class Forest {
     player.airDash = true;
     player.fling = true;
     player.jumpBuffer = 0;
-    player.emit('vine_release', { jump });
+    player.emit('vine_release', { jump, perfect, x: player.x, y: player.y });
     if (dash) {
       player.airDash = false;
       player.facing = dash;
