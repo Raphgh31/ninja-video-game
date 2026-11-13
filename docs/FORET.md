@@ -200,7 +200,7 @@ Planches : `docs/foret/arbre_cavites.png`, `docs/foret/arche_racines_avant_apres
 ### Retours n° 15 (13 novembre 2026) : la descente, troisième version
 - **l'amas, plus grand** (16 cases de large, plus de 6 de haut) et fait de **gros blocs** (rayon 12 à 22 dedans, 11 à 17 en surface), de la taille de ceux de l'éboulis ;
 - **on ne peut que le gravir** : ses pentes sont vérifiées même quand KAGE est posé sur le sol (il repose dessus), et qui se retrouve sous sa surface (arrivé de côté, retombé dedans) est remis dessus (`slopeY`, `pile`) ;
-- **plus d'obstacles, et plus variés**, sur chaque replat : souches (une ou deux cases, en escalier), **troncs couchés** (`log_block`), **rochers** (`boulder`, deux à la suite, le second plus haut), **piles de bûches** (`log_pile`) ; les troncs en tronçons, les arbres proches, les arbres morts et les éboulis de cailloux restent en décor ;
+- **plus d'obstacles, et plus variés**, sur chaque replat : souches (une ou deux cases, en escalier), **troncs couchés** (`log_block`), **rochers** (`boulder`, deux à la suite, le second plus haut) ; (les piles de bûches en pyramide, essayées, ont été retirées à la demande de Raph) ; les troncs en tronçons, les arbres proches, les arbres morts et les éboulis de cailloux restent en décor ;
 - **dévaler une pente en courant redonne du souffle** (comme en marcher) : la longue descente reste faisable malgré les sauts ; sans aucun sprint, l'éboulis finit par rattraper KAGE (il faut sprinter au moins une fois) ;
 - pilote des tests (`foret_bot.js`) : une pente ou l'amas ne sont ni des trous ni des murs ; il saute plus tôt devant un obstacle de deux cases.
 

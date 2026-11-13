@@ -670,7 +670,7 @@ function build() {
   x = step(7, 2); stump(x + 1); stump(x + 3, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 });   // deux souches en escalier
   x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
   b.prop('scree', x, g - 4, { w: 14 }); b.prop('half_buried', x + 11, g - 1, { r: 15 });
-  x = step(10, 0); block('log_pile', x + 2, 3, 2); stump(x + 7);
+  x = step(10, 0); block('boulder', x + 2, 2, 2); stump(x + 7);
   x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
   b.prop('scree', x, g - 4, { w: 12 }); b.prop('snag', x + 3, g - 3, { h: 60, lean: -0.08, fallen: 0.45 });
   x = step(9, 0);
@@ -685,7 +685,7 @@ function build() {
   x = step(10, 0); block('log_block', x + 2, 4, 1); stump(x + 7, 1, 2); b.prop('near_tree', x + 5, g, { w: 28 });
   x = slopeDown(10, 3); coin(x + 4, Math.round(onSlope(10, 3, 4)) - 2);
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
-  x = step(8, 0); stump(x + 1, 2); block('log_pile', x + 4, 3, 2); b.prop('log_cut', x + 7, g, { n: 1 });
+  x = step(8, 0); stump(x + 1, 2); block('log_block', x + 4, 3, 1); b.prop('log_cut', x + 7, g, { n: 1 });
   const G12 = FORET_ROWS.vallee;
   x = step(8, G12 - g);
   F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };
