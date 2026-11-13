@@ -548,11 +548,11 @@ function build() {
   const eyeL = eye(-1), eyeR = eye(1);
   // les lianes de sa chevelure : immobiles, on y monte et on en descend ; deux passent devant les yeux
   // (elles partent de l'intérieur du feuillage, une touffe cache leur départ : live.js)
-  vine(sx - 3.9, G9 - 11.9, 10.6);                      // la grande mèche de gauche, jusqu'au sol
+  vine(sx - 3.5, G9 - 11.5, 10.2);                      // la grande mèche de gauche, jusqu'au sol
   vine(eyeL.x / TILE, G9 - 12.6, 6.6);                  // devant l'œil gauche
   vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 12.6, 5.4);   // un brin court sur l'arête du nez : le relais
-  vine(eyeR.x / TILE, G9 - 12.6, 6.8);                  // devant l'œil droit
-  vine(sx + 3.8, G9 - 12.3, 8.1);                       // la mèche de droite
+  vine(eyeR.x / TILE, G9 - 12.45, 6.65);                  // devant l'œil droit
+  vine(sx + 3.8, G9 - 12.1, 7.9);                       // la mèche de droite
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
   b.prop('chest', sx + 1, G9 - 13, { id: 'couronne', ryo: 15 });
   coins([sx - 2, sx - 1], G9 - 15);
@@ -575,12 +575,15 @@ function build() {
   // au-dessus de la couronne : hors de portée du sol)
   const BR = G9 - 23, door = x;
   b.row(sx - 4, door - (sx - 4), BR, '-');
-  b.prop('rope_branch', sx - 4, BR, { x1: door, ground: G9 });
+  // twig : la fourche du grand rameau en Y où la corde se coince au retour (bien à gauche de la poulie)
+  const twig = door * TILE - 105;
+  b.prop('rope_branch', sx - 4, BR, { x1: door, ground: G9, twig });
   vine(sx - 1, BR + 0.15, 23 - 13 - 2.5 - 0.15);
   b.hint('haul', sx + 2, BR);                          // (sur la branche seulement)
   // la poulie, posée sur le bout de la branche contre la falaise ; la corde descend au bloc et revient le
   // long de la branche, où on la saisit ; un rameau, trois cases plus loin, l'arrêtera au retour
-  F.rope = { door, ground: G9 * TILE, branchY: BR * TILE, pulleyX: door * TILE + 8 - 13, end: door * TILE - 34, twig: door * TILE - 34 - 48, max: 96 };
+  // end : le bout de la corde au repos, posé sur la branche 52 px à droite de la fourche (il faut tirer 60 px)
+  F.rope = { door, ground: G9 * TILE, branchY: BR * TILE, pulleyX: door * TILE + 8 - 13, end: twig + 52, twig, max: 96 };
 
   // ===========================================================================
   // ZONE 10 — Le souffle des lianes : de longues lianes se balancent au-dessus

@@ -914,20 +914,30 @@ export class ForetLive {
     const strands = [];
     const rope = (x0, y0, x1, y1) => strands.push([x0, y0, x1, y1]);
     const flush = () => { drawRopeStrands(ctx, strands, cam, vw, vh, R(r.pull)); strands.length = 0; };
-    // le bloc : plus large que le passage, levé de r.lift
+    // le bloc : un monolithe de granit moucheté, plus clair et plus chaud que les pierres du pilier, cerné de
+    // noir, ses arêtes taillées en biseau (lumière en haut à gauche) : on voit tout de suite que c'est lui qui
+    // ferme le passage ; levé de r.lift
     if (!this.block) {
-      const W = 26, H = 34;
+      const W = 30, H = 37;
       this.block = sprite(W, H, (p) => {
-        const S = ['#232b30', '#323e45', '#45545c', '#5c6d75', '#7a8a90', '#9aa8aa'];
+        const S = ['#2a2624', '#3d3733', '#554c45', '#6e645a', '#887c70', '#a49789', '#c4b8a8'];
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
           const e = Math.min(x, y, W - 1 - x, H - 1 - y);
-          if (e === 0 && ih(x, y, 151) < 0.35) continue;                  // arêtes ébréchées
-          let v = 0.66 - (x / W) * 0.35 - (y / H) * 0.12 + (noise2(x * 0.3, y * 0.3, 152) - 0.5) * 0.2;
-          if (e === 0) v += x === 0 || y === 0 ? 0.15 : -0.3;
-          if ((x * 3 + y * 7) % 11 === 0 && ih(x, y, 153) < 0.4) v -= 0.18;   // traces de ciseau
+          const corner = (x < 2 || x > W - 3) && (y < 2 || y > H - 3);
+          if (corner && (x === 0 || x === W - 1) && (y === 0 || y === H - 1)) continue;   // coins abattus
+          if (e === 0 || (corner && e <= 1 && (x === 1 || x === W - 2) && (y === 1 || y === H - 2))) { p.set(x, y, '#121012'); continue; }
+          let v = 0.62 - (x / W) * 0.22 - (y / H) * 0.14 + (noise2(x * 0.25, y * 0.25, 152) - 0.5) * 0.16;
+          // le biseau : haut et gauche dans la lumière, bas et droite dans l'ombre
+          if (y <= 2 && x < W - 2) v += y === 1 ? 0.3 : 0.18;
+          else if (x <= 2 && y < H - 2) v += x === 1 ? 0.22 : 0.12;
+          else if (y >= H - 3) v -= y === H - 2 ? 0.34 : 0.2;
+          else if (x >= W - 3) v -= x === W - 2 ? 0.3 : 0.18;
           let c = pick(S, v, x, y);
-          if (y < 4 && fbm2(x * 0.2, y * 0.3, 2, 154) > 0.5) c = y < 2 ? C.MOSS[4] : C.MOSS[2];
-          if (y > H - 5 && ih(x, y, 155) < 0.3) c = C.MOSS[1];
+          const sp = ih(x, y, 156);                                         // le moucheté du granit
+          if (e > 2 && sp < 0.07) c = S[1]; else if (e > 2 && sp > 0.95) c = S[6];
+          if ((x * 3 + y * 7) % 13 === 0 && ih(x, y, 153) < 0.3 && e > 2) c = S[2];   // traces de ciseau
+          if (y < 4 && y > 0 && fbm2(x * 0.2, y * 0.3, 2, 154) > 0.52) c = y < 2 ? C.MOSS[4] : C.MOSS[2];
+          if (y > H - 5 && y < H - 1 && ih(x, y, 155) < 0.25) c = C.MOSS[1];
           p.set(x, y, c);
         }
       });
@@ -936,6 +946,9 @@ export class ForetLive {
     const bx = X + 8 - bw / 2, by = G - bh - r.lift;
     if (this.vis(bx - 4, by - 4, bw + 8, bh + 8, cam, vw, vh)) {
       const jit = r.state === 'held' && r.lift > 0 && r.lift < 30 ? R(Math.sin(time * 40) * 0.5) : 0;
+      // son ombre portée sur le pilier et dans le tunnel, en bas à droite
+      ctx.save(); ctx.globalAlpha = 0.45; ctx.fillStyle = '#05080a';
+      ctx.fillRect(R(bx + bw - cam.x) + jit, R(by + 3 - cam.y), 3, bh - 3); ctx.restore();
       ctx.drawImage(this.block, R(bx - cam.x) + jit, R(by - cam.y));
       // la corde ceinture le bloc : une croix d'un coin à l'autre et une sangle au milieu, qui débordent
       // de ses arêtes (elles passent derrière) ; deux brins remontent des coins du haut jusqu'au nœud
@@ -993,20 +1006,27 @@ export class ForetLive {
       wrapTo(sh.x, sh.y);
       flush();
     } else {
-      const endX = r.state === 'caught' ? r.twig + 3 : r.end - r.pull;
-      const touch = Math.max(endX, cx - RAD - 10);                // là où elle se pose sur la branche
-      wrapTo(touch, r.branchY - 2);
-      if (endX < touch) rope(touch, r.branchY - 2, endX, r.branchY - 2);
-      flush();
-      if (r.state === 'caught') {
-        // emmêlée dans le rameau : deux tours, et le bout qui pend
-        const tx = R(r.twig - cam.x), ty = R(r.branchY - cam.y);
-        ctx.fillStyle = ROPE[0]; ctx.fillRect(tx - 1, ty - 8, 8, 4); ctx.fillRect(tx, ty - 4, 7, 4); ctx.fillRect(tx - 2, ty - 2, 4, 10);
-        ctx.fillStyle = ROPE[2]; ctx.fillRect(tx, ty - 7, 6, 2); ctx.fillRect(tx + 1, ty - 3, 5, 2);
-        ctx.fillStyle = ROPE[3]; ctx.fillRect(tx + 1, ty - 7, 3, 1); ctx.fillRect(tx + 2, ty - 3, 2, 1);
-        for (let k = 0; k < 8; k++) { ctx.fillStyle = ROPE[(k >> 1) % 2 ? 3 : 2]; ctx.fillRect(tx - 1, ty - 1 + k, 2, 1); }
-        ctx.fillStyle = ROPE[4]; ctx.fillRect(tx - 1, ty + 7, 1, 1);
+      const endX = r.end - r.pull, fx = r.twig, fy = r.branchY - 13;     // fy : la fourche du rameau en Y
+      // coincée : la corde file tendue du haut de la roue jusque dans la fourche, et son bout pend derrière ;
+      // au retour, sur les derniers pixels avant la fourche, elle se soulève de la branche et s'y engage
+      const k = r.state === 'caught' ? 1 : r.state === 'back' && r.snag ? Math.max(0, Math.min(1, 1 - (fx - endX) / 18)) : 0;
+      if (k > 0) {
+        const qx = endX + (fx - endX) * k, qy = r.branchY - 2 + (fy - (r.branchY - 2)) * k;
+        wrapTo(qx, qy);
+        rope(qx, qy, qx - 3, qy + 1); rope(qx - 3, qy + 1, qx - 4, Math.min(qy + 7, r.branchY - 4));
+        flush();
+        // emmêlée : un tour serré autour de la fourche, et le bout effiloché qui pend
+        const tx = R(qx - cam.x), ty = R(qy - cam.y), by2 = R(Math.min(qy + 7, r.branchY - 4) - cam.y);
+        ctx.fillStyle = ROPE[0]; ctx.fillRect(tx - 2, ty - 2, 5, 5);
+        ctx.fillStyle = ROPE[2]; ctx.fillRect(tx - 1, ty - 1, 3, 3);
+        ctx.fillStyle = ROPE[3]; ctx.fillRect(tx - 1, ty - 1, 2, 1); ctx.fillRect(tx, ty + 1, 1, 1);
+        ctx.fillStyle = ROPE[4]; ctx.fillRect(tx - 5, by2 + 1, 1, 1); ctx.fillRect(tx - 3, by2 + 1, 1, 2);
+        ctx.fillStyle = ROPE[3]; ctx.fillRect(tx - 4, by2 + 2, 1, 1);
       } else {
+        const touch = Math.max(endX, cx - RAD - 10);                // là où elle se pose sur la branche
+        wrapTo(touch, r.branchY - 2);
+        if (endX < touch) rope(touch, r.branchY - 2, endX, r.branchY - 2);
+        flush();
         // le bout effiloché ; au repos et KAGE sur la branche : une lueur qui pulse, des chevrons vers la gauche
         const ex = R(endX - cam.x), ey = R(r.branchY - 2 - cam.y);
         const near = P && Math.abs(P.y - r.branchY) < 6 && Math.abs(P.x - endX) < 110 && r.state === 'rest';

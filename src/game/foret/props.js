@@ -71,7 +71,7 @@ export class ForetProps {
           const xr = p.x1 * TILE, G = p.ground * TILE;
           // l'arbre qui s'agrippe au pilier (comme aux temples envahis) : derrière, son tronc et ses racines
           add('front', xr - 30, Y - 200, 110, G - Y + 204, (pix) => pillarTree(pix, xr + 26, Y, G, xr, p.x * 3 + 9));
-          add('over', X - 40, Y - 70, xr - X + 80, 120, (pix) => ropeBranch(pix, X, xr, Y, p.x1 * TILE - 82, p.x * 3 + 5));
+          add('over', X - 40, Y - 70, xr - X + 80, 120, (pix) => ropeBranch(pix, X, xr, Y, p.twig ?? p.x1 * TILE - 105, p.x * 3 + 5));
           break;
         }
         case 'river_rock': {
@@ -415,17 +415,16 @@ function pillarTree(pix, cx, Y, G, door, seed) {
   // en haut, il se perd dans le feuillage
   for (let k = 0; k < 4; k++) L.bush(pix, cx - 18 + k * 12, Y - 196 + (k % 2) * 8, 22, 14, C.LEAF, seed + k);
   // les racines : elles descendent le long du pilier, s'écartent de l'entrée du tunnel (à gauche, la porte)
-  // (seule celle de gauche descend jusqu'au sol, devant le pilier ; les autres s'arrêtent au-dessus du
-  // plafond du tunnel, pour ne jamais cacher KAGE qui y glisse)
-  const roots = [[-8, door - 9, 5, G + 2], [-2, door + 26, 6, G - 3 * TILE], [4, door + 14, 4, G - 4 * TILE], [9, door + 38, 5, G - 3 * TILE - 6], [-11, door + 2, 3, G - 3 * TILE - 2]];
+  // et s'arrêtent au-dessus de son plafond : rien ne passe devant le bloc ni ne cache KAGE qui y glisse
+  const roots = [[-2, door + 26, 6, G - 3 * TILE], [4, door + 14, 4, G - 4 * TILE], [9, door + 38, 5, G - 3 * TILE - 6], [-11, door + 2, 3, G - 3 * TILE - 2]];
   for (const [i, [dx, xg, w, yEnd]] of roots.entries()) rootStroke(pix, cx + dx, Y + 18, xg, yEnd, w, 2, (i % 2 ? 8 : -6), seed + 30 + i, 1);
 }
 
 /**
  * La grande branche de la statue (zone 9), de X0 (son bout, à gauche) à X1 (la falaise) ; dessus plat à Y
  * (on y marche). Massive contre la roche (un collet, des racines qui l'agrippent), elle s'effile vers la
- * gauche ; des touffes de feuilles dessous et au bout, de la mousse, des brins qui pendent ; un rameau
- * dressé à twigX, où la corde s'emmêlera au retour.
+ * gauche ; des touffes de feuilles dessous et au bout, de la mousse, des brins qui pendent ; un grand
+ * rameau en Y dressé à twigX (sa fourche, 13 px au-dessus du dessus), où la corde se coincera au retour.
  */
 function ropeBranch(pix, X0, X1, Y, twigX, seed) {
   const len = X1 - X0;
@@ -450,11 +449,20 @@ function ropeBranch(pix, X0, X1, Y, twigX, seed) {
   for (let x = X0 + 10; x < X1 - 20; x += 22 + Math.floor(ih(x, 3, seed) * 14)) L.bush(pix, x, Y + 14, 12 + Math.floor(ih(x, 4, seed) * 8), 7, C.LEAF, seed + x);
   for (let x = X0 + 4; x < X1 - 6; x += 4) if (ih(x, 5, seed) < 0.45) L.strand(pix, x, Y + 10 + Math.floor(ih(x, 6, seed) * 4), 4 + Math.floor(ih(x, 7, seed) * 12), C.LEAF, seed + x, 0.5);
   for (let x = X0; x < X1 - 4; x += 3) if (ih(x, 8, seed) < 0.45) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 9, seed) * 2), C.FERN, x);
-  // le rameau : dressé de biais sur le dessus, deux brindilles, quelques feuilles
-  const tx = Math.round(twigX);
-  for (let i = 0; i < 9; i++) { const x = tx + Math.round(i * 0.45), y = Y - 1 - i; pix.set(x, y, C.BARK[3]); pix.set(x + 1, y, C.BARK[2]); }
-  for (let i = 0; i < 4; i++) { pix.set(tx + 4 + i, Y - 7 - Math.round(i * 0.5), C.BARK[2]); pix.set(tx + 1 - i, Y - 5 - i, C.BARK[2]); }
-  for (const [dx, dy] of [[8, -9], [-3, -9], [5, -11]]) { pix.set(tx + dx, Y + dy, C.LEAF[4]); pix.set(tx + dx + 1, Y + dy, C.LEAF[3]); pix.set(tx + dx, Y + dy - 1, C.LEAF[5]); }
+  // le grand rameau en Y : une tige qui sort du dessus (un empattement moussu), se fourche à 13 px ; un bras
+  // part loin vers la gauche, l'autre se dresse ; des feuilles en touffes au bout de chacun, quelques-unes
+  // le long des bras ; la corde se coince dans la fourche
+  const tx = Math.round(twigX), fy = Y - 13;
+  for (let k = -3; k <= 4; k++) if (Math.abs(k) < 3 || ih(k, 11, seed) < 0.6) pix.set(tx + 1 + k, Y - 1, k < 1 ? C.MOSS[4] : C.BARK[2]);
+  rootStroke(pix, tx + 3, Y + 1, tx, fy, 7, 4, 0.8, seed + 40, 1);              // la tige
+  rootStroke(pix, tx - 1, fy + 1, tx - 21, Y - 31, 4, 2, -2, seed + 41);       // le bras de gauche, qui part loin
+  rootStroke(pix, tx + 1, fy + 1, tx - 2, Y - 36, 3.5, 1.5, 1.2, seed + 42);    // le bras dressé
+  rootStroke(pix, tx - 12, Y - 24, tx - 16, Y - 38, 2, 1, 0.6, seed + 43);     // une brindille
+  rootStroke(pix, tx - 18, Y - 29, tx - 27, Y - 33, 1.5, 1, -0.5, seed + 47);   // et une autre, au bout
+  L.bush(pix, tx - 24, Y - 29, 10, 8, C.LEAF, seed + 44);
+  L.bush(pix, tx - 2, Y - 34, 8, 9, C.LEAF, seed + 45);
+  L.bush(pix, tx - 15, Y - 36, 7, 7, C.LEAF, seed + 46);
+  for (const [dx, dy] of [[-6, -18], [-9, -22], [3, -24], [-1, -17], [-14, -26], [2, -30]]) { pix.set(tx + dx, Y + dy, C.LEAF[4]); pix.set(tx + dx + 1, Y + dy, C.LEAF[3]); pix.set(tx + dx, Y + dy - 1, C.LEAF[5]); }
 }
 
 /**
