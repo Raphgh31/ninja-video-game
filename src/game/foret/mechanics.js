@@ -19,10 +19,16 @@ export const FOREST = {
   // un trou de 30 px qu'aucun sprint ne passe sans sauter (une planche ne rattrape KAGE qu'à 9 px sous elle)
   bridge: { plankW: 18, plankGap: 6, rotten: [2, 5, 8, 10], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
+  // lianes. Refonte de novembre 2026 (demande de Raph : balancier bien plus lent, plus dur à lancer, plus
+  // naturel, moins de portée) : lianes courtes (~7 cases), pesanteur du pendule adoucie (période ~3 s),
+  // l'élan ne vient qu'en poussant dans le sens du mouvement (il faut « pomper » au bon moment), le
+  // balancier plafonne vers 50° et KAGE repart à la vitesse du balancier, sans plus.
   vine: {
-    g: 980,            // pesanteur du balancier
-    pump: 2.6,         // élan donné par gauche / droite (rad/s²)
-    damp: 0.22,        // frottement d'une liane balancier
+    g: 520,            // pesanteur du balancier (le saut et la chute gardent la leur, 980)
+    pumpK: 0.07,       // élan donné en poussant dans le sens du mouvement, en fraction de g / r (≈ +0,14 rad par demi-balancement)
+    pumpStart: 0.35,   // à l'arrêt (|av| petit), une poussée plus faible permet de démarrer
+    pumpBack: 0.5,     // pousser contre le mouvement freine (fraction de la poussée)
+    damp: 0.1,         // frottement d'une liane balancier
     dampStill: 3.2,    // frottement d'une liane immobile (statue)
     climb: 46,         // px/s le long de la liane
     grab: 12,          // distance (px) à laquelle la main attrape la liane
@@ -30,12 +36,12 @@ export const FOREST = {
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
     jumpUp: 320,       // impulsion du bond pour quitter une liane immobile (statue, canopée : de quoi passer sur la branche)
     hop: 0,            // sur une liane qui se balance, sauter revient à lâcher (l'élan vient du balancier)
-    boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
+    boost: 1.0,        // l'élan du balancier est rendu à KAGE, tel quel
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
-    maxAngle: 1.0,
-    pumpAngle: 0.62,   // au-delà, gauche / droite ne donnent plus d'élan
-    maxSpeed: 300,     // vitesse rendue au lâcher, au plus (px/s)
+    maxAngle: 1.05,
+    pumpAngle: 0.78,   // au-delà, gauche / droite ne donnent plus d'élan (le balancier plafonne vers 50°)
+    maxSpeed: 230,     // vitesse rendue au lâcher, au plus (px/s)
   },
   statue: { reach: 22, delay: 0.9, gateTime: 2.8 },   // la dalle de la porte remonte en 2,8 s
   // la corde de la statue : tirée le long de la branche, elle lève le bloc (lift = pull × ratio) ; lâchée,
@@ -348,11 +354,15 @@ export class Forest {
     player.vineR = r;
     // balancier : pesanteur, frottement, élan donné par le joueur
     let acc = -(V.g / r) * Math.sin(v.angle) - (v.still ? V.dampStill : V.damp) * v.av;
-    // (on ne pousse plus au-delà d'un certain angle : le balancier reste lisible)
-    if (Math.abs(v.angle) < V.pumpAngle || Math.sign(v.angle) !== dir) acc += dir * V.pump * (v.still ? 0.25 : 1) * Math.cos(v.angle);
+    // l'élan : KAGE se penche et pousse ; ça ne paie que dans le sens du mouvement (au bon moment), un peu
+    // pour démarrer à l'arrêt, et à contre-sens ça freine ; plus d'élan au-delà de pumpAngle
+    if (dir && (Math.abs(v.angle) < V.pumpAngle || Math.sign(v.angle) !== dir)) {
+      const k = Math.abs(v.av) < 0.25 ? V.pumpStart : Math.sign(v.av) === dir ? 1 : V.pumpBack;
+      acc += dir * k * V.pumpK * (V.g / r) * (v.still ? 0.25 : 1) * Math.cos(v.angle);
+    }
     v.av += acc * dt;
     v.angle += v.av * dt;
-    if (Math.abs(v.angle) > V.maxAngle) { v.angle = Math.sign(v.angle) * V.maxAngle; v.av = 0; }
+    if (Math.abs(v.angle) > V.maxAngle && Math.sign(v.av) === Math.sign(v.angle)) { v.angle = Math.sign(v.angle) * V.maxAngle; v.av = 0; }
     if (dir) player.facing = dir;
     else if (!v.still && Math.abs(v.av) > 0.5) player.facing = Math.sign(v.av);
     const p = this.vinePoint(v, r);

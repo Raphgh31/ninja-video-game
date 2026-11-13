@@ -66,10 +66,10 @@ P.z11 = (sprint) => { const S = __kage.level.forest.slide; bot.place(Z(11).x0 + 
 P.z11a = () => P.z11(true); P.z11b = () => P.z11(false);
 P.z12 = () => { bot.place(Z(12).x0 + 2); const t = bot.runner(40, { until: () => __kage.run.won }); return ['z12', t.toFixed(1), __kage.run.won, bot.col()]; };
 // Pilote « qui vise » pour les lianes balancier : avant de lâcher, il prédit son vol.
-P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.level, V = { g: 980, boost: 1.08, max: 300 };
+P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.level, V = { g: 520, boost: 1.0, max: 230 };
   // le pendule continue ~delay pas avant le lâcher effectif (aucune poussée)
   let ang = v.angle, av = v.av; const r = p.vineR; const dt = 1 / 120;
-  for (let i = 0; i < delay; i++) { av += (-(V.g / r) * Math.sin(ang) - 0.22 * av) * dt; ang += av * dt; }
+  for (let i = 0; i < delay; i++) { av += (-(V.g / r) * Math.sin(ang) - 0.1 * av) * dt; ang += av * dt; }
   const vt = Math.max(-V.max, Math.min(V.max, av * r * V.boost));
   let x = v.ax + Math.sin(ang) * r - p.facing * 6, y = v.ay + Math.cos(ang) * r + 19, vx = vt * Math.cos(ang), vy = -vt * Math.sin(ang);
   let time = f.time; const qa = new Map(); for (const q of f.vines) qa.set(q, q.angle);
@@ -93,7 +93,7 @@ P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.lev
     if (l.at(c, rw) === 'v' || y > l.h * 16) return null;
   }
   return null; };
-P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level; const sw = f.vines.filter((v) => !v.still); const ev = []; let lastV = null, rel = 0, dashed = false, plan = null;
+P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level; const sw = f.vines.filter((v) => !v.still); const ev = []; const st = o.st ?? {}; let { lastV = null, rel = 0, dashed = false, plan = null } = st;
   const t = bot.run(seconds, (p) => {
     if (o.until && o.until(p)) return true;
     if (bot.dead()) { ev.push(['mort', bot.col(), bot.row()]); return true; }
@@ -124,6 +124,7 @@ P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level;
     const tip = v.ax + Math.sin(v.angle) * v.len;
     if (!(v.av < -0.1 && tip - p.x < 72 && tip - p.x > 8)) { bot.clear(); return false; }
     bot.set({ right: true }); bot.tap('jump'); return false; });
+  Object.assign(st, { lastV, rel, dashed, plan });   // o.st : reprendre là où on s'était arrêté (captures image par image)
   return [t, ev]; };
 P.v10 = () => { bot.place(Z(10).x0 + 3); const [t, ev] = P.vise(90, { dash: true, until: (p) => p.x > Z(11).x0 * 16 + 16 && p.onGround }); return ['z10 vise', t.toFixed(1), ev.map((e) => e.join(':')).join(' '), bot.col(), Z(11).x0]; };
 P.v10nodash = () => { const sw = __kage.level.forest.vines.filter((v) => !v.still); const last = sw[sw.length - 1]; bot.place(Math.floor(last.ax / 16) - 8);

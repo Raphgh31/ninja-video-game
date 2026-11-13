@@ -1001,7 +1001,7 @@ const HINTS = {
   rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
   airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
   haul: ['↑ : saisir la corde — ← : tirer — Espace : lâcher', 'Saut : saisir la corde — joystick : tirer — saut : lâcher'],
-  vine: ['← → tenue : s\'accrocher à la liane — tout relâcher : la lâcher', 'Joystick tenu : s\'accrocher à la liane — le relâcher : la lâcher'],
+  vine: ['← → tenue : s\'accrocher, pousser en rythme — tout relâcher : lâcher', 'Joystick tenu : s\'accrocher, pousser en rythme — relâcher : lâcher'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,

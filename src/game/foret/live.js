@@ -219,7 +219,9 @@ const ROPE_COL = ['#1c140b', '#6e5430', '#b8955a', '#dcc184', '#f3e3b0'];
 /**
  * Trace des brins de corde épais (2 px, cernés : 4 px en tout) et torsadés : d'abord tous les contours, puis les corps,
  * pour qu'un brin qui en touche un autre ne le coupe pas. Les torons sont des rayures en biais qui
- * défilent avec la corde (shift).
+ * défilent avec la corde : shift = longueur déjà tirée ; chaque brin est donné dans le sens où la corde
+ * file quand on tire (du bloc vers la poulie, de la poulie vers KAGE), ses rayures avancent donc dans ce
+ * sens quand KAGE tire (le brin du bloc monte), et reculent quand il rend la corde.
  */
 function drawRopeStrands(ctx, strands, cam, vw, vh, shift) {
   for (let pass = 0; pass < 2; pass++) for (const [x0, y0, x1, y1] of strands) {
@@ -234,7 +236,7 @@ function drawRopeStrands(ctx, strands, cam, vw, vh, shift) {
         continue;
       }
       for (let k = 0; k < 2; k++) {
-        const t = ((i + k + shift) % 4 + 4) % 4;     // la torsade : rayures en biais
+        const t = ((i + k - shift) % 4 + 4) % 4;     // la torsade : rayures en biais
         const c = k === 0 ? (t < 2 ? ROPE_COL[4] : ROPE_COL[3]) : (t === 1 || t === 2 ? ROPE_COL[2] : ROPE_COL[1]);
         ctx.fillStyle = c;
         if (flat) ctx.fillRect(x, y + k, 1, 1); else ctx.fillRect(x + k, y, 1, 1);
@@ -535,6 +537,7 @@ export class ForetLive {
     const len = v.len;
     const tip = { x: v.ax + Math.sin(v.angle) * len, y: v.ay + Math.cos(v.angle) * len };
     if (Math.max(v.ax, tip.x) < cam.x - 10 || Math.min(v.ax, tip.x) > cam.x + vw + 10 || v.ay > cam.y + vh || tip.y < cam.y) return;
+    if (!v.still) { this.swingVine(ctx, v, cam, time); return; }
     const s = Math.sin(v.angle), c = Math.cos(v.angle);
     const bend = -(v.av ?? 0) * 0.05;                     // la liane traîne un peu derrière son mouvement
     const rider = v.rider;
@@ -557,6 +560,48 @@ export class ForetLive {
     // le bout : une petite touffe
     ctx.fillStyle = C.LEAF[5];
     ctx.fillRect(R(tip.x - cam.x) - 1, R(tip.y - cam.y), 3, 2);
+  }
+
+  /**
+   * Une liane balancier (zone 10) : une tige épaisse (2 px, éclairée d'un côté) autour de laquelle s'enroule
+   * une vrille plus fine, des feuilles en cœur de part et d'autre, quelques petites fleurs, et au bout une
+   * boucle feuillue (là où KAGE la saisit). Elle traîne un peu derrière son mouvement.
+   */
+  swingVine(ctx, v, cam, time) {
+    const len = v.len, s = Math.sin(v.angle), c = Math.cos(v.angle);
+    const STEM = ['#1d2c1a', '#2e4526', '#46652f', '#6d8f3c'], TW = ['#3b5a2a', '#88b04e'];
+    const LEAF = C.LEAF, FL = ['#f4d3e0', '#e9a8c0', '#ffd98a'];
+    const bend = -(v.av ?? 0) * 0.04, rider = v.rider;
+    const at = (d) => {
+      const t = d / len, off = bend * d * (1 - t) * (rider ? 0.3 : 1) + Math.sin(time * 1.1 + d * 0.07 + v.i) * 0.5 * t;
+      return [v.ax + s * d + c * off - cam.x, v.ay + c * d - s * off - cam.y];
+    };
+    const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(R(x), R(y), 1, 1); };
+    // la vrille, côté caché (derrière la tige)
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w >= 0) continue; const [x, y] = at(d); px(x + c * w * 2, y - s * w * 2, TW[0]); }
+    // la tige
+    for (let d = 0; d <= len; d++) {
+      const [x, y] = at(d);
+      px(x - c * 0.5, y + s * 0.5, d % 11 < 2 ? STEM[3] : STEM[2]);
+      px(x + c * 0.7, y - s * 0.7, STEM[1]);
+    }
+    // la vrille, côté visible
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w < 0) continue; const [x, y] = at(d); px(x + c * w * 2, y - s * w * 2, TW[1]); }
+    // les feuilles : en cœur, alternées, un peu plus grandes vers le bas ; des fleurs de loin en loin
+    for (let d = 6, k = 0; d <= len - 3; d += 6 + ((d * 7 + v.i) % 3), k++) {
+      const [x, y] = at(d), side = k % 2 ? 1 : -1, big = d > len * 0.5 ? 1 : 0;
+      const ox = c * side, oy = -s * side;                             // perpendiculaire à la liane
+      const lx = x + ox * 2.5, ly = y + oy * 2.5 + 1;
+      const dark = side > 0 ? 0 : 1;                                  // la face à l'ombre
+      for (const [dx, dy, col] of [[0, 0, LEAF[4 - dark]], [ox, oy, LEAF[3 - dark]], [0, 1, LEAF[3 - dark]], [ox, oy + 1, LEAF[2 - dark]], [ox * 2, oy * 2 + 1, LEAF[2]], [-ox * 0.5, 1.5, LEAF[5 - dark]]]) px(lx + dx, ly + dy, col);
+      if (big) { px(lx + ox * 2, ly + oy * 2, LEAF[3]); px(lx + ox, ly + oy + 2, LEAF[1]); }
+      if ((k + v.i) % 4 === 1) { const fx = x - ox * 2.5, fy = y - oy * 2.5; px(fx, fy, FL[0]); px(fx + 1, fy, FL[1]); px(fx, fy + 1, FL[1]); px(fx + 0.5, fy + 0.5, FL[2]); }
+    }
+    // au bout : une boucle de tige et une touffe de feuilles
+    const [ex, ey] = at(len);
+    const L2 = [[-2, 0], [-2, 1], [-1, 2], [0, 3], [1, 2], [2, 1], [2, 0]];
+    for (const [dx, dy] of L2) px(ex + dx * c + dy * s, ey + dy * c - dx * s, STEM[2]);
+    for (const [dx, dy, col] of [[-3, -1, LEAF[3]], [3, -1, LEAF[2]], [-2, 3, LEAF[4]], [2, 3, LEAF[2]], [0, 4, LEAF[3]], [-3, 2, LEAF[1]], [3, 2, LEAF[1]]]) px(ex + dx * c + dy * s, ey + dy * c - dx * s, col);
   }
 
   drawBirds(ctx, cam, vw, vh, time) {
@@ -601,6 +646,29 @@ export class ForetLive {
         ctx.fillStyle = `rgba(${this.underground(c.x, c.y) ? '8,14,18' : '20,52,60'},${(a * 0.92).toFixed(3)})`;
         ctx.fillRect(R(c.x - cam.x) - 8, row, c.w + 16, 1);
       }
+    }
+    // au-dessus des ravins des lianes balancier : des nappes de brume pâle qui dérivent lentement
+    for (const c of this.chasms) {
+      if (c.decor || !this.vis(c.x, c.lip - 20, c.w, 70, cam, vw, vh)) continue;
+      if (!this.f.vines.some((v) => !v.still && v.ax > c.x && v.ax < c.x + c.w)) continue;
+      this.mistPuff ??= (() => {
+        const W = 72, H = 18, cv = canvas(W, H), g = cv.getContext('2d');
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const d = Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2));
+          const a2 = Math.max(0, 1 - d) * (0.75 + noise2(x * 0.12, y * 0.3, 77) * 0.5);
+          if (a2 > bayer(x, y)) { g.fillStyle = '#d8eee6'; g.fillRect(x, y, 1, 1); }
+        }
+        return cv;
+      })();
+      ctx.save(); ctx.beginPath(); ctx.rect(R(c.x - cam.x), 0, c.w, vh); ctx.clip();
+      const n = Math.max(3, Math.round(c.w / 45));
+      for (let i = 0; i < n; i++) {
+        const span = c.w + 90, x = c.x - 45 + ((i * (span / n) + time * (5 + (i % 3) * 2)) % span);
+        const y = c.lip + 8 + (i % 3) * 11 + Math.sin(time * 0.35 + i * 1.7) * 3;
+        ctx.globalAlpha = 0.14 + (i % 2) * 0.06;
+        ctx.drawImage(this.mistPuff, R(x - 36 - cam.x), R(y - 9 - cam.y));
+      }
+      ctx.restore();
     }
     this.motes(ctx, cam, vw, vh, time);
     this.drawDark(ctx, cam, vw, vh, time);
@@ -913,7 +981,7 @@ export class ForetLive {
     // l'écorce et la pierre) ; chaque brin est mis de côté puis tracé en deux passes (contour, puis corps)
     const strands = [];
     const rope = (x0, y0, x1, y1) => strands.push([x0, y0, x1, y1]);
-    const flush = () => { drawRopeStrands(ctx, strands, cam, vw, vh, R(r.pull)); strands.length = 0; };
+    const flush = (shift = R(r.pull)) => { drawRopeStrands(ctx, strands, cam, vw, vh, shift); strands.length = 0; };
     // le bloc : un monolithe de granit moucheté, plus clair et plus chaud que les pierres du pilier, cerné de
     // noir, ses arêtes taillées en biseau (lumière en haut à gauche) : on voit tout de suite que c'est lui qui
     // ferme le passage ; levé de r.lift
@@ -955,6 +1023,7 @@ export class ForetLive {
       const b0 = bx + jit, b1 = bx + jit + bw - 1, ym = by + R(bh / 2), kxc = cx + RR, kyc = by - 6;
       rope(b0, by + 1, b1, by + bh - 1); rope(b1, by + 1, b0, by + bh - 1); rope(b0 - 1, ym, b1 + 1, ym);
       rope(kxc, kyc, b0 + 1, by); rope(kxc, kyc, b1 - 1, by);
+      flush(0);                                                   // nouées au bloc : elles ne défilent pas
       // la corde qui monte du nœud à la poulie (elle tombe à l'aplomb du côté droit de la roue)
       rope(kxc, kyc, kxc, cy);
       flush();

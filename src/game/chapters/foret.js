@@ -586,37 +586,40 @@ function build() {
   F.rope = { door, ground: G9 * TILE, branchY: BR * TILE, pulleyX: door * TILE + 8 - 13, end: twig + 52, twig, max: 96 };
 
   // ===========================================================================
-  // ZONE 10 — Le souffle des lianes : de longues lianes se balancent au-dessus
-  // d'un ravin. On les attrape au vol, on prend de l'élan, on lâche ; à la fin,
-  // on lâche au sommet de la courbe et on dashe vers la corniche.
+  // ZONE 10 — Le souffle des lianes : des lianes courtes pendent de grosses branches
+  // au-dessus d'un ravin brumeux. On les attrape au vol, on prend de l'élan en
+  // poussant au bon moment (le balancier est lent, comme une vraie liane), on lâche
+  // en avant ; à la fin, on lâche au sommet de la courbe et on dashe vers la corniche.
+  // (refonte de novembre 2026 : lianes 2,5 fois plus courtes, accroches dans l'image)
   // ===========================================================================
   zone('10', 'Le souffle des lianes', { mood: 'sousbois', enchanted: true });
   x = b.x; ground(9, G9);
   lantern(x + 2, G9);
   b.hint('vine', x + 4);
   const KILL10 = G9 + 14;
-  const AY = G9 - 17;                                    // hauteur des branches où pendent les lianes
-  const swing = (cx, len = 18, phase = 0, amp = 0.5) => { vine(cx, AY, len, amp, phase); b.prop('vine_branch', cx, AY); };
+  const AY = G9 - 10;                                    // hauteur des branches où pendent les lianes
+  const swing = (cx, len = 7.5, phase = 0, amp = 0.2, ay = AY) => { vine(cx, ay, len, amp, phase); b.prop('vine_branch', cx, ay, { len }); };
   const pillar = (n, top, lamp = false) => { const p0 = b.x; ground(n, top); b.prop('rock_pillar', p0, top, { w: n }); if (lamp) lantern(p0 + Math.floor(n / 2), top); return p0; };
   // une liane, pour apprendre : elle ramène tout près du bord
-  x = b.x; chasm(12, KILL10);
-  swing(x + 6, 18, 0);
-  coins([x + 6], G9 - 1);
+  x = b.x; chasm(8, KILL10);
+  swing(x + 3.5, 7.5, 0);
+  coins([x + 4], G9 - 1);
   pillar(5, G9, false);
   // deux lianes à la suite
-  x = b.x; chasm(21, KILL10);
-  swing(x + 6, 18, 0); swing(x + 15, 18, Math.PI);
-  coins([x + 10], G9 - 4);
+  x = b.x; chasm(15, KILL10);
+  swing(x + 3.5, 7.5, 0); swing(x + 10, 7.5, Math.PI);
+  coins([x + 7], G9 - 3);
   pillar(5, G9, true);
   // trois lianes, la dernière plus courte : il faut lâcher plus haut
-  x = b.x; chasm(29, KILL10);
-  swing(x + 6, 18, 0); swing(x + 15, 17, Math.PI); swing(x + 23, 16, 0);
-  coins([x + 10, x + 19], G9 - 5);
+  x = b.x; chasm(21, KILL10);
+  swing(x + 3.5, 7.5, 0); swing(x + 10, 7.5, Math.PI); swing(x + 16, 6.8, 0);
+  coins([x + 7, x + 13], G9 - 4);
   pillar(5, G9 - 1, true);
-  // le final : une liane, puis la corniche, plus haute et trop loin : on lâche au sommet de la courbe et on dashe
-  x = b.x; chasm(22, KILL10);
-  swing(x + 6, 17, 0, 0.55);
-  coins([x + 12], G9 - 8);
+  // le final : une liane accrochée plus haut, puis la corniche, plus haute et trop loin : on lâche au sommet
+  // de la courbe et on dashe
+  x = b.x; chasm(11, KILL10);
+  swing(x + 3.5, 7.5, 0, 0.25, AY - 2);
+  coins([x + 8], G9 - 8);
   const G10 = G9 - 5;
   x = b.x; ground(6, G10);
   b.prop('rock_ledge', x, G10, { w: 6 });
