@@ -402,7 +402,7 @@ export class ForetLive {
       const RAMP = ['#0d2a22', '#14392b', '#1b4d3e', '#23694a', '#2e8b57', '#55ae54', '#8fd058', '#c9ee78'];
       this.vineTufts ??= [0, 1, 2, 3].map((k) => sprite(20, 16, (p) => L.bush(p, 10, 15, 7 + (k % 2) * 2, 12, RAMP, 900 + k * 7)));
       for (const v of f.vines) {
-        if (Math.abs(v.ax - st.cx) > 96 || v.ay < st.ground - 15 * TILE || v.ay > st.ground - 12 * TILE) continue;
+        if (Math.abs(v.ax - st.cx) > 96 || v.ay < st.ground - 15 * TILE || v.ay > st.ground - 11 * TILE) continue;
         const img = this.vineTufts[Math.floor(v.ax) % 4];
         if (this.vis(v.ax - 10, v.ay - 10, 20, 18, cam, vw, vh)) ctx.drawImage(img, R(v.ax - 10 - cam.x), R(v.ay - 8 - cam.y));
       }

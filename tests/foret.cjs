@@ -324,15 +324,19 @@ async function main() {
     const r = await ev(() => {
       const f = __kage.level.forest, R = f.rope, pl = bot.p;
       const onBranch = () => { bot.place(Math.floor(R.end / 16), Math.round(R.branchY / 16)); pl.x = R.end - 30; pl.y = R.branchY; pl.vy = 0; __kage.step(4); bot.run(1, (p) => { bot.set({ right: p.x < R.end - 8 }); return p.x >= R.end - 8; }); bot.clear(); };
-      const haul = (s) => { bot.tap('up'); bot.run(0.1); const held = pl.state === 'rope_pull'; bot.run(s, () => { bot.set({ left: true }); }); const pull = R.pull; bot.clear(); bot.tap('jump'); bot.run(3); return [held, Math.round(pull)]; };
+      const haul = (s) => { bot.tap('up'); bot.run(0.1); const held = pl.state === 'rope_pull'; bot.run(s, () => { bot.set({ left: true }); }); const pull = R.pull, en = pl.energy.value; bot.clear(); bot.tap('jump'); bot.run(3); return [held, Math.round(pull), en]; };
       onBranch(); const early = haul(1); const back = [R.state, Math.round(R.lift)];
-      onBranch(); const far = haul(3.6); const caught = [R.state, Math.round(R.lift), __kage.level.solid(R.door, R.ground / 16 - 1), __kage.level.solid(R.door, R.ground / 16 - 2)];
+      // tirer coûte cher : à bout de souffle, KAGE tient la corde sans pouvoir tirer (on la rend avant de lâcher)
+      onBranch(); bot.tap('up'); bot.run(0.1); bot.run(4.6, () => { bot.set({ left: true }); });
+      const tired = [pl.state, pl.energy.exhausted, Math.round(R.pull), R.max]; bot.run(0.6, () => { bot.set({ left: true }); }); tired.push(Math.round(R.pull) - tired[2]);
+      bot.run(2, () => { bot.set({ left: true }); }); tired.push(Math.round(R.pull) - tired[2]); bot.clear(); bot.run(3, () => { bot.set({ right: true }); }); bot.clear(); bot.tap('jump'); bot.run(4); tired.push(R.state);
+      onBranch(); const e0 = pl.energy.value; const far = haul(3.6); far[2] = +(e0 - far[2]).toFixed(2); const caught = [R.state, Math.round(R.lift), __kage.level.solid(R.door, R.ground / 16 - 1), __kage.level.solid(R.door, R.ground / 16 - 2)];
       // en bas : debout, on bute ; en glissade, on passe
       bot.place(R.door - 4, R.ground / 16); bot.run(1.5, () => { bot.set({ right: true }); }); const walk = bot.col();
       bot.place(R.door - 4, R.ground / 16); bot.run(0.4, () => { bot.set({ right: true }); }); bot.tap('down'); bot.run(1.5, () => { bot.set({ right: true }); }); bot.clear(); bot.run(0.5);
-      return { early, back, far, caught, walk, slide: bot.col(), door: R.door, saved: __kage.save.statue };
+      return { early, back, tired, far, caught, walk, slide: bot.col(), door: R.door, saved: __kage.save.statue };
     });
-    expect(r.early[0] && r.back[0] === 'rest' && r.back[1] === 0 && r.far[0] && r.caught[0] === 'caught' && r.caught[1] === 16 && !r.caught[2] && r.caught[3]
+    expect(r.tired[0] === 'rope_pull' && r.tired[1] && r.tired[2] < r.tired[3] && r.tired[4] === 0 && r.tired[5] > 0 && r.tired[6] === 'rest' && r.far[2] > 0.5 && r.early[0] && r.back[0] === 'rest' && r.back[1] === 0 && r.far[0] && r.caught[0] === 'caught' && r.caught[1] === 16 && !r.caught[2] && r.caught[3]
       && r.walk < r.door && r.slide > r.door && r.saved === true, JSON.stringify(r));
   });
 

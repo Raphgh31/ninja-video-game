@@ -489,6 +489,8 @@ level.onEvent = (n, d) => {
     case 'ropeGrab': sfx('vineGrab', { still: true }); break;
     case 'ropeRelease': sfx('vineRelease'); break;
     case 'ropeStrain': sfxAt('crumbleCreak', d); break;
+    case 'ropeHeave': fx.shake(0.6, 0.2); sfxAt('crumbleCreak', d); break;
+    case 'ropeBreath': sfx('breath'); break;
     case 'blockFall': sfx('land', { strength: 1 }); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 18, up: 6, life: 0.6 }); break;
     case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
     case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;

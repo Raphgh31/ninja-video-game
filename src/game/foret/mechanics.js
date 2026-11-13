@@ -40,7 +40,12 @@ export const FOREST = {
   statue: { reach: 22, delay: 0.9, gateTime: 2.8 },   // la dalle de la porte remonte en 2,8 s
   // la corde de la statue : tirée le long de la branche, elle lève le bloc (lift = pull × ratio) ; lâchée,
   // elle revient vers la poulie (le bloc retombe) — sauf si son bout a dépassé le rameau, qui l'arrête
-  rope: { reach: 14, pull: 24, give: 46, ret: 150, ratio: 1 / 3, past: 8, strainEvery: 0.55 },
+  // corde de la statue : pull = vitesse moyenne du tirage (24 px/s, puis 20 % plus lent à la demande de Raph),
+  // tirée par à-coups (surge autour de la moyenne, une saccade par pas : heave s) ; energy = énergie dépensée
+  // par seconde de tirage (à bout de souffle, KAGE tient la corde sans pouvoir tirer) ; breaths / shakes :
+  // intervalles (s) entre deux souffles de KAGE et deux petites secousses de l'image pendant l'effort
+  rope: { reach: 14, pull: 24 * 0.8, give: 46, ret: 150, ratio: 1 / 3, past: 8, strainEvery: 0.55,
+    surge: 0.65, heave: 0.46, energy: 0.25, breaths: [1.3, 1.9, 1.5, 2.2], shakes: [1.7, 2.6, 2.1], pant: 0.8 },
   slide: { margin: 6 },
 };
 
@@ -459,9 +464,17 @@ export class Forest {
       return;
     }
     const L = input.isHeld('left'), Rt = input.isHeld('right');
-    const before = r.pull;
-    if (L && !Rt) r.pull = Math.min(r.max, r.pull + R.pull * dt);
-    else if (Rt && !L) r.pull = Math.max(0, r.pull - R.give * dt);
+    const before = r.pull, E = player.energy, spent = E.exhausted;
+    if (L && !Rt && r.pull < r.max) {
+      if (spent) E.flash = 0.5;   // à bout de souffle : il tient la corde, sans pouvoir tirer
+      else {
+        // la corde résiste : KAGE tire par saccades, une à chaque pas (vitesse moyenne R.pull)
+        r.heaveT = (r.heaveT ?? 0) + dt;
+        const k = 1 + R.surge * Math.sin((r.heaveT / R.heave) * Math.PI * 2);
+        r.pull = Math.min(r.max, r.pull + R.pull * k * dt);
+        E.spend(R.energy * dt);
+      }
+    } else if (Rt && !L) r.pull = Math.max(0, r.pull - R.give * dt);
     const moved = r.pull - before;
     r.lift = r.pull * R.ratio;
     player.x = this.ropeEnd() - 6; player.y = r.branchY; player.vx = 0; player.vy = 0;
@@ -471,6 +484,18 @@ export class Forest {
     if (moved > 0) {
       r.strain -= dt;
       if (r.strain <= 0) { r.strain = R.strainEvery; this.emit('ropeStrain', { x: player.x, y: player.y, lift: r.lift }); }
+      // l'effort : de temps en temps, la branche et la poulie encaissent (petite secousse de l'image)
+      r.shakeIn = (r.shakeIn ?? R.shakes[0]) - dt;
+      if (r.shakeIn <= 0) { r.nShake = ((r.nShake ?? 0) + 1) % R.shakes.length; r.shakeIn = R.shakes[r.nShake]; this.emit('ropeHeave', { x: player.x, y: player.y }); }
+    }
+    // KAGE souffle par moments en tirant (comme au retrait du coup de pied) ; à bout de souffle, il halète
+    if (moved > 0 || spent) {
+      r.breathIn = (r.breathIn ?? R.breaths[0]) - dt;
+      if (r.breathIn <= 0) {
+        r.nBreath = ((r.nBreath ?? 0) + 1) % R.breaths.length;
+        r.breathIn = spent ? R.pant : R.breaths[r.nBreath];
+        this.emit('ropeBreath', { x: player.x, y: player.y, facing: player.facing, spent });
+      }
     }
   }
 

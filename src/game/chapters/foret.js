@@ -548,11 +548,11 @@ function build() {
   const eyeL = eye(-1), eyeR = eye(1);
   // les lianes de sa chevelure : immobiles, on y monte et on en descend ; deux passent devant les yeux
   // (elles partent de l'intérieur du feuillage, une touffe cache leur départ : live.js)
-  vine(sx - 3.9, G9 - 12.2, 10.9);                      // la grande mèche de gauche, jusqu'au sol
+  vine(sx - 3.9, G9 - 11.9, 10.6);                      // la grande mèche de gauche, jusqu'au sol
   vine(eyeL.x / TILE, G9 - 12.6, 6.6);                  // devant l'œil gauche
   vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 12.6, 5.4);   // un brin court sur l'arête du nez : le relais
   vine(eyeR.x / TILE, G9 - 12.6, 6.8);                  // devant l'œil droit
-  vine(sx + 3.8, G9 - 12.6, 8.4);                       // la mèche de droite
+  vine(sx + 3.8, G9 - 12.3, 8.1);                       // la mèche de droite
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
   b.prop('chest', sx + 1, G9 - 13, { id: 'couronne', ryo: 15 });
   coins([sx - 2, sx - 1], G9 - 15);
