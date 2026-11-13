@@ -19,13 +19,13 @@ import * as L from './layers.js';
 const TILE = 16;
 const R = Math.round;
 // le roc au soleil couchant : chaud dans la lumière, violacé dans l'ombre
-const LIT = ['#1d1716', '#2e2422', '#463631', '#5f4a40', '#7c6151', '#9e7c62', '#c39d7a', '#e2bf95'];
+export const LIT = ['#1d1716', '#2e2422', '#463631', '#5f4a40', '#7c6151', '#9e7c62', '#c39d7a', '#e2bf95'];
 const DEEP = ['#141012', '#1e181a', '#2c2326', '#3b2f30', '#4d3d3b', '#614c46', '#7a5e54', '#93725f'];
 const EDGE = '#120d0c';
 const ROT = 8;
 
 /** Contour irrégulier d'une pierre : n sommets, rayon r, un peu allongée. */
-function shape(r, seed) {
+export function shape(r, seed) {
   const n = 6 + Math.floor(ih(seed, 1, 5) * 4), el = 1 + ih(seed, 2, 5) * 0.45, pts = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + (ih(i, seed, 3) - 0.5) * 0.55;
@@ -36,7 +36,7 @@ function shape(r, seed) {
 }
 
 /** Une pierre tournée de rot (rad) : facettes éclairées du haut à gauche, contour sombre, un peu de lichen. */
-function stone(pts, rot, seed, pal) {
+export function stone(pts, rot, seed, pal) {
   const cs = Math.cos(rot), sn = Math.sin(rot);
   const P = pts.map(([x, y]) => [x * cs - y * sn, x * sn + y * cs]);
   const ext = Math.ceil(Math.max(...P.map(([x, y]) => Math.hypot(x, y)))) + 2, S = 2 * ext + 1;

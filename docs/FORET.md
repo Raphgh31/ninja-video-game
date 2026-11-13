@@ -204,6 +204,13 @@ Planches : `docs/foret/arbre_cavites.png`, `docs/foret/arche_racines_avant_apres
 - **dévaler une pente en courant redonne du souffle** (comme en marcher) : la longue descente reste faisable malgré les sauts ; sans aucun sprint, l'éboulis finit par rattraper KAGE (il faut sprinter au moins une fois) ;
 - pilote des tests (`foret_bot.js`) : une pente ou l'amas ne sont ni des trous ni des murs ; il saute plus tôt devant un obstacle de deux cases.
 
+### Retours n° 16 (13 novembre 2026) : trois passages en glissade
+- les piles de bûches retirées (remplacées par un rocher et un tronc couché) ;
+- **trois passages bas**, choisis par Raph parmi quatre idées (`lowPass` dans `foret.js`, peints par `uprootedTree`, `rockArch`, `fallenGate` dans `props.js` ; vues : `docs/foret/passages_glissade.png`) : une bande pleine de trois cases au-dessus d'une case libre, trop haute pour être sautée, à franchir en **glissade** — plus lente que la course (vitesse plancher sous un plafond bas) : ils font perdre du temps sur l'éboulis ;
+  - **l'arbre déraciné** : son tronc moussu couché en travers, sa motte de racines dressée derrière (terre, pierres, racines), son houppier cassé de l'autre côté ;
+  - **l'arche de rochers** : une longue dalle du même roc que l'éboulis, posée sur deux blocs (comme un dolmen), des cales, une fougère ;
+  - **le portique effondré** : deux poteaux debout, la poutre tombée, les planches du toit écroulées dessus, la corde sacrée et ses papiers, une lanterne crevée.
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).

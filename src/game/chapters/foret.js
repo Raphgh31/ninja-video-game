@@ -661,12 +661,15 @@ function build() {
   // les obstacles du replat, à sauter : une souche coupée, un tronc couché, un rocher, une pile de bûches
   const block = (type, c, w, h, o = {}) => { fill(c, w, g - h, g - 1, '#'); b.prop(type, c, g - h, { w, ...o }); };
   const stump = (c, w = 1, h = 1) => block('stump', c, w, h);
+  // un passage bas, à franchir en glissade (et plus lentement qu'en courant) : une bande pleine de trois
+  // cases au-dessus d'une case libre ; trop haute pour être sautée
+  const lowPass = (type, c, w) => { fill(c, w, g - 4, g - 2, '#'); b.prop(type, c, g - 4, { w, g }); };
   x = slopeDown(12, 3); coin(x + 6, Math.round(onSlope(12, 3, 6)) - 2);
   b.prop('scree', x, g - 3, { w: 12 }); b.prop('near_tree', x + 4, g - 2, { w: 26 });
   x = step(9, 0); stump(x + 2); block('log_block', x + 5, 3, 1); b.prop('log_cut', x + 1, g, { n: 2 });
   x = slopeDown(10, 3); coin(x + 5, Math.round(onSlope(10, 3, 5)) - 2);
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 6, g - 2, { h: 84, lean: 0.12 });
-  x = step(8, 0); block('boulder', x + 3, 2, 2); b.prop('near_tree', x + 6, g, { w: 30 });
+  x = step(11, 0); b.hint('slide', x); lowPass('slide_tree', x + 3, 6); b.prop('near_tree', x + 1, g, { w: 30 });   // l'arbre déraciné
   x = step(7, 2); stump(x + 1); stump(x + 3, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 });   // deux souches en escalier
   x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
   b.prop('scree', x, g - 4, { w: 14 }); b.prop('half_buried', x + 11, g - 1, { r: 15 });
@@ -678,14 +681,14 @@ function build() {
   const slideMid = x + 2;
   stump(x + 6); b.prop('near_tree', x + 4, g, { w: 22 });
   x = slopeDown(10, 3); b.prop('scree', x, g - 3, { w: 10 });
-  x = step(9, 0); block('boulder', x + 2, 2, 1); block('boulder', x + 5, 2, 2, { wet: false });   // deux rochers, le second plus haut
+  x = step(12, 0); lowPass('slide_arch', x + 3, 6);                                                     // l'arche de rochers
   x = step(5, 2); b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
   x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
   b.prop('scree', x, g - 4, { w: 12 }); b.prop('half_buried', x + 9, g, { r: 18 });
   x = step(10, 0); block('log_block', x + 2, 4, 1); stump(x + 7, 1, 2); b.prop('near_tree', x + 5, g, { w: 28 });
   x = slopeDown(10, 3); coin(x + 4, Math.round(onSlope(10, 3, 4)) - 2);
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
-  x = step(8, 0); stump(x + 1, 2); block('log_block', x + 4, 3, 1); b.prop('log_cut', x + 7, g, { n: 1 });
+  x = step(12, 0); lowPass('slide_gate', x + 3, 6); b.prop('log_cut', x + 10, g, { n: 1 });            // le portique effondré
   const G12 = FORET_ROWS.vallee;
   x = step(8, G12 - g);
   F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };

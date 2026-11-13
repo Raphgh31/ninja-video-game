@@ -12,6 +12,7 @@ import { ih, noise1, noise2, fbm2, pick, worley, bayer } from '../potager/paint.
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { Window } from './world.js';
+import { shape as rockShape, stone as rockStone, LIT as ROCK_LIT } from './avalanche.js';
 
 const TILE = 16;
 
@@ -156,6 +157,16 @@ export class ForetProps {
           const base = regionGround(level, p.x, p.w, p.y), hpx = (base - p.y) * TILE;
           mask(p.x, p.w, p.y, base - 1);
           add('over', X - 12, Y - 8, p.w * TILE + 24, hpx + 12, (pix) => (p.type === 'log_block' ? lyingTrunk : logPile)(pix, X, Y, p.w * TILE, hpx, p.x * 9 + 2));
+          break;
+        }
+        // passages bas de la descente (zone 11) : une bande pleine de 3 cases au-dessus d'une case libre, à
+        // franchir en glissade ; ce qui la porte (motte de racines, pieds de l'arche, poteaux) est derrière KAGE
+        case 'slide_tree': case 'slide_arch': case 'slide_gate': {
+          const g = p.g, top = (g - 4) * TILE, gap = (g - 1) * TILE - 6, X1 = X + p.w * TILE, G = g * TILE;
+          mask(p.x, p.w, g - 4, g - 2);
+          const paint = { slide_tree: uprootedTree, slide_arch: rockArch, slide_gate: fallenGate }[p.type];
+          add('behind', X - 90, top - 110, p.w * TILE + 190, G - top + 120, (pix) => paint(pix, X, X1, top, gap, G, p.x * 7 + 5, 'back'));
+          add('over', X - 60, top - 40, p.w * TILE + 130, gap - top + 50, (pix) => paint(pix, X, X1, top, gap, G, p.x * 7 + 5, 'band'));
           break;
         }
         case 'scree': {
@@ -1628,6 +1639,116 @@ function logPile(pix, X, Y, W, H, seed) {
     }
   }
   for (let x = X; x < X + W; x += 3) if (ih(x, 2, seed) < 0.5) pix.set(x, Y + H - 1, C.MOSS[3]);
+}
+
+
+/**
+ * L'arbre déraciné (zone 11) : arraché par un ancien éboulis, il s'est couché en travers du chemin ; derrière,
+ * sa motte de racines dressée (terre, pierres, racines qui pendent) ; son tronc passe au-dessus du chemin, son
+ * houppier cassé repose sur un rocher de l'autre côté. On glisse sous le tronc.
+ */
+function uprootedTree(pix, X0, X1, top, gap, G, seed, part) {
+  const cy = (top + gap) / 2, R = (gap - top) / 2;
+  if (part === 'back') {
+    // la motte : un disque de terre dressé, des racines qui en rayonnent et pendent, des pierres prises dedans
+    const mx = X1 + 22, my = cy - 4, rx = 30, ry = 50;
+    for (let y = my - ry - 6; y <= G + 2; y++) for (let x = mx - rx - 8; x <= mx + rx + 8; x++) {
+      const d = Math.hypot((x - mx) / rx, (y - my) / ry) + (noise2(x * 0.15, y * 0.15, seed) - 0.5) * 0.25;
+      if (d > 1 || y > G) continue;
+      let v = 0.45 - (x - mx) / rx * 0.18 - d * 0.15 + (noise2(x * 0.3, y * 0.3, seed + 1) - 0.5) * 0.25;
+      let c = pick(C.HUMUS, v, x, y);
+      if (d > 0.82) c = C.HUMUS[0];
+      if (ih(x >> 2, y >> 2, seed) < 0.06) c = pick(C.ROCK, 0.5, x, y);
+      pix.set(x, y, c);
+    }
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2 + ih(k, 1, seed) * 0.3, len = 26 + ih(k, 2, seed) * 30;
+      const x1 = mx + Math.cos(a) * (rx + len * 0.5), y1 = Math.min(G - 2, my + Math.sin(a) * (ry * 0.6) + len * 0.5);
+      rootStroke(pix, mx + Math.cos(a) * rx * 0.6, my + Math.sin(a) * ry * 0.6, x1, y1, 3, 1, (ih(k, 3, seed) - 0.5) * 8, seed + k);
+    }
+    // le rocher où repose le houppier, avant le passage
+    L.rock(pix, X0 - 18, G + 2, 16, Math.round(G - gap + 4), seed + 3);
+    return;
+  }
+  // le tronc : un gros cylindre couché, écorce fendue, mousse dessus ; il entre dans la motte à droite
+  for (let x = X0 - 26; x <= X1 + 20; x++) {
+    const t = (x - X0) / (X1 - X0), half = R + t * 1.5;
+    for (let y = Math.round(cy - half); y <= Math.round(cy + half); y++) {
+      const v0 = (y - (cy - half)) / (2 * half), cyl = Math.sin(v0 * Math.PI);
+      let v = 0.18 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.05, y * 0.4, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.02, y * 0.25, seed + 2) - 0.5) < 0.03) v -= 0.25;
+      const moss = v0 < 0.28 && fbm2(x * 0.08, y * 0.2, 3, seed + 3) > 0.5;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.3 + cyl * 0.5, x, y) : pick(C.BARK, v, x, y));
+    }
+  }
+  // le bout cassé du côté du houppier : des échardes, deux grosses branches brisées
+  for (let j = -R; j <= R; j += 2) { const sp = 3 + Math.floor(ih(j, 1, seed) * 8); for (let s = 0; s < sp; s++) pix.set(X0 - 26 - s, Math.round(cy + j), C.BARK[2 + (j > 0 ? -1 : 1)]); }
+  rootStroke(pix, X0 - 10, cy - R + 4, X0 - 40, cy - R - 26, 7, 2, -4, seed + 20);
+  rootStroke(pix, X0 + 14, cy - R + 2, X0 + 4, cy - R - 34, 5, 1.5, 3, seed + 21);
+  for (const [bx, by] of [[X0 - 40, cy - R - 26], [X0 + 4, cy - R - 34]]) L.bush(pix, bx, by + 6, 12, 9, L.hazeRamp(C.LEAF, '#7a5a3a', 0.35), seed + bx);
+  // des radicelles et de la mousse qui pendent sous le tronc, sans descendre dans le passage
+  for (let x = X0 + 4; x < X1; x += 5) if (ih(x, 4, seed) < 0.45) { const len = 2 + Math.floor(ih(x, 5, seed) * 4); for (let s = 0; s < len; s++) pix.set(x + Math.round(Math.sin(s) * 0.6), gap + 1 + s, s === len - 1 ? C.MOSS[2] : C.BARK[1]); }
+}
+
+/**
+ * L'arche de rochers (zone 11) : une longue dalle tombée d'un ancien éboulis repose sur deux blocs ; on glisse
+ * dessous. Le même roc chaud que l'éboulis, des cales, de la mousse et une fougère sur le dessus.
+ */
+function rockArch(pix, X0, X1, top, gap, G, seed, part) {
+  const put = (img, cx, cy) => { const c = img.img, g = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (g[i + 3] > 0) pix.set(Math.round(cx - img.ext + x), Math.round(cy - img.ext + y), '#' + [g[i], g[i + 1], g[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')); } };
+  if (part === 'back') {
+    // les deux pieds de l'arche, et des blocs plus petits autour
+    for (const [cx, r, s] of [[X0 - 6, 22, 1], [X1 + 6, 24, 2], [X0 - 30, 11, 3], [X1 + 32, 12, 4]]) put(rockStone(rockShape(r, seed + s), ih(s, 1, seed) * 6.28, seed + s, ROCK_LIT), cx, G - r * 0.8);
+    return;
+  }
+  // la dalle : un long polygone irrégulier, posé un peu de biais
+  const cx = (X0 + X1) / 2, cy = (top + gap) / 2, rx = (X1 - X0) / 2 + 18, ry = (gap - top) / 2 + 2, pts = [];
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; pts.push([Math.cos(a) * rx * (0.92 + ih(i, 1, seed) * 0.1), Math.sin(a) * ry * (0.8 + ih(i, 2, seed) * 0.22) * (Math.sin(a) > 0 ? 0.9 : 1)]); }
+  put(rockStone(pts, 0.03, seed + 9, ROCK_LIT), cx, cy);
+  // des cales et un bloc posé dessus, de la mousse et une fougère
+  put(rockStone(rockShape(10, seed + 11), 0.6, seed + 11, ROCK_LIT), cx + rx * 0.4, top - 4);
+  put(rockStone(rockShape(6, seed + 12), 1.4, seed + 12, ROCK_LIT), cx - rx * 0.55, top + 1);
+  for (let x = Math.round(X0 - 10); x < X1 + 10; x++) if (fbm2(x * 0.08, 1, 2, seed) > 0.5) pix.set(x, Math.round(top + 2 + Math.sin(x * 0.07) * 1.5), C.MOSS[4]);
+  L.fern(pix, Math.round(cx - rx * 0.15), Math.round(top + 3), 10, C.FERN, seed + 13);
+}
+
+/**
+ * Le portique effondré (zone 11) : les restes d'un abri de sentier ; deux poteaux debout (derrière KAGE),
+ * la poutre tombée en travers du chemin, des planches du toit écroulées dessus, une corde sacrée qui pend,
+ * une lanterne de papier crevée. On glisse sous la poutre.
+ */
+function fallenGate(pix, X0, X1, top, gap, G, seed, part) {
+  const WOOD = ['#2a1a10', '#3f2a1a', '#5a3d25', '#765233', '#946a43', '#b08458'];
+  if (part === 'back') {
+    for (const px of [X0 - 4, X1 - 4]) {
+      for (let y = top - 60; y < G; y++) for (let x = 0; x < 8; x++) pix.set(px + x, y, pick(WOOD, 0.75 - x * 0.09 + (noise2(px + x, y * 0.1, seed) - 0.5) * 0.15, px + x, y));
+      for (let x = -2; x < 10; x++) for (let y = top - 66; y < top - 60; y++) pix.set(px + x, y, WOOD[1 + (y % 2)]);   // la tête du poteau
+    }
+    // l'ancienne traverse du haut, cassée, qui pend d'un poteau
+    for (let s = 0; s < 40; s++) for (let j = 0; j < 6; j++) pix.set(X1 - 4 - s, top - 58 + Math.round(s * 0.9) + j, pick(WOOD, 0.6 - j * 0.08, s, j));
+    return;
+  }
+  // la poutre : équarrie, posée de biais (un pixel d'écart), le bois fendu ; des planches du toit par-dessus
+  const h = gap - top;
+  for (let x = X0 - 18; x <= X1 + 18; x++) {
+    const tilt = Math.round((x - X0) / (X1 - X0 + 36) * 2);
+    for (let y = gap - 18 + tilt; y <= gap + tilt; y++) {
+      const k = (y - (gap - 18 + tilt)) / 18;
+      let v = 0.78 - k * 0.6 + (noise2(x * 0.05, y * 0.5, seed) - 0.5) * 0.18;
+      if (Math.abs(noise2(x * 0.03, y * 0.6, seed + 1) - 0.5) < 0.04) v -= 0.25;
+      pix.set(x, Math.min(y, gap), pick(WOOD, v, x, y));
+    }
+  }
+  for (let q = 0; q < 6; q++) {
+    const a = -0.5 + ih(q, 1, seed) * 1.0, len = 30 + ih(q, 2, seed) * 30, bx = X0 + 6 + q * (X1 - X0 - 12) / 5, by = gap - 18;
+    for (let s = 0; s < len; s++) for (let j = 0; j < 4; j++) { const x = Math.round(bx + Math.cos(a) * (s - len / 2)), y = Math.round(by - 4 - Math.abs(Math.sin(a)) * (s * 0.4) - j); if (y >= top) pix.set(x, y, pick(WOOD, 0.62 - j * 0.1 + q * 0.03, x, j)); }
+  }
+  // la corde sacrée et ses papiers, qui pendent de la poutre (au-dessus du passage)
+  for (let x = X0 + 4; x < X1 - 4; x++) pix.set(x, gap - 3 + Math.round(Math.sin((x - X0) / (X1 - X0) * Math.PI) * 2), x % 3 ? '#d8c08a' : '#a88a54');
+  for (let k = 0; k < 4; k++) { const x = X0 + 10 + k * (X1 - X0 - 20) / 3; for (let s = 0; s < 4; s++) { pix.set(Math.round(x) + (s % 2), gap + s - 1, '#f2eee2'); } }
+  // la lanterne crevée, accrochée au bout de la poutre
+  const lx = X1 + 10;
+  for (let y = gap - 4; y < gap + 6; y++) for (let x = -3; x <= 3; x++) if (Math.abs(x) + (y - gap) / 3 < 4) pix.set(lx + x, y, (x + y) % 5 === 0 ? '#3a2a1a' : '#e8d8b0');
 }
 
 /** Tronc couché (zone 11) : on glisse dessous ; il repose sur deux pierres. */
