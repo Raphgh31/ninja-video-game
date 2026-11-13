@@ -131,26 +131,26 @@ export class Avalanche {
       const surf = (x) => { for (let k = 0; k < prof.length - 1; k++) { const [x0, y0] = prof[k], [x1, y1] = prof[k + 1]; if (x >= x0 && x <= x1) return y0 + ((x - x0) * (y1 - y0)) / Math.max(1, x1 - x0); } return G; };
       const B = [];
       // dedans : des assises, de bas en haut, aussi larges que l'amas à cette hauteur
-      for (let y = G - 9, row = 0; y > G - P.h + 10; y -= 14, row++) {
+      for (let y = G - 14, row = 0; y > G - P.h + 16; y -= 19, row++) {
         let xa = X, xb = X + W;
         while (xa < X + W && surf(xa) > y - 6) xa++;
         while (xb > X && surf(xb) > y - 6) xb--;
-        for (let x = xa + 6, k = 0; x < xb - 4; k++) {
-          const r = Math.max(8, 15 - row * 1.5 - Math.floor(ih(row, k, 87) * 4));
-          B.push([x + (ih(row, k + 9, 87) - 0.5) * 4, y + (ih(row, k + 19, 87) - 0.5) * 4, r, row]);
-          x += r * 1.45;
+        for (let x = xa + 10, k = 0; x < xb - 6; k++) {
+          const r = Math.max(12, 22 - row * 2 - Math.floor(ih(row, k, 87) * 6));
+          B.push([x + (ih(row, k + 9, 87) - 0.5) * 6, y + (ih(row, k + 19, 87) - 0.5) * 6, r, row]);
+          x += r * 1.35;
         }
       }
       // la surface : des blocs dont le dessus suit le chemin de KAGE
-      for (let x = X + 4, k = 0; x < X + W - 2; k++) {
-        const r = 8 + Math.floor(ih(k, 3, 88) * 5), y = surf(x);
-        B.push([x, y + r * 0.78, r, 7]);
-        x += r * 1.25;
+      for (let x = X + 6, k = 0; x < X + W - 4; k++) {
+        const r = 11 + Math.floor(ih(k, 3, 88) * 7), y = surf(x);
+        B.push([x, y + r * 0.8, r, 7]);
+        x += r * 1.2;
       }
       // les cales
-      for (let k = 0; k < 18; k++) {
-        const x = X + 6 + ih(k, 1, 89) * (W - 12), top = surf(x);
-        B.push([x, top + 6 + ih(k, 2, 89) * (G - top - 8), 4 + Math.floor(ih(k, 3, 89) * 3), 9]);
+      for (let k = 0; k < 26; k++) {
+        const x = X + 8 + ih(k, 1, 89) * (W - 16), top = surf(x);
+        B.push([x, top + 8 + ih(k, 2, 89) * (G - top - 10), 4 + Math.floor(ih(k, 3, 89) * 5), 9]);
       }
       this.pile = B.map(([x, y, r, rw], i) => ({ x, y, r, seed: 800 + i * 13, rot: ih(i, 1, 81) * 6.28, row: rw }));
       // le dessin : le dedans (du haut vers le bas), la surface, les cales par-dessus

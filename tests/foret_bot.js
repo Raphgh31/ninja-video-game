@@ -61,11 +61,16 @@ window.bot = {
       this.set({ right: true, left: false, sprint: !!(typeof o.sprint === 'function' ? o.sprint(p) : o.sprint) });
       if (p.onGround) {
         airDashed = false;
-        const wall = l.solid(c + 1, r - 1) && p.x % 16 > 6;
+        // une pente devant (ou l'amas de la descente) : ce n'est ni un trou ni un mur, on la suit
+        const F = l.forest, ax = p.x + 18;
+        const slope = !!F?.slopes?.some((q) => ax >= q.x0 && ax < q.x1 && !(q.pile && F.slide?.pileGone)) || (p.onSlope && !!F);
+        // un obstacle de deux cases un peu plus loin : on saute plus tôt
+        const tall = !slope && l.solid(c + 2, r - 1) && l.solid(c + 2, r - 2) && !l.solid(c + 1, r - 1) && p.x % 16 > 4;
+        const wall = !slope && (l.solid(c + 1, r - 1) && p.x % 16 > 6 || tall);
         const low = l.solid(c + 1, r - 2) && !l.solid(c + 1, r - 1);         // plafond bas devant : glissade
         // une simple marche vers le bas : on se laisse descendre, sans sauter
-        const drop = !this.groundAt(c + 1, r, 2) && l.at(c + 1, r) !== '~' && l.at(c + 1, r + 1) !== '~' && this.groundAt(c + 1, r + 2, 2);
-        const edge = !drop && (!this.groundAt(c + 1, r, 2) || l.at(c + 1, r) === '~') && p.x % 16 > 9;
+        const drop = !slope && !this.groundAt(c + 1, r, 2) && l.at(c + 1, r) !== '~' && l.at(c + 1, r + 1) !== '~' && this.groundAt(c + 1, r + 2, 2);
+        const edge = !slope && !drop && (!this.groundAt(c + 1, r, 2) || l.at(c + 1, r) === '~') && p.x % 16 > 9;
         if (low && p.state !== 'slide') this.tap('down');
         else if ((wall || edge) && p.state !== 'slide') this.tap('jump');
         else this.set({ jump: false });

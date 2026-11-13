@@ -157,6 +157,8 @@ export class Forest {
     for (const s of this.slopes) {
       if (x < s.x0 || x >= s.x1) continue;
       if (s.pile && this.slide?.pileGone) continue;                       // l'amas s'est effondré
+      // l'amas est un obstacle : qui se retrouve sous sa surface (arrivé de côté, retombé dedans) est remis dessus
+      if (s.pile) { const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0); if (feet >= y - (sticky ? 7 : 0)) { this.slopeDir = Math.sign(s.y1 - s.y0); return y; } continue; }
       const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0);
       // il retombe dessus, ou (déjà sur la pente) elle descend un peu sous lui ou monte un peu devant lui
       if (feet >= y - (sticky ? 7 : 0) && feet - dy <= y + (sticky ? 10 : 4)) { this.slopeDir = Math.sign(s.y1 - s.y0); return y; }

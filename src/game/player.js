@@ -596,12 +596,14 @@ export class Player {
     } else if (this.onGround && !this.ride && this.state !== 'hurt') {
       this.safe = { x: this.x, y: this.y };
     }
+    const downhill = this.onSlope && this.vx * (this.slopeDir ?? 0) > 0;
     this.energy.update(dt, {
-      // dévaler une pente en courant ne coûte rien (la pente porte KAGE) ; le sprint, si
-      running: this.onGround && (this.state === 'sprint' || (this.state === 'run' && !(this.onSlope && this.vx * (this.slopeDir ?? 0) > 0))) && Math.abs(this.vx) > 10,
+      // dévaler une pente en courant ne coûte rien (la pente porte KAGE) : il y reprend même son souffle,
+      // comme en marchant ; le sprint, lui, coûte toujours
+      running: this.onGround && (this.state === 'sprint' || (this.state === 'run' && !downhill)) && Math.abs(this.vx) > 10,
       sprinting: this.onGround && this.state === 'sprint',
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
-      walking: this.onGround && this.state === 'walk',
+      walking: this.onGround && (this.state === 'walk' || (this.state === 'run' && downhill)),
     });
     const before = this.anim.frame, stateBefore = this.state;
     this.anim.update(dt);
@@ -742,8 +744,9 @@ export class Player {
     // les pentes (forêt) : un sol en biais qu'on suit en montant comme en descendant (on y reste collé
     // en courant vers le bas ; un saut s'en détache)
     let onSlope = false;
-    if (!this.onGround && this.vy >= 0 && lv.forest?.slopes?.length) {
-      const fb = this.box(), sy = lv.forest.slopeY(fb.x + fb.w / 2, fb.y + fb.h, this.vy * dt, this.onSlope);
+    // (même posé sur des tuiles : l'amas de la descente repose sur le sol, sa surface est au-dessus)
+    if (this.vy >= 0 && lv.forest?.slopes?.length) {
+      const fb = this.box(), sy = lv.forest.slopeY(fb.x + fb.w / 2, fb.y + fb.h, this.vy * dt, this.onSlope || this.onGround);
       if (sy != null) { this.y -= fb.y + fb.h - sy; this.vy = 0; this.onGround = true; onSlope = true; this.slopeDir = lv.forest.slopeDir; }
     }
     this.onSlope = onSlope;

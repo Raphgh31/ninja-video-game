@@ -639,14 +639,14 @@ function build() {
   // (refonte de novembre 2026 : l'amas à franchir, des pentes, plus de fossés ni de tronc creux)
   // ===========================================================================
   zone('11', 'La descente vertigineuse', { mood: 'couchant', bgSlope: true });
-  x = b.x; ground(17, G10);
+  x = b.x; ground(24, G10);
   lantern(x + 1, G10);
-  // l'amas : 10 cases de large, 4 de haut ; sa surface est faite de pentes (on y marche), qui
-  // disparaissent quand il s'effondre
-  const PX = (x + 3) * TILE, PW = 10 * TILE, PH = 64, PG = G10 * TILE;
-  const prof = [[0, 0], [0.18, 0.5], [0.42, 1], [0.58, 0.95], [0.8, 0.5], [1, 0]].map(([u, h]) => [PX + Math.round(u * PW), PG - Math.round(h * PH)]);
+  // l'amas : 16 cases de large, plus de 6 de haut ; sa surface est faite de pentes (on y marche, on ne
+  // peut que l'escalader), qui disparaissent quand il s'effondre
+  const PX = (x + 4) * TILE, PW = 16 * TILE, PH = 100, PG = G10 * TILE;
+  const prof = [[0, 0], [0.13, 0.34], [0.3, 0.78], [0.45, 1], [0.56, 0.97], [0.7, 0.72], [0.86, 0.33], [1, 0]].map(([u, h]) => [PX + Math.round(u * PW), PG - Math.round(h * PH)]);
   for (let k = 0; k < prof.length - 1; k++) F.slopes.push({ x0: prof[k][0], y0: prof[k][1], x1: prof[k + 1][0], y1: prof[k + 1][1], pile: true });
-  b.prop('rock_pile', x + 3, G10, { w: 10 });
+  b.prop('rock_pile', x + 4, G10, { w: 16 });
   const pileEnd = PX + PW;
   let g = G10;
   const step = (n, drop) => { g += drop; const s0 = b.x; ground(n, g); return s0; };
@@ -658,32 +658,34 @@ function build() {
     g += drop; return s0;
   };
   const onSlope = (n, drop, k) => g - drop + (drop * k) / n;              // la rangée de la dernière pente, à sa colonne k
-  // une souche coupée (une case de haut, w de large), à sauter
-  const stump = (c, w = 1, h = 1) => { fill(c, w, g - h, g - 1, '#'); b.prop('stump', c, g - h, { w }); };
+  // les obstacles du replat, à sauter : une souche coupée, un tronc couché, un rocher, une pile de bûches
+  const block = (type, c, w, h, o = {}) => { fill(c, w, g - h, g - 1, '#'); b.prop(type, c, g - h, { w, ...o }); };
+  const stump = (c, w = 1, h = 1) => block('stump', c, w, h);
   x = slopeDown(12, 3); coin(x + 6, Math.round(onSlope(12, 3, 6)) - 2);
   b.prop('scree', x, g - 3, { w: 12 }); b.prop('near_tree', x + 4, g - 2, { w: 26 });
-  x = step(8, 0); stump(x + 4); b.prop('log_cut', x + 1, g, { n: 2 });
-  x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
-  b.prop('scree', x, g - 4, { w: 14 }); b.prop('snag', x + 6, g - 2, { h: 84, lean: 0.12 });
-  x = step(7, 0); b.prop('half_buried', x + 1, g, { r: 15 }); b.prop('log_cut', x + 4, g, { n: 3 });
-  x = step(7, 2); stump(x + 3, 2); b.prop('near_tree', x + 6, g, { w: 30 });
+  x = step(9, 0); stump(x + 2); block('log_block', x + 5, 3, 1); b.prop('log_cut', x + 1, g, { n: 2 });
   x = slopeDown(10, 3); coin(x + 5, Math.round(onSlope(10, 3, 5)) - 2);
-  b.prop('scree', x, g - 3, { w: 10 });
-  x = step(9, 0); stump(x + 2); stump(x + 6); b.prop('log_cut', x + 4, g, { n: 2 });
-  x = slopeDown(16, 5); coins([x + 4, x + 8, x + 12], Math.round(onSlope(16, 5, 8)) - 2);
-  b.prop('scree', x, g - 5, { w: 16 }); b.prop('snag', x + 3, g - 4, { h: 60, lean: -0.08, fallen: 0.45 }); b.prop('half_buried', x + 12, g - 1, { r: 13 });
-  x = step(8, 0);
-  lantern(x + 3, g);                                     // mi-pente : l'éboulis repart d'ici
-  const slideMid = x + 3;
-  b.prop('near_tree', x + 6, g, { w: 22 });
-  x = slopeDown(12, 3); b.prop('scree', x, g - 3, { w: 12 });
-  x = step(6, 2); stump(x + 3); b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
-  x = slopeDown(13, 4); coins([x + 3, x + 8], Math.round(onSlope(13, 4, 6)) - 2);
-  b.prop('scree', x, g - 4, { w: 13 }); b.prop('half_buried', x + 10, g, { r: 18 });
-  x = step(8, 0); stump(x + 2, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 }); b.prop('near_tree', x + 6, g, { w: 28 });
-  x = slopeDown(9, 3); coin(x + 4, Math.round(onSlope(9, 3, 4)) - 2);
-  b.prop('scree', x, g - 3, { w: 9 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
-  x = step(8, 0); stump(x + 3); b.prop('log_cut', x + 5, g, { n: 2 });
+  b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 6, g - 2, { h: 84, lean: 0.12 });
+  x = step(8, 0); block('boulder', x + 3, 2, 2); b.prop('near_tree', x + 6, g, { w: 30 });
+  x = step(7, 2); stump(x + 1); stump(x + 3, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 });   // deux souches en escalier
+  x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
+  b.prop('scree', x, g - 4, { w: 14 }); b.prop('half_buried', x + 11, g - 1, { r: 15 });
+  x = step(10, 0); block('log_pile', x + 2, 3, 2); stump(x + 7);
+  x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
+  b.prop('scree', x, g - 4, { w: 12 }); b.prop('snag', x + 3, g - 3, { h: 60, lean: -0.08, fallen: 0.45 });
+  x = step(9, 0);
+  lantern(x + 2, g);                                     // mi-pente : l'éboulis repart d'ici
+  const slideMid = x + 2;
+  stump(x + 6); b.prop('near_tree', x + 4, g, { w: 22 });
+  x = slopeDown(10, 3); b.prop('scree', x, g - 3, { w: 10 });
+  x = step(9, 0); block('boulder', x + 2, 2, 1); block('boulder', x + 5, 2, 2, { wet: false });   // deux rochers, le second plus haut
+  x = step(5, 2); b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
+  x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
+  b.prop('scree', x, g - 4, { w: 12 }); b.prop('half_buried', x + 9, g, { r: 18 });
+  x = step(10, 0); block('log_block', x + 2, 4, 1); stump(x + 7, 1, 2); b.prop('near_tree', x + 5, g, { w: 28 });
+  x = slopeDown(10, 3); coin(x + 4, Math.round(onSlope(10, 3, 4)) - 2);
+  b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
+  x = step(8, 0); stump(x + 1, 2); block('log_pile', x + 4, 3, 2); b.prop('log_cut', x + 7, g, { n: 1 });
   const G12 = FORET_ROWS.vallee;
   x = step(8, G12 - g);
   F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };

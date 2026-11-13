@@ -151,6 +151,13 @@ export class ForetProps {
           add('over', X - 6, base - 22, 64, 26, (pix) => logCuts(pix, X, base, p.n ?? 2, p.x * 13 + 1));
           break;
         }
+        // obstacles de la descente (zone 11), pleins : un tronc couché, une pile de bûches
+        case 'log_block': case 'log_pile': {
+          const base = regionGround(level, p.x, p.w, p.y), hpx = (base - p.y) * TILE;
+          mask(p.x, p.w, p.y, base - 1);
+          add('over', X - 12, Y - 8, p.w * TILE + 24, hpx + 12, (pix) => (p.type === 'log_block' ? lyingTrunk : logPile)(pix, X, Y, p.w * TILE, hpx, p.x * 9 + 2));
+          break;
+        }
         case 'scree': {
           add('over', X - 4, p.y * TILE - 60, p.w * TILE + 8, 90, (pix) => scree(pix, level, X, p.w * TILE, p.y * TILE, p.x * 3 + 7));
           break;
@@ -1583,6 +1590,44 @@ function logCuts(pix, X, base, n, seed) {
     }
     if (k !== 1) x += len + 4;
   }
+}
+
+
+/** Un tronc couché en travers du chemin (plein, on le saute) : écorce fendue, mousse dessus, une coupe claire,
+ *  un moignon de branche ; il déborde un peu de ses cases. */
+function lyingTrunk(pix, X, Y, W, H, seed) {
+  const d = H + 2, top = Y - 1;
+  for (let x = X - 4; x < X + W + 4; x++) for (let j = 0; j < d; j++) {
+    const v0 = j / d, cyl = Math.sin(v0 * Math.PI);
+    let v = 0.2 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.06, j * 0.5, seed) - 0.5) * 0.2;
+    const m = fbm2(x * 0.08, j * 0.15, 3, seed + 2) + (v0 < 0.25 ? 0.3 : 0) - 0.12;
+    let c = m > 0.7 ? pick(C.MOSS, v + 0.2, x, j) : Math.abs(fbm2(x * 0.02, j * 0.3, 2, seed) - 0.5) < 0.025 ? C.BARK[0] : pick(C.BARK, v, x, j);
+    const ex = X + W + 3 + Math.round(Math.sin(v0 * Math.PI) * 2);
+    if (x > ex) { const r = Math.hypot((x - ex) / 3, (j - d / 2) / (d / 2)); if (r > 1) continue; c = r > 0.85 ? C.BARK[2] : Math.sin(r * 11) > 0.3 ? '#b08a58' : '#d2b07a'; }
+    pix.set(x, top + j, c);
+  }
+  // un moignon de branche, et des champignons au pied
+  const sx = X + Math.floor(W * (0.3 + ih(seed, 1, 3) * 0.4));
+  for (let s = 0; s < 6; s++) { pix.set(sx + Math.round(s * 0.5), top - 1 - s, C.BARK[3]); pix.set(sx + 1 + Math.round(s * 0.5), top - 1 - s, C.BARK[1]); }
+  L.mushroom(pix, X + 2, top + d, 2); L.mushroom(pix, X + W - 4, top + d, 3);
+}
+
+/** Une pile de bûches coupées (pleine) : des rondins empilés en pyramide, leurs coupes claires de face. */
+function logPile(pix, X, Y, W, H, seed) {
+  const r = 7, rows = Math.max(1, Math.min(Math.floor((H + 4) / (2 * r - 2)), Math.floor(W / (2 * r))));
+  for (let k = 0; k < rows; k++) {
+    const n = Math.max(1, Math.floor(W / (2 * r)) - k), cy = Y + H - r - k * (2 * r - 3), x0 = X + (W - n * 2 * r) / 2 + r;
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + i * 2 * r + (ih(i, k, seed) - 0.5) * 2, rr = r - Math.floor(ih(i, k + 3, seed) * 2);
+      for (let y = -rr; y <= rr; y++) for (let x = -rr; x <= rr; x++) {
+        const d = Math.hypot(x, y) / rr;
+        if (d > 1) continue;
+        pix.set(Math.round(cx + x), Math.round(cy + y), d > 0.8 ? (y < 0 ? C.BARK[3] : C.BARK[1]) : Math.sin(d * 9 + i) > 0.2 ? '#c49a62' : '#e0bf86');
+      }
+      pix.set(Math.round(cx), Math.round(cy), '#7a5634');
+    }
+  }
+  for (let x = X; x < X + W; x += 3) if (ih(x, 2, seed) < 0.5) pix.set(x, Y + H - 1, C.MOSS[3]);
 }
 
 /** Tronc couché (zone 11) : on glisse dessous ; il repose sur deux pierres. */
