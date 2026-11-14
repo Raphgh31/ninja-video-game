@@ -695,8 +695,8 @@ function build() {
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
   x = step(8, 0); stump(x + 1, 2); block('log_block', x + 4, 3, 1); b.prop('log_cut', x + 7, g, { n: 1 });
   const G12 = FORET_ROWS.vallee;
-  x = step(8, G12 - g);
-  F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof, steps }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };
+  x = step(22, G12 - g);                                // le replat du bas : l'éboulis s'y arrête, en tas
+  F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof, steps }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 3) * TILE, speed: 94, speedEnd: 100 };
 
   // ===========================================================================
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,

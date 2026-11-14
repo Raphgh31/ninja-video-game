@@ -1702,14 +1702,17 @@ function rockArch(pix, X0, X1, top, gap, G, seed, part) {
     return;
   }
   // la dalle : un long polygone irrégulier, posé un peu de biais
-  const cx = (X0 + X1) / 2, cy = (top + gap) / 2, rx = (X1 - X0) / 2 + 18, ry = (gap - top) / 2 + 2, pts = [];
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; pts.push([Math.cos(a) * rx * (0.92 + ih(i, 1, seed) * 0.1), Math.sin(a) * ry * (0.8 + ih(i, 2, seed) * 0.22) * (Math.sin(a) > 0 ? 0.9 : 1)]); }
-  put(rockStone(pts, 0.03, seed + 9, ROCK_LIT), cx, cy);
+  // (le dessous est plat et bas sur toute la largeur, dès l'entrée : on voit tout de suite qu'il faut se
+  // baisser ; le dessus, arrondi, reste sous le haut de la bande)
+  const lo = gap + 1, hi = top + 12, cx = (X0 + X1) / 2, cy = (hi + lo) / 2, rx = (X1 - X0) / 2 + 20, ry = (lo - hi) / 2, pts = [];
+  for (let i = 0; i <= 6; i++) pts.push([rx - (i / 6) * 2 * rx + (ih(i, 3, seed) - 0.5) * 3, ry - (i === 0 || i === 6 ? 4 : ih(i, 4, seed) * 1.5)]);
+  for (let i = 1; i < 8; i++) { const a = Math.PI + (i / 8) * Math.PI; pts.push([Math.cos(a) * rx * (0.94 + ih(i, 1, seed) * 0.08), Math.sin(a) * ry * (0.85 + ih(i, 2, seed) * 0.2)]); }
+  put(rockStone(pts, 0, seed + 9, ROCK_LIT), cx, cy);
   // des cales et un bloc posé dessus, de la mousse et une fougère
-  put(rockStone(rockShape(10, seed + 11), 0.6, seed + 11, ROCK_LIT), cx + rx * 0.4, top - 4);
-  put(rockStone(rockShape(6, seed + 12), 1.4, seed + 12, ROCK_LIT), cx - rx * 0.55, top + 1);
-  for (let x = Math.round(X0 - 10); x < X1 + 10; x++) if (fbm2(x * 0.08, 1, 2, seed) > 0.5) pix.set(x, Math.round(top + 2 + Math.sin(x * 0.07) * 1.5), C.MOSS[4]);
-  L.fern(pix, Math.round(cx - rx * 0.15), Math.round(top + 3), 10, C.FERN, seed + 13);
+  put(rockStone(rockShape(10, seed + 11), 0.6, seed + 11, ROCK_LIT), cx + rx * 0.4, hi - 4);
+  put(rockStone(rockShape(7, seed + 12), 1.4, seed + 12, ROCK_LIT), cx - rx * 0.5, hi);
+  for (let x = Math.round(X0 - 10); x < X1 + 10; x++) if (fbm2(x * 0.08, 1, 2, seed) > 0.5) pix.set(x, Math.round(hi + 2 + Math.sin(x * 0.07) * 1.5), C.MOSS[4]);
+  L.fern(pix, Math.round(cx - rx * 0.15), Math.round(hi + 3), 10, C.FERN, seed + 13);
 }
 
 /**

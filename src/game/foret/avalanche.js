@@ -114,6 +114,20 @@ export class Avalanche {
       for (let i = 0; i < n; i++) { let s2 = 0, c = 0; for (let k = -12; k <= 12; k++) { const j = i + k; if (j >= 0 && j < n) { s2 += src[j]; c++; } } sm[i] = s2 / c; }
     }
     this.gx0 = x0; this.ground = sm; this.rawGround = g;
+    // le sol « sous » les obstacles (souches, rochers, troncs, l'arche) : la masse ne les escalade pas
+    // toute entière ; chaque pierre les franchit à sa façon (bump : hauteur de l'obstacle au-dessus du sol)
+    const fl = g.slice();
+    for (const q of level.props) {
+      if (!['stump', 'boulder', 'log_block', 'slide_arch', 'slide_tree', 'slide_gate'].includes(q.type)) continue;
+      const a = q.x * TILE - x0, b = (q.x + (q.w ?? 1)) * TILE - x0;
+      if (b < 0 || a >= n) continue;
+      const ya = g[Math.max(0, a - 2)], yb = g[Math.min(n - 1, b + 1)];
+      for (let i = Math.max(0, a); i < Math.min(n, b); i++) fl[i] = Math.max(g[i], ya + ((yb - ya) * (i - a)) / Math.max(1, b - a));
+    }
+    const fs = new Float32Array(n), bump = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let s2 = 0, c = 0; for (let k = -10; k <= 10; k++) { const j = i + k; if (j >= 0 && j < n) { s2 += fl[j]; c++; } } fs[i] = s2 / c; }
+    for (let i = 0; i < n; i++) { let s2 = 0, c = 0; for (let k = -6; k <= 6; k++) { const j = i + k; if (j >= 0 && j < n) { s2 += Math.max(0, fl[j] - g[j]); c++; } } bump[i] = s2 / c; }
+    this.floor = fs; this.bump = bump;
     // la masse : chaque pierre a sa place dans le tas (u : distance au front ; h : hauteur relative),
     // sa taille (les grosses derrière et en bas), sa profondeur, sa vitesse dans la masse
     this.L = 195; this.Hmax = 96;
@@ -121,8 +135,10 @@ export class Avalanche {
       const u = ih(i, 1, 61) * this.L, back = u / this.L, hf = Math.pow(ih(i, 2, 61), 0.85);
       let si = Math.floor(Math.pow(ih(i, 3, 61), 1.6 - back * 0.9) * SIZES.length * (0.55 + back * 0.45 + (1 - hf) * 0.25));
       si = Math.max(0, Math.min(SIZES.length - 1, si));
+      // climb : la part de chaque obstacle que la pierre escalade (près de la moitié passent au ras, « dessous »)
       return { u0: u, hf, si, v: i % 3, z: ih(i, 4, 61), vrel: 10 + ih(i, 5, 61) * 48, ph: ih(i, 6, 61) * 6.28, spin: 0.4 + ih(i, 7, 61) * 2.2,
-        amp: 1 + ih(i, 8, 61) * 6, fq: 3 + ih(i, 9, 61) * 7, leap: ih(i, 10, 61) < 0.3 ? 8 + ih(i, 11, 61) * 16 : 0, lq: 0.6 + ih(i, 12, 61) * 1.6, raw: ih(i, 13, 61) * 0.7, wob: ih(i, 14, 61) * 3 };
+        amp: 1 + ih(i, 8, 61) * 3.5, fq: 3 + ih(i, 9, 61) * 7, leap: ih(i, 10, 61) < 0.25 ? 4 + ih(i, 11, 61) * 7 : 0, lq: 0.6 + ih(i, 12, 61) * 1.6,
+        climb: ih(i, 13, 61) < 0.45 ? 0 : 0.2 + ih(i, 15, 61) * 0.5, wob: 1 + ih(i, 14, 61) * 4, dz: (ih(i, 16, 61) - 0.4) * 8 };
     }).sort((a, b) => a.z - b.z);
     // l'amas : sa surface (prof, la même que les pentes où KAGE marche) est pavée de blocs dont le dessus
     // affleure ; dessous, des assises de gros blocs ; de petites cales dans les vides
@@ -169,6 +185,7 @@ export class Avalanche {
     const i = Math.round(x - this.gx0);
     return this.ground[Math.max(0, Math.min(this.ground.length - 1, i))];
   }
+  at(arr, x) { return arr[Math.max(0, Math.min(arr.length - 1, Math.round(x - this.gx0)))]; }
   rawGy(x) {
     const i = Math.round(x - this.gx0);
     return this.rawGround[Math.max(0, Math.min(this.rawGround.length - 1, i))];
@@ -228,6 +245,7 @@ export class Avalanche {
   draw(ctx, cam, vw, vh, time, S) {
     const dt = this.t == null ? 0 : Math.min(1 / 30, Math.max(0, time - this.t));
     this.t = time;
+    if (!S.done) this.settle = null;
     if (!S.active && !S.done) { this.fall = null; this.dust.length = 0; this.stepPebbles(ctx, cam, vw, vh, time, dt); return; }
     const front = S.x, live = S.active;
     // la masse se forme pendant l'effondrement (elle « monte » en quelques dixièmes de seconde)
@@ -259,19 +277,11 @@ export class Avalanche {
     // derrière : la poussière
     this.drawDust(ctx, cam, vw, vh, false);
     // la masse, du fond vers l'avant
-    if (front - this.L - 40 < cam.x + vw && front + 40 > cam.x) for (const m of this.mass) {
-      const u = (((m.u0 - (live ? time * m.vrel : 0)) % this.L) + this.L) % this.L;
-      const x = front - u, r = SIZES[m.si];
-      if (x < cam.x - 20 || x > cam.x + vw + 20) continue;
-      const H = this.heap(u) * grow;
-      if (H <= 0 && u > 8) continue;
-      // chaque pierre a son rebond (amplitude, cadence), quelques-unes font de grands bonds de loin en loin,
-      // certaines épousent mieux le sol que la masse (elles décrochent aux ruptures de pente)
-      const hop = live ? Math.abs(Math.sin(time * m.fq + m.ph)) * m.amp * (u < 30 ? 1.8 : 1) + (m.leap ? Math.pow(Math.max(0, Math.sin(time * m.lq + m.ph * 3)), 6) * m.leap : 0) : 0;
-      const base = this.gy(x) + (this.rawGy(x) - this.gy(x)) * m.raw;
-      const y = base - r * 0.8 - m.hf * H - hop, xw = x + (live ? Math.sin(time * 1.7 + m.ph * 2) * m.wob : 0);
-      const fr = this.set(m.si, m.v, m.z > 0.35)[(Math.floor((live ? time * m.spin * (14 / r) : 0) + m.ph * 2) % ROT + ROT) % ROT];
-      ctx.drawImage(fr.img, R(xw - fr.ext - cam.x), R(y - fr.ext - cam.y));
+    if (S.done) this.drawSettled(ctx, cam, vw, vh, time, S, dt);
+    else if (front - this.L - 40 < cam.x + vw && front + 40 > cam.x) for (const m of this.mass) {
+      const p = this.rockPos(m, front, time, live, grow);
+      if (!p || p.x < cam.x - 20 || p.x > cam.x + vw + 20) continue;
+      ctx.drawImage(p.fr.img, R(p.x - p.fr.ext - cam.x), R(p.y - p.fr.ext - cam.y));
     }
     // les blocs de l'amas
     if (this.fall) for (const b of this.fall) {
@@ -287,6 +297,51 @@ export class Avalanche {
     // devant : la poussière basse du front, et les cailloux projetés
     this.drawDust(ctx, cam, vw, vh, true);
     this.stepPebbles(ctx, cam, vw, vh, time, dt);
+  }
+
+  /** Où est la pierre m (et sa rotation), la masse ayant son front en front. */
+  rockPos(m, front, time, live, grow) {
+    const u = (((m.u0 - (live ? time * m.vrel : 0)) % this.L) + this.L) % this.L;
+    const x = front - u, r = SIZES[m.si];
+    const H = this.heap(u) * grow;
+    if (H <= 0 && u > 8) return null;
+    // chaque pierre a son rebond (amplitude, cadence), quelques-unes font de petits bonds de loin en loin ;
+    // devant un obstacle, chacune passe à sa façon (au ras, ou en l'escaladant en partie)
+    const hop = live ? Math.abs(Math.sin(time * m.fq + m.ph)) * m.amp * (u < 30 ? 1.5 : 1) + (m.leap ? Math.pow(Math.max(0, Math.sin(time * m.lq + m.ph * 3)), 6) * m.leap : 0) : 0;
+    const base = this.at(this.floor, x) - this.at(this.bump, x) * m.climb + m.dz;
+    const y = base - r * 0.8 - m.hf * H - hop, xw = x + (live ? Math.sin(time * 1.7 + m.ph * 2) * m.wob : 0);
+    const fi = (Math.floor((live ? time * m.spin * (14 / r) : 0) + m.ph * 2) % ROT + ROT) % ROT;
+    return { x: xw, y, fr: this.set(m.si, m.v, m.z > 0.35)[fi], fi };
+  }
+
+  /**
+   * L'arrêt : la masse a ralenti (mechanics) puis s'est arrêtée ; ses pierres glissent en une seconde et demie
+   * vers leur place dans un tas comme celui du sommet (même profil), quelques-unes roulent un peu devant ;
+   * un dernier nuage de poussière.
+   */
+  drawSettled(ctx, cam, vw, vh, time, S, dt) {
+    const end = S.x;
+    if (!this.settle) {
+      const prof = S.pile?.prof, Lend = 190, Hh = 82;
+      const shape = (v) => { if (!prof) return Math.sin(Math.PI * v); const X = S.pile.x + v * S.pile.w; for (let k = 0; k < prof.length - 1; k++) { const [a, ya] = prof[k], [b, yb] = prof[k + 1]; if (X >= a && X <= b) return (S.pile.y - (ya + ((X - a) * (yb - ya)) / Math.max(1, b - a))) / S.pile.h; } return 0; };
+      this.settle = { t: 0, rocks: this.mass.map((m) => {
+        const p = this.rockPos(m, end, this.t ?? time, true, 1) ?? { x: end - m.u0, y: this.gy(end - m.u0), fi: 0 };
+        const r = SIZES[m.si], u = (m.u0 / this.L) * Lend;
+        let tx = end - u, ty;
+        if (m.u0 < 14) { tx = end + 6 + (14 - m.u0) * 3 + ih(m.si, m.v, 7) * 10; ty = this.gy(tx) - r * 0.8; }   // roulées devant
+        else ty = this.at(this.floor, tx) - r * 0.75 - m.hf * Hh * shape(1 - u / Lend) + m.dz * 0.3;
+        return { m, x0: p.x, y0: p.y, fi: p.fi ?? 0, tx, ty };
+      }) };
+      for (let k = 0; k < 40; k++) this.dust.push({ x: end - Math.random() * Lend, y: this.gy(end) - Math.random() * 60, r0: 6, r1: 18 + Math.random() * 24, age: 0, life: 1.6 + Math.random() * 1.6, vx: (Math.random() - 0.4) * 16, vy: -6 - Math.random() * 10, fr: false });
+    }
+    const st = this.settle; st.t = Math.min(1.5, st.t + dt);
+    const k = 1 - Math.pow(1 - st.t / 1.5, 3);
+    for (const q of st.rocks) {
+      const x = q.x0 + (q.tx - q.x0) * k, y = q.y0 + (q.ty - q.y0) * k - Math.sin(k * Math.PI) * (q.m.u0 < 14 ? 6 : 0);
+      if (x < cam.x - 24 || x > cam.x + vw + 24) continue;
+      const fi = (q.fi + Math.floor((1 - k) * 3)) % ROT, fr = this.set(q.m.si, q.m.v, q.m.z > 0.35)[fi];
+      ctx.drawImage(fr.img, R(x - fr.ext - cam.x), R(y - fr.ext - cam.y));
+    }
   }
 
   /** Hauteur du tas à la distance u du front : bas et clairsemé devant, haut au milieu, il se perd derrière. */

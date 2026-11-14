@@ -590,8 +590,10 @@ export class Forest {
     // l'amas s'effondre d'abord : la masse ne se met en marche qu'une fois les premiers blocs tombés
     if (S.wait > 0) { S.wait -= dt; if (alive && player.x < S.x - FOREST.slide.margin && player.x > S.start - 120) { this.emit('slideHit', { x: player.x, y: player.y }); player.die(); } return; }
     const k = Math.max(0, Math.min(1, (S.x - S.start) / (S.end - S.start)));
-    S.x += (S.speed + (S.speedEnd - S.speed) * k) * dt;
-    if (S.x >= S.end) { S.x = S.end; S.active = false; S.done = true; this.emit('slideEnd', { x: S.x }); return; }
+    // sur ses dix dernières cases, l'éboulis ralentit et s'étale avant de s'arrêter
+    const brake = Math.max(0.12, Math.min(1, (S.end - S.x) / 160));
+    S.x += (S.speed + (S.speedEnd - S.speed) * k) * brake * dt;
+    if (S.x >= S.end - 1) { S.x = S.end; S.active = false; S.done = true; this.emit('slideEnd', { x: S.x }); return; }
     if (alive && player.x < S.x - FOREST.slide.margin && player.x > S.start - 32) {
       this.emit('slideHit', { x: player.x, y: player.y });
       player.die();

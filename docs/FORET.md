@@ -215,6 +215,11 @@ Planches : `docs/foret/arbre_cavites.png`, `docs/foret/arche_racines_avant_apres
 - des trois passages en glissade, **seule l'arche de rochers reste** (l'arbre déraciné et le portique sont retirés ; à leur place, un rocher et une souche suivie d'un tronc couché) ;
 - **l'amas se gravit en sautant** : sa surface n'est plus une pente qu'on montait en marchant, mais huit **paliers rocheux** d'une ou deux cases de haut (cases « Q », pleines tant que l'amas tient : `level.solid`) ; on saute de palier en palier jusqu'au sommet, on se laisse retomber de l'autre côté ; l'apparence de l'amas ne change pas (ses pierres de surface affleurent sur les paliers, un bloc marque l'arête de chacun).
 
+### Retours n° 18 (14 novembre 2026)
+- **l'arche abaissée** : le dessous de la dalle est plat et bas sur toute sa largeur, dès l'entrée (avant, il se relevait aux bouts et l'ouverture paraissait haute), le dessus plus bas : on voit tout de suite qu'il faut glisser ;
+- **l'éboulis passe les obstacles en désordre** : il suit le sol « sous » les obstacles (`floor`), chaque pierre en escalade une part à elle (`climb` : près de la moitié passent au ras, les autres à 20-70 %), un décalage de profondeur (`dz`), de plus petits bonds ; fini le grand saut collectif par le même chemin ;
+- **son arrivée** : il ralentit sur ses dix dernières cases (`updateSlide`, freinage) et s'arrête sur un long replat au pied de la pente (22 cases) ; ses pierres glissent alors en une seconde et demie vers leur place dans **un tas au profil de celui du sommet**, quelques-unes roulent un peu devant, un dernier nuage de poussière (`drawSettled`).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).
