@@ -289,7 +289,7 @@ function paintDojo(b, giant, P) {
 // ---------------------------------------------------------------------------
 // 2. montagnes moyennes : pics boisés, aiguilles, falaises, cascades
 // ---------------------------------------------------------------------------
-function paintMid(levelW) {
+export function paintMid(levelW) {
   const P = PLANES.mid;
   const W = Math.ceil(MAXW + (levelW - 480) * P.fx) + 4;
   const pix = new Pix(W, P.h);

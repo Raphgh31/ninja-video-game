@@ -47,6 +47,18 @@
       ],
       "note": "coup aérien à deux mains (du haut vers l'avant et le bas)"
     },
+    "flip_attack": {
+      "x": 20,
+      "y": -5,
+      "w": 29,
+      "h": 41,
+      "frames": [
+        4,
+        5,
+        6
+      ],
+      "note": "coup du salto : le coup aérien après un salto, plus large (4 dégâts)"
+    },
     "kick": {
       "x": 21,
       "y": 11,
@@ -57,6 +69,16 @@
         2
       ],
       "note": "coup de pied de côté (détente et impact)"
+    },
+    "air_kick": {
+      "x": 23,
+      "y": 13,
+      "w": 24,
+      "h": 14,
+      "frames": [
+        2
+      ],
+      "note": "coup de pied sauté (en l'air) : la jambe tendue, talon en avant"
     },
     "attack": {
       "x": 23,
@@ -287,6 +309,36 @@
       "slot": "C",
       "part": "cord",
       "role": "shadow"
+    },
+    {
+      "index": 37,
+      "slot": "b",
+      "part": "gear",
+      "role": "shadow"
+    },
+    {
+      "index": 38,
+      "slot": "B",
+      "part": "gear",
+      "role": "base"
+    },
+    {
+      "index": 39,
+      "slot": "i",
+      "part": "gear",
+      "role": "light"
+    },
+    {
+      "index": 40,
+      "slot": "j",
+      "part": "gear2",
+      "role": "shadow"
+    },
+    {
+      "index": 41,
+      "slot": "J",
+      "part": "gear2",
+      "role": "base"
     }
   ],
   "animations": {
@@ -823,8 +875,85 @@
         }
       ]
     },
-    "air_throw": {
+    "flip_attack": {
       "row": 13,
+      "frameCount": 8,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "flip_attack",
+      "strip": "anims/kage_flip_attack.png",
+      "impact": {
+        "frame": 6,
+        "x": 38,
+        "y": 31
+      },
+      "glint": {
+        "frame": 1,
+        "x": 25,
+        "y": 0
+      },
+      "frames": [
+        {
+          "x": 0,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 60
+        },
+        {
+          "x": 59,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 60
+        },
+        {
+          "x": 118,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 50
+        },
+        {
+          "x": 177,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 60
+        },
+        {
+          "x": 236,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 40
+        },
+        {
+          "x": 295,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 50
+        },
+        {
+          "x": 354,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 130
+        },
+        {
+          "x": 413,
+          "y": 494,
+          "w": 57,
+          "h": 36,
+          "duration": 80
+        }
+      ]
+    },
+    "air_throw": {
+      "row": 14,
       "frameCount": 4,
       "fps": 14,
       "loop": false,
@@ -839,28 +968,28 @@
       "frames": [
         {
           "x": 0,
-          "y": 494,
+          "y": 532,
           "w": 57,
           "h": 36,
           "duration": 70
         },
         {
           "x": 59,
-          "y": 494,
+          "y": 532,
           "w": 57,
           "h": 36,
           "duration": 45
         },
         {
           "x": 118,
-          "y": 494,
+          "y": 532,
           "w": 57,
           "h": 36,
           "duration": 90
         },
         {
           "x": 177,
-          "y": 494,
+          "y": 532,
           "w": 57,
           "h": 36,
           "duration": 90
@@ -868,7 +997,7 @@
       ]
     },
     "skid": {
-      "row": 14,
+      "row": 15,
       "frameCount": 2,
       "fps": 12,
       "loop": true,
@@ -878,14 +1007,14 @@
       "frames": [
         {
           "x": 0,
-          "y": 532,
+          "y": 570,
           "w": 57,
           "h": 36,
           "duration": 83
         },
         {
           "x": 59,
-          "y": 532,
+          "y": 570,
           "w": 57,
           "h": 36,
           "duration": 83
@@ -893,7 +1022,7 @@
       ]
     },
     "kick": {
-      "row": 15,
+      "row": 16,
       "frameCount": 5,
       "fps": 14,
       "loop": false,
@@ -903,43 +1032,157 @@
       "frames": [
         {
           "x": 0,
-          "y": 570,
+          "y": 608,
           "w": 57,
           "h": 36,
           "duration": 70
         },
         {
           "x": 59,
-          "y": 570,
+          "y": 608,
           "w": 57,
           "h": 36,
           "duration": 50
         },
         {
           "x": 118,
-          "y": 570,
+          "y": 608,
           "w": 57,
           "h": 36,
           "duration": 120
         },
         {
           "x": 177,
-          "y": 570,
+          "y": 608,
           "w": 57,
           "h": 36,
           "duration": 90
         },
         {
           "x": 236,
-          "y": 570,
+          "y": 608,
           "w": 57,
           "h": 36,
           "duration": 130
         }
       ]
     },
+    "air_kick": {
+      "row": 17,
+      "frameCount": 4,
+      "fps": 14,
+      "loop": false,
+      "loopStart": 0,
+      "state": "air_kick",
+      "strip": "anims/kage_air_kick.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 646,
+          "w": 57,
+          "h": 36,
+          "duration": 40
+        },
+        {
+          "x": 59,
+          "y": 646,
+          "w": 57,
+          "h": 36,
+          "duration": 60
+        },
+        {
+          "x": 118,
+          "y": 646,
+          "w": 57,
+          "h": 36,
+          "duration": 150
+        },
+        {
+          "x": 177,
+          "y": 646,
+          "w": 57,
+          "h": 36,
+          "duration": 90
+        }
+      ]
+    },
+    "rope_pull": {
+      "row": 18,
+      "frameCount": 4,
+      "fps": 5,
+      "loop": true,
+      "loopStart": 0,
+      "state": "rope_pull",
+      "strip": "anims/kage_rope_pull.png",
+      "grip": [
+        [
+          25,
+          24
+        ],
+        [
+          25,
+          25
+        ],
+        [
+          25,
+          24
+        ],
+        [
+          25,
+          25
+        ]
+      ],
+      "shoulder": [
+        [
+          14,
+          22
+        ],
+        [
+          14,
+          23
+        ],
+        [
+          14,
+          22
+        ],
+        [
+          14,
+          23
+        ]
+      ],
+      "frames": [
+        {
+          "x": 0,
+          "y": 684,
+          "w": 57,
+          "h": 36,
+          "duration": 260
+        },
+        {
+          "x": 59,
+          "y": 684,
+          "w": 57,
+          "h": 36,
+          "duration": 200
+        },
+        {
+          "x": 118,
+          "y": 684,
+          "w": 57,
+          "h": 36,
+          "duration": 260
+        },
+        {
+          "x": 177,
+          "y": 684,
+          "w": 57,
+          "h": 36,
+          "duration": 200
+        }
+      ]
+    },
     "walk": {
-      "row": 16,
+      "row": 19,
       "frameCount": 4,
       "fps": 5,
       "loop": true,
@@ -949,28 +1192,28 @@
       "frames": [
         {
           "x": 0,
-          "y": 608,
+          "y": 722,
           "w": 57,
           "h": 36,
           "duration": 200
         },
         {
           "x": 59,
-          "y": 608,
+          "y": 722,
           "w": 57,
           "h": 36,
           "duration": 200
         },
         {
           "x": 118,
-          "y": 608,
+          "y": 722,
           "w": 57,
           "h": 36,
           "duration": 200
         },
         {
           "x": 177,
-          "y": 608,
+          "y": 722,
           "w": 57,
           "h": 36,
           "duration": 200
@@ -978,7 +1221,7 @@
       ]
     },
     "slide": {
-      "row": 17,
+      "row": 20,
       "frameCount": 3,
       "fps": 12,
       "loop": true,
@@ -988,21 +1231,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 646,
+          "y": 760,
           "w": 57,
           "h": 36,
           "duration": 83
         },
         {
           "x": 59,
-          "y": 646,
+          "y": 760,
           "w": 57,
           "h": 36,
           "duration": 83
         },
         {
           "x": 118,
-          "y": 646,
+          "y": 760,
           "w": 57,
           "h": 36,
           "duration": 83
@@ -1010,7 +1253,7 @@
       ]
     },
     "death": {
-      "row": 18,
+      "row": 21,
       "frameCount": 6,
       "fps": 14,
       "loop": false,
@@ -1020,42 +1263,42 @@
       "frames": [
         {
           "x": 0,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
         },
         {
           "x": 59,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
         },
         {
           "x": 118,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
         },
         {
           "x": 177,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
         },
         {
           "x": 236,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
         },
         {
           "x": 295,
-          "y": 684,
+          "y": 798,
           "w": 57,
           "h": 36,
           "duration": 71
@@ -1063,7 +1306,7 @@
       ]
     },
     "respawn": {
-      "row": 19,
+      "row": 22,
       "frameCount": 3,
       "fps": 10,
       "loop": false,
@@ -1073,21 +1316,21 @@
       "frames": [
         {
           "x": 0,
-          "y": 722,
+          "y": 836,
           "w": 57,
           "h": 36,
           "duration": 100
         },
         {
           "x": 59,
-          "y": 722,
+          "y": 836,
           "w": 57,
           "h": 36,
           "duration": 100
         },
         {
           "x": 118,
-          "y": 722,
+          "y": 836,
           "w": 57,
           "h": 36,
           "duration": 100
@@ -1095,7 +1338,7 @@
       ]
     },
     "vine": {
-      "row": 20,
+      "row": 23,
       "frameCount": 2,
       "fps": 3,
       "loop": true,
@@ -1105,14 +1348,14 @@
       "frames": [
         {
           "x": 0,
-          "y": 760,
+          "y": 874,
           "w": 57,
           "h": 36,
           "duration": 333
         },
         {
           "x": 59,
-          "y": 760,
+          "y": 874,
           "w": 57,
           "h": 36,
           "duration": 333
@@ -1120,7 +1363,7 @@
       ]
     },
     "vine_swing": {
-      "row": 21,
+      "row": 24,
       "frameCount": 5,
       "fps": 8,
       "loop": false,
@@ -1130,35 +1373,35 @@
       "frames": [
         {
           "x": 0,
-          "y": 798,
+          "y": 912,
           "w": 57,
           "h": 36,
           "duration": 125
         },
         {
           "x": 59,
-          "y": 798,
+          "y": 912,
           "w": 57,
           "h": 36,
           "duration": 125
         },
         {
           "x": 118,
-          "y": 798,
+          "y": 912,
           "w": 57,
           "h": 36,
           "duration": 125
         },
         {
           "x": 177,
-          "y": 798,
+          "y": 912,
           "w": 57,
           "h": 36,
           "duration": 125
         },
         {
           "x": 236,
-          "y": 798,
+          "y": 912,
           "w": 57,
           "h": 36,
           "duration": 125
@@ -1166,7 +1409,7 @@
       ]
     },
     "vine_climb": {
-      "row": 22,
+      "row": 25,
       "frameCount": 4,
       "fps": 7,
       "loop": true,
@@ -1176,31 +1419,207 @@
       "frames": [
         {
           "x": 0,
-          "y": 836,
+          "y": 950,
           "w": 57,
           "h": 36,
           "duration": 143
         },
         {
           "x": 59,
-          "y": 836,
+          "y": 950,
           "w": 57,
           "h": 36,
           "duration": 143
         },
         {
           "x": 118,
-          "y": 836,
+          "y": 950,
           "w": 57,
           "h": 36,
           "duration": 143
         },
         {
           "x": 177,
-          "y": 836,
+          "y": 950,
           "w": 57,
           "h": 36,
           "duration": 143
+        }
+      ]
+    },
+    "flip": {
+      "row": 26,
+      "frameCount": 11,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "flip",
+      "strip": "anims/kage_flip.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 130
+        },
+        {
+          "x": 59,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 100
+        },
+        {
+          "x": 118,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 177,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 236,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 295,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 354,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 413,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 472,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 531,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 100
+        },
+        {
+          "x": 590,
+          "y": 988,
+          "w": 57,
+          "h": 36,
+          "duration": 140
+        }
+      ]
+    },
+    "backflip": {
+      "row": 27,
+      "frameCount": 11,
+      "fps": 16,
+      "loop": false,
+      "loopStart": 0,
+      "state": "backflip",
+      "strip": "anims/kage_backflip.png",
+      "frames": [
+        {
+          "x": 0,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 130
+        },
+        {
+          "x": 59,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 100
+        },
+        {
+          "x": 118,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 177,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 236,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 295,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 354,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 413,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 472,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 70
+        },
+        {
+          "x": 531,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 100
+        },
+        {
+          "x": 590,
+          "y": 1026,
+          "w": 57,
+          "h": 36,
+          "duration": 140
         }
       ]
     }
@@ -1235,12 +1654,21 @@
       "image": "kage_views.png"
     }
   },
+  "intro": {
+    "image": "kage_intro_kick.png",
+    "frames": 3,
+    "step": 59,
+    "hold": 2,
+    "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"
+  },
   "skins": [
     "encre",
-    "vagabond"
+    "paysan",
+    "voyageur"
   ],
   "accessorySheets": {
-    "vagabond": "kage_acc_vagabond_index.png"
+    "paysan": "kage_acc_paysan_index.png",
+    "voyageur": "kage_acc_voyageur_index.png"
   },
   "projectiles": {
     "shuriken": {

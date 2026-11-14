@@ -17,7 +17,7 @@ export const FORET_ROWS = { lisiere: 50, plateau: 22, canopee: 9, souterrain: 46
 
 function build() {
   const b = new Builder(H, 50);
-  const F = { oasis: null, galleries: null, snaps: [], spans: [], crumbles: [], logs: [], vines: [], lamps: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
+  const F = { oasis: null, galleries: null, snaps: [], spans: [], crumbles: [], logs: [], vines: [], lamps: [], slopes: [], hollows: [], bridges: [], glows: [], statue: null, collapse: null, slide: null, dark: null };
   let x;
 
   // --- petits outils ----------------------------------------------------------
@@ -86,8 +86,20 @@ function build() {
   coins([x + 4, x + 5, x + 6], G1 - 6);
   ground(3, G1 - 1);
   ground(22, G1);
-  b.prop('pine_young', b.x - 16, G1); b.prop('birch', b.x - 10, G1, { s: 0.9 }); b.prop('pine_young', b.x - 5, G1);
+  b.prop('pine_young', b.x - 5, G1);
   coins([b.x - 18, b.x - 14, b.x - 12, b.x - 8, b.x - 3], G1 - 2);
+  // DÉTOUR — la cabane du guetteur : dans un vieux chêne, une plateforme de planches à 9 cases du sol
+  // (on peut toujours en sauter sans se blesser), une échelle de corde, et une petite cabane
+  // d'affût au toit d'écorce ; le coffre y est rangé. Deux ryō sur l'échelle.
+  {
+    const o = b.x - 16;                                // le fût du chêne
+    const deck = G1 - 9;
+    b.row(o - 4, 12, deck, '-');                       // la plateforme
+    b.row(o - 4, 2, G1 - 3, '-'); b.row(o - 4, 2, G1 - 6, '-');   // deux barreaux de l'échelle tiennent le pied
+    coins([o - 4], G1 - 5); coins([o - 3], G1 - 8);
+    b.prop('chest', o + 5, deck, { id: 'guetteur', ryo: 10 });
+    b.prop('treehouse', o, G1, { deck, x0: o - 4, x1: o + 8, ladder: o - 4, hut: o + 3, roof: deck - 3, seed: 23 });
+  }
 
   // ===========================================================================
   // ZONE 2 — Le sentier des fougères ancestrales : des racines géantes barrent le
@@ -100,11 +112,38 @@ function build() {
   b.hint('wall', x + 10);
   // premier passage : la racine fait 6 cases de haut
   x = b.x; ground(3, G1); hollow(x, 3, G1);
+  // DÉTOUR — l'arbre aux cavités : des branches montent le long du grand tronc jusqu'à sa couronne
+  // (21 cases), plus longues à mesure qu'on monte, comme un vieil arbre qui s'ouvre vers la lumière —
+  // avec ses exceptions : une grande branche basse, la plus longue, et des branches plus courtes sous la
+  // couronne. Un nœud creux traverse le tronc à 12 cases : on passe de l'autre côté, où deux branches
+  // dominent la racine géante. Deux creux d'écorce gardent des ryō ; le coffre est au fond de la plus
+  // haute cavité. On redescend sans dégâts, même en sprintant : la grande branche basse rattrape toute
+  // chute d'en haut (jamais plus de 10 cases), et à droite on retombe sur la racine
+  const tCav = x;                                      // (le tronc de l'arbre aux cavités : ses branches de droite viennent après la racine)
+  {
+    const t = x;                                       // le tronc : colonnes t à t + 2
+    const bough = (n, row) => b.row(t - n, n, row, '-');   // une branche qui sort du tronc vers la gauche
+    const hole = (row, h) => carve(t, 2, row - h, row - 1);   // un creux dans l'écorce, au ras de la branche
+    bough(4, G1 - 3);
+    bough(7, G1 - 6); hole(G1 - 6, 2); coins([t, t + 1], G1 - 7);
+    bough(15, G1 - 9); coins([t - 14, t - 13], G1 - 11);   // la grande branche basse (elle rattrape même un sprint d'en haut)
+    bough(7, G1 - 12);
+    carve(t, 3, G1 - 14, G1 - 13);                     // le nœud creux qui traverse le tronc
+    bough(9, G1 - 15); hole(G1 - 15, 2); coin(t + 1, G1 - 16); coin(t - 8, G1 - 17);
+    bough(10, G1 - 18);
+    bough(6, G1 - 21); hole(G1 - 21, 3);
+    b.prop('chest', t, G1 - 21, { id: 'cavites', ryo: 12, dx: 9 });   // (au fond du creux, contre le bois)
+    b.prop('tree_crown', t, G1 - 21, { w: 3, top: G1 - 36, seed: 41 });
+  }
   ground(3, G1);                                       // le puits, entre le tronc et la racine
   coins([b.x - 2], G1 - 5);
   x = b.x; ground(6, G1 - 6);                          // la racine géante : on marche dessus
   b.prop('giant_root', x, G1 - 6, { w: 6, h: 6 });
   coins([x + 2, x + 4], G1 - 8);
+  // l'arbre aux cavités, de l'autre côté du nœud creux : deux branches au-dessus de la racine géante
+  // (si l'on en tombe, on retombe sur la racine : 6 et 9 cases plus bas)
+  b.row(tCav + 3, 5, G1 - 12, '-'); coin(tCav + 6, G1 - 14);
+  b.row(tCav + 3, 4, G1 - 15, '-'); coins([tCav + 4, tCav + 5], G1 - 17);
   // une cache au pied de la racine, côté puits, derrière un rideau de lierre (deux coups de sabre)
   carve(x, 3, G1 - 2, G1 - 1);
   b.cols[x][G1 - 2] = 'B'; b.cols[x][G1 - 1] = 'B';
@@ -151,8 +190,22 @@ function build() {
   coins([x - 5, x - 4], G1 - 5);
   b.prop('branch', x - 5, G1 - 4, { w: 2, from: 'center' });
   water(6, G1);
-  ground(16, G1);
+  x = b.x; ground(16, G1);
   coins([b.x - 12, b.x - 9, b.x - 6], G1 - 2);
+  // DÉTOUR — l'arche de racines : un vieil arbre sacré a poussé sur une motte de terre que ses racines
+  // portent au-dessus du sentier, comme une arche. On passe dessous ; ou bien on grimpe par deux
+  // racines en marche (à gauche) jusqu'à la motte : la corde sacrée autour du tronc, un petit
+  // sanctuaire de pierre, le coffre. Elle est à 8 cases du sol : on en redescend en sautant.
+  {
+    const m0 = x + 4, mw = 8, top = G1 - 8;
+    fill(m0, mw, top, G1 - 6);                         // la motte (3 cases d'épaisseur ; 5 cases libres dessous)
+    b.row(x, 2, G1 - 3, '-'); b.row(x + 2, 2, G1 - 5, '-');   // deux racines en marche
+    b.prop('root_arch', m0, top, { w: mw, ground: G1, steps: [[x, G1 - 3, 2], [x + 2, G1 - 5, 2]], seed: 17 });
+    b.prop('sacred_tree', m0 + 1, top, { seed: 29 });
+    b.prop('hokora', m0 + 7, top);
+    b.prop('chest', m0 + 4, top, { id: 'arche', ryo: 10 });
+    coins([m0 + 3, m0 + 4, m0 + 5], top - 3);
+  }
 
   // ===========================================================================
   // ZONE 4 — L'allée des piliers effondrés : un pont de dalles sur des colonnes,
@@ -258,23 +311,37 @@ function build() {
   zone('06', 'Le torrent du bois ancien', { mood: 'sousbois' });
   x = b.x; ground(9, G6);
   lantern(x + 2, G6);
-  const log = (c0, c1, w = 2, speed = 12, start = 0) => F.logs.push({ x0: c0 * TILE, x1: c1 * TILE, y: G6 * TILE - 5, w: w * TILE, speed, start });
-  // premier bras : deux troncs lents
-  x = b.x; water(11, G6);
-  log(x + 1, x + 4, 2, 10, 0.2); log(x + 6, x + 9, 2, 12, 0.7);
+  // un rondin : il dérive entre les colonnes c0 et c1 (son bout gauche) ; w : longueur (cases), d : diamètre
+  // (px). Il flotte aux trois cinquièmes hors de l'eau : son dessus est d'autant plus haut que le rondin est gros
+  const log = (c0, c1, w, speed, start, d) => F.logs.push({ x0: c0 * TILE, x1: c1 * TILE, y: G6 * TILE + 3 - Math.round(d * 0.62), w: w * TILE, d, speed, start });
+  // des rochers dans le lit, au fond du courant : on ne s'y pose pas (pointus, battus d'écume)
+  const rapids = (cols) => { for (const [c, s] of cols) b.prop('river_rock', c, G6, { s }); };
+  // premier bras : deux rondins lents
+  x = b.x; water(12, G6);
+  log(x + 1, x + 5, 4, 10, 0.2, 13); log(x + 6, x + 8, 3, 12, 0.7, 11);
+  rapids([[x + 3, 1], [x + 10, 0]]);
   coin(x + 5, G6 - 3);
   x = b.x; ground(3, G6 - 1);                          // rocher
   b.prop('boulder', x, G6 - 1, { w: 3, wet: true });
-  // deuxième bras : trois troncs, celui du milieu remonte le courant (un ryō dessus)
+  // deuxième bras : trois rondins, celui du milieu remonte le courant (un ryō dessus)
   x = b.x; water(16, G6);
-  log(x + 1, x + 4, 2, 13, 0.5); log(x + 6, x + 10, 2, -16, 0.5); log(x + 12, x + 14, 2, 12, 0.1);
+  log(x + 1, x + 4, 4, 13, 0.5, 14); log(x + 6, x + 9, 5, -16, 0.5, 15); log(x + 11, x + 13, 3, 12, 0.1, 11);
+  rapids([[x + 2, 2], [x + 8, 1], [x + 14, 0]]);
   coin(x + 8, G6 - 3);
   x = b.x; ground(4, G6 - 1);                          // rocher du milieu : une lanterne
   b.prop('boulder', x, G6 - 1, { w: 4, wet: true });
   lantern(x + 1, G6 - 1);
-  // troisième bras : les troncs sont plus espacés, le dernier demande un dash
+  // troisième bras : plus large, les rondins s'espacent
+  x = b.x; water(18, G6);
+  log(x + 1, x + 3, 3, 12, 0.3, 12); log(x + 6, x + 9, 5, 14, 0.8, 16); log(x + 12, x + 14, 3, 10, 0.4, 10);
+  rapids([[x + 4, 0], [x + 11, 2], [x + 16, 1]]);
+  coins([x + 5, x + 11], G6 - 3);
+  x = b.x; ground(3, G6 - 1);                          // un dernier rocher pour souffler
+  b.prop('boulder', x, G6 - 1, { w: 3, wet: true });
+  // quatrième bras : le dernier rondin est loin de la rive (6 cases) : il faut le dash
   x = b.x; water(20, G6);
-  log(x + 1, x + 3, 2, 12, 0.3); log(x + 6, x + 8, 2, 14, 0.8); log(x + 11, x + 12, 2, 8, 0.4);
+  log(x + 1, x + 3, 4, 12, 0.3, 13); log(x + 6, x + 8, 3, 14, 0.8, 11); log(x + 10, x + 11, 3, 8, 0.4, 12);
+  rapids([[x + 5, 1], [x + 15, 2], [x + 18, 0]]);
   coins([x + 4, x + 9], G6 - 3); coin(x + 16, G6 - 3);
   x = b.x; ground(16, G6);
   coins([x + 3, x + 6], G6 - 2);
@@ -458,9 +525,12 @@ function build() {
   F.dark = { x0: (pit - 12) * TILE, x1: b.x * TILE, y0: (G6 + 1) * TILE, fade: 18 * TILE, deep: { x0: (pit - 60) * TILE, y0: (G8 - 16) * TILE } };
 
   // ===========================================================================
-  // ZONE 9 — L'antre de la statue oubliée : le calme. On grimpe aux lianes de sa
-  // chevelure pour rallumer la lanterne de chaque œil ; alors sa mâchoire
-  // s'abaisse, et la suite passe par sa bouche.
+  // ZONE 9 — L'antre de la statue oubliée : le calme. Un gros bloc de pierre, ficelé
+  // d'une corde en croix, ferme le tunnel ; la corde monte très haut, à une poulie.
+  // On grimpe aux lianes de sa chevelure jusqu'à sa tête ; de là seulement, on
+  // attrape une liane qui mène à une grande branche. Au bout, la poulie : on saisit
+  // la corde et on la tire le long de la branche ; lâchée assez loin, elle s'emmêle
+  // dans un rameau, et le bloc reste levé juste assez pour passer en glissade.
   // ===========================================================================
   const G9 = FORET_ROWS.sanctuaire;
   zone('09', "L'antre de la statue oubliée", { mood: 'sanctuaire', camGround: 0.955 });
@@ -477,18 +547,18 @@ function build() {
   const eye = (side) => { const e = eyeCenter(side); return { x: scx - STATUE.cx + e.x, y: sground - STATUE.h + e.y }; };
   const eyeL = eye(-1), eyeR = eye(1);
   // les lianes de sa chevelure : immobiles, on y monte et on en descend ; deux passent devant les yeux
-  vine(sx - 4.4, G9 - 13.6, 12.3);                      // la grande mèche de gauche, jusqu'au sol
-  vine(eyeL.x / TILE, G9 - 13.4, 7.4);                  // devant l'œil gauche
-  vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 13.2, 6);     // un brin court sur l'arête du nez : le relais
-  vine(eyeR.x / TILE, G9 - 13.4, 7.6);                  // devant l'œil droit
-  vine(sx + 3.8, G9 - 13.6, 9.4);                       // la mèche de droite
+  // (elles partent de l'intérieur du feuillage, une touffe cache leur départ : live.js)
+  vine(sx - 3.5, G9 - 11.5, 10.2);                      // la grande mèche de gauche, jusqu'au sol
+  vine(eyeL.x / TILE, G9 - 12.6, 6.6);                  // devant l'œil gauche
+  vine((eyeL.x + eyeR.x) / 2 / TILE, G9 - 12.6, 5.4);   // un brin court sur l'arête du nez : le relais
+  vine(eyeR.x / TILE, G9 - 12.45, 6.65);                  // devant l'œil droit
+  vine(sx + 3.8, G9 - 12.1, 7.9);                       // la mèche de droite
   b.row(sx - 3, 6, G9 - 13, '-');                       // le dessus de la couronne de feuillage : un coffre
   b.prop('chest', sx + 1, G9 - 13, { id: 'couronne', ryo: 15 });
   coins([sx - 2, sx - 1], G9 - 15);
   F.statue = { cx: scx, ground: sground, eyes: [eyeL, eyeR] };
   b.prop('statue', sx, G9);
-  // à sa droite, un pilier de pierre maçonnée ; une porte de pierre y ferme un petit tunnel :
-  // quand les deux yeux sont allumés, la dalle remonte dans le mur
+  // à sa droite, un pilier de pierre maçonnée ; un gros bloc de pierre y ferme un petit tunnel
   ground(2, G9, '=');
   x = b.x;
   for (let i = 0; i < 12; i++) {
@@ -499,86 +569,134 @@ function build() {
   b.cols[x][G9 - 1] = 'J'; b.cols[x][G9 - 2] = 'J';
   F.statue.door = x;
   b.prop('stone_gate', x, G9);
-  b.prop('cliff', x + 1, G9, { w: 11 });           // (son fond commence une case plus tôt : derrière la dalle)
+  b.prop('cliff', x + 1, G9, { w: 11 });           // (son fond commence une case plus tôt : derrière le bloc)
+  // la grande branche : elle sort de la falaise, au-dessus du tunnel, et file vers la gauche au-dessus de
+  // la tête de la statue ; une liane en pend, qu'on n'attrape que depuis la tête (son bout est 2,5 cases
+  // au-dessus de la couronne : hors de portée du sol)
+  const BR = G9 - 23, door = x;
+  b.row(sx - 4, door - (sx - 4), BR, '-');
+  // twig : la fourche du grand rameau en Y où la corde se coince au retour (bien à gauche de la poulie)
+  const twig = door * TILE - 105;
+  b.prop('rope_branch', sx - 4, BR, { x1: door, ground: G9, twig });
+  vine(sx - 1, BR + 0.15, 23 - 13 - 2.5 - 0.15);
+  b.hint('haul', sx + 2, BR);                          // (sur la branche seulement)
+  // la poulie, posée sur le bout de la branche contre la falaise ; la corde descend au bloc et revient le
+  // long de la branche, où on la saisit ; un rameau, trois cases plus loin, l'arrêtera au retour
+  // end : le bout de la corde au repos, posé sur la branche 52 px à droite de la fourche (il faut tirer 60 px)
+  F.rope = { door, ground: G9 * TILE, branchY: BR * TILE, pulleyX: door * TILE + 8 - 13, end: twig + 52, twig, max: 96 };
 
   // ===========================================================================
-  // ZONE 10 — Le souffle des lianes : de longues lianes se balancent au-dessus
-  // d'un ravin. On les attrape au vol, on prend de l'élan, on lâche ; à la fin,
-  // on lâche au sommet de la courbe et on dashe vers la corniche.
+  // ZONE 10 — Le souffle des lianes : des lianes courtes pendent de grosses branches
+  // au-dessus d'un ravin brumeux. On les attrape au vol, on prend de l'élan en
+  // poussant au bon moment (le balancier est lent, comme une vraie liane), on lâche
+  // en avant ; à la fin, on lâche au sommet de la courbe et on dashe vers la corniche.
+  // (refonte de novembre 2026 : lianes 2,5 fois plus courtes, accroches dans l'image)
   // ===========================================================================
   zone('10', 'Le souffle des lianes', { mood: 'sousbois', enchanted: true });
   x = b.x; ground(9, G9);
   lantern(x + 2, G9);
   b.hint('vine', x + 4);
   const KILL10 = G9 + 14;
-  const AY = G9 - 17;                                    // hauteur des branches où pendent les lianes
-  const swing = (cx, len = 18, phase = 0, amp = 0.5) => { vine(cx, AY, len, amp, phase); b.prop('vine_branch', cx, AY); };
+  const AY = G9 - 10;                                    // hauteur des branches où pendent les lianes
+  const swing = (cx, len = 8.2, phase = 0, amp = 0.2, ay = AY) => { vine(cx, ay, len, amp, phase); b.prop('vine_branch', cx, ay, { len }); };
   const pillar = (n, top, lamp = false) => { const p0 = b.x; ground(n, top); b.prop('rock_pillar', p0, top, { w: n }); if (lamp) lantern(p0 + Math.floor(n / 2), top); return p0; };
   // une liane, pour apprendre : elle ramène tout près du bord
-  x = b.x; chasm(12, KILL10);
-  swing(x + 6, 18, 0);
-  coins([x + 6], G9 - 1);
+  x = b.x; chasm(8, KILL10);
+  swing(x + 3.5, 8.2, 0);
+  coins([x + 4], G9 - 1);
   pillar(5, G9, false);
   // deux lianes à la suite
-  x = b.x; chasm(21, KILL10);
-  swing(x + 6, 18, 0); swing(x + 15, 18, Math.PI);
-  coins([x + 10], G9 - 4);
+  x = b.x; chasm(15, KILL10);
+  swing(x + 3.5, 8.2, 0); swing(x + 10, 8.2, Math.PI);
+  coins([x + 7], G9 - 3);
   pillar(5, G9, true);
   // trois lianes, la dernière plus courte : il faut lâcher plus haut
-  x = b.x; chasm(29, KILL10);
-  swing(x + 6, 18, 0); swing(x + 15, 17, Math.PI); swing(x + 23, 16, 0);
-  coins([x + 10, x + 19], G9 - 5);
+  x = b.x; chasm(21, KILL10);
+  swing(x + 3.5, 8.2, 0); swing(x + 10, 8.2, Math.PI); swing(x + 16, 7.4, 0);
+  coins([x + 7, x + 13], G9 - 4);
   pillar(5, G9 - 1, true);
-  // le final : une liane, puis la corniche, plus haute et trop loin : on lâche au sommet de la courbe et on dashe
-  x = b.x; chasm(22, KILL10);
-  swing(x + 6, 17, 0, 0.55);
-  coins([x + 12], G9 - 8);
+  // le final : une liane accrochée plus haut, puis la corniche, plus haute et trop loin : on lâche au sommet
+  // de la courbe et on dashe
+  x = b.x; chasm(11, KILL10);
+  swing(x + 3.5, 8.2, 0, 0.25, AY - 2);
+  coins([x + 8], G9 - 8);
   const G10 = G9 - 5;
   x = b.x; ground(6, G10);
   b.prop('rock_ledge', x, G10, { w: 6 });
-  // tout en haut, une corniche pour un dash parfait : cinq ryō
+  // tout en haut, la branche aux ryō : un arbre pousse sur la corniche, on y grimpe de branche en branche
+  // (ou on l'atteint d'un bond parfait depuis la dernière liane)
+  b.prop('canopy_trunk', x + 3, G10, { seed: 41, w: 18 });
+  b.row(x + 4, 2, G10 - 2, '-');
+  b.row(x + 1, 2, G10 - 4, '-');
   b.row(x + 2, 3, G10 - 6, '-');
-  b.prop('branch', x + 2, G10 - 6, { w: 3, from: 'right' });
   coins([x + 2, x + 3, x + 4], G10 - 7);
 
   // ===========================================================================
-  // ZONE 11 — La descente vertigineuse : un éboulis de pierres moussues dévale
-  // la pente derrière KAGE. Gradins, brèches, un tronc couché sous lequel on glisse.
+  // ZONE 11 — La descente vertigineuse : au sommet, un amas de gros blocs mal calés
+  // barre le chemin. KAGE doit l'escalader et en redescendre ; sous son poids, il
+  // tremble, et dès que KAGE a remis pied à terre, il s'effondre : une masse de
+  // pierres dévale la longue pente derrière lui (pentes, souches à sauter).
+  // (refonte de novembre 2026 : l'amas à franchir, des pentes, plus de fossés ni de tronc creux)
   // ===========================================================================
   zone('11', 'La descente vertigineuse', { mood: 'couchant', bgSlope: true });
-  x = b.x; ground(10, G10);
-  lantern(x + 2, G10);
-  const slide0 = x + 7;
+  x = b.x; ground(24, G10);
+  lantern(x + 1, G10);
+  // l'amas : 16 cases de large, plus de 6 de haut ; sa surface est faite de pentes (on y marche, on ne
+  // peut que l'escalader), qui disparaissent quand il s'effondre
+  const PX = (x + 4) * TILE, PW = 16 * TILE, PH = 100, PG = G10 * TILE;
+  const prof = [[0, 0], [0.13, 0.34], [0.3, 0.78], [0.45, 1], [0.56, 0.97], [0.7, 0.72], [0.86, 0.33], [1, 0]].map(([u, h]) => [PX + Math.round(u * PW), PG - Math.round(h * PH)]);
+  // on ne monte pas l'amas en marchant : il est fait de paliers rocheux (une ou deux cases de haut), on saute
+  // de l'un à l'autre jusqu'au sommet, puis on se laisse retomber de palier en palier ; cases « Q » : pleines
+  // tant que l'amas tient (level.solid), peintes par ses pierres ; [colonne, largeur, hauteur en cases]
+  const ledges = [[0, 2, 1], [2, 2, 2], [4, 2, 4], [6, 3, 6], [9, 2, 5], [11, 2, 4], [13, 2, 2], [15, 1, 1]];
+  for (const [c, w, h] of ledges) fill(x + 4 + c, w, G10 - h, G10 - 1, 'Q');
+  const steps = ledges.map(([c, w, h]) => [PX + c * TILE, PX + (c + w) * TILE, PG - h * TILE]);
+  b.prop('rock_pile', x + 4, G10, { w: 16 });
+  const pileEnd = PX + PW;
   let g = G10;
-  const KILL11 = FORET_ROWS.vallee + 8;
   const step = (n, drop) => { g += drop; const s0 = b.x; ground(n, g); return s0; };
-  const gapv = (n) => { const s0 = b.x; chasm(n, KILL11); return s0; };
-  x = step(7, 2); coin(x + 3, g - 2);
-  x = step(8, 3); coins([x + 2, x + 5], g - 2);
-  gapv(3);                                               // brèche : un saut
-  x = step(9, 2); coin(x + 4, g - 2);
-  x = step(6, 3);
-  // un tronc couché en travers : on glisse dessous
-  x = step(9, 2);
-  fill(x + 3, 4, g - 3, g - 2, '|');
-  b.prop('fallen_log', x + 3, g - 1, { w: 4 });
-  gapv(5);                                               // brèche : sprint
-  x = step(8, 3); coins([x + 2, x + 5], g - 2);
-  x = step(7, 2);
-  lantern(x + 3, g);                                     // mi-pente : l'éboulis repart d'ici
-  const slideMid = x + 3;
-  x = step(8, 3); coin(x + 4, g - 2);
-  gapv(3);                                               // brèche : un saut
-  x = step(8, 2);
-  x = step(6, 3); coins([x + 1, x + 4], g - 2);
-  gapv(6);                                               // brèche : dash
-  x = step(9, 2);
-  fill(x + 4, 3, g - 3, g - 2, '|');                     // second tronc couché
-  b.prop('fallen_log', x + 4, g - 1, { w: 3 });
-  x = step(7, 2); coin(x + 3, g - 2);
+  // une pente : n colonnes, elle descend de drop rangées ; sous elle, les tuiles restent sous la surface
+  const slopeDown = (n, drop) => {
+    const s0 = b.x, y0 = g * TILE, y1 = (g + drop) * TILE;
+    for (let i = 0; i < n; i++) ground(1, Math.ceil((y0 + ((i + 1) / n) * (y1 - y0)) / TILE));
+    F.slopes.push({ x0: s0 * TILE, y0, x1: (s0 + n) * TILE, y1 });
+    g += drop; return s0;
+  };
+  const onSlope = (n, drop, k) => g - drop + (drop * k) / n;              // la rangée de la dernière pente, à sa colonne k
+  // les obstacles du replat, à sauter : une souche coupée, un tronc couché, un rocher, une pile de bûches
+  const block = (type, c, w, h, o = {}) => { fill(c, w, g - h, g - 1, '#'); b.prop(type, c, g - h, { w, ...o }); };
+  const stump = (c, w = 1, h = 1) => block('stump', c, w, h);
+  // un passage bas, à franchir en glissade (et plus lentement qu'en courant) : une bande pleine de trois
+  // cases au-dessus d'une case libre ; trop haute pour être sautée
+  const lowPass = (type, c, w) => { fill(c, w, g - 4, g - 2, '#'); b.prop(type, c, g - 4, { w, g }); };
+  x = slopeDown(12, 3); coin(x + 6, Math.round(onSlope(12, 3, 6)) - 2);
+  b.prop('scree', x, g - 3, { w: 12 }); b.prop('near_tree', x + 4, g - 2, { w: 26 });
+  x = step(9, 0); stump(x + 2); block('log_block', x + 5, 3, 1); b.prop('log_cut', x + 1, g, { n: 2 });
+  x = slopeDown(10, 3); coin(x + 5, Math.round(onSlope(10, 3, 5)) - 2);
+  b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 6, g - 2, { h: 84, lean: 0.12 });
+  x = step(8, 0); block('boulder', x + 3, 2, 2); b.prop('near_tree', x + 6, g, { w: 30 });
+  x = step(7, 2); stump(x + 1); stump(x + 3, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 });   // deux souches en escalier
+  x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
+  b.prop('scree', x, g - 4, { w: 14 }); b.prop('half_buried', x + 11, g - 1, { r: 15 });
+  x = step(10, 0); block('boulder', x + 2, 2, 2); stump(x + 7);
+  x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
+  b.prop('scree', x, g - 4, { w: 12 }); b.prop('snag', x + 3, g - 3, { h: 60, lean: -0.08, fallen: 0.45 });
+  x = step(9, 0);
+  lantern(x + 2, g);                                     // mi-pente : l'éboulis repart d'ici
+  const slideMid = x + 2;
+  stump(x + 6); b.prop('near_tree', x + 4, g, { w: 22 });
+  x = slopeDown(10, 3); b.prop('scree', x, g - 3, { w: 10 });
+  x = step(12, 0); b.hint('slide', x); lowPass('slide_arch', x + 3, 6);                                                     // l'arche de rochers
+  x = step(5, 2); b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
+  x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
+  b.prop('scree', x, g - 4, { w: 12 }); b.prop('half_buried', x + 9, g, { r: 18 });
+  x = step(10, 0); block('log_block', x + 2, 4, 1); stump(x + 7, 1, 2); b.prop('near_tree', x + 5, g, { w: 28 });
+  x = slopeDown(10, 3); coin(x + 4, Math.round(onSlope(10, 3, 4)) - 2);
+  b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
+  x = step(8, 0); stump(x + 1, 2); block('log_block', x + 4, 3, 1); b.prop('log_cut', x + 7, g, { n: 1 });
   const G12 = FORET_ROWS.vallee;
-  x = step(8, G12 - g - 0);
-  F.slide = { trigger: slide0 * TILE, start: (slide0 - 9) * TILE, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 106 };
+  x = step(22, G12 - g);                                // le replat du bas : l'éboulis s'y arrête, en tas
+  F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof, steps }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 3) * TILE, speed: 97, speedEnd: 103 };
 
   // ===========================================================================
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,
@@ -594,11 +712,25 @@ function build() {
   x = b.x; ground(16, G12);
   b.prop('last_tree', x + 4, G12);
   b.prop('chest', x + 8, G12, { id: 'lisiere', ryo: 20 });
+  const tLast = x + 4;                                 // le dernier grand arbre (son belvédère : plus bas)
   x = b.x; ground(2, G12 - 1); ground(2, G12 - 2);
   b.prop('stump', x, G12 - 1, { w: 2 }); b.prop('stump', x + 2, G12 - 2, { w: 2 });
   coins([x + 2, x + 3], G12 - 4);
   x = b.x; ground(30, G12);
   lantern(x + 6, G12);
+  // DÉTOUR — le belvédère : on grimpe au dernier grand arbre par ses branches, étagées des deux côtés
+  // comme un sapin (en tombant d'une branche, on retombe toujours sur la suivante), jusqu'à la fourche,
+  // à 15 cases : la vallée au soleil couchant, l'horizon, un coffre posé dans la fourche
+  {
+    const t = tLast;                                   // le fût (40 px : de t - 1 à t + 1)
+    // à gauche : 11, 9, 7 et 5 cases ; à droite, une case plus haut : 10, 8, 6 et 4 (les deux côtés alternent)
+    for (const [k, row] of [59, 56, 53, 50].entries()) b.row(t - 2 - (10 - 2 * k), 11 - 2 * k, row, '-');
+    for (const [k, row] of [58, 55, 52, 49].entries()) b.row(t + 2, 10 - 2 * k, row, '-');
+    b.row(t - 4, 9, G12 - 15, '-');                    // la fourche, en travers du fût
+    b.prop('chest', t, G12 - 15, { id: 'belvedere', ryo: 15 });
+    coins([t - 3, t - 2, t + 2, t + 3], G12 - 17);
+    coins([t - 8], G12 - 10); coins([t + 9], G12 - 8);
+  }
   coins([x + 10, x + 13, x + 16], G12 - 2);
   b.prop('horizon', x + 18, G12);
   b.cols[x + 24][G12 - 1] = 'G';

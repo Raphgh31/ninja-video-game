@@ -170,33 +170,76 @@ body.mobile .talk { padding-left: 6px; }
 }
 .title-screen button:hover, .title-screen button:focus-visible { background: var(--ink); color: var(--bg); }
 .title-screen button[hidden] { display: none; }
+/* introduction au lancement (src/game/intro.js) : son image, puis le menu sans cadre sous le titre */
+.intro { position: absolute; left: 0; top: 0; z-index: 3; display: block; image-rendering: pixelated; image-rendering: crisp-edges;
+  transition: opacity 1.6s ease-in-out; }
+.intro.out { opacity: 0; }
+.title-screen.with-intro { display: block; background: transparent; }
+.title-screen.with-intro[hidden] { display: none; }
+.title-screen.with-intro .title-screen__name,
+.title-screen.with-intro .title-screen__chapter { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.title-screen.with-intro .title-screen__actions { position: absolute; left: 0; right: 0; top: var(--menu-y, 200px); min-width: 0;
+  grid-auto-flow: column; justify-content: center; column-gap: 56px; transition: opacity .9s ease-out; }
+.title-screen.with-intro.waiting .title-screen__actions { opacity: 0; visibility: hidden; }
+.title-screen.with-intro button { border: 0; padding: 1px 6px 2px; color: #6f7672; background: transparent; }
+.title-screen.with-intro button:hover, .title-screen.with-intro button:focus {
+  color: var(--ink); outline: none; }
 
+/* la boutique du marchand : tout l'écran (src/game/shop.js) — une enseigne, la bourse, les rayons ; à
+   gauche les cartes des skins (cadre à la couleur de leur rareté), à droite le skin choisi, en grand */
 .shop {
-  position: absolute; z-index: 4; left: var(--cx); top: var(--cy); transform: translate(-50%, -50%);
-  width: 320px; max-width: 94%; max-height: 94%; overflow: auto; display: grid; gap: 4px;
-  padding: 7px 10px 8px; color: var(--ink); background: #241a14;
-  border: 1px solid #8e6a44; box-shadow: inset 0 0 0 2px #3a2a1e;
+  position: absolute; z-index: 4; inset: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 4px;
+  padding: 5px 7px 4px; color: var(--ink); background: #1b130e;
+  border: 1px solid #8e6a44; box-shadow: inset 0 0 0 2px #2a1d15, inset 0 0 0 3px #4a3626;
 }
 .shop[hidden] { display: none; }
-.shop__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.shop__head h2 { margin: 0; --pxs: 1; }
-.shop__purse { margin: 0; color: #f0c25a; }
-.shop__line { margin: 0; color: #d8cdb4; --pxw: 298; }
-.shop__tabs { display: flex; gap: 3px; flex-wrap: wrap; }
+.shop__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 1px 2px 4px; border-bottom: 1px solid #4a3626; }
+.shop__head h2 { margin: 0; --pxs: 2; color: #f3e3c3; text-transform: uppercase; padding: 0 6px 0 2px; border-right: 1px solid #4a3626; }
+.shop__head .shop__purse { margin-left: auto; }
+/* la réplique du marchand, en bas, comme une parole */
+.shop__line { margin: 0; color: #e6d3a8; --pxw: 280; padding-left: 5px; border-left: 1px solid #8e6a44; }
+.shop__purse { display: flex; align-items: center; gap: 3px; padding: 2px 6px 3px; color: #f0c25a;
+  background: #2a1d15; border: 1px solid #6b4f34; }
+.shop__purse p { margin: 0; }
+/* une pièce de ryō : ronde, percée d'un trou carré */
+.shop__coin { width: 7px; height: 7px; background:
+  linear-gradient(#a8781e, #a8781e) 3px 3px / 1px 1px no-repeat,
+  linear-gradient(#f0c25a, #f0c25a) 1px 0 / 5px 7px no-repeat,
+  linear-gradient(#f0c25a, #f0c25a) 0 1px / 7px 5px no-repeat; }
+.shop__tabs { display: flex; gap: 3px; flex-wrap: nowrap; flex: none; }
 .shop .shop__tabs button { padding: 1px 6px 2px; }
 .shop__tabs button[aria-pressed="true"] { background: #8e6a44; border-color: #8e6a44; color: #fff7e6; }
-.shop__items { min-height: 30px; border-top: 1px solid #4a382a; padding-top: 4px; display: grid; gap: 2px; }
-.shop__empty { margin: 0; color: #a99a80; --pxw: 298; }
-.shop__item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
-  padding: 2px 2px 3px; border-bottom: 1px solid #3a2a1e; }
-.shop__item:last-of-type { border-bottom: 0; }
-.shop__thumb { width: 32px; height: 26px; image-rendering: pixelated; background: #2e221a; }
-.shop__text { display: grid; gap: 0; }
-.shop__text strong { color: var(--ink); }
-.shop__text span { color: #a99a80; --pxw: 168; --pxl: -1; }
+.shop__body { display: grid; grid-template-columns: 1fr 156px; gap: 6px; min-height: 0; }
+.shop--empty .shop__body { grid-template-columns: 1fr; }
+.shop--empty .shop__detail { display: none; }
+.shop__items { display: grid; grid-template-columns: repeat(auto-fill, 50px); gap: 3px; align-content: start;
+  overflow: auto; padding: 1px; min-height: 0; }
+.shop__empty { margin: 4px 2px; color: #a99a80; --pxw: 300; grid-column: 1 / -1; }
+.shop .shop__card { display: grid; justify-items: center; gap: 1px; width: 50px; padding: 2px 0 2px;
+  background: #261b13; border: 1px solid var(--rar, #6b5a46); }
+.shop .shop__card:hover, .shop .shop__card:focus-visible { background: #33251a; outline: none; }
+.shop .shop__card[aria-pressed="true"] { background: #3d2c1f; box-shadow: inset 0 0 0 1px #f3e3c3; }
+.shop__card canvas:not(.pxt) { width: 40px; height: 32px; image-rendering: pixelated; }
+.shop__tag { color: #f0c25a; }
+.shop__tag--poor { color: #8d7d64; }
+.shop__tag--own { color: #9fc7b0; }
+.shop__tag--worn { color: #f3e3c3; }
+.shop__detail { display: grid; align-content: start; justify-items: center; gap: 2px; padding: 4px 4px;
+  background: #22180f; border: 1px solid var(--rar, #5a4330); min-height: 0; overflow: auto; }
+.shop__rar { margin: 0; color: var(--rar); text-transform: uppercase; --pxs: 1; }
+.shop__name { margin: 0; --pxf: big; color: #f3e3c3; --pxw: 146; text-align: center; }
+.shop__stage { padding: 2px; background: #170f0a; border: 1px solid #3a2a1e; }
+.shop__preview { display: block; width: 114px; height: 72px; image-rendering: pixelated; }
+.shop__desc { margin: 0; color: #bfae90; --pxw: 144; text-align: center; }
+.shop__blurb { margin: 0; color: #8d7d64; --pxw: 144; text-align: center; }
+.shop__act { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
+.shop__ask { margin: 0; width: 100%; color: #f3e3c3; --pxw: 144; text-align: center; }
+.shop .shop__buy, .shop .shop__yes { background: #8e6a44; border-color: #c49a5e; color: #fff7e6; }
+.shop .shop__buy.shop__poor { background: transparent; color: #a99a80; border-color: rgba(233, 229, 218, .2); }
 .shop button:disabled { opacity: .55; cursor: default; }
-.shop button.shop__poor { color: #a99a80; border-color: rgba(233, 229, 218, .2); }
-.shop__close { justify-self: end; }
+.shop__foot { display: flex; align-items: center; gap: 8px; padding-top: 3px; border-top: 1px solid #4a3626; }
+.shop__hint { margin: 0 0 0 auto; color: #8d7d64; --pxw: 120; text-align: right; }
+.shop__hint:empty { display: none; }
 
 /* écran d'arrivée */
 .win {
@@ -221,12 +264,14 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
 /* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image) */
-.lab { position: absolute; z-index: 3; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }
+.lab { position: absolute; z-index: 6; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }   /* au-dessus de l'intro (3), du menu (4) et des cartes de chapitre (5) */
 .skinlab, .lab__row { pointer-events: auto; display: flex; align-items: center; gap: 2px; padding: 2px;
   background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
 .lab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;
   background: transparent; border: 1px solid transparent; padding: 0 4px 1px; }
 .skinlab button { padding: 1px 4px 2px; }
+.skinlab { flex-wrap: wrap; justify-content: flex-end; max-width: 236px; }   /* (douze skins : une grille, les noms en infobulle) */
+.skinlab button span { display: none; }
 .lab button:hover { border-color: rgba(233, 229, 218, .3); }
 .lab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
 .lab__row span { color: #fff7e6; padding: 0 3px 1px; }

@@ -12,8 +12,8 @@ P.z2 = () => { const z = __kage.level.zones; bot.place(z[1].x0 + 2); const log =
   return ['z2', log, bot.col(), z[2].x0]; };
 var Z = (i) => __kage.level.zones[i - 1];
 // zone 3 : sans dash on tombe à l'eau ; avec dash on traverse toute la zone
-P.z3nodash = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; bot.runner(6, { until: (p) => p.hp < hp0 || p.x > (Z(3).x0 + 16) * 16 }); return ['z3 sans dash', bot.p.hp < hp0, bot.col()]; };
-P.z3 = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; const lost = []; let hp = hp0; const t = bot.runner(60, { dashGap: 5, rest: true, until: (p) => { if (p.hp < hp) { lost.push(bot.col()); hp = p.hp; } return p.x > Z(4).x0 * 16 + 30; } }); return ['z3', t, lost, bot.col(), Z(4).x0]; };
+P.z3nodash = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; bot.runner(6, { until: (p) => p.state === 'death' || p.hp < hp0 || p.x > (Z(3).x0 + 16) * 16 }); return ['z3 sans dash', bot.p.state === 'death' || bot.p.hp < hp0, bot.col()]; };
+P.z3 = () => { bot.place(Z(3).x0 + 2); const hp0 = bot.p.hp; const lost = []; let hp = hp0; const t = bot.runner(60, { dashGap: 5, rest: true, until: (p) => { if (p.hp < hp || p.state === 'death') { lost.push(bot.col()); hp = p.hp; return p.state === 'death'; } return p.x > Z(4).x0 * 16 + 30; } }); return ['z3', t, lost, bot.col(), Z(4).x0]; };
 // zone 4 : en courant seulement on meurt ; avec sprint et dash on passe
 P.z4run = () => { const c = __kage.level.forest.collapse; bot.place(Math.floor(c.respawnX / 16)); const t = bot.runner(20, { dashGap: 6, until: (p) => p.x > Z(5).x0 * 16 }); return ['z4 course seule', t, bot.dead(), bot.col(), Z(5).x0]; };
 P.z4 = () => { const c = __kage.level.forest.collapse; bot.place(Math.floor(c.respawnX / 16)); const x1 = c.trigger + 15 * 16; const t = bot.runner(20, { dashGap: 6, sprint: (p) => p.x > x1, until: (p) => p.x > Z(5).x0 * 16 }); return ['z4', t, bot.dead(), bot.col(), Z(5).x0, Math.round(bot.p.energy.value * 100)]; };
@@ -57,23 +57,7 @@ P.pit = () => { const l = __kage.level, h = l.props.find((p) => p.type === 'holl
     dir = l.ledge(pit + 2, r) ? -1 : 1;
   }
   return ['pit', log, bot.row(), bot.dead()]; };
-P.z9 = () => { const f = __kage.level.forest, st = f.statue, l = __kage.level; const log = [];
-  bot.place(Math.floor((st.cx - 64 - 40) / 16));
-  bot.run(4, (p) => { bot.set({ right: p.x < st.cx - 64 - 8 }); return p.x >= st.cx - 64 - 8; });
-  bot.clear(); bot.set({ up: true, right: true }); bot.tap('jump');
-  bot.run(1.5, (p) => p.state === 'vine'); log.push(['liane 0', bot.p.state, Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
-  bot.clear(); bot.set({ up: true });
-  bot.run(6, (p) => st.ground - p.y >= 96); log.push(['monté', Math.round(st.ground - bot.p.y), bot.p.state]);
-  const hop = (name) => { bot.clear(); bot.set({ right: true }); bot.tap('jump'); bot.run(0.05); bot.run(1.2, (p) => p.state === 'vine' || p.onGround); log.push([name, bot.p.state, Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y), f.vines.indexOf(bot.p.vine)]); };
-  const level = (h) => { bot.clear(); bot.run(3, (p) => { const d = st.ground - p.y - h; bot.set({ up: d < -2, down: d > 2 }); return Math.abs(d) <= 2; }); bot.clear(); bot.set({ up: true }); bot.run(0.05); };
-  // la hauteur à laquelle KAGE passe devant chaque œil (il s'allume à moins de 22 px)
-  const hL = st.ground - st.eyes[0].y - 14, hR = st.ground - st.eyes[1].y - 14;
-  hop('liane 1'); level(hL); log.push(['œil gauche', st.lit[0]]);
-  bot.clear(); bot.set({ up: true }); bot.run(0.3);
-  hop('liane 2'); level(Math.max(hL, hR) + 4); hop('liane 3'); level(hR); log.push(['œil droit', st.lit[1], Math.round(bot.p.x - st.cx), Math.round(st.ground - bot.p.y)]);
-  bot.clear(); bot.run(5); log.push(['porte', +st.gate.toFixed(2), bot.p.state, bot.col(), bot.row(), f.statueOpen]);
-  const t = bot.runner(12, { until: (p) => p.x > Z(10).x0 * 16 + 30 }); log.push(['sortie', t.toFixed(1), bot.col(), Z(10).x0]);
-  return ['z9', log]; };
+// (zone 9 : le mécanisme de la corde est testé pas à pas dans tests/foret.cjs)
 // zone 11 : l'éboulis
 P.z11idle = () => { const S = __kage.level.forest.slide; bot.place(Math.floor(S.trigger / 16) + 2); bot.run(0.3, () => { bot.set({ right: true }); }); bot.clear(); const t = bot.run(12, () => bot.dead()); return ['z11 immobile', t.toFixed(1), bot.dead()]; };
 P.z11 = (sprint) => { const S = __kage.level.forest.slide; bot.place(Z(11).x0 + 3); let min = 1e9;
@@ -82,10 +66,10 @@ P.z11 = (sprint) => { const S = __kage.level.forest.slide; bot.place(Z(11).x0 + 
 P.z11a = () => P.z11(true); P.z11b = () => P.z11(false);
 P.z12 = () => { bot.place(Z(12).x0 + 2); const t = bot.runner(40, { until: () => __kage.run.won }); return ['z12', t.toFixed(1), __kage.run.won, bot.col()]; };
 // Pilote « qui vise » pour les lianes balancier : avant de lâcher, il prédit son vol.
-P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.level, V = { g: 980, boost: 1.08, max: 300 };
+P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.level, V = { g: 520, boost: 1.0, max: 230 };
   // le pendule continue ~delay pas avant le lâcher effectif (aucune poussée)
   let ang = v.angle, av = v.av; const r = p.vineR; const dt = 1 / 120;
-  for (let i = 0; i < delay; i++) { av += (-(V.g / r) * Math.sin(ang) - 0.22 * av) * dt; ang += av * dt; }
+  for (let i = 0; i < delay; i++) { av += (-(V.g / r) * Math.sin(ang) - 0.1 * av) * dt; ang += av * dt; }
   const vt = Math.max(-V.max, Math.min(V.max, av * r * V.boost));
   let x = v.ax + Math.sin(ang) * r - p.facing * 6, y = v.ay + Math.cos(ang) * r + 19, vx = vt * Math.cos(ang), vy = -vt * Math.sin(ang);
   let time = f.time; const qa = new Map(); for (const q of f.vines) qa.set(q, q.angle);
@@ -109,7 +93,7 @@ P.predict = (p, v, delay = 9) => { const f = __kage.level.forest, l = __kage.lev
     if (l.at(c, rw) === 'v' || y > l.h * 16) return null;
   }
   return null; };
-P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level; const sw = f.vines.filter((v) => !v.still); const ev = []; let lastV = null, rel = 0, dashed = false, plan = null;
+P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level; const sw = f.vines.filter((v) => !v.still); const ev = []; const st = o.st ?? {}; let { lastV = null, rel = 0, dashed = false, plan = null } = st;
   const t = bot.run(seconds, (p) => {
     if (o.until && o.until(p)) return true;
     if (bot.dead()) { ev.push(['mort', bot.col(), bot.row()]); return true; }
@@ -140,6 +124,7 @@ P.vise = (seconds, o = {}) => { const f = __kage.level.forest, l = __kage.level;
     const tip = v.ax + Math.sin(v.angle) * v.len;
     if (!(v.av < -0.1 && tip - p.x < 72 && tip - p.x > 8)) { bot.clear(); return false; }
     bot.set({ right: true }); bot.tap('jump'); return false; });
+  Object.assign(st, { lastV, rel, dashed, plan });   // o.st : reprendre là où on s'était arrêté (captures image par image)
   return [t, ev]; };
 P.v10 = () => { bot.place(Z(10).x0 + 3); const [t, ev] = P.vise(90, { dash: true, until: (p) => p.x > Z(11).x0 * 16 + 16 && p.onGround }); return ['z10 vise', t.toFixed(1), ev.map((e) => e.join(':')).join(' '), bot.col(), Z(11).x0]; };
 P.v10nodash = () => { const sw = __kage.level.forest.vines.filter((v) => !v.still); const last = sw[sw.length - 1]; bot.place(Math.floor(last.ax / 16) - 8);

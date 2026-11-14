@@ -103,8 +103,8 @@ export class Builder {
     return this;
   }
 
-  hint(kind, x = this.x) {
-    this.hints.push({ kind, x });
+  hint(kind, x = this.x, y = null) {
+    this.hints.push({ kind, x, ...(y != null ? { y } : {}) });
     return this;
   }
 

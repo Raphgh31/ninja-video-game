@@ -52,6 +52,15 @@ export function setMuted(m) {
   if (musicBus) musicBus.gain.setTargetAtTime(m ? 0 : 1, ac.currentTime, 0.05);
 }
 
+/**
+ * Contexte audio et sortie de la musique, même s'il n'est pas encore débloqué (null seulement sans
+ * Web Audio) : à reprendre (ac.resume) depuis un geste, et à attendre, avant de jouer.
+ */
+export function audioOutput() {
+  ensure();
+  return ac ? { ac, bus: musicBus } : null;
+}
+
 /** Contexte audio et sortie de la musique, une fois l'audio débloqué (sinon null). */
 export function musicOutput() {
   if (!ensure()) return null;
@@ -211,6 +220,12 @@ const SOUNDS = {
     air({ dur: 0.4, vol: 0.1, q: 0.8, f: [[0, 1100], [0.5, 800], [1, 450]], g: [[0, 0.05], [0.06, 1], [0.6, 0.7], [1, 0.01]], am: { rate: 27, depth: 0.7, type: 'sawtooth' } });
     air({ dur: 0.36, vol: 0.035, type: 'highpass', q: 0.7, f: [[0, 3200], [1, 2200]], g: [[0, 0.05], [0.05, 1], [1, 0.01]], am: { rate: 41, depth: 0.8 } });
   },
+  // salto : le corps groupé tourne et brasse l'air (souffle rond et grave, deux passages du tissu)
+  flip: () => {
+    air({ dur: 0.3, vol: 0.09, type: 'lowpass', q: 0.8, f: [[0, 240], [0.45, 820], [1, 260]], g: [[0, 0.02], [0.4, 1], [1, 0.01]] });
+    air({ dur: 0.12, vol: 0.035, q: 1.4, f: [[0, 1300], [1, 2100]], g: [[0, 0.02], [0.4, 1], [1, 0.01]], delay: 0.06 });
+    air({ dur: 0.12, vol: 0.03, q: 1.4, f: [[0, 1200], [1, 1900]], g: [[0, 0.02], [0.4, 1], [1, 0.01]], delay: 0.2 });
+  },
   wallGrab: () => noise({ dur: 0.05, vol: 0.06, type: 'highpass', f: 2200 }),
   wallSlide: () => noise({ dur: 0.07, vol: 0.025, f: 3200, q: 2 }),
   wallJump: () => { tone({ f: 320, to: 620, dur: 0.1, vol: 0.06 }); noise({ dur: 0.06, vol: 0.06, type: 'lowpass', f: 700 }); },
@@ -224,6 +239,20 @@ const SOUNDS = {
     tone({ f: 1800, to: 2400, dur: 0.12, type: 'triangle', vol: 0.03 });
     air({ dur: 0.26, vol: 0.16, q: 1.6, f: [[0, 1200], [0.35, 4200], [1, 900]], g: [[0, 0.02], [0.3, 1], [1, 0.01]], delay: 0.14 });
     air({ dur: 0.2, vol: 0.07, type: 'lowpass', q: 0.6, f: [[0, 300], [0.4, 900], [1, 250]], g: [[0, 0.02], [0.35, 1], [1, 0.01]], delay: 0.15 });
+  },
+  // coup du salto : la lame dressée chante (charge métallique qui monte), puis grand souffle abattu
+  swingPower: () => {
+    tone({ f: 1500, to: 2600, dur: 0.24, type: 'triangle', vol: 0.035 });
+    tone({ f: 2250, to: 3900, dur: 0.24, type: 'sine', vol: 0.02 });
+    air({ dur: 0.3, vol: 0.19, q: 1.5, f: [[0, 1000], [0.35, 4600], [1, 700]], g: [[0, 0.02], [0.3, 1], [1, 0.01]], delay: 0.25 });
+    air({ dur: 0.24, vol: 0.09, type: 'lowpass', q: 0.6, f: [[0, 260], [0.4, 900], [1, 200]], g: [[0, 0.02], [0.35, 1], [1, 0.01]], delay: 0.26 });
+  },
+  // la lame arrive en bas : éclat clair (tintement) et coup sourd
+  bladeFlash: () => {
+    tone({ f: 3100, to: 2400, dur: 0.3, type: 'sine', vol: 0.045 });
+    tone({ f: 4650, to: 3600, dur: 0.18, type: 'sine', vol: 0.02 });
+    tone({ f: 120, to: 55, dur: 0.18, type: 'sine', vol: 0.12 });
+    noise({ dur: 0.08, vol: 0.06, type: 'lowpass', f: 500 });
   },
   // sabre qui touche un ennemi : claquement de lame, tintement métallique et choc dans le corps
   bladeHit: ({ heavy = false } = {}) => {

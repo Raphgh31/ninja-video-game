@@ -22,6 +22,13 @@ rythme et même niveau, distants d'un nombre entier de mesures) :
     - affiche loopStart / loopEnd à reporter dans la définition du chapitre
       (champ `music`), en secondes du fichier produit.
 
+Variante — une piste jouée en entier, sans boucle (la musique de l'introduction) :
+
+    python3 tools/musique_boucle.py entier source.wav assets/music/intro.mp3 --debut 0.3 --note 10.60
+
+    mêmes égalisation, volume et encodage ; --note : l'attaque de la première vraie note dans la
+    source (affichée en secondes du fichier produit, pour caler l'image dessus).
+
 La source se tire d'une vidéo avec :  ffmpeg -i video.mov -vn -c:a pcm_s16le source.wav
 Demande : numpy et ffmpeg.
 """
@@ -91,6 +98,34 @@ def chercher(path):
         print(f'  score {s:.3f}   A = {a:7.2f} s   B = {b:7.2f} s   boucle {b - a:6.2f} s')
 
 
+def encoder(out, dst):
+    """Ramène le volume à -16 LUFS (crêtes sous -1,5 dB) et encode en MP3 160 kb/s ; renvoie le gain appliqué."""
+    with tempfile.TemporaryDirectory() as d:
+        wav = Path(d) / 'monte.wav'
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', '2', '-i', '-',
+                        str(wav)], input=np.clip(out, -1, 1).astype(np.float32).tobytes(), check=True)
+        mes = subprocess.run(['ffmpeg', '-hide_banner', '-i', str(wav), '-af', 'ebur128=peak=true', '-f', 'null', '-'],
+                             capture_output=True, text=True).stderr.splitlines()
+        I = float(next(l for l in mes if l.strip().startswith('I:')).split()[1])
+        TP = float(next(l for l in mes if l.strip().startswith('Peak:')).split()[1])
+        gain = min(-16 - I, -1.5 - TP)
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', str(wav), '-af', f'volume={gain:.2f}dB',
+                        '-c:a', 'libmp3lame', '-b:a', '160k', str(dst)], check=True)
+    return gain
+
+
+def entier(src, dst, debut, note):
+    """Une piste jouée une fois en entier (introduction du jeu) : début coupé, fin adoucie (0,5 s)."""
+    x = lire(src, eq=True)
+    out = x[int(round(debut * SR)):].copy()
+    fi, fo = int(0.005 * SR), int(0.5 * SR)
+    out[:fi] *= np.linspace(0, 1, fi)[:, None]
+    out[-fo:] *= np.linspace(1, 0, fo)[:, None]
+    gain = encoder(out, dst)
+    print(f'{dst} : {len(out) / SR:.3f} s, gain {gain:+.1f} dB')
+    print('à reporter dans intro.js :', json.dumps({'note': round(note - debut, 3), 'length': round(len(out) / SR, 3)}))
+
+
 def monter(src, dst, debut, A, B, bpm, marge=0.40, fondu=None):
     x = lire(src, eq=True)
     a, b, s0 = (int(round(v * SR)) for v in (A, B, debut))
@@ -127,9 +162,14 @@ if __name__ == '__main__':
     m.add_argument('--b', type=float, required=True, help='fin de la boucle (même temps fort, une section plus loin)')
     m.add_argument('--bpm', type=float, required=True, help='tempo (durée du fondu enchaîné : un temps)')
     m.add_argument('--fondu', type=float, default=None, help='durée du fondu enchaîné (s), au lieu d\'un temps : une transition plus douce')
+    e = sub.add_parser('entier'); e.add_argument('source'); e.add_argument('sortie')
+    e.add_argument('--debut', type=float, default=0.0, help='début du fichier (s), avant le premier son')
+    e.add_argument('--note', type=float, required=True, help='attaque de la première vraie note dans la source (s)')
     args = ap.parse_args()
     if args.cmd == 'chercher':
         chercher(args.source)
+    elif args.cmd == 'entier':
+        entier(args.source, args.sortie, args.debut, args.note)
     else:
         monter(args.source, args.sortie, args.debut, args.a, args.b, args.bpm, fondu=args.fondu)
     sys.exit(0)

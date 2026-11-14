@@ -21,6 +21,10 @@ Slots regroupés par partie (= calque exportable) :
     fx        x X z q            effets : bloc sombre / bloc clair / traînée / éclat
     hat       r p P Q            accessoire de tête (skins) : bord / paille ombre / base / lumière
     cord      c C                cordelette en bandoulière (skins) : lumière / ombre
+    gear      b B i              équipement des skins (cape, sac, filet, casque, masque, capuche) :
+                                 ombre / base / lumière
+    gear2     j J                second matériau des skins (cornes et liseré d'or, marques rouges,
+                                 maille, sangle, auréole) : ombre / base
 
 Les slots hat et cord ne sont jamais dessinés dans les poses : ils viennent
 des accessoires des skins (accessories.py), exportés sur un calque à part.
@@ -64,11 +68,16 @@ SLOTS = {
     "Q": ("hat", "light"),
     "c": ("cord", "light"),
     "C": ("cord", "shadow"),
+    "b": ("gear", "shadow"),
+    "B": ("gear", "base"),
+    "i": ("gear", "light"),
+    "j": ("gear2", "shadow"),
+    "J": ("gear2", "base"),
 }
 
 PARTS = [
     "outline", "hood", "mask", "skin", "eyes", "outfit", "bracers",
-    "belt", "shoes", "scarf", "blade", "hilt", "accessory", "fx", "hat", "cord",
+    "belt", "shoes", "scarf", "blade", "hilt", "accessory", "fx", "hat", "cord", "gear", "gear2",
 ]
 
 # Ordre stable des slots : sert d'index dans la carte d'index (R = index).

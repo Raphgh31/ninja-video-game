@@ -11,6 +11,10 @@ const results = [];
 
 async function main() {
   const browser = await chromium.launch();
+  // l'introduction du lancement est passée dans les tests (window.__KAGE_SKIP_INTRO) ; un test la joue
+  const rawNewPage = browser.newPage.bind(browser), rawNewContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await rawNewContext(o); await c.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return c; };
+  browser.newPage = async (o) => { const p = await rawNewPage(o); await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return p; };
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -98,8 +102,9 @@ async function main() {
       bot.place(Math.floor(g.x1 / 16) - 2); g.x = g.x1; g.speed = 0;
       const p = bot.p; p.x = g.x + g.w - 6; p.y = g.y; p.vy = 0; __kage.step(2);
       const hp = p.hp;
-      bot.run(1.5, (pp) => { bot.set({ right: true, sprint: true }); if (pp.onGround && pp.ride) bot.tap('jump'); return pp.hp < hp || (pp.onGround && !pp.ride && pp.x > g.x + g.w + 8); });
-      return [p.hp < hp, Math.floor(p.x / 16)];
+      // (l'eau est mortelle : la chute s'y termine)
+      bot.run(1.5, (pp) => { bot.set({ right: true, sprint: true }); if (pp.onGround && pp.ride) bot.tap('jump'); return pp.state === 'death' || (pp.onGround && !pp.ride && pp.x > g.x + g.w + 8); });
+      return [p.state === 'death', Math.floor(p.x / 16)];
     });
     expect(r[0], JSON.stringify(r));
   });
@@ -160,13 +165,36 @@ async function main() {
     expect(r[0] && r[1] > 1 && r[2] === 'fall' && r[3] === 'gone' && !r[4], JSON.stringify(r));
   });
 
+  await test('zone 7 : planches espacées — on court sur le pont entier, mais le trou d\'une planche tombée ne se passe qu\'en sautant', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, B = f.bridges[0];
+      const fresh = () => { for (const q of B.planks) { q.state = 'idle'; q.active = true; q.t = 0; q.vy = 0; q.rotten = false; } B.amp = 0; B.dipX = null; };
+      // KAGE posé sur la planche i, puis sprint vers la droite (jump : sauter juste avant le trou)
+      const cross = (i, jumpAt) => {
+        const p0 = B.planks[i]; bot.place(Math.floor(B.x0 / 16) - 1, 8); bot.clear();
+        const pl = bot.p; pl.x = p0.x + p0.w / 2; pl.y = p0.y - 2; pl.vy = 0; pl.onGround = false; pl.fallFrom = pl.y; __kage.step(4);
+        let jumped = false;
+        bot.run(3, (q) => { bot.set({ right: true, sprint: true }); if (jumpAt != null && !jumped && q.onGround && q.x > jumpAt) { bot.tap('jump'); jumped = true; } return q.state === 'death' || q.x > B.x1 + 24; });
+        return bot.p.state === 'death' ? 'mort' : bot.p.x > B.x1 + 24 ? 'passé' : 'arrêté';
+      };
+      fresh(); const whole = cross(0);
+      fresh(); const hole = B.planks[6]; hole.state = 'gone'; hole.active = false;
+      const sprint = cross(2);
+      fresh(); hole.state = 'gone'; hole.active = false;
+      const jump = cross(2, hole.x - 18);
+      fresh();
+      return [B.planks.length, B.planks[1].x - (B.planks[0].x + B.planks[0].w), whole, sprint, jump];
+    });
+    expect(r[1] <= 6 && r[2] === 'passé' && r[3] === 'mort' && r[4] === 'passé', JSON.stringify(r));
+  });
+
   await test('zone 7 : au sol, de l\'eau entre les îlots des lianes : on ne traverse pas la canopée par en bas', async () => {
     const r = await ev(() => {
       const l = __kage.level, z = l.zones[6]; let water = 0;
       for (let c = z.x0 + 8; c < z.x1 - 10; c++) if (l.at(c, 22) === '~') water++;
       bot.place(z.x0 + 2, 22); const hp = bot.p.hp;
-      bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.hp < hp || p.x > (z.x0 + 60) * 16 });
-      return [water, bot.p.hp < hp, bot.col(), z.x0 + 60];
+      bot.runner(12, { sprintGap: 5, dashGap: 6, until: (p) => p.state === 'death' || p.hp < hp || p.x > (z.x0 + 60) * 16 });
+      return [water, bot.p.state === 'death' || bot.p.hp < hp, bot.col(), z.x0 + 60];
     });
     expect(r[0] > 20 && r[1] && r[2] < r[3], JSON.stringify(r));
   });
@@ -205,6 +233,35 @@ async function main() {
     expect(r[0] > 0.2 && r[0] < 0.6 && r[1] && r[2] === 'idle' && r[3], JSON.stringify(r));
   });
 
+  await test('détours : la cabane du guetteur, l\'arbre aux cavités, l\'arche de racines, le belvédère — on y monte, le coffre s\'ouvre, on redescend sans dégâts', async () => {
+    const r = await ev(() => {
+      const L = __kage.level, out = {};
+      const chest = (id) => {
+        const ch = L.chests.find((c) => c.id === id);
+        bot.run(3, (q) => { bot.set({ right: q.x < ch.x - 6, left: q.x > ch.x + 6 }); return !!L.chestNear(q.x, q.y) && Math.abs(q.x - ch.x) < 8; }); bot.clear();
+        bot.tap('up'); bot.run(2.5); bot.clear(); bot.run(0.2);
+        return ch.open;
+      };
+      const down = (dir, row) => { bot.run(8, (q) => { bot.set({ right: dir > 0, left: dir < 0, sprint: true }); return bot.dead() || (q.onGround && Math.round(q.y / 16) >= row); }); bot.clear(); return !bot.dead() && bot.row() === row; };
+      const id = (k) => L.props.find((p) => p.type === 'chest' && p.id === k);
+      // la cabane : l'échelle de corde, la plateforme à 9 cases, le coffre dans la cabane ; on saute de la plateforme
+      let c = id('guetteur'); bot.place(c.x - 9, 50); bot.boughs(10, c.y);
+      out.guetteur = [bot.row() === c.y, chest('guetteur'), down(1, 50)];
+      // l'arbre aux cavités : sept branches le long du tronc, le coffre dans la plus haute cavité ; on redescend en courant
+      c = id('cavites'); bot.place(c.x - 5, 50); bot.boughs(20, c.y);
+      out.cavites = [bot.row() === c.y, chest('cavites'), down(-1, 50)];
+      // l'arche : deux racines en marche, un saut sur la motte ; on en saute de l'autre côté
+      c = id('arche'); bot.place(c.x - 7, 50); bot.boughs(6, c.y + 3);
+      bot.tap('jump'); bot.run(1, (q, t) => { bot.set({ right: q.vy > -150 }); return t > 0.1 && q.onGround; }); bot.clear();
+      out.arche = [bot.row() === c.y, chest('arche'), down(1, 50)];
+      // le belvédère : on monte d'un côté du cèdre, on redescend de l'autre
+      c = id('belvedere'); bot.place(c.x - 4, 62); bot.boughs(15, c.y);
+      out.belvedere = [bot.row() === c.y, chest('belvedere'), down(1, 62)];
+      return out;
+    });
+    expect(Object.values(r).every((v) => v.every(Boolean)), JSON.stringify(r));
+  });
+
   await test('coffres : leurs ryō tombent sur un sol, jamais dans un mur ni dans le vide', async () => {
     const r = await ev(() => {
       const l = __kage.level, bad = [];
@@ -220,24 +277,67 @@ async function main() {
     expect(r[0] >= 4 && r[1].length === 0, JSON.stringify(r));
   });
 
-  await test('zone 9 : la porte de pierre est close tant que la statue dort', async () => {
+  await test('zone 9 : le bloc ficelé ferme le tunnel, même en glissade, tant que la corde n\'est pas coincée', async () => {
     const r = await ev(() => {
-      const st = __kage.level.forest.statue; bot.place(Math.floor(st.cx / 16) - 2, st.ground / 16);
-      bot.run(3, () => { bot.set({ right: true }); });
-      return [Math.floor(bot.p.x / 16), st.door, __kage.level.forest.statueOpen];
+      const f = __kage.level.forest, R = f.rope; bot.place(R.door - 4, R.ground / 16);
+      bot.run(2, () => { bot.set({ right: true }); });
+      const walk = bot.col();
+      bot.place(R.door - 4, R.ground / 16); bot.run(0.4, () => { bot.set({ right: true }); }); bot.tap('down'); bot.run(1.2, () => { bot.set({ right: true }); });
+      return [walk, bot.col(), R.door, f.statueOpen];
     });
-    expect(r[0] < r[1] && !r[2], JSON.stringify(r));
+    expect(r[0] < r[2] && r[1] < r[2] && !r[3], JSON.stringify(r));
   });
 
-  await test('zone 9 : par les lianes, KAGE rallume les deux yeux ; la porte de pierre remonte ; on passe par le tunnel', async () => {
-    const r = await run('z9');
-    const log = Object.fromEntries(r[1].map((e) => [e[0], e.slice(1)]));
-    expect(log['œil gauche'][0] && log['œil droit'][0] && log.porte[0] === 1 && log.sortie[1] >= log.sortie[2], JSON.stringify(r));
+  await test('zone 9 : la liane de la grande branche ne s\'attrape que depuis la tête de la statue ; elle mène à la branche', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, st = f.statue, R = f.rope, G = st.ground / 16;
+      const vN = f.vines.find((v) => Math.abs(v.ax - st.cx) < 200 && Math.abs(v.ay - R.branchY) < 8), v0 = f.vines.filter((v) => Math.abs(v.ax - st.cx) < 96).sort((a, b) => a.ax - b.ax)[0];
+      const climbTo = (v, approach) => {
+        bot.run(2, (p) => { bot.set({ right: approach > 0 ? p.x < v.ax - 10 : false, left: approach < 0 ? p.x > v.ax + 10 : false, up: true }); if (p.onGround && Math.abs(p.x - v.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+        const got = bot.p.vine === v; bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+        bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+        return got;
+      };
+      // depuis le sol, sous la liane de la branche : hors de portée
+      bot.place(Math.floor(vN.ax / 16) - 1, G); bot.run(1.5, (p) => { bot.set({ right: p.x < vN.ax - 10, up: true }); if (p.onGround && Math.abs(p.x - vN.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+      const fromGround = bot.p.vine === vN; bot.clear(); bot.run(1);
+      // la grande mèche de gauche (depuis le sol), puis, d'un saut, la liane de l'œil gauche, jusqu'en haut : la couronne
+      bot.place(Math.floor(v0.ax / 16) - 2, G);
+      bot.run(2, (p) => { bot.set({ right: p.x < v0.ax - 10, up: true }); if (p.onGround && Math.abs(p.x - v0.ax) < 14) bot.tap('jump'); return p.state === 'vine'; });
+      const lock = bot.p.vine === v0; bot.clear(); bot.set({ up: true }); bot.run(6, (p) => st.ground - p.y >= 96);
+      const v1 = f.vines.filter((v) => Math.abs(v.ax - st.cx) < 96).sort((a, b) => a.ax - b.ax)[1];
+      bot.clear(); bot.set({ right: true }); bot.tap('jump'); bot.run(0.05); bot.run(1.2, (p) => p.state === 'vine' || p.onGround);
+      bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+      bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+      const crown = bot.row(); void v1;
+      // de la couronne : la main sous la liane de la branche, un saut ↑ tenu l'attrape ; on grimpe ; un bond sur la branche
+      bot.run(3, (p) => { const h = p.x + p.facing * 6 - vN.ax; bot.set({ right: h < -3, left: h > 3, up: true }); return Math.abs(h) <= 3 && p.onGround; });
+      bot.set({ left: false, right: false, up: true }); bot.tap('jump'); bot.run(1.2, (p) => p.state === 'vine');
+      const got = bot.p.vine === vN; bot.clear(); bot.set({ up: true }); bot.run(5, (p) => p.vineR <= 23);
+      bot.tap('jump'); bot.run(1.5, (p) => { if (p.state !== 'vine') bot.clear(); return p.onGround && p.state !== 'vine'; });
+      return [fromGround, lock, crown, G - 13, got, bot.row(), Math.round(R.branchY / 16), bot.dead()];
+    });
+    expect(!r[0] && r[1] && r[2] === r[3] && r[4] && r[5] === r[6] && !r[7], JSON.stringify(r));
   });
 
-  await test('zone 9 : la statue éveillée est enregistrée', async () => {
-    const s = await ev(() => __kage.save.statue);
-    expect(s === true, `save.statue = ${s}`);
+  await test('zone 9 : la corde — lâchée trop tôt, le bloc retombe ; tirée au-delà du rameau, elle s\'y coince ; le bloc levé ne se passe qu\'en glissade', async () => {
+    const r = await ev(() => {
+      const f = __kage.level.forest, R = f.rope, pl = bot.p;
+      const onBranch = () => { bot.place(Math.floor(R.end / 16), Math.round(R.branchY / 16)); pl.x = R.end - 30; pl.y = R.branchY; pl.vy = 0; __kage.step(4); bot.run(1, (p) => { bot.set({ right: p.x < R.end - 8 }); return p.x >= R.end - 8; }); bot.clear(); };
+      const haul = (s) => { bot.tap('up'); bot.run(0.1); const held = pl.state === 'rope_pull'; bot.run(s, () => { bot.set({ left: true }); }); const pull = R.pull, en = pl.energy.value; bot.clear(); bot.tap('jump'); bot.run(3); return [held, Math.round(pull), en]; };
+      onBranch(); const early = haul(1); const back = [R.state, Math.round(R.lift)];
+      // tirer coûte cher : à bout de souffle, KAGE tient la corde sans pouvoir tirer (on la rend avant de lâcher)
+      onBranch(); bot.tap('up'); bot.run(0.1); bot.run(4.6, () => { bot.set({ left: true }); });
+      const tired = [pl.state, pl.energy.exhausted, Math.round(R.pull), R.max]; bot.run(0.6, () => { bot.set({ left: true }); }); tired.push(Math.round(R.pull) - tired[2]);
+      bot.run(2, () => { bot.set({ left: true }); }); tired.push(Math.round(R.pull) - tired[2]); bot.clear(); bot.run(3, () => { bot.set({ right: true }); }); bot.clear(); bot.tap('jump'); bot.run(4); tired.push(R.state);
+      onBranch(); const e0 = pl.energy.value; const far = haul(3.6); far[2] = +(e0 - far[2]).toFixed(2); const caught = [R.state, Math.round(R.lift), __kage.level.solid(R.door, R.ground / 16 - 1), __kage.level.solid(R.door, R.ground / 16 - 2)];
+      // en bas : debout, on bute ; en glissade, on passe
+      bot.place(R.door - 4, R.ground / 16); bot.run(1.5, () => { bot.set({ right: true }); }); const walk = bot.col();
+      bot.place(R.door - 4, R.ground / 16); bot.run(0.4, () => { bot.set({ right: true }); }); bot.tap('down'); bot.run(1.5, () => { bot.set({ right: true }); }); bot.clear(); bot.run(0.5);
+      return { early, back, tired, far, caught, walk, slide: bot.col(), door: R.door, saved: __kage.save.statue };
+    });
+    expect(r.tired[0] === 'rope_pull' && r.tired[1] && r.tired[2] < r.tired[3] && r.tired[4] === 0 && r.tired[5] > 0 && r.tired[6] === 'rest' && r.far[2] > 0.5 && r.early[0] && r.back[0] === 'rest' && r.back[1] === 0 && r.far[0] && r.caught[0] === 'caught' && r.caught[1] === 16 && !r.caught[2] && r.caught[3]
+      && r.walk < r.door && r.slide > r.door && r.saved === true, JSON.stringify(r));
   });
 
   await test('zone 10 : de liane en liane ; au bout, lâcher au sommet de la courbe et dasher vers la corniche', async () => {
@@ -247,9 +347,9 @@ async function main() {
     expect(!r[4] && r[1] >= 5 && r[2] >= r[3], JSON.stringify(r));
   });
 
-  await test('zone 10 : sans dash, la corniche finale est hors d\'atteinte (32 lâchers essayés, avec ou sans bond)', async () => {
+  await test('zone 10 : sans dash, un simple lâcher n\'atteint jamais la corniche finale ; un bond au bon moment (la liane qui remonte) y arrive', async () => {
     const r = await run('z10brut');
-    expect(r[0] >= 30 && r[1].length === 0, JSON.stringify(r));
+    expect(r[0] >= 30 && r[1].length > 0 && r[1].every((a) => /J$/.test(a)), JSON.stringify(r));
   });
 
   await test('zone 11 : immobile, l\'éboulis emporte KAGE', async () => {

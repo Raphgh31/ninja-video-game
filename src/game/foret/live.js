@@ -10,6 +10,7 @@ import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { paintStatue, drawStatue, STATUE } from './statue.js';
+import { Avalanche } from './avalanche.js';
 import { pearlTreeShape, limbSprite, GATE } from './props.js';
 import { FOREST } from './mechanics.js';
 
@@ -23,29 +24,91 @@ function sprite(w, h, paint) {
   return p.done();
 }
 
-/** Tronc flottant : écorce en cylindre couché, coupe claire aux deux bouts. */
-function logSprite(w, seed) {
-  const h = 11;
-  return sprite(w, h, (p) => {
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const v0 = y / (h - 1), cyl = Math.sin(v0 * Math.PI);
-      let v = 0.18 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.08, y * 0.6, seed) - 0.5) * 0.25;
-      let c = Math.abs(fbm2(x * 0.03, y * 0.4, 2, seed) - 0.5) < 0.03 ? C.BARK[0] : pick(C.BARK, v, x, y);
-      if (y < 2 && fbm2(x * 0.15, 0, 2, seed + 1) > 0.55) c = C.MOSS[4 + (y === 0 ? 1 : 0)];
-      const e = Math.min(x, w - 1 - x);
-      if (e < 2) { const d = Math.abs(v0 - 0.5) * 2; c = d > 0.8 ? C.BARK[1] : (e === 0 ? '#d2b07a' : '#b08a58'); }
-      p.set(x, y, c);
+/**
+ * Rondin flottant (zone 6) : un vrai cylindre couché, chacun le sien. w : longueur, d : diamètre (px).
+ * Ombré comme un cylindre éclairé du haut à gauche (un reflet sur le dessus, le ventre sombre et mouillé),
+ * écorce fendue dans la longueur, des nœuds, de la mousse sur le dessus, un ou deux moignons de branches
+ * cassées ; un bout scié (la coupe ronde et ses cernes), l'autre cassé net en échardes ; il s'amincit vers
+ * un bout. Renvoie { img, ox, oy } : le dessus du rondin est à oy dans l'image, son début à ox.
+ */
+function logArt(w, d, seed) {
+  const OY = 8, OX = 4, H = d + OY + 2, W = w + 2 * OX;
+  const taper = (ih(seed, 1, 61) - 0.5) * 0.35;                         // un bout plus épais que l'autre
+  const cutLeft = ih(seed, 2, 61) < 0.5;                                 // le bout scié (l'autre est cassé)
+  const BARK = ['#1d120b', '#2c1b10', '#3d2516', '#54331d', '#6d4528', '#8a5a34', '#a8774a'];
+  const WOOD = ['#7a5432', '#a07446', '#c39a62', '#dcbc84', '#ecd5a4'];
+  const img = sprite(W, H, (p) => {
+    const dd = (x) => d * (1 + taper * (x / w - 0.5)) + (noise1(x * 0.09, seed) - 0.5) * 1.6;     // diamètre local (bosses)
+    const capW = Math.max(3, Math.round(d * 0.32));
+    for (let x = 0; x < w; x++) {
+      const D = dd(x), top = OY + (d - D) / 2;
+      const brokenEnd = (cutLeft ? w - 1 - x : x);                        // distance au bout cassé
+      for (let y = Math.floor(top); y < top + D; y++) {
+        const v = Math.max(0, Math.min(1, (y - top) / D));               // 0 dessus, 1 dessous
+        // le bout cassé : des échardes qui dépassent irrégulièrement
+        if (brokenEnd < 4 && brokenEnd < Math.floor(ih(y, seed, 62) * 5)) continue;
+        // ombrage du cylindre : clair un peu au-dessus de l'axe, reflet étroit, ventre sombre
+        // (la partie visible est le haut : le bord du dessus sombre, un reflet net juste dessous, puis
+        // l'écorce fonce en tournant vers l'eau)
+        let L = 0.95 - Math.abs(v - 0.2) * 1.7 - (v < 0.07 ? 0.4 : 0) + 0.28 * Math.exp(-(((v - 0.18) / 0.06) ** 2));
+        // l'écorce : des fentes dans la longueur (qui ondulent), des crêtes entre elles
+        const lane = v * D / 3 + (noise1(x * 0.06, seed + Math.floor(v * D / 3)) - 0.5) * 1.4;
+        const fis = Math.abs(lane - Math.round(lane)) < 0.16 && ih(Math.floor(x / 7), Math.round(lane), seed) < 0.8;
+        L += (noise2(x * 0.35, y * 0.7, seed) - 0.5) * 0.18 - (fis ? 0.32 : 0);
+        let c = pick(BARK, L, x, y);
+        // la mousse sur le dessus, par plaques
+        if (v < 0.22 && fbm2(x * 0.11, v * 3, 2, seed + 3) > 0.64 + v * 0.4) c = v < 0.08 ? C.MOSS[4] : pick(C.MOSS, 0.75 - v * 1.5, x, y);
+        // le ventre mouillé, bleui par l'eau
+        if (v > 0.78) c = pick(['#0f1a1c', '#1a2a2a', '#28393a'], 1.2 - v, x, y);
+        p.set(OX + x, y, c);
+      }
+    }
+    // des nœuds : un anneau sombre, un cœur plus clair
+    for (let k = 0; k < 1 + Math.floor(ih(seed, 3, 61) * 2); k++) {
+      const kx = Math.round(w * (0.25 + 0.5 * ih(seed, 4 + k, 61))), ky = Math.round(OY + d * (0.35 + 0.25 * ih(seed, 6 + k, 61)));
+      for (let y = -2; y <= 2; y++) for (let x = -3; x <= 3; x++) {
+        const r = Math.hypot(x / 3, y / 1.8);
+        if (r <= 1) p.set(OX + kx + x, ky + y, r > 0.65 ? BARK[0] : r > 0.35 ? BARK[3] : BARK[5]);
+      }
+    }
+    // le bout scié : la coupe ronde, ses cernes, l'écorce qui l'entoure
+    {
+      const x0 = cutLeft ? 0 : w - 1, D = dd(x0), top = OY + (d - D) / 2, cy = top + D / 2;
+      for (let y = Math.floor(top); y < top + D; y++) for (let x = -capW; x <= 0; x++) {
+        const r = Math.hypot(x / capW, (y + 0.5 - cy) / (D / 2));
+        if (r > 1) continue;
+        const ring = Math.floor(r * 5 + ih(Math.floor(r * 10), seed, 63) * 0.4);
+        const c = r > 0.85 ? BARK[1] : ring % 2 ? WOOD[1 + (r < 0.4 ? 1 : 0)] : WOOD[2 + (r < 0.5 ? 1 : 0)];
+        p.set(OX + (cutLeft ? x0 - x - capW : x0 + x + capW), y, (r < 0.12 ? WOOD[0] : c));
+      }
+    }
+    // un ou deux moignons de branches cassées, sur le dessus, dressés de biais
+    for (let k = 0; k < 1 + (ih(seed, 8, 61) < 0.45 ? 1 : 0); k++) {
+      const sx = Math.round(w * (0.3 + 0.45 * ih(seed, 9 + k, 61))), dir = ih(seed, 11 + k, 61) < 0.5 ? -1 : 1, len = 4 + Math.floor(ih(seed, 13 + k, 61) * 4);
+      for (let i = 0; i < len; i++) {
+        const x = OX + sx + Math.round(dir * i * 0.6), y = OY + 1 - i;
+        p.set(x, y, BARK[3]); p.set(x + 1, y, BARK[2]); if (i < 2) p.set(x - 1, y, BARK[4]);
+      }
+      const ex = OX + sx + Math.round(dir * (len - 1) * 0.6), ey = OY + 2 - len;
+      p.set(ex, ey, WOOD[3]); p.set(ex + 1, ey, WOOD[2]); p.set(ex + (dir > 0 ? 1 : 0), ey - 1, WOOD[4]);   // le bois clair de la cassure
+    }
+    // parfois, un champignon en console sur le flanc
+    if (ih(seed, 15, 61) < 0.4) {
+      const fx = OX + Math.round(w * (0.6 + 0.3 * ih(seed, 16, 61))), fy = OY + Math.round(d * 0.45);
+      for (let x = -3; x <= 2; x++) { p.set(fx + x, fy, '#d9c49a'); p.set(fx + x, fy + 1, '#a8885e'); }
+      p.set(fx - 2, fy - 1, '#efe2bf'); p.set(fx - 1, fy - 1, '#efe2bf');
     }
   });
+  return { img, ox: OX, oy: OY };
 }
 
 /** Planche du pont suspendu (16 × 7) : vieux bois patiné, mousse ; pourrie : sombre, fendue. */
-function bridgePlank(seed, rotten) {
-  return sprite(16, 12, (p) => {
+function bridgePlank(seed, rotten, W = 16) {
+  return sprite(W, 12, (p) => {
     const ramp = rotten ? C.ROT : ['#3a2616', '#563a22', '#74522f', '#93703f', '#b08e58'];
-    for (let y = 0; y < 6; y++) for (let x = 0; x < 16; x++) {
-      if ((x === 0 || x === 15) && ih(y, seed, 3) < 0.4) continue;              // bouts irréguliers
-      let v = 0.62 - y * 0.09 + (noise2(x * 0.18 + seed, y * 0.9, seed) - 0.5) * 0.35 - (x > 13 ? 0.12 : 0);
+    for (let y = 0; y < 6; y++) for (let x = 0; x < W; x++) {
+      if ((x === 0 || x === W - 1) && ih(y, seed, 3) < 0.4) continue;              // bouts irréguliers
+      let v = 0.62 - y * 0.09 + (noise2(x * 0.18 + seed, y * 0.9, seed) - 0.5) * 0.35 - (x > W - 3 ? 0.12 : 0);
       if (rotten && Math.abs(x - 6 - (seed % 4)) < 1 && y > 0) { p.set(x, y, ramp[0]); continue; }   // la fente
       let c = pick(ramp, v, x, y);
       if (y === 0) c = ih(x, seed, 4) < (rotten ? 0.7 : 0.45) ? (ih(x, seed, 5) < 0.5 ? C.MOSS[4] : C.MOSS[3]) : ramp[4];
@@ -53,8 +116,8 @@ function bridgePlank(seed, rotten) {
       p.set(x, y, c);
     }
     // les clous, et des franges de mousse qui pendent sous la planche
-    p.set(2, 2, '#2a2420'); p.set(13, 2, '#2a2420');
-    for (let x = 1; x < 15; x += 2) if (ih(x, seed, 6) < (rotten ? 0.5 : 0.3)) for (let q = 0; q < 1 + Math.floor(ih(x, seed, 7) * 5); q++) p.set(x, 6 + q, q ? C.MOSS[1] : C.MOSS[2]);
+    p.set(2, 2, '#2a2420'); p.set(W - 3, 2, '#2a2420');
+    for (let x = 1; x < W - 1; x += 2) if (ih(x, seed, 6) < (rotten ? 0.5 : 0.3)) for (let q = 0; q < 1 + Math.floor(ih(x, seed, 7) * 5); q++) p.set(x, 6 + q, q ? C.MOSS[1] : C.MOSS[2]);
   });
 }
 
@@ -151,6 +214,38 @@ function foreStrip(mood) {
   return { grass: p.done(), fronds };
 }
 
+// la corde de la statue : contour, ombre, chanvre, clair, reflet (elle doit ressortir sur l'écorce brune)
+const ROPE_COL = ['#1c140b', '#6e5430', '#b8955a', '#dcc184', '#f3e3b0'];
+
+/**
+ * Trace des brins de corde épais (2 px, cernés : 4 px en tout) et torsadés : d'abord tous les contours, puis les corps,
+ * pour qu'un brin qui en touche un autre ne le coupe pas. Les torons sont des rayures en biais qui
+ * défilent avec la corde : shift = longueur déjà tirée ; chaque brin est donné dans le sens où la corde
+ * file quand on tire (du bloc vers la poulie, de la poulie vers KAGE), ses rayures avancent donc dans ce
+ * sens quand KAGE tire (le brin du bloc monte), et reculent quand il rend la corde.
+ */
+function drawRopeStrands(ctx, strands, cam, vw, vh, shift) {
+  for (let pass = 0; pass < 2; pass++) for (const [x0, y0, x1, y1] of strands) {
+    const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
+    const flat = Math.abs(dx) >= Math.abs(dy);
+    for (let i = 0; i <= n; i++) {
+      const x = R(x0 + dx * i / n - cam.x), y = R(y0 + dy * i / n - cam.y);
+      if (x < -6 || x > vw + 6 || y < -6 || y > vh + 6) continue;
+      if (pass === 0) {
+        ctx.fillStyle = ROPE_COL[0];
+        if (flat) ctx.fillRect(x, y - 1, 1, 4); else ctx.fillRect(x - 1, y, 4, 1);
+        continue;
+      }
+      for (let k = 0; k < 2; k++) {
+        const t = ((i + k - shift) % 4 + 4) % 4;     // la torsade : rayures en biais
+        const c = k === 0 ? (t < 2 ? ROPE_COL[4] : ROPE_COL[3]) : (t === 1 || t === 2 ? ROPE_COL[2] : ROPE_COL[1]);
+        ctx.fillStyle = c;
+        if (flat) ctx.fillRect(x, y + k, 1, 1); else ctx.fillRect(x + k, y, 1, 1);
+      }
+    }
+  }
+}
+
 export class ForetLive {
   constructor(level, art) {
     this.level = level;
@@ -160,15 +255,16 @@ export class ForetLive {
     this.zones = level.zones;
     const f = this.f;
     this.logImg = new Map();
-    for (const l of f?.logs ?? []) if (!this.logImg.has(l.w)) this.logImg.set(l.w, logSprite(l.w + 4, l.w));
+    (f?.logs ?? []).forEach((l, i) => this.logImg.set(l, logArt(l.w, l.d ?? 11, 17 + i * 37)));
     this.plank = f?.crumbles?.length ? plankSprite(f.crumbles[0].w) : null;
     this.slabs = (f?.spans ?? []).map((s, i) => slabSprite(s.w * TILE, 50 + i));
     const kill = this.killRow(f?.spans?.[0]?.x0 ?? 0, f?.spans?.[0]?.row ?? 0);
     this.colH = f?.spans?.length ? (kill - f.spans[0].row + 3) * TILE : 0;
     this.columns = (f?.spans ?? []).map((s, i) => columnSprite(Math.round(s.w * TILE * 0.5), this.colH, 70 + i));
     this.ivy = ivySprite();
-    this.planks = [0, 1, 2, 3, 4, 5].map((k) => bridgePlank(k * 7 + 3, false));
-    this.rottenPlanks = [0, 1].map((k) => bridgePlank(k * 11 + 5, true));
+    const PW = FOREST.bridge.plankW;
+    this.planks = [0, 1, 2, 3, 4, 5].map((k) => bridgePlank(k * 7 + 3, false, PW));
+    this.rottenPlanks = [0, 1].map((k) => bridgePlank(k * 11 + 5, true, PW));
     this.chestImg = level.chests?.length ? [0, 1, 2].map((st) => chestSprite(st, Brush, canvas)) : null;
     this.rocks = [7, 9, 11, 8, 10, 6].map((r, i) => boulderFrames(r, 300 + i));
     this.statueArt = null;
@@ -319,8 +415,9 @@ export class ForetLive {
     (f.snaps ?? []).forEach((q, i) => this.drawSnap(ctx, q, this.snapArt[i], cam, vw, vh, time));
     // troncs flottants (l'eau, dessinée devant, cache ce qui s'enfonce)
     for (const l of f.logs) {
-      if (!this.vis(l.x - 2, l.y, l.w + 4, 16, cam, vw, vh)) continue;
-      ctx.drawImage(this.logImg.get(l.w), R(l.x - 2 - cam.x), R(l.y - cam.y));
+      const A = this.logImg.get(l);
+      if (!A || !this.vis(l.x - A.ox, l.y - A.oy, A.img.width, A.img.height, cam, vw, vh)) continue;
+      ctx.drawImage(A.img, R(l.x - A.ox - cam.x), R(l.y - A.oy - cam.y));
     }
     // la statue
     const st = f.statue;
@@ -328,10 +425,23 @@ export class ForetLive {
       if (!this.statueArt) this.statueArt = paintStatue();
       const eyes = st.lit.map((on, i) => (on ? Math.min(1, (f.time - st.litAt[i]) / 0.7) : 0));
       drawStatue(ctx, this.statueArt, R(st.cx - STATUE.cx - cam.x), R(st.ground - cam.y), { eyes });
-      this.drawGate(ctx, st, eyes, cam, time);
     }
+    // la corde de la statue : le bloc, la poulie, la corde (zone 9)
+    if (f.rope) this.drawRopeWorks(ctx, f.rope, cam, vw, vh, time);
+    // l'amas instable du sommet de la descente (zone 11), tant qu'il tient
+    if (f.slide?.pile) { this.aval ??= new Avalanche(this.level, f); this.aval.drawPile(ctx, cam, vw, vh, time, f.slide, this.level.player); }
     // lianes (derrière KAGE)
     for (const v of f.vines) this.vine(ctx, v, cam, vw, vh, time);
+    // le départ des lianes de la chevelure de la statue : caché sous une touffe de son feuillage
+    if (st) {
+      const RAMP = ['#0d2a22', '#14392b', '#1b4d3e', '#23694a', '#2e8b57', '#55ae54', '#8fd058', '#c9ee78'];
+      this.vineTufts ??= [0, 1, 2, 3].map((k) => sprite(20, 16, (p) => L.bush(p, 10, 15, 7 + (k % 2) * 2, 12, RAMP, 900 + k * 7)));
+      for (const v of f.vines) {
+        if (Math.abs(v.ax - st.cx) > 96 || v.ay < st.ground - 15 * TILE || v.ay > st.ground - 11 * TILE) continue;
+        const img = this.vineTufts[Math.floor(v.ax) % 4];
+        if (this.vis(v.ax - 10, v.ay - 10, 20, 18, cam, vw, vh)) ctx.drawImage(img, R(v.ax - 10 - cam.x), R(v.ay - 8 - cam.y));
+      }
+    }
     // lierre des caches
     for (const cr of lv.crates.values()) {
       const sx = R(cr.tx * TILE - 2 - cam.x), sy = R((cr.fall ? cr.fall.y : cr.ty * TILE) - 2 - cam.y);
@@ -404,7 +514,7 @@ export class ForetLive {
     rope((x) => rail(x, 2), 2, 1);
     for (const p of B.planks) {
       if (!p.active) continue;
-      const cx = p.x + 8;
+      const cx = p.x + p.w / 2;
       for (const [k, dx, col] of [[2, -6, ROPE[1]], [0, 6, ROPE[2]]]) {
         const x = R(cx + dx - cam.x), y0 = R(rail(cx + dx, k) - cam.y), y1 = R(p.y - cam.y);
         ctx.fillStyle = col; ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
@@ -430,6 +540,7 @@ export class ForetLive {
     const len = v.len;
     const tip = { x: v.ax + Math.sin(v.angle) * len, y: v.ay + Math.cos(v.angle) * len };
     if (Math.max(v.ax, tip.x) < cam.x - 10 || Math.min(v.ax, tip.x) > cam.x + vw + 10 || v.ay > cam.y + vh || tip.y < cam.y) return;
+    if (!v.still) { this.swingVine(ctx, v, cam, time); return; }
     const s = Math.sin(v.angle), c = Math.cos(v.angle);
     const bend = -(v.av ?? 0) * 0.05;                     // la liane traîne un peu derrière son mouvement
     const rider = v.rider;
@@ -452,6 +563,79 @@ export class ForetLive {
     // le bout : une petite touffe
     ctx.fillStyle = C.LEAF[5];
     ctx.fillRect(R(tip.x - cam.x) - 1, R(tip.y - cam.y), 3, 2);
+  }
+
+  /**
+   * Une liane balancier (zone 10) : une tige épaisse (2 px, éclairée d'un côté) autour de laquelle s'enroule
+   * une vrille plus fine, des feuilles en cœur de part et d'autre, quelques petites fleurs, et au bout une
+   * boucle feuillue (là où KAGE la saisit). Elle traîne un peu derrière son mouvement.
+   */
+  swingVine(ctx, v, cam, time) {
+    const len = v.len, F = this.f;
+    const STEM = ['#1d2c1a', '#2e4526', '#46652f', '#6d8f3c'], TW = ['#3b5a2a', '#88b04e'];
+    const LEAF = C.LEAF, FL = ['#f4d3e0', '#e9a8c0', '#ffd98a'];
+    // la liane est une chaîne souple (intégration de Verlet, pour le dessin seulement : le jeu garde son
+    // pendule) : son accroche est fixe ; chaque maillon est rappelé doucement vers la droite du pendule,
+    // si bien qu'elle suit le balancement en traînant, ondule et fouette ; quand KAGE la tient, le maillon
+    // de sa main est collé à sa main, la corde au-dessus se tend, le bout en dessous pend et se débat
+    const N = 20, seg = len / N;
+    const ch = v.chain ??= { p: Array.from({ length: N + 1 }, (_, i) => [v.ax + Math.sin(v.angle) * i * seg, v.ay + Math.cos(v.angle) * i * seg]), q: null, t: time };
+    ch.q ??= ch.p.map((a) => a.slice());
+    const dt = Math.min(1 / 30, Math.max(0, time - ch.t)); ch.t = time;
+    if (dt > 0) {
+      const sa = Math.sin(v.angle), ca = Math.cos(v.angle), rider = v.rider, rr = rider?.vineR ?? 0, hold = rider ? Math.min(N, Math.round(rr / seg)) : -1;
+      for (let i = 1; i <= N; i++) {
+        const P = ch.p[i], Q = ch.q[i], vx = (P[0] - Q[0]) * 0.985, vy = (P[1] - Q[1]) * 0.985;
+        Q[0] = P[0]; Q[1] = P[1];
+        P[0] += vx; P[1] += vy + 260 * dt * dt;
+        // rappel vers le pendule : ferme près de l'accroche et au-dessus de la main, lâche vers le bout
+        const t = i / N, k = rider ? (i <= hold ? 0.18 : 0.012) : 0.035 + 0.05 * (1 - t);
+        const tx = v.ax + sa * i * seg + Math.sin(time * 2.3 + i * 0.55 + v.i) * 0.6 * t, ty = v.ay + ca * i * seg;
+        P[0] += (tx - P[0]) * k; P[1] += (ty - P[1]) * k;
+      }
+      for (let it = 0; it < 8; it++) {
+        if (rider) { const h = F.vinePoint(v, rr); ch.p[hold][0] = h.x; ch.p[hold][1] = h.y; }
+        for (let i = 0; i < N; i++) {
+          const A = ch.p[i], B = ch.p[i + 1], dx = B[0] - A[0], dy = B[1] - A[1], d = Math.hypot(dx, dy) || 1, e = (d - seg) / d;
+          if (i === 0) { B[0] -= dx * e; B[1] -= dy * e; }
+          else { A[0] += dx * e * 0.5; A[1] += dy * e * 0.5; B[0] -= dx * e * 0.5; B[1] -= dy * e * 0.5; }
+        }
+        ch.p[0][0] = v.ax; ch.p[0][1] = v.ay;
+      }
+    }
+    // un point (et la direction de la liane) à la distance d de l'accroche
+    const at3 = (d) => {
+      const f = Math.max(0, Math.min(N - 1e-6, d / seg)), i = Math.floor(f), u = f - i, A = ch.p[i], B = ch.p[i + 1];
+      const dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy) || 1;
+      return [A[0] + dx * u - cam.x, A[1] + dy * u - cam.y, dx / l, dy / l];
+    };
+    const at = (d) => at3(d);
+    const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(R(x), R(y), 1, 1); };
+    // la vrille, côté caché (derrière la tige)
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w >= 0) continue; const [x, y, s, c] = at(d); px(x + c * w * 2, y - s * w * 2, TW[0]); }
+    // la tige
+    for (let d = 0; d <= len; d++) {
+      const [x, y, s, c] = at(d);
+      px(x - c * 0.5, y + s * 0.5, d % 11 < 2 ? STEM[3] : STEM[2]);
+      px(x + c * 0.7, y - s * 0.7, STEM[1]);
+    }
+    // la vrille, côté visible
+    for (let d = 2; d <= len - 4; d++) { const w = Math.sin(d * 0.42 + v.i); if (w < 0) continue; const [x, y, s, c] = at(d); px(x + c * w * 2, y - s * w * 2, TW[1]); }
+    // les feuilles : en cœur, alternées, un peu plus grandes vers le bas ; des fleurs de loin en loin
+    for (let d = 6, k = 0; d <= len - 3; d += 6 + ((d * 7 + v.i) % 3), k++) {
+      const [x, y, s, c] = at(d), side = k % 2 ? 1 : -1, big = d > len * 0.5 ? 1 : 0;
+      const ox = c * side, oy = -s * side;                             // perpendiculaire à la liane
+      const lx = x + ox * 2.5, ly = y + oy * 2.5 + 1;
+      const dark = side > 0 ? 0 : 1;                                  // la face à l'ombre
+      for (const [dx, dy, col] of [[0, 0, LEAF[4 - dark]], [ox, oy, LEAF[3 - dark]], [0, 1, LEAF[3 - dark]], [ox, oy + 1, LEAF[2 - dark]], [ox * 2, oy * 2 + 1, LEAF[2]], [-ox * 0.5, 1.5, LEAF[5 - dark]]]) px(lx + dx, ly + dy, col);
+      if (big) { px(lx + ox * 2, ly + oy * 2, LEAF[3]); px(lx + ox, ly + oy + 2, LEAF[1]); }
+      if ((k + v.i) % 4 === 1) { const fx = x - ox * 2.5, fy = y - oy * 2.5; px(fx, fy, FL[0]); px(fx + 1, fy, FL[1]); px(fx, fy + 1, FL[1]); px(fx + 0.5, fy + 0.5, FL[2]); }
+    }
+    // au bout : une boucle de tige et une touffe de feuilles
+    const [ex, ey, s, c] = at(len);
+    const L2 = [[-2, 0], [-2, 1], [-1, 2], [0, 3], [1, 2], [2, 1], [2, 0]];
+    for (const [dx, dy] of L2) px(ex + dx * c + dy * s, ey + dy * c - dx * s, STEM[2]);
+    for (const [dx, dy, col] of [[-3, -1, LEAF[3]], [3, -1, LEAF[2]], [-2, 3, LEAF[4]], [2, 3, LEAF[2]], [0, 4, LEAF[3]], [-3, 2, LEAF[1]], [3, 2, LEAF[1]]]) px(ex + dx * c + dy * s, ey + dy * c - dx * s, col);
   }
 
   drawBirds(ctx, cam, vw, vh, time) {
@@ -484,6 +668,7 @@ export class ForetLive {
     if (!f) return;
     for (const w of this.waters) if (this.vis(w.x, w.y - 40, w.w, w.h + 40, cam, vw, vh)) this.water(ctx, w, cam, vw, vh, time);
     for (const B of f.bridges ?? []) this.bridge(ctx, B, cam, vw, vh, time, 'front');
+    this.drawRopeHands(ctx, cam);
     this.drawSlide(ctx, cam, vw, vh, time);
     // brume au fond des ravins
     for (const c of this.chasms) {
@@ -495,6 +680,29 @@ export class ForetLive {
         ctx.fillStyle = `rgba(${this.underground(c.x, c.y) ? '8,14,18' : '20,52,60'},${(a * 0.92).toFixed(3)})`;
         ctx.fillRect(R(c.x - cam.x) - 8, row, c.w + 16, 1);
       }
+    }
+    // au-dessus des ravins des lianes balancier : des nappes de brume pâle qui dérivent lentement
+    for (const c of this.chasms) {
+      if (c.decor || !this.vis(c.x, c.lip - 20, c.w, 70, cam, vw, vh)) continue;
+      if (!this.f.vines.some((v) => !v.still && v.ax > c.x && v.ax < c.x + c.w)) continue;
+      this.mistPuff ??= (() => {
+        const W = 72, H = 18, cv = canvas(W, H), g = cv.getContext('2d');
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const d = Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2));
+          const a2 = Math.max(0, 1 - d) * (0.75 + noise2(x * 0.12, y * 0.3, 77) * 0.5);
+          if (a2 > bayer(x, y)) { g.fillStyle = '#d8eee6'; g.fillRect(x, y, 1, 1); }
+        }
+        return cv;
+      })();
+      ctx.save(); ctx.beginPath(); ctx.rect(R(c.x - cam.x), 0, c.w, vh); ctx.clip();
+      const n = Math.max(3, Math.round(c.w / 45));
+      for (let i = 0; i < n; i++) {
+        const span = c.w + 90, x = c.x - 45 + ((i * (span / n) + time * (5 + (i % 3) * 2)) % span);
+        const y = c.lip + 8 + (i % 3) * 11 + Math.sin(time * 0.35 + i * 1.7) * 3;
+        ctx.globalAlpha = 0.14 + (i % 2) * 0.06;
+        ctx.drawImage(this.mistPuff, R(x - 36 - cam.x), R(y - 9 - cam.y));
+      }
+      ctx.restore();
     }
     this.motes(ctx, cam, vw, vh, time);
     this.drawDark(ctx, cam, vw, vh, time);
@@ -582,37 +790,59 @@ export class ForetLive {
       ctx.fillStyle = C.WATER[5];
       for (let k = 0; k < 3; k++) ctx.fillRect(R(l.x - 3 - k * 3 - cam.x), y0 + (k % 2), 2, 1);
     }
+    if (w.flow) this.torrent(ctx, w, x0, y0, cam, time);
+  }
+
+  /**
+   * La vie du torrent : l'écume qui bat le pied des rochers et leur sillage vers l'aval, des embruns qui
+   * jaillissent, des brindilles et des feuilles emportées par le courant.
+   */
+  torrent(ctx, w, x0, y0, cam, time) {
+    this.riverRocks ??= this.level.props.filter((p) => p.type === 'river_rock').map((p) => ({ x: p.x * TILE + 8, w: [12, 16, 22][p.s ?? 1], s: p.s ?? 1 }));
+    const FOAM = ['#ffffff', '#e4f7f5', '#bfe8e6'];
+    for (const r of this.riverRocks) {
+      if (r.x + r.w + 40 < w.x || r.x - r.w > w.x + w.w) continue;
+      const sx = R(r.x - cam.x);
+      // le bourrelet d'écume contre le rocher, qui palpite
+      for (let dx = -r.w - 2; dx <= r.w + 4; dx++) {
+        const k = Math.abs(dx) / (r.w + 3), on = Math.sin(time * 9 + dx * 1.3 + r.x) > k * 1.4 - 0.6;
+        if (!on) continue;
+        ctx.fillStyle = FOAM[k > 0.8 ? 2 : k > 0.5 ? 1 : 0];
+        ctx.fillRect(sx + dx, y0 - (Math.abs(dx) < r.w * 0.6 && Math.sin(time * 13 + dx) > 0.3 ? 1 : 0), 1, 1);
+      }
+      // le sillage : deux traînées d'écume qui s'écartent vers l'aval
+      for (let i = 0; i < 18 + r.s * 6; i++) {
+        const t = ((time * 1.6 + i * 0.13 + r.x * 0.01) % 1), dx = r.w + 3 + t * (34 + r.s * 10), spread = Math.round(t * 3);
+        if (ih(i, 3, r.x) < t * 0.8) continue;
+        ctx.fillStyle = FOAM[1 + (t > 0.5 ? 1 : 0)];
+        ctx.fillRect(sx + R(dx), y0 + 1 + spread * (i % 2), 2, 1);
+      }
+      // des embruns : quelques gouttes jaillissent et retombent
+      for (let i = 0; i < 2 + r.s; i++) {
+        const t = (time * 1.1 + i * 0.37 + r.x * 0.003) % 1.3;
+        if (t > 0.6) continue;
+        const gx = sx - r.w * 0.6 + (ih(i, Math.floor(time * 1.1 + i * 0.37), r.x) - 0.3) * r.w * 1.4, gy = y0 - 2 - (t * 18 - t * t * 30) * (1 + r.s * 0.4);
+        ctx.fillStyle = FOAM[i % 2];
+        ctx.fillRect(R(gx + t * 6), R(gy), 1, 1);
+      }
+    }
+    // ce que le courant emporte : brindilles, feuilles, une écorce (on ne s'y pose pas : elles passent)
+    const n = Math.max(2, Math.floor(w.w / 90));
+    for (let i = 0; i < n; i++) {
+      const sp = 30 + ih(i, 1, w.x) * 18, px = ((ih(i, 2, w.x) * w.w + time * sp) % (w.w + 40)) - 20;
+      if (px < 0 || px > w.w) continue;
+      const x = x0 + R(px), y = y0 + 1 + Math.round(Math.sin(time * 3 + i) * 0.6), kind = Math.floor(ih(i, 3, w.x) * 3);
+      if (kind === 0) { ctx.fillStyle = '#4a2f1c'; ctx.fillRect(x, y, 6, 1); ctx.fillStyle = '#6d4528'; ctx.fillRect(x + 1, y - 1, 2, 1); ctx.fillRect(x + 4, y + 1, 2, 1); }
+      else if (kind === 1) { ctx.fillStyle = C.LEAF[3]; ctx.fillRect(x, y, 3, 1); ctx.fillStyle = C.LEAF[5]; ctx.fillRect(x + 1, y - 1, 1, 1); }
+      else { ctx.fillStyle = '#c98a4a'; ctx.fillRect(x, y, 2, 1); ctx.fillStyle = '#e0b060'; ctx.fillRect(x + 1, y - 1, 1, 1); }
+    }
   }
 
   drawSlide(ctx, cam, vw, vh, time) {
     const S = this.f.slide;
-    if (!S || (!S.active && !S.done)) return;
-    const x = S.x;
-    if (x < cam.x - 120 || x - 140 > cam.x + vw) return;
-    const ground = (px) => { const tx = Math.floor(px / TILE); for (let r = 20; r < this.level.h; r++) if ('#='.includes(this.rows[r][tx])) return r * TILE; return this.level.height; };
-    // nuage de poussière derrière le front
-    for (let k = 0; k < 18; k++) {
-      const px = x - 20 - k * 7 + Math.sin(time * 3 + k) * 4, py = ground(px) - 10 - (k % 5) * 6 - Math.abs(Math.sin(time * 2 + k)) * 8;
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = k % 2 ? '#c9a07a' : '#a8806a';
-      const r = 6 + (k % 4) * 3;
-      ctx.fillRect(R(px - r - cam.x), R(py - r / 2 - cam.y), r * 2, r);
-    }
-    ctx.globalAlpha = 1;
-    // les rochers qui roulent, les petits cailloux devant
-    this.rocks.forEach((fr, i) => {
-      const px = x - 8 - i * 17 + (i % 2) * 6;
-      const r = (fr[0].width - 2) / 2;
-      const hop = S.done ? 0 : Math.abs(Math.sin(time * (6 + i) + i)) * (5 + i % 3 * 3);
-      const py = ground(px) - r - hop;
-      const img = fr[S.done ? 0 : Math.floor(time * 10 + i) % 4];
-      ctx.drawImage(img, R(px - r - cam.x), R(py - r - cam.y));
-    });
-    if (!S.done) for (let k = 0; k < 6; k++) {
-      const px = x + 6 + ((time * 120 + k * 19) % 60), py = ground(px) - 2 - Math.abs(Math.sin(time * 9 + k)) * 6;
-      ctx.fillStyle = C.ROCK[2 + (k % 2)];
-      ctx.fillRect(R(px - cam.x), R(py - cam.y), 2, 2);
-    }
+    if (!S) return;
+    this.aval ??= new Avalanche(this.level, this.f);
+    this.aval.draw(ctx, cam, vw, vh, time, S);
   }
 
   /** Poussières dorées dans les rais (le jour), lucioles (sous-bois, soir), spores (sous terre). */
@@ -747,55 +977,188 @@ export class ForetLive {
   }
 
   /**
-   * La porte de pierre de la statue : une dalle encadrée, un œil gravé ; quand les deux yeux sont
-   * allumés, elle remonte lentement dans le mur (en tremblant un peu) et découvre le tunnel.
-   * Les yeux gravés du linteau s'allument avec ceux de la statue.
+   * La corde de la statue (zone 9). Le bloc de granit qui ferme le tunnel, ficelé d'une corde en croix ;
+   * la corde monte au bord de la falaise jusqu'à la grande poulie (une roue de bois cerclée sur un
+   * chevalet), passe dessus et revient le long de la branche jusqu'à son bout — ou jusqu'à KAGE qui la
+   * tire. Au repos, quand KAGE est sur la branche : une lueur dorée pulse sur le bout de la corde et des
+   * chevrons clignotent vers la gauche (« tirez par là »). Coincée, elle s'enroule sur le rameau.
    */
-  drawGate(ctx, st, eyes, cam, time) {
-    if (st.door == null) return;
-    const X = st.door * TILE, Y = st.ground, H = 2 * TILE;
-    if (!this.slab) {
-      this.slab = sprite(TILE, H, (p) => {
-        for (let y = 0; y < H; y++) for (let x = 0; x < TILE; x++) {
-          let v = 0.62 - (x / TILE) * 0.2 + (noise2(x * 0.35, y * 0.2, 151) - 0.5) * 0.12;
-          // deux panneaux en retrait, l'un au-dessus de l'autre
-          const p1 = x >= 3 && x <= 12 && y >= 3 && y <= 13, p2 = x >= 3 && x <= 12 && y >= 18 && y <= H - 4;
-          const inner = p1 || p2;
-          if (x === 0 || y === 0) v += 0.16;
-          if (x === TILE - 1 || y === H - 1) v -= 0.3;
-          if (inner) v -= 0.08;
-          if (inner && (x === 3 || y === 3 || y === 18)) v -= 0.18;                        // leur ombre en haut à gauche
-          if (inner && (x === 12 || y === 13 || y === H - 4)) v += 0.14;
-          p.set(x, y, pick(C.RUIN, v, x, y, 0.2));
+  drawRopeWorks(ctx, r, cam, vw, vh, time) {
+    const X = r.door * TILE, G = r.ground, cx = r.pulleyX, cy = r.branchY - 16, RAD = 13, RR = RAD - 1;
+    const ROPE = ROPE_COL;
+    const P = this.level.player;
+    // la corde : chanvre clair et torsadé, deux pixels d'épaisseur cernés de sombre (elle ressort sur
+    // l'écorce et la pierre) ; chaque brin est mis de côté puis tracé en deux passes (contour, puis corps)
+    const strands = [];
+    const rope = (x0, y0, x1, y1) => strands.push([x0, y0, x1, y1]);
+    const flush = (shift = R(r.pull)) => { drawRopeStrands(ctx, strands, cam, vw, vh, shift); strands.length = 0; };
+    // le bloc : un monolithe de granit moucheté, plus clair et plus chaud que les pierres du pilier, cerné de
+    // noir, ses arêtes taillées en biseau (lumière en haut à gauche) : on voit tout de suite que c'est lui qui
+    // ferme le passage ; levé de r.lift
+    if (!this.block) {
+      const W = 30, H = 37;
+      this.block = sprite(W, H, (p) => {
+        const S = ['#2a2624', '#3d3733', '#554c45', '#6e645a', '#887c70', '#a49789', '#c4b8a8'];
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const e = Math.min(x, y, W - 1 - x, H - 1 - y);
+          const corner = (x < 2 || x > W - 3) && (y < 2 || y > H - 3);
+          if (corner && (x === 0 || x === W - 1) && (y === 0 || y === H - 1)) continue;   // coins abattus
+          if (e === 0 || (corner && e <= 1 && (x === 1 || x === W - 2) && (y === 1 || y === H - 2))) { p.set(x, y, '#121012'); continue; }
+          let v = 0.62 - (x / W) * 0.22 - (y / H) * 0.14 + (noise2(x * 0.25, y * 0.25, 152) - 0.5) * 0.16;
+          // le biseau : haut et gauche dans la lumière, bas et droite dans l'ombre
+          if (y <= 2 && x < W - 2) v += y === 1 ? 0.3 : 0.18;
+          else if (x <= 2 && y < H - 2) v += x === 1 ? 0.22 : 0.12;
+          else if (y >= H - 3) v -= y === H - 2 ? 0.34 : 0.2;
+          else if (x >= W - 3) v -= x === W - 2 ? 0.3 : 0.18;
+          let c = pick(S, v, x, y);
+          const sp = ih(x, y, 156);                                         // le moucheté du granit
+          if (e > 2 && sp < 0.07) c = S[1]; else if (e > 2 && sp > 0.95) c = S[6];
+          if ((x * 3 + y * 7) % 13 === 0 && ih(x, y, 153) < 0.3 && e > 2) c = S[2];   // traces de ciseau
+          if (y < 4 && y > 0 && fbm2(x * 0.2, y * 0.3, 2, 154) > 0.52) c = y < 2 ? C.MOSS[4] : C.MOSS[2];
+          if (y > H - 5 && y < H - 1 && ih(x, y, 155) < 0.25) c = C.MOSS[1];
+          p.set(x, y, c);
         }
-        // l'œil clos gravé dans le panneau du haut
-        for (let k = -3; k <= 3; k++) { const y = 9 + (Math.abs(k) === 3 ? -1 : 0); p.set(7 + k, y, C.RUIN[0]); p.set(7 + k, y - 1, C.RUIN[1]); }
-        for (const k of [-2, 0, 2]) p.set(7 + k, 10, C.RUIN[0]);                          // les cils
-        // un anneau de pierre, au milieu
-        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, 1], [1, 1]]) p.set(7 + dx, 15 + dy, C.RUIN[1]);
-        p.set(7, 14, C.RUIN[4]);
       });
     }
-    const g = st.gate ?? 0, rise = Math.round(g * g * (3 - 2 * g) * H), jit = g > 0 && g < 1 ? R(Math.sin(time * 37) * 0.6) : 0;
-    const sx = R(X - cam.x), sy = R(Y - H - cam.y);
-    if (rise < H) {
-      ctx.save(); ctx.beginPath(); ctx.rect(sx, sy, TILE, H); ctx.clip();
-      ctx.drawImage(this.slab, sx + jit, sy - rise);
-      // l'œil du panneau s'allume avec ceux de la statue
-      const lit = Math.min(1, (eyes[0] + eyes[1]) / 2);
-      if (lit > 0) { ctx.globalAlpha = lit; ctx.fillStyle = '#a6eede'; ctx.fillRect(sx + 4 + jit, sy + 9 - rise, 7, 1); ctx.globalAlpha = 1; }
-      ctx.restore();
+    const bw = this.block.width, bh = this.block.height;
+    const bx = X + 8 - bw / 2, by = G - bh - r.lift;
+    if (this.vis(bx - 4, by - 4, bw + 8, bh + 8, cam, vw, vh)) {
+      const jit = r.state === 'held' && r.lift > 0 && r.lift < 30 ? R(Math.sin(time * 40) * 0.5) : 0;
+      // son ombre portée sur le pilier et dans le tunnel, en bas à droite
+      ctx.save(); ctx.globalAlpha = 0.45; ctx.fillStyle = '#05080a';
+      ctx.fillRect(R(bx + bw - cam.x) + jit, R(by + 3 - cam.y), 3, bh - 3); ctx.restore();
+      ctx.drawImage(this.block, R(bx - cam.x) + jit, R(by - cam.y));
+      // la corde ceinture le bloc : une croix d'un coin à l'autre et une sangle au milieu, qui débordent
+      // de ses arêtes (elles passent derrière) ; deux brins remontent des coins du haut jusqu'au nœud
+      const b0 = bx + jit, b1 = bx + jit + bw - 1, ym = by + R(bh / 2), kxc = cx + RR, kyc = by - 6;
+      rope(b0, by + 1, b1, by + bh - 1); rope(b1, by + 1, b0, by + bh - 1); rope(b0 - 1, ym, b1 + 1, ym);
+      rope(kxc, kyc, b0 + 1, by); rope(kxc, kyc, b1 - 1, by);
+      flush(0);                                                   // nouées au bloc : elles ne défilent pas
+      // la corde qui monte du nœud à la poulie (elle tombe à l'aplomb du côté droit de la roue)
+      rope(kxc, kyc, kxc, cy);
+      flush();
+      // là où la corde passe derrière le bloc : un brin d'ombre qui contourne l'arête
+      ctx.fillStyle = ROPE[1];
+      for (const [qx, qy] of [[b0 - 2, by], [b1 + 2, by], [b0 - 2, by + bh - 2], [b1 + 2, by + bh - 2], [b0 - 2, ym], [b1 + 2, ym]]) ctx.fillRect(R(qx - cam.x), R(qy - cam.y) - 1, 1, 3);
+      const kx = R(kxc - 4 - cam.x), ky = R(kyc - 3 - cam.y);
+      ctx.fillStyle = ROPE[0]; ctx.fillRect(kx + 1, ky, 7, 6);
+      ctx.fillStyle = ROPE[2]; ctx.fillRect(kx + 2, ky + 1, 5, 4);
+      ctx.fillStyle = ROPE[3]; ctx.fillRect(kx + 2, ky + 1, 3, 2); ctx.fillRect(kx + 3, ky + 4, 2, 1);
+      ctx.fillStyle = ROPE[4]; ctx.fillRect(kx + 3, ky + 1, 1, 1);
+      ctx.fillStyle = ROPE[1]; ctx.fillRect(kx + 5, ky + 3, 2, 2);
+    } else rope(cx + RR, by - 6, cx + RR, cy);
+    // la poulie : le chevalet sur la branche, la roue qui tourne avec la corde
+    if (this.vis(cx - 24, cy - 24, 48, 48, cam, vw, vh)) {
+      const WOOD = ['#2a1a10', '#3f2a1a', '#5a3d25', '#765233', '#946a43'];
+      const sx = R(cx - cam.x), sy = R(cy - cam.y);
+      for (const dx of [-5, 4]) { ctx.fillStyle = WOOD[1]; ctx.fillRect(sx + dx, sy, 3, R(r.branchY - cy) + 1); ctx.fillStyle = WOOD[3]; ctx.fillRect(sx + dx, sy, 1, R(r.branchY - cy) + 1); }
+      ctx.fillStyle = WOOD[0]; ctx.fillRect(sx - 7, R(r.branchY - cam.y) - 2, 16, 3);
+      const ang = -r.pull / RAD;
+      for (let y = -RAD; y <= RAD; y++) for (let x = -RAD; x <= RAD; x++) {
+        const d = Math.hypot(x, y);
+        if (d > RAD) continue;
+        let c = null;
+        if (d > RAD - 2) c = d > RAD - 1 ? '#2b2620' : '#5a5048';                        // le cercle de fer, la gorge
+        else if (d > RAD - 4) c = WOOD[2 + ((x + y) > 0 ? 0 : 1)];                        // la jante
+        else if (d < 3) c = d < 1.5 ? '#9aa0a0' : '#4a4a48';                              // le moyeu
+        else {
+          const a = Math.atan2(y, x) - ang, sp = Math.abs(((a % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3) - Math.PI / 6);
+          if (sp < 0.16 + 0.5 / d) c = WOOD[x < 0 ? 3 : 2];                                // six rayons
+        }
+        if (c) { ctx.fillStyle = c; ctx.fillRect(sx + x, sy + y, 1, 1); }
+      }
     }
-    // les yeux gravés du linteau : chacun s'allume avec l'œil de la statue
-    GATE.eyes.forEach(([ex, ey], i) => {
-      if (eyes[i] <= 0) return;
-      ctx.globalAlpha = Math.min(1, eyes[i]);
-      ctx.fillStyle = '#a6eede'; ctx.fillRect(R(X + GATE.lintel.x + ex + 4 - cam.x), R(Y - H + ey - cam.y), 5, 1);
-      ctx.globalAlpha = 0.25 * Math.min(1, eyes[i]); ctx.fillStyle = '#5fd0cc';
-      ctx.fillRect(R(X + GATE.lintel.x + ex + 2 - cam.x), R(Y - H + ey - 2 - cam.y), 9, 4);
-      ctx.globalAlpha = 1;
-    });
+    // l'autre brin. La corde épouse la gorge de la roue depuis son côté droit, passe par-dessus, et la
+    // quitte au point de tangence vers sa cible (l'épaule de KAGE, ou la branche où elle repose) : de là,
+    // une ligne droite, bien tendue, sans angle. φ : angle sur la roue, 0 à droite, π/2 en haut, π à gauche.
+    const held = r.state === 'held' && P?.state === 'rope_pull';
+    const wrapTo = (tx, ty) => {
+      const dx = tx - cx, dy = cy - ty, d = Math.max(RR + 0.5, Math.hypot(dx, dy));
+      const th = (Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2);
+      const ft = Math.max(0.05, th - Math.acos(RR / d));          // la tangente du côté où la corde s'enroule
+      let px = cx + RR, py = cy;
+      for (let f = 0; f < ft;) { f = Math.min(ft, f + 1.4 / RR); const nx = cx + RR * Math.cos(f), ny = cy - RR * Math.sin(f); rope(px, py, nx, ny); px = nx; py = ny; }
+      rope(px, py, tx, ty);
+    };
+    if (held) {
+      const sh = this.ropePoint(P, 'shoulder');
+      wrapTo(sh.x, sh.y);
+      flush();
+    } else {
+      const endX = r.end - r.pull, fx = r.twig, fy = r.branchY - 13;     // fy : la fourche du rameau en Y
+      // coincée : la corde file tendue du haut de la roue jusque dans la fourche, et son bout pend derrière ;
+      // au retour, sur les derniers pixels avant la fourche, elle se soulève de la branche et s'y engage
+      const k = r.state === 'caught' ? 1 : r.state === 'back' && r.snag ? Math.max(0, Math.min(1, 1 - (fx - endX) / 18)) : 0;
+      if (k > 0) {
+        const qx = endX + (fx - endX) * k, qy = r.branchY - 2 + (fy - (r.branchY - 2)) * k;
+        wrapTo(qx, qy);
+        rope(qx, qy, qx - 3, qy + 1); rope(qx - 3, qy + 1, qx - 4, Math.min(qy + 7, r.branchY - 4));
+        flush();
+        // emmêlée : un tour serré autour de la fourche, et le bout effiloché qui pend
+        const tx = R(qx - cam.x), ty = R(qy - cam.y), by2 = R(Math.min(qy + 7, r.branchY - 4) - cam.y);
+        ctx.fillStyle = ROPE[0]; ctx.fillRect(tx - 2, ty - 2, 5, 5);
+        ctx.fillStyle = ROPE[2]; ctx.fillRect(tx - 1, ty - 1, 3, 3);
+        ctx.fillStyle = ROPE[3]; ctx.fillRect(tx - 1, ty - 1, 2, 1); ctx.fillRect(tx, ty + 1, 1, 1);
+        ctx.fillStyle = ROPE[4]; ctx.fillRect(tx - 5, by2 + 1, 1, 1); ctx.fillRect(tx - 3, by2 + 1, 1, 2);
+        ctx.fillStyle = ROPE[3]; ctx.fillRect(tx - 4, by2 + 2, 1, 1);
+      } else {
+        const touch = Math.max(endX, cx - RAD - 10);                // là où elle se pose sur la branche
+        wrapTo(touch, r.branchY - 2);
+        if (endX < touch) rope(touch, r.branchY - 2, endX, r.branchY - 2);
+        flush();
+        // le bout effiloché ; au repos et KAGE sur la branche : une lueur qui pulse, des chevrons vers la gauche
+        const ex = R(endX - cam.x), ey = R(r.branchY - 2 - cam.y);
+        const near = P && Math.abs(P.y - r.branchY) < 6 && Math.abs(P.x - endX) < 110 && r.state === 'rest';
+        const twitch = near && Math.sin(time * 9) > 0.7 ? -1 : 0;
+        // le bout effiloché : une ligature sombre, puis des brins clairs qui s'écartent
+        ctx.fillStyle = ROPE[0]; ctx.fillRect(ex - 2, ey - 2, 2, 5);
+        ctx.fillStyle = ROPE[4]; ctx.fillRect(ex - 4, ey - 2 + twitch, 2, 1); ctx.fillRect(ex - 5, ey + twitch, 2, 1); ctx.fillRect(ex - 4, ey + 2, 2, 1);
+        ctx.fillStyle = ROPE[3]; ctx.fillRect(ex - 6, ey - 3 + twitch, 1, 1); ctx.fillRect(ex - 6, ey + 3, 1, 1);
+        if (near) {
+          const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+          if (!this.ropeGlow) this.ropeGlow = haloSprite(14);
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.25 + 0.3 * pulse;
+          ctx.drawImage(this.tint?.[2] ?? this.ropeGlow, ex - 12, ey - 12, 24, 24); ctx.restore();
+          for (let k = 0; k < 4; k++) if (Math.sin(time * 5 + k * 1.9) > 0.6) { ctx.fillStyle = '#ffe9a8'; ctx.fillRect(ex - 6 + ((k * 7) % 11), ey - 5 - (k % 3) * 2, 1, 1); }
+          // des chevrons dorés qui s'allument l'un après l'autre, vers la gauche : le sens où tirer
+          for (let k = 0; k < 4; k++) {
+            const on = ((Math.floor(time * 5) - k) % 4 + 4) % 4 === 0;
+            ctx.globalAlpha = on ? 0.95 : 0.25;
+            ctx.fillStyle = '#ffd36a';
+            const cxk = ex - 16 - k * 10, cyk = ey - 6;
+            ctx.fillRect(cxk, cyk, 1, 1); ctx.fillRect(cxk + 1, cyk - 1, 1, 1); ctx.fillRect(cxk + 1, cyk + 1, 1, 1); ctx.fillRect(cxk + 2, cyk - 2, 1, 1); ctx.fillRect(cxk + 2, cyk + 2, 1, 1);
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
   }
+
+  /** Un point de la corde dans les mains de KAGE (grip : les mains ; shoulder : le haut de l'épaule). */
+  ropePoint(P, key) {
+    const A = P.meta.animations.rope_pull, pts = A?.[key];
+    const [px, py] = pts?.[P.anim.frame] ?? [P.meta.pivot.x, P.meta.pivot.y - 20];
+    return { x: P.x + P.facing * (px - P.meta.pivot.x), y: P.y + (py - P.meta.pivot.y) };
+  }
+
+  /** Devant KAGE : le brin de corde de l'épaule aux mains, et le bout qui pend sous ses poings. */
+  drawRopeHands(ctx, cam) {
+    const r = this.f?.rope, P = this.level.player;
+    if (!r || r.state !== 'held' || P?.state !== 'rope_pull') return;
+    const a = this.ropePoint(P, 'shoulder'), b = this.ropePoint(P, 'grip');
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
+    const C2 = ROPE_COL;
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i <= n; i++) {
+      const x = R(a.x + (b.x - a.x) * i / n - cam.x), y = R(a.y + (b.y - a.y) * i / n - cam.y);
+      if (pass === 0) { ctx.fillStyle = C2[0]; ctx.fillRect(x - 1, y, 4, 2); }
+      else { ctx.fillStyle = (i >> 1) % 2 ? C2[3] : C2[2]; ctx.fillRect(x, y, 2, 2); }
+    }
+    // le bout qui pend sous ses poings
+    const hx = R(b.x - cam.x), hy = R(b.y - cam.y);
+    ctx.fillStyle = C2[0]; ctx.fillRect(hx - 1, hy + 1, 4, 7);
+    for (let k = 0; k < 6; k++) { ctx.fillStyle = (k >> 1) % 2 ? C2[2] : C2[3]; ctx.fillRect(hx + (k > 3 ? 1 : 0), hy + 1 + k, 2, 1); }
+  }
+
 
   /** La pénombre du souterrain : tout est sombre, sauf autour de KAGE et des champignons allumés. */
   drawDark(ctx, cam, vw, vh, time) {

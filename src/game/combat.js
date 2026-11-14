@@ -22,6 +22,7 @@ export const DAMAGE_TAKEN = {
 export const DAMAGE_DEALT = {
   sword: 2,
   airSword: 3,         // coup aérien à deux mains, plus lourd
+  flipSword: 4,        // coup du salto : le coup aérien porté juste après un salto (le plus puissant)
   shuriken: 1,
   kick: 2,             // coup de pied : comme le sabre, et il repousse (jusque dans le vide)
 };

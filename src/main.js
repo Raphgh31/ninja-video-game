@@ -11,12 +11,13 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { ambience, isMuted, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
+import { Intro } from './game/intro.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -32,6 +33,7 @@ let VIEW_W = DESK_W;
 let VIEW_H = DESK_H;
 let SCALE = 1;
 let touch = null;   // commandes tactiles (créées une fois les sprites chargés)
+let intro = null;   // introduction au lancement (src/game/intro.js), tant qu'elle est à l'écran
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
@@ -125,6 +127,7 @@ function fit() {
   stage.style.setProperty('--gw', `${VIEW_W * SCALE}px`);
   stage.style.setProperty('--gh', `${VIEW_H * SCALE}px`);
   touch?.layout(touchView.w, touchView.h, touchView.scale);
+  if (intro) placeIntro();
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -134,6 +137,25 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
+/**
+ * L'éclat d'un skin légendaire (Lumière d'or) : une poussière de lumière dorée qui tourne autour de KAGE et
+ * scintille, et un léger halo. Purement décoratif : rien ne change dans le jeu.
+ */
+function drawAura(cam) {
+  const t = performance.now() / 1000, x = Math.round(player.x - cam.x), y = Math.round(player.y - cam.y) - 16;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 9; i++) {
+    const a = t * (0.9 + (i % 3) * 0.25) + i * 0.7, r = 11 + (i % 4) * 3 + Math.sin(t * 2 + i) * 2;
+    const px = x + Math.round(Math.cos(a) * r), py = y + Math.round(Math.sin(a) * r * 0.8 - ((t * 9 + i * 7) % 10));
+    const k = 0.5 + 0.5 * Math.sin(t * 6 + i * 2.1);
+    ctx.globalAlpha = 0.25 + 0.6 * k;
+    ctx.fillStyle = i % 3 ? '#ffd86a' : '#fff6c8';
+    ctx.fillRect(px, py, 1, 1);
+    if (k > 0.85) { ctx.fillRect(px - 1, py, 3, 1); ctx.fillRect(px, py - 1, 1, 3); }
+  }
+  ctx.restore();
+}
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 // version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
 // et un panneau en haut à droite : skins sans achat, choix du chapitre, saut de zone en zone
@@ -146,6 +168,7 @@ const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
 const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
+if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
   bgCanvas.hidden = false;
@@ -216,6 +239,7 @@ shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 const fx = new Fx();
 player.onEvent = (n, d) => {
   switch (n) {
+    case 'flip': sfx('flip'); break;
     case 'jump': sfx('jump'); fx.dust(d.x, d.y, 5, { spread: 25, up: 15 }); break;
     case 'land':
       if (d.speed > 140) {
@@ -243,18 +267,36 @@ player.onEvent = (n, d) => {
     case 'wall_jump': sfx('wallJump'); fx.dust(d.x + d.side * 5, d.y - 12, 6, { dir: -d.side, spread: 40, up: 20 }); break;
     case 'swing': sfx('swing'); break;
     case 'swing_heavy': sfx('swingHeavy'); break;
+    case 'swing_power': sfx('swingPower'); break;
+    // coup du salto : reflet sur la lame dressée, puis éclat de lumière quand elle arrive en bas
+    case 'blade_glint': {
+      // le reflet suit la lame dressée pendant toute la charge (tremblement compris)
+      const dx = d.x - player.x, dy = d.y - player.y, f0 = player.facing;
+      fx.flash(d.x, d.y, { size: 6, life: 0.22, halo: 4, follow: () => ({ x: player.x + dx * player.facing * f0 + (player.anim.frame === 2 ? player.facing : 0), y: player.y + dy }) });
+      break;
+    }
+    case 'blade_flash':
+      sfx('bladeFlash');
+      {
+        const dx = d.x - player.x, dy = d.y - player.y, f0 = player.facing;
+        fx.flash(d.x, d.y, { size: 15, life: 0.34, halo: 11, follow: () => ({ x: player.x + dx * player.facing * f0, y: player.y + dy }) });
+      }
+      fx.sparks(d.x, d.y, 7, { speed: 85 });
+      fx.shake(2, 0.22);
+      break;
     case 'kick_breath': sfx('breath'); break;
     // lianes de la Forêt
     case 'fall_death': sfx('land', { strength: 1 }); fx.shake(2, 0.25); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
     case 'vine_grab': sfx('vineGrab', { still: d.still }); fx.drift(player.x, player.y - 24, 3, { palette: 'leaf', speed: 30, up: 10, life: 0.9, g: 30 }); break;
-    case 'vine_release': sfx('vineRelease'); break;
+    case 'vine_release': sfx('vineRelease'); if (d.perfect) { sfx('flip'); fx.drift(d.x, d.y - 20, 5, { palette: 'leaf', speed: 50, up: 20, life: 0.8, g: 40 }); } break;
     case 'vine_step': sfx('vineStep'); break;
-    case 'kick': sfx('kick'); fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
+    case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
+    case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
     case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls; break;
     case 'respawn': sfx('respawn'); break;
     default:
@@ -461,11 +503,19 @@ level.onEvent = (n, d) => {
     case 'branchSnap': sfxAt('crumbleFall', d, {}, 1.3); fx.sparks(d.x - 4, d.y + 2, 7, { speed: 70, palette: 'dirt' }); fx.drift(d.x - d.w / 2, d.y - 4, 9, { palette: 'leaf', speed: 45, up: 20, life: 1.6 }); fx.shake(0.5, 0.12); break;
     case 'logDip': sfxAt('logDip', d); fx.sparks(d.x, d.y + 8, 4, { palette: 'water', speed: 40 }); break;
     case 'eyeLit': sfx('eyeLit', { both: d.both }); fx.sparks(d.x, d.y, 10, { palette: 'glow', speed: 55 }); break;
-    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 2.8); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    case 'gateOpen': sfx('jawOpen'); fx.shake(0.5, 1.2); fx.dust(d.x, d.y, 8, { spread: 12, up: 8, life: 0.8 }); if (save) { save.statue = true; persist(); } break;
+    // la corde de la statue : la saisir, la tirer (elle grince, le bloc racle), la lâcher, le bloc qui retombe
+    case 'ropeGrab': sfx('vineGrab', { still: true }); break;
+    case 'ropeRelease': sfx('vineRelease'); break;
+    case 'ropeStrain': sfxAt('crumbleCreak', d); break;
+    case 'ropeHeave': fx.shake(0.6, 0.2); sfxAt('crumbleCreak', d); break;
+    case 'ropeBreath': sfx('breath'); break;
+    case 'blockFall': sfx('land', { strength: 1 }); fx.shake(1.5, 0.3); fx.dust(d.x, d.y, 10, { spread: 18, up: 6, life: 0.6 }); break;
     case 'gateDone': sfx('jawDone'); fx.shake(1.2, 0.25); fx.dust(d.x, d.y - 32, 8, { spread: 14, up: -6, life: 0.9 }); break;
-    case 'slideStart': sfx('slideStart'); fx.shake(1, 0.8); slideRumble = 0.5; break;
+    case 'slideStart': sfx('slideStart'); if (d.pile) { sfx('boulderLand'); fx.shake(2.6, 1.1); } else fx.shake(1, 0.8); slideRumble = 0.5; break;
     case 'slideHit': sfx('slideHit'); fx.shake(2.4, 0.4); fx.dust(d.x, d.y, 10, { spread: 40, up: 30, life: 0.8 }); break;
     case 'slideEnd': sfxAt('slideEnd', d); fx.shake(1.2, 0.3); break;
+    case 'pileCreak': sfxAt('crumbleCreak', d); fx.shake(0.4 + d.k * 0.8, 0.22); break;
     case 'birds': sfxAt('birds', d); fx.drift(d.x, d.y - 4, 3, { palette: 'feather', speed: 30, up: 20 }); break;
     case 'craneLand':
       sfx('boulderLand');
@@ -490,7 +540,8 @@ refreshMute();
 const music = new Music();
 music.load(level.music);
 music.add('boss', level.bossMusic);
-const onGesture = () => { unlockAudio(); music.start(); };
+// (pendant l'introduction, c'est sa propre musique qui joue : celle du chapitre attend la fin)
+const onGesture = () => { unlockAudio(); if (!intro || intro.closing) music.start(); };
 for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
 
 // barres de vie fines au-dessus de chaque personnage
@@ -550,7 +601,7 @@ function setupSkinLab() {
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Skins');
   const f = meta.animations.idle.frames[0];
-  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
+  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0) || skins[a].name.localeCompare(skins[b].name));
   const buttons = ids.map((id, i) => {
     const b = button('', `${skins[id].name} (touche ${i + 1})`, () => pick(id));
     b.dataset.skin = id;
@@ -584,6 +635,7 @@ function setupSkinLab() {
     const b = button(`Chapitre ${l.chapter}`, l.name, () => {
       if (id === LEVEL_ID) { gotoZone(0); return; }
       labSet('chapter', id);
+      sessionStorage.setItem('kage-sans-intro', '1');   // on change de chapitre : pas d'intro
       location.hash = `#${id}`;
       location.reload();
     });
@@ -591,7 +643,22 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
+  again.dataset.labIntro = '';
+  row.append(again);
   lab.append(row);
+  // témoin du son (pour comprendre, sur l'appareil de l'utilisateur, pourquoi une musique ne sort pas)
+  const sound = document.createElement('div');
+  sound.className = 'lab__row lab__sound';
+  const soundText = document.createElement('span');
+  sound.append(soundText);
+  lab.append(sound);
+  const SOUND = { running: 'en marche', suspended: 'suspendu', interrupted: 'interrompu', closed: 'fermé' };
+  setInterval(() => {
+    const ac = audioOutput()?.ac;
+    const it = !intro || intro.closing ? 'finie' : intro.gated ? 'en attente' : intro.voice ? 'musique' : intro.waking ? 'démarrage…' : 'sans musique';
+    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
+  }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
   if (level.zones.length) {
     const zr = document.createElement('div');
@@ -655,16 +722,17 @@ function update(dt) {
   }
   const ab = player.attackBox();
   if (ab) {
-    const heavy = player.state === 'air_attack';
+    const power = player.state === 'flip_attack';
+    const heavy = player.state === 'air_attack' || power;
     level.hitGongs(ab);
     for (const t of enemies) {
       swordStrike = true;
-      const r = t.takeHit(ab, player.x, player.attackId, heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
+      const r = t.takeHit(ab, player.x, player.attackId, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
       swordStrike = false;
       if (r === 'hit') {
         sfx('bladeHit', { heavy });
-        fx.hitStop(heavy ? 0.11 : 0.07);
-        if (heavy) fx.shake(2, 0.18);
+        fx.hitStop(power ? 0.15 : heavy ? 0.11 : 0.07);
+        if (heavy) fx.shake(power ? 3 : 2, power ? 0.26 : 0.18);
       } else if (r === 'blocked') {
         fx.hitStop(0.04);
       }
@@ -872,6 +940,7 @@ function draw() {
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
+  if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);
@@ -952,19 +1021,21 @@ const HINTS = {
   wall: ['Espace contre un mur, en tombant : saut mural', 'Bouton saut contre un mur, en tombant : saut mural'],
   rope: ['C : un shuriken coupe la corde de la grue', 'Bouton shuriken : couper la corde de la grue'],
   airAttack: ['En l\'air, X : coup de sabre plongeant', 'En l\'air, bouton sabre : coup plongeant'],
-  vine: ['← → tenue : s\'accrocher à la liane — tout relâcher : la lâcher', 'Joystick tenu : s\'accrocher à la liane — le relâcher : la lâcher'],
+  haul: ['↑ : saisir la corde — ← : tirer — Espace : lâcher', 'Saut : saisir la corde — joystick : tirer — saut : lâcher'],
+  vine: ['← → tenue : s\'accrocher, pousser en rythme — tout relâcher : lâcher', 'Joystick tenu : s\'accrocher, pousser en rythme — relâcher : lâcher'],
 };
 const HINT_USED = {
   move: () => Math.abs(player.x - startX) > 48,
-  jump: () => player.state === 'jump',
+  jump: () => player.state === 'jump' || player.isFlipping(),
   sprint: () => player.state === 'sprint',
   dash: () => player.state === 'dash',
-  kick: () => player.state === 'kick',
-  attack: () => player.state === 'attack' || player.state === 'air_attack',
+  kick: () => player.state === 'kick' || player.state === 'air_kick',
+  attack: () => player.state === 'attack' || player.state === 'air_attack' || player.state === 'flip_attack',
   slide: () => player.state === 'slide',
   wall: () => player.state === 'wall_jump',
   rope: () => level.cranes.some((c) => c.cut),
-  airAttack: () => player.state === 'air_attack',
+  airAttack: () => player.state === 'air_attack' || player.state === 'flip_attack',
+  haul: () => player.state === 'rope_pull',
   vine: () => player.state === 'vine',
 };
 
@@ -983,7 +1054,7 @@ function updateChapterUi(dt) {
   ui.zone.classList.toggle('on', zoneTimer > 0);
   // aides : une seule commande à la fois, au moment où elle sert
   for (const h of level.hints) {
-    if (hintsDone.has(h.kind) || player.x < h.x * 16) continue;
+    if (hintsDone.has(h.kind) || player.x < h.x * 16 || (h.y != null && Math.abs(player.y - h.y * 16) > 40)) continue;
     if (!hint || hint.kind !== h.kind) hint = { kind: h.kind, t: 0 };
   }
   if (hint) {
@@ -1101,6 +1172,72 @@ function startChapter(resume) {
   run.title = false;
   run.paused = false;
   persist();
+  endIntro();
+}
+
+/** Introduction au lancement : l'encre, la lune, KAGE ; puis le menu (les boutons de l'écran titre). */
+let introKick = null;   // le coup de pied sauté de l'intro (kage_intro_kick.png, généré par tools/kage_forge/intro_kick.py)
+async function playIntro() {
+  introKick ??= await loadImage(`./characters/kage/${meta.intro.image}`);
+  const title = document.querySelector('.title-screen');
+  if (intro) { intro.stop(); intro.stopVoice?.(0.3); intro.el.remove(); }
+  if (music.playing) music.setLevel(0, 0.8);    // (version de test : on rejoue l'intro en pleine partie)
+  intro = new Intro(meta, introKick, LEVEL_ID === 'potager' ? level.art?.backdrop?.far : null, { touch: MOBILE });
+  uiLayer.append(intro.el);
+  placeIntro();
+  title.hidden = false;
+  title.classList.add('with-intro', 'waiting');
+  run.title = true;
+  run.paused = true;
+  const it = intro;
+  it.onMenu = () => {
+    title.classList.remove('waiting');
+    // un peu plus tard : la touche qui a passé l'intro ne doit pas aussi choisir dans le menu
+    setTimeout(() => { if (intro === it) { const c = title.querySelector('[data-continue]'); (c.hidden ? title.querySelector('[data-new]') : c).focus(); } }, 350);
+  };
+  // la musique finit : le menu s'efface avec l'image, puis l'intro recommence (le menu revient à son heure)
+  it.onFade = () => { title.classList.add('waiting'); document.activeElement?.blur?.(); };
+  it.start();
+  // sans son (coupé), ou son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
+  if (isMuted()) it.begin(false);
+  else if (musicOutput()?.ac.state === 'running') it.begin(true);
+}
+/** Place l'intro et le menu sur l'image de jeu (à chaque changement de taille). */
+function placeIntro() {
+  intro.resize(VIEW_W, VIEW_H);
+  document.querySelector('.title-screen').style.setProperty('--menu-y', `${intro.menuY}px`);
+}
+/**
+ * Les gestes pendant l'intro. Le premier la lance avec sa musique : seulement au clic complet, au doigt
+ * levé ou à une touche, les seuls gestes après lesquels tous les navigateurs permettent le son (le
+ * bouton ou le doigt qui se pose ne suffit pas partout : l'intro partait alors muette). Ensuite, une
+ * touche ou un toucher l'amène à sa fin ; et tant que sa musique n'est pas partie, chaque geste la
+ * relance (comme celle du jeu). Les clics du panneau de la version de test ne comptent pas.
+ */
+function introGesture(e) {
+  if (!intro || intro.closing || e.target?.closest?.('.lab')) return;
+  if (e.type !== 'keydown' && !stage.contains(e.target)) return;   // (souris et doigt : sur l'image du jeu seulement)
+  if (intro.gated) {
+    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(!isMuted()); intro.begunAt = performance.now(); }
+    return;
+  }
+  // (le geste qui vient de lancer l'intro ne la passe pas : une touche tenue, ou le clic qui suit le doigt levé)
+  const fresh = performance.now() - (intro.begunAt ?? 0) < 400;
+  if ((e.type === 'keydown' || e.type === 'pointerdown') && !fresh && !intro.menuShown) intro.skip();
+  if (!intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
+}
+for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(t, introGesture, { capture: true, passive: true });
+/** La partie commence : l'intro s'efface sur le jeu. */
+function endIntro() {
+  const title = document.querySelector('.title-screen');
+  title.classList.remove('with-intro', 'waiting');
+  if (!intro || intro.closing) return;
+  const it = intro;
+  it.closing = true;
+  it.close(() => { if (intro === it) intro = null; });
+  // la musique de l'intro s'éteint en fondu, celle du chapitre monte
+  music.setLevel(1, 0);
+  music.start();
 }
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');
@@ -1124,7 +1261,14 @@ if (CHAPTER) {
     delete save.intro;
     persist();
     chapterCard(level.intro, true);
-  } else if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite
+  } else {
+    if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
+    // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni dans la version
+    // de test quand on vient de changer de chapitre par le panneau
+    const quiet = globalThis.__KAGE_SKIP_INTRO || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
+    sessionStorage.removeItem('kage-sans-intro');
+    if (!quiet) playIntro();
+  }
 }
 
 /** Carte de chapitre : noire, le titre ; fadeOut = elle part de noir et s'efface sur le jeu. */
@@ -1272,7 +1416,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; },
+window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

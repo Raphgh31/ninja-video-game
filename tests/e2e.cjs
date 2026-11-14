@@ -12,6 +12,11 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 async function main() {
   const browser = await chromium.launch();
+  // l'introduction du lancement est passée dans les tests (window.__KAGE_SKIP_INTRO) ; un test la joue
+  const rawNewContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await rawNewContext(o); await c.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return c; };
+  const rawNewPage = browser.newPage.bind(browser);
+  browser.newPage = async (o) => { const p = await rawNewPage(o); await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; }); return p; };
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -110,6 +115,34 @@ async function main() {
     expect(seen.has('skid'), `états vus : ${[...seen].join(', ')}`);
   });
 
+  await test('salto au 2e appui sur saut : avant, arrière (← tenue) ; un saut simple n\'en fait pas', async () => {
+    // inAir : la direction n'est tenue qu'une fois en l'air (sinon, tenue au sol, KAGE se retournerait
+    // avant de décoller et le salto serait, à juste titre, un salto avant)
+    const jumpWith = async (key, second, inAir = false) => {
+      await reset(); await ev(() => { window.__kage.player.facing = 1; });
+      if (key && !inAir) await k.down(key);
+      await k.down('Space'); await wait(60);
+      if (key && inAir) await k.down(key);
+      await wait(60); await k.up('Space');
+      if (second) { await k.down('Space'); await wait(40); await k.up('Space'); }
+      const seen = new Set(), frames = new Set(), facing = new Set();
+      let y0 = null, top = 0;
+      for (let i = 0; i < 70; i++) {
+        const q = await ev(() => { const p = window.__kage.player; return { s: p.state, f: p.anim.frame, d: p.facing, y: p.y }; });
+        seen.add(q.s); if (q.s === 'flip' || q.s === 'backflip') { frames.add(q.f); facing.add(q.d); }
+        y0 ??= q.y; top = Math.max(top, 192 - q.y);
+        await wait(16);
+      }
+      if (key) await k.up(key);
+      return { seen: [...seen], frames: [...frames].sort((a, b) => a - b), facing: [...facing], top: Math.round(top) };
+    };
+    const av = await jumpWith('ArrowRight', true), ar = await jumpWith('ArrowLeft', true, true), dr = await jumpWith('ArrowRight', false);
+    expect(av.seen.includes('flip') && av.frames.includes(5) && av.frames.includes(10), `avant : ${JSON.stringify(av)}`);
+    expect(ar.seen.includes('backflip') && ar.facing.join() === '1' && ar.frames.includes(5), `arrière (KAGE garde son orientation) : ${JSON.stringify(ar)}`);
+    expect(dr.seen.includes('jump') && !dr.seen.includes('flip') && !dr.seen.includes('backflip'), `saut simple en courant : ${dr.seen.join(',')}`);
+    expect(av.top <= 50 + 10, `envolée bridée : ${av.top} px au plus haut (saut plein : 50)`);
+  });
+
   await test('sabre de face : bloqué par TATE', async () => {
     await reset(440, 192, 480);
     await ev(() => { window.__kage.tate.facing = -1; window.__kage.player.facing = 1; });
@@ -189,6 +222,52 @@ async function main() {
     expect(s.state === 'wall_jump' && s.vx < 0, `état ${s.state}, vx ${s.vx}`);
   });
 
+  await test('enchaînement de sauts muraux à coups de saut répétés : aucun salto', async () => {
+    await reset(1156, 120);
+    const r = await ev(() => {
+      const g = window.__kage, inp = g.input, seen = new Set(), pl = g.player;
+      let walls = 0, dir = -1;
+      const emit = pl.emit; pl.emit = function (n, d) { if (n === 'wall_jump') { walls++; dir = -dir; } return emit.call(this, n, d); };
+      for (let n = 0; n < 240; n++) {
+        inp.setHeld('left', dir < 0); inp.setHeld('right', dir > 0);
+        if (n % 9 === 0) { inp.setHeld('jump', false); g.step(1); inp.setHeld('jump', true); }   // appuis rapprochés, comme un joueur pressé
+        g.step(1);
+        seen.add(pl.state);
+        if (pl.onGround) break;            // (de retour au sol : un nouveau saut peut de nouveau faire un salto)
+      }
+      pl.emit = emit;
+      g.resume();                          // (retour au temps réel pour les tests suivants)
+      for (const a of ['left', 'right', 'jump']) inp.setHeld(a, false);
+      return { walls, seen: [...seen] };
+    });
+    expect(r.walls >= 2 && !r.seen.includes('flip') && !r.seen.includes('backflip'), JSON.stringify(r));
+  });
+
+  await test('coup du salto : sabre en l\'air après un salto = 4 dégâts (3 sans salto), éclat de lumière', async () => {
+    await reset();
+    const r = await ev(() => {
+      const g = window.__kage, inp = g.input, pl = g.player, w = g.waras[0], out = [];
+      for (const flip of [true, false]) {
+        pl.respawn(true); pl.x = 300; pl.y = 192; pl.facing = 1;
+        w.reset(); w.x = 370; w.hp = 10; w.rest = 99;
+        const ev = new Set(), emit = pl.emit; pl.emit = function (n, d) { ev.add(n); return emit.call(this, n, d); };
+        inp.setHeld('right', true);
+        inp.setHeld('jump', true); g.step(12); inp.setHeld('jump', false); g.step(1);
+        if (flip) { inp.setHeld('jump', true); g.step(40); inp.setHeld('jump', false); }
+        inp.pressed.add('attack'); g.step(1);
+        const state = pl.state;
+        for (let n = 0; n < 150 && !pl.onGround; n++) g.step(1);
+        g.step(30);
+        pl.emit = emit; inp.setHeld('right', false);
+        out.push({ state, hp: w.hp, flash: ev.has('blade_flash') });
+      }
+      g.resume();
+      return out;
+    });
+    expect(r[0].state === 'flip_attack' && r[0].hp === 6 && r[0].flash, `après un salto : ${JSON.stringify(r[0])}`);
+    expect(r[1].state === 'air_attack' && r[1].hp === 7 && !r[1].flash, `sans salto : ${JSON.stringify(r[1])}`);
+  });
+
   await test('sabre et shuriken en l\'air', async () => {
     await reset(300);
     await k.press('Space'); await wait(120); await k.press('KeyX'); await wait(30);
@@ -233,6 +312,20 @@ async function main() {
     await k.press('KeyB'); await wait(40);
     const c = await S();
     expect(c.state === 'kick', `après le délai : état ${c.state}`);
+  });
+
+  await test('coup de pied sauté : en l\'air, le coup de pied a sa propre animation (celle de l\'intro) et frappe jambe tendue', async () => {
+    await reset(); await wait(450);   // délai du coup de pied précédent
+    await k.down('Space'); await wait(120); await k.up('Space');
+    await k.press('KeyB'); await wait(30);
+    const a = await S();
+    let box = null, f = -1;
+    for (let i = 0; i < 40 && !box; i++) { [box, f] = await ev(() => { const p = window.__kage.player, b = p.kickBox(); return [b && { x: b.x, w: b.w, px: p.x }, p.anim.frame]; }); if (!box) await wait(10); }
+    for (let i = 0; i < 120; i++) { const s = await S(); if (s.state !== 'air_kick' && s.state !== 'fall') break; await wait(15); }
+    const c = await S();
+    expect(a.state === 'air_kick' && box && f === 2 && box.x > box.px && ['land', 'idle', 'run'].includes(c.state),
+      `état ${a.state}, zone ${JSON.stringify(box)} (image ${f}), à la fin ${c.state}`);
+    await wait(400);   // le délai du coup de pied, pour les tests suivants
   });
 
   // ---- WARA ------------------------------------------------------------------
@@ -354,6 +447,17 @@ async function main() {
     expect(a.s === 'run' && !a.sprint, `léger : ${a.s}`);
     expect(b.s === 'sprint' && b.sprint, `poussé : ${b.s}`);
     expect(c.s === 'run' && !c.sprint, `relâché : ${c.s}`);
+  });
+
+  await test('tactile : deuxième appui sur le bouton saut = salto', async () => {
+    await mReset(); await m.evaluate(() => { window.__kage.player.facing = 1; }); await m.waitForTimeout(250);
+    await T('touchStart', [[788, 330, 2]]); await m.waitForTimeout(120); await T('touchEnd', []);
+    await m.waitForTimeout(40);
+    await T('touchStart', [[788, 330, 3]]); await m.waitForTimeout(40); await T('touchEnd', []);
+    const seen = new Set();
+    for (let i = 0; i < 12; i++) { seen.add(await mState()); await m.waitForTimeout(30); }
+    await m.waitForTimeout(600);
+    expect(seen.has('flip'), `états vus : ${[...seen].join(', ')}`);
   });
 
   await test('tactile : dash au coup de joystick relâché, pas au retour au centre', async () => {
@@ -937,31 +1041,92 @@ async function main() {
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
   });
 
-  await test('potager : skins — le vagabond (50 ryō) s\'achète chez le marchand, se porte et est sauvegardé', async () => {
+  await test('potager : boutique plein écran — tous les skins en vente ; une carte ouvre le skin en grand ; l\'achat se confirme, se porte et est sauvegardé', async () => {
     const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
     await pat(mx - 1); await pw(200);
     const before = await pg.evaluate(() => window.__kage.save.ryo);
     await pg.evaluate(() => { window.__kage.save.ryo = 40; });
     await PK.press('ArrowUp'); await pw(200);
-    const rows = await pg.evaluate(() => [...document.querySelectorAll('.shop__item')].map((r) => r.dataset.skin + ':' + r.querySelector('button').textContent));
-    // trop pauvre : rien ne change
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
-    const poor = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin]);
+    // tout l'écran de jeu, et les douze skins (du moins cher au plus cher)
+    const look = await pg.evaluate(() => { const s = document.querySelector('.shop').getBoundingClientRect(), g = document.querySelector('#game').getBoundingClientRect();
+      return [Math.abs(s.width - g.width) < 4 && Math.abs(s.height - g.height) < 4, [...document.querySelectorAll('.shop__card')].map((c) => c.dataset.skin).join()]; });
+    const detail = () => pg.evaluate(() => [document.querySelector('.shop__name')?.textContent, document.querySelector('[data-action]')?.textContent ?? '', !!document.querySelector('[data-confirm]')]);
+    await pg.click('[data-skin="paysan"]'); await pw(100);
+    const shown = await detail();
+    // trop pauvre : pas de confirmation, rien ne change
+    await pg.click('[data-action]'); await pw(100);
+    const poor = [...await detail(), ...await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin])];
     await pg.evaluate(() => { window.__kage.save.ryo = 130; });
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
+    const ask = await detail();
+    await pg.click('[data-confirm]'); await pw(100);
     const bought = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin, document.querySelector('[data-purse]').textContent,
-      document.querySelector('[data-skin="vagabond"] button').textContent]);
-    // retour à Encre puis de nouveau le vagabond, sans payer
-    await pg.click('[data-skin="encre"] button'); await pw(100);
-    const back = await pg.evaluate(() => [window.__kage.skin, document.querySelector('[data-skin="vagabond"] button').textContent]);
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+      document.querySelector('[data-action]').textContent, document.querySelector('[data-skin="paysan"] .shop__tag').textContent]);
+    // retour à Encre puis de nouveau le paysan, sans payer
+    await pg.click('[data-skin="encre"]'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
+    const back = await pg.evaluate(() => [window.__kage.skin, document.querySelector('[data-skin="paysan"] .shop__tag').textContent]);
+    await pg.click('[data-skin="paysan"]'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(rows.join() === 'encre:Porté,vagabond:Acheter · 50 ryō' && poor.join() === '40,encre'
-      && bought.join() === '80,vagabond,80 ryō,Porté' && back.join() === 'encre,Porter'
-      && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 80,
-      `rayon ${rows.join()} · pauvre ${poor.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
+    expect(look[0] && look[1] === 'encre,voyageur,paysan'
+      && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
+      && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
+      && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
+      `écran ${look.join(' ')} · détail ${shown.join()} · pauvre ${poor.join()} · question ${ask.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
+  });
+
+  await test('introduction : un geste la lance, l\'encre, la lune, KAGE figé au centre de la lune ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
+    const ictx = await rawNewContext({ viewport: { width: 1280, height: 720 } }), ip = await ictx.newPage();
+    await ip.goto(PAGE); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
+    await ip.evaluate(() => localStorage.clear()); await ip.reload(); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
+    // elle attend le geste qui lance l'intro et sa musique (sauf si le navigateur joue déjà du son)
+    await ip.waitForTimeout(300);
+    const g = await ip.evaluate(() => [window.__kage.intro.gated, window.__kage.intro.t]);
+    if (g[0]) { await ip.keyboard.press('KeyX'); }
+    await ip.waitForTimeout(600);
+    const a = await ip.evaluate(() => { const it = window.__kage.intro, v = window.__kage.view(), t = document.querySelector('.title-screen');
+      return [it.el.width === v.w && it.el.height === v.h, t.classList.contains('waiting'), window.__kage.run.paused, it.t > 0 && it.t < 6,
+        it.titleY > it.moonY1 + 40 && it.menuY + 16 <= v.h]; });
+    await ip.keyboard.press('KeyZ');
+    await ip.waitForFunction(() => document.activeElement?.dataset.new != null, null, { timeout: 3000 }).catch(() => {});
+    const b = await ip.evaluate(() => { const it = window.__kage.intro; const k = it.kage(it.t), s = it.silhouette(k.i);
+      return [it.menuShown, document.querySelector('.title-screen').classList.contains('waiting'), k.i === window.__kage.intro.meta.intro.hold, document.activeElement?.dataset.new != null, Math.abs(k.x + s.cx - it.moonX) <= 1 && Math.abs(k.y + s.cy - it.moonY1) <= 1]; });
+    await ip.click('[data-new]'); await ip.waitForTimeout(400);
+    const c = await ip.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.intro?.el.classList.contains('out'), window.__kage.run.paused]);
+    await ip.waitForTimeout(1600);
+    const d = await ip.evaluate(() => [window.__kage.intro, document.querySelectorAll('.intro').length]);
+    // jouée jusqu'au bout (en accéléré, par la boucle de l'intro elle-même) : le menu arrive, KAGE est figé en coup de pied
+    const ip2 = await ictx.newPage();
+    await ip2.goto(PAGE); await ip2.waitForFunction(() => window.__kage && window.__kage.intro);
+    const e = await ip2.evaluate(() => { const it = window.__kage.intro, title = document.querySelector('.title-screen'); it.stop(); it.begin(false);
+      for (let i = 0; i < 16 * 60; i++) { it.update(1 / 60); it.draw(); }
+      const r = [it.menuShown, it.kage(it.t).i === it.meta.intro.hold, title.classList.contains('waiting')];
+      // la musique finie (≈ 64 s) : fondu au noir, le menu s'efface, puis tout recommence depuis le noir
+      let faded = false;
+      for (let i = 0; i < 52 * 60; i++) { it.update(1 / 60); if (it.fading && title.classList.contains('waiting')) faded = true; if (it.t < 1) break; }
+      return [...r, faded, it.t < 1 && !it.menuShown && !it.gated]; });
+    // comme dans un artefact claude.ai : le son est encore suspendu au moment du geste qui lance l'intro
+    // (il ne se débloque qu'un instant après) ; la musique doit quand même partir
+    const ip3 = await ictx.newPage();
+    await ip3.goto(PAGE); await ip3.waitForFunction(() => window.__kage && window.__kage.intro); await ip3.waitForTimeout(500);
+    await ip3.evaluate(async () => { const it = window.__kage.intro; if (it.out) { it.stopVoice(0); await it.out.ac.suspend(); } it.gated = true; it.clock = null; });
+    // au clic : le bouton qui se pose ne la lance pas encore (pas partout permis pour le son), le bouton relâché si
+    await ip3.mouse.move(640, 300); await ip3.mouse.down(); await ip3.waitForTimeout(80);
+    const waited = await ip3.evaluate(() => window.__kage.intro.gated);
+    await ip3.mouse.up();
+    const heard = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
+    // l'intro déjà lancée sans musique (le premier geste n'a rien débloqué) : le geste suivant la relance
+    await ip3.evaluate(async () => { const it = window.__kage.intro; it.stopVoice(0); await it.out.ac.suspend(); it.clock = null; });
+    await ip3.keyboard.press('KeyX');
+    const again = await ip3.waitForFunction(() => window.__kage.intro.clock && window.__kage.intro.voice, null, { timeout: 4000 }).then(() => true, () => false);
+    await ictx.close();
+    expect(waited && heard && again, `la musique de l'intro (attente au bouton posé : ${waited}, part au clic : ${heard}, au geste suivant : ${again})`);
+    expect(e.join() === 'true,true,false,true,true', `jouée jusqu'au bout, puis en boucle ${e}`);
+    expect(a.join() === 'true,true,true,true,true' && (g[0] || g[1] > 0) && b.join() === 'true,false,true,true,true' && c.join() === 'true,true,false' && d.join() === ',0',
+      `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
 
   await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
@@ -979,7 +1144,7 @@ async function main() {
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,encre,2' && r2 === 'vagabond' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+    expect(r0.join() === 'true,false,encre,3' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -994,11 +1159,12 @@ async function main() {
     });
     await tp.waitForTimeout(300);
     await tp.keyboard.press('ArrowUp'); await tp.waitForTimeout(200);
-    const label = await tp.evaluate(() => document.querySelector('[data-skin="vagabond"] button')?.textContent);
-    await tp.click('[data-skin="vagabond"] button'); await tp.waitForTimeout(100);
+    await tp.click('[data-skin="paysan"]'); await tp.waitForTimeout(100);
+    const label = await tp.evaluate(() => document.querySelector('[data-action]')?.textContent);
+    await tp.click('[data-action]'); await tp.waitForTimeout(100);
     const r = await tp.evaluate(() => [window.__kage.skin, window.__kage.save.ryo]);
     await tp.close();
-    expect(label === 'Porter' && r.join() === 'vagabond,0', `bouton ${label}, skin ${r.join()}`);
+    expect(label === 'Porter' && r.join() === 'paysan,0', `bouton ${label}, skin ${r.join()}`);
   });
 
   // ---- zone 9 : KARASU-KASHI, le corbeau du potager ----

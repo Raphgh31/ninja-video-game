@@ -32,9 +32,9 @@ export class Level {
     this.backdrops = def.backdrops ?? [];
     this.coins = [];         // ryō : { id, x, y, taken }
     this.crates = new Map(); // caisses : 'tx,ty' -> { tx, ty } (tant qu'elles ne sont pas brisées)
-    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt }
+    // coffres à ouvrir (↑ / E) : { id, x (centre), y (sol), ryo, open, openedAt } ; dx : décalage (px), pour centrer un coffre dans un creux
     this.chests = this.props.filter((p) => p.type === 'chest')
-      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2, y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
+      .map((p) => ({ id: p.id, x: p.x * TILE + TILE / 2 + (p.dx ?? 0), y: p.y * TILE, ryo: p.ryo ?? 10, open: false, openedAt: -9 }));
     this.merchant = null;
     this.time = 0;
     this.rows = MAP.map((r) => r.padEnd(MAP[0].length, '.'));
@@ -281,7 +281,8 @@ export class Level {
   solid(tx, ty) {
     const c = this.at(tx, ty);
     return c === '#' || c === '=' || c === '|' || c === 'B' || c === '%' || c === 'K' || (c === 'D' && this.doorT < this.doorTime * 0.6)
-      || (c === 'J' && !this.forest?.statueOpen);
+      || (c === 'J' && !this.forest?.gateOpen?.(ty))   // le bloc de la statue : levé d'une case, il laisse passer en glissade
+      || (c === 'Q' && !this.forest?.slide?.pileGone);  // les paliers de l'amas de la descente, tant qu'il tient
   }
 
   /** Passerelle « - » (poutre de charpente, plateforme de bois légère) : on la
@@ -580,6 +581,16 @@ export class Level {
     const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);
     const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.at(tx, ty) === 'v') return true;
+    return false;
+  }
+
+  /** L'eau (bassins, canaux, torrent, fonds des grands trous) : on y tombe dès qu'on y met les pieds. */
+  hitsWater(box) {
+    const x0 = Math.floor(box.x / TILE), x1 = Math.floor((box.x + box.w - 1) / TILE);
+    const y0 = Math.floor(box.y / TILE), y1 = Math.floor((box.y + box.h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      if (this.at(tx, ty) === '~' && box.y + box.h > ty * TILE + 4) return true;
+    }
     return false;
   }
 
