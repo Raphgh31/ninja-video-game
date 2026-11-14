@@ -309,6 +309,36 @@
       "slot": "C",
       "part": "cord",
       "role": "shadow"
+    },
+    {
+      "index": 37,
+      "slot": "b",
+      "part": "gear",
+      "role": "shadow"
+    },
+    {
+      "index": 38,
+      "slot": "B",
+      "part": "gear",
+      "role": "base"
+    },
+    {
+      "index": 39,
+      "slot": "i",
+      "part": "gear",
+      "role": "light"
+    },
+    {
+      "index": 40,
+      "slot": "j",
+      "part": "gear2",
+      "role": "shadow"
+    },
+    {
+      "index": 41,
+      "slot": "J",
+      "part": "gear2",
+      "role": "base"
     }
   ],
   "animations": {
@@ -1633,10 +1663,14 @@
   },
   "skins": [
     "encre",
-    "vagabond"
+    "paysan",
+    "vagabond",
+    "voyageur"
   ],
   "accessorySheets": {
-    "vagabond": "kage_acc_vagabond_index.png"
+    "paysan": "kage_acc_paysan_index.png",
+    "vagabond": "kage_acc_vagabond_index.png",
+    "voyageur": "kage_acc_voyageur_index.png"
   },
   "projectiles": {
     "shuriken": {

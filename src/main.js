@@ -137,6 +137,25 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
+/**
+ * L'éclat d'un skin légendaire (Lumière d'or) : une poussière de lumière dorée qui tourne autour de KAGE et
+ * scintille, et un léger halo. Purement décoratif : rien ne change dans le jeu.
+ */
+function drawAura(cam) {
+  const t = performance.now() / 1000, x = Math.round(player.x - cam.x), y = Math.round(player.y - cam.y) - 16;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 9; i++) {
+    const a = t * (0.9 + (i % 3) * 0.25) + i * 0.7, r = 11 + (i % 4) * 3 + Math.sin(t * 2 + i) * 2;
+    const px = x + Math.round(Math.cos(a) * r), py = y + Math.round(Math.sin(a) * r * 0.8 - ((t * 9 + i * 7) % 10));
+    const k = 0.5 + 0.5 * Math.sin(t * 6 + i * 2.1);
+    ctx.globalAlpha = 0.25 + 0.6 * k;
+    ctx.fillStyle = i % 3 ? '#ffd86a' : '#fff6c8';
+    ctx.fillRect(px, py, 1, 1);
+    if (k > 0.85) { ctx.fillRect(px - 1, py, 3, 1); ctx.fillRect(px, py - 1, 1, 3); }
+  }
+  ctx.restore();
+}
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 // version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
 // et un panneau en haut à droite : skins sans achat, choix du chapitre, saut de zone en zone
@@ -921,6 +940,7 @@ function draw() {
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
+  if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
   fx.draw(ctx, cam);

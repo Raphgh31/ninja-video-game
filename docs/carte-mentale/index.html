@@ -187,7 +187,7 @@ button { font: inherit; color: inherit; }
 <header class="top">
   <div class="brand">
     <h1>Carte du jeu KAGE</h1>
-    <p id="etat">état au 12 nov. 2026</p>
+    <p id="etat">état au 14 nov. 2026</p>
   </div>
   <label class="search" for="q">
     <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Zm0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm4.6 7.7 3.9 3.9-1.4 1.4-3.9-3.9z" fill="currentColor"/></svg>
@@ -269,10 +269,11 @@ const BRANCHES = [
     txt: "Coup de pied de côté de karaté d'après des images de Raph : genou armé, hanche qui pivote, pied fléchi orteils vers le haut. L'effort se voit (yeux plissés, bouffée d'expiration, goutte de sueur). Il repousse même TATE qui pare et WARA qui mouline, jusque dans le vide.",
     keys: ['2 dégâts, recul 170 px/s', '0,35 s avant d\'en relancer un', 'Portée équivalente au sabre'],
     files: ['src/game/fall.js', 'tools/kage_forge/rig.py'], see: ['ennemi-chute'] },
-  { id: 'kage-skins', t: 'Skins de KAGE', s: 'encours', d: 'Le vagabond en jeu ; les suivants à dessiner',
-    txt: "Un skin = une palette par slots (même animation, même boîte de collision) et, si besoin, un accessoire posé sur la tête (chapeau…) : la tête de profil est retrouvée dans chaque image et l'accessoire y est posé avec son propre contour. Choix de l'utilisateur sur sa planche de skins (9 entourés) ; n° 1, le vagabond (sugegasa de paille, tenue bleu nuit, pièces vert mousse, cordelette dorée) : en jeu, vendu 100 ryō par le marchand. Un skin = un fichier JSON (palette, prix, accessoires) ; la forge exporte les accessoires sur un calque d'index à part (kage_acc_<skin>_index.png), fondu par le jeu sur la planche du skin.",
-    files: ['assets/characters/kage/skins/encre.json', 'assets/characters/kage/skins/vagabond.json', 'tools/kage_forge/accessories.py', 'tools/kage_forge/skin_board.py', 'src/game/shop.js'],
-    links: [['Planche : le vagabond', 'docs/kage/skins/vagabond_planche.png']], see: ['sys-boutique', 'hab-marchand'] },
+  { id: 'kage-skins', t: 'Skins de KAGE', s: 'encours', d: 'Encre, le vagabond, le voyageur, le paysan ; huit autres à reprendre un par un',
+    txt: "Un skin = une palette par slots (même animation, même boîte de collision, rien ne change dans le jeu) et des accessoires, posés pose par pose : sur la tête (grand sugegasa tressé, dessiné à la main), dans le dos (le mino de feuilles et de paille du voyageur, qui suit le bord du dos, s'évase jusqu'aux chevilles et s'effiloche ; le tonnelet doré, le panier, le bambou et le manche d'outil du paysan), sur le corps (cordon doré en pointillés et boucle de ceinture, pan de tunique, pantalon rapiécé, kimono semé de feuilles). Les pans du bandeau sont rangés (le voyageur garde un ruban qui flotte). Chaque skin a sa planche d'animation complète (la forge exporte ses accessoires sur un calque d'index, kage_acc_<skin>_index.png, fondu par le jeu sur la planche recolorée). Planches de Raph (14 novembre 2026) : après un premier essai trop rapide des dix skins entourés, on reprend un par un ; faits : le voyageur (100 ryō) et le paysan des rizières (100 ryō) ; les huit autres (ninja blanc, écarlate, Ombre pourpre, Lumière d'or, pêcheur, Souffle de l'hiver, Renard blanc, Samouraï déchu) attendent en brouillon (tools/kage_forge/skins_brouillon/), hors du jeu. Nouveaux slots : gear (b B i) et gear2 (j J).",
+    keys: ['4 skins en jeu', '8 en brouillon', 'gear b B i · gear2 j J'],
+    files: ['assets/characters/kage/skins/', 'tools/kage_forge/accessories.py', 'tools/kage_forge/palette.py', 'tools/kage_forge/skin_design.py', 'tools/kage_forge/skin_sheets.py', 'tools/kage_forge/skins_brouillon/', 'src/game/shop.js'],
+    links: [['Le voyageur, face à son modèle', 'docs/kage/skins/voyageur_planche.png'], ['Le paysan, face à son modèle', 'docs/kage/skins/paysan_planche.png'], ['Le vagabond', 'docs/kage/skins/vagabond_planche.png']], see: ['sys-boutique', 'hab-marchand'] },
 ]},
 { id: 'ennemis', side: 'R', t: 'Les ennemis', sub: 'trois en jeu, dont un mini-boss', color: 'ennemis', leaves: [
   { id: 'ennemi-tate', t: 'TATE', s: 'fait', d: 'Garde de temple au grand bouclier', spr: 'tate',
@@ -479,9 +480,9 @@ const BRANCHES = [
     files: ['src/game/level.js', 'src/main.js'] },
   { id: 'sys-caisses', t: 'Caisses', s: 'fait', d: 'À briser au sabre, une pièce dedans',
     txt: "Apprises dans la grange (zone 6). Elles tombent quand plus rien ne les porte (chute lourde, poussière ; elles blessent KAGE si elles lui tombent dessus). Chaque caisse brisée est enregistrée (par sa place d'origine). Les marches vers la poutre du milieu sont des bottes de foin incassables.", files: ['src/game/level.js'], see: ['pot-z06'] },
-  { id: 'sys-boutique', t: 'Boutique', s: 'encours', d: 'Rayon Apparences : les skins',
-    txt: "« ↑ / E : parler » devant le comptoir ouvre la boutique et met le jeu en pause. Rayon Apparences : les skins de KAGE, avec vignette, à acheter en ryō puis à porter (Encre toujours possédé ; le vagabond, 50 ryō). Le skin porté et les skins achetés sont sauvegardés. Dans la version de test, tous les skins se portent sans achat ; une cabine des skins (artefact dédié, dist/kage-skins.html) les fait essayer dans le Potager, sans écran titre. Rayons Ressources et Objets encore vides. Plus tard : skins d'armes.",
-    files: ['src/game/shop.js'], see: ['hab-marchand', 'kage-skins'] },
+  { id: 'sys-boutique', t: 'Boutique', s: 'fait', d: 'Plein écran : tous les skins dès le chapitre 1',
+    txt: "« ↑ / E : parler » devant le comptoir ouvre la boutique, sur tout l'écran, et met le jeu en pause (refaite le 14 novembre 2026). En haut, l'enseigne, les rayons et la bourse ; à gauche, les cartes des skins (vignette, cadre à la couleur de la rareté : commun, peu commun, rare, épique, légendaire ; prix, « Acquis » ou « Porté »), tous en vente dès le chapitre 1 ; un clic (ou les flèches) ouvre le skin en grand à droite : il s'anime (repos, course, saut, sabre, sprint, coup de pied, shuriken), avec sa rareté, sa description, son prix ; l'achat se confirme (« L'acheter pour … ryō ? ») ; en bas, la réplique du marchand et « Reprendre la route ». Le skin porté et les skins achetés sont sauvegardés. Dans la version de test, tous les skins se portent sans achat.",
+    files: ['src/game/shop.js', 'index.html', 'src/style.css'], see: ['hab-marchand', 'kage-skins'] },
   { id: 'sys-aides', t: 'Aides contextuelles', s: 'fait', d: 'Une commande à la fois',
     txt: "Seulement dans le premier chapitre : la commande s'affiche au moment où elle sert et disparaît dès qu'elle est utilisée (ou après 9 s). Textes ordinateur et tactile.",
     files: ['src/main.js'] },

@@ -1041,30 +1041,40 @@ async function main() {
     expect(talk && open[0] && open[1] && open[2] === 3 && closed[0] && !closed[1], `parler ${talk}, ouverte ${open.join()}, fermée ${closed.join()}`);
   });
 
-  await test('potager : skins — le vagabond (50 ryō) s\'achète chez le marchand, se porte et est sauvegardé', async () => {
+  await test('potager : boutique plein écran — tous les skins en vente ; une carte ouvre le skin en grand ; l\'achat se confirme, se porte et est sauvegardé', async () => {
     const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
     await pat(mx - 1); await pw(200);
     const before = await pg.evaluate(() => window.__kage.save.ryo);
     await pg.evaluate(() => { window.__kage.save.ryo = 40; });
     await PK.press('ArrowUp'); await pw(200);
-    const rows = await pg.evaluate(() => [...document.querySelectorAll('.shop__item')].map((r) => r.dataset.skin + ':' + r.querySelector('button').textContent));
-    // trop pauvre : rien ne change
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
-    const poor = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin]);
+    // tout l'écran de jeu, et les douze skins (du moins cher au plus cher)
+    const look = await pg.evaluate(() => { const s = document.querySelector('.shop').getBoundingClientRect(), g = document.querySelector('#game').getBoundingClientRect();
+      return [Math.abs(s.width - g.width) < 4 && Math.abs(s.height - g.height) < 4, [...document.querySelectorAll('.shop__card')].map((c) => c.dataset.skin).join()]; });
+    const detail = () => pg.evaluate(() => [document.querySelector('.shop__name')?.textContent, document.querySelector('[data-action]')?.textContent ?? '', !!document.querySelector('[data-confirm]')]);
+    await pg.click('[data-skin="vagabond"]'); await pw(100);
+    const shown = await detail();
+    // trop pauvre : pas de confirmation, rien ne change
+    await pg.click('[data-action]'); await pw(100);
+    const poor = [...await detail(), ...await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin])];
     await pg.evaluate(() => { window.__kage.save.ryo = 130; });
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
+    const ask = await detail();
+    await pg.click('[data-confirm]'); await pw(100);
     const bought = await pg.evaluate(() => [window.__kage.save.ryo, window.__kage.skin, document.querySelector('[data-purse]').textContent,
-      document.querySelector('[data-skin="vagabond"] button').textContent]);
+      document.querySelector('[data-action]').textContent, document.querySelector('[data-skin="vagabond"] .shop__tag').textContent]);
     // retour à Encre puis de nouveau le vagabond, sans payer
-    await pg.click('[data-skin="encre"] button'); await pw(100);
-    const back = await pg.evaluate(() => [window.__kage.skin, document.querySelector('[data-skin="vagabond"] button').textContent]);
-    await pg.click('[data-skin="vagabond"] button'); await pw(100);
+    await pg.click('[data-skin="encre"]'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
+    const back = await pg.evaluate(() => [window.__kage.skin, document.querySelector('[data-skin="vagabond"] .shop__tag').textContent]);
+    await pg.click('[data-skin="vagabond"]'); await pw(100);
+    await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(rows.join() === 'encre:Porté,vagabond:Acheter · 50 ryō' && poor.join() === '40,encre'
-      && bought.join() === '80,vagabond,80 ryō,Porté' && back.join() === 'encre,Porter'
+    expect(look[0] && look[1] === 'encre,vagabond,paysan,voyageur'
+      && shown.join() === 'Le vagabond,Acheter · 50 ryō,false' && poor.join() === 'Le vagabond,Acheter · 50 ryō,false,40,encre'
+      && ask[2] === true && bought.join() === '80,vagabond,80 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'vagabond' && saved.skins.join() === 'encre,vagabond' && saved.ryo === 80,
-      `rayon ${rows.join()} · pauvre ${poor.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
+      `écran ${look.join(' ')} · détail ${shown.join()} · pauvre ${poor.join()} · question ${ask.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 

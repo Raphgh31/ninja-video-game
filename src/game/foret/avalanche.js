@@ -332,10 +332,27 @@ export class Avalanche {
         else ty = this.at(this.floor, tx) - r * 0.75 - m.hf * Hh * shape(1 - u / Lend) + m.dz * 0.3;
         return { m, x0: p.x, y0: p.y, fi: p.fi ?? 0, tx, ty };
       }) };
+      // le cœur du tas : de la roche sombre sous les pierres, au même profil (les vides ne laissent plus
+      // voir le décor : le tas paraît plein, aussi lourd qu'au sommet)
+      {
+        const W = Lend + 20, Hc = Hh + 24, cv = canvas(W, Hc), c2 = cv.getContext('2d'), base = this.at(this.floor, end);
+        for (let i = 0; i < W; i++) {
+          const v = 1 - (i - 6) / Lend, h = Math.max(0, Hh * 0.9 * shape(Math.max(0, Math.min(1, v))) - 2);
+          const x = end - Lend - 6 + i, top = this.at(this.floor, x) - h;
+          for (let y = Math.round(top); y < this.at(this.floor, x) + 2; y++) {
+            const d = (y - top) / Math.max(1, h), n = noise2(x * 0.25, y * 0.25, 91);
+            c2.fillStyle = DEEP[Math.max(1, Math.min(5, Math.round(4 - d * 2.5 + (n - 0.5) * 2.2)))];
+            c2.fillRect(i, Math.round(y - (base - Hc + 4)), 1, 1);
+          }
+        }
+        this.settle_core = { cv, x: end - Lend - 6, y: base - Hc + 4 };
+      }
       for (let k = 0; k < 40; k++) this.dust.push({ x: end - Math.random() * Lend, y: this.gy(end) - Math.random() * 60, r0: 6, r1: 18 + Math.random() * 24, age: 0, life: 1.6 + Math.random() * 1.6, vx: (Math.random() - 0.4) * 16, vy: -6 - Math.random() * 10, fr: false });
     }
     const st = this.settle; st.t = Math.min(1.5, st.t + dt);
     const k = 1 - Math.pow(1 - st.t / 1.5, 3);
+    const C2 = this.settle_core;
+    if (C2) { ctx.globalAlpha = Math.min(1, k * 1.3); ctx.drawImage(C2.cv, R(C2.x - cam.x), R(C2.y - cam.y)); ctx.globalAlpha = 1; }
     for (const q of st.rocks) {
       const x = q.x0 + (q.tx - q.x0) * k, y = q.y0 + (q.ty - q.y0) * k - Math.sin(k * Math.PI) * (q.m.u0 < 14 ? 6 : 0);
       if (x < cam.x - 24 || x > cam.x + vw + 24) continue;

@@ -262,6 +262,8 @@ def bulk(g, n):
     out = np.full(g.shape, ".", dtype=g.dtype)
     for y, x, v in pts:
         ny, nx = y - dy, x - dx
+        if not (0 <= ny < H and 0 <= nx < W) and v in "rpPQcCbBijJO":
+            continue                       # (le bout d'un accessoire de skin peut déborder : on le rogne)
         assert 0 <= ny < H and 0 <= nx < W, "salto : le corps agrandi sort de la cellule"
         out[ny, nx] = v
     return out
@@ -269,6 +271,8 @@ def bulk(g, n):
 
 def _knot(g):
     ys, xs = np.where(np.isin(g, ["K", "k"]))
+    if not len(xs):
+        return None                                # (un skin sans pans de bandeau : voyageur, paysan…)
     return (float(xs.min()), float(ys.mean()))     # le côté arrière du nœud : les pans en partent
 
 
@@ -278,6 +282,8 @@ def _center(g):
 
 
 def _finish(g, knot, center, theta, omega, v):
+    if knot is None:
+        return add_outline(clean(g))
     return add_outline(clean(draw_tails(g, knot, center, theta, omega, v)))
 
 
