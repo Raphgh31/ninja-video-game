@@ -645,7 +645,12 @@ function build() {
   // peut que l'escalader), qui disparaissent quand il s'effondre
   const PX = (x + 4) * TILE, PW = 16 * TILE, PH = 100, PG = G10 * TILE;
   const prof = [[0, 0], [0.13, 0.34], [0.3, 0.78], [0.45, 1], [0.56, 0.97], [0.7, 0.72], [0.86, 0.33], [1, 0]].map(([u, h]) => [PX + Math.round(u * PW), PG - Math.round(h * PH)]);
-  for (let k = 0; k < prof.length - 1; k++) F.slopes.push({ x0: prof[k][0], y0: prof[k][1], x1: prof[k + 1][0], y1: prof[k + 1][1], pile: true });
+  // on ne monte pas l'amas en marchant : il est fait de paliers rocheux (une ou deux cases de haut), on saute
+  // de l'un à l'autre jusqu'au sommet, puis on se laisse retomber de palier en palier ; cases « Q » : pleines
+  // tant que l'amas tient (level.solid), peintes par ses pierres ; [colonne, largeur, hauteur en cases]
+  const ledges = [[0, 2, 1], [2, 2, 2], [4, 2, 4], [6, 3, 6], [9, 2, 5], [11, 2, 4], [13, 2, 2], [15, 1, 1]];
+  for (const [c, w, h] of ledges) fill(x + 4 + c, w, G10 - h, G10 - 1, 'Q');
+  const steps = ledges.map(([c, w, h]) => [PX + c * TILE, PX + (c + w) * TILE, PG - h * TILE]);
   b.prop('rock_pile', x + 4, G10, { w: 16 });
   const pileEnd = PX + PW;
   let g = G10;
@@ -669,7 +674,7 @@ function build() {
   x = step(9, 0); stump(x + 2); block('log_block', x + 5, 3, 1); b.prop('log_cut', x + 1, g, { n: 2 });
   x = slopeDown(10, 3); coin(x + 5, Math.round(onSlope(10, 3, 5)) - 2);
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 6, g - 2, { h: 84, lean: 0.12 });
-  x = step(11, 0); b.hint('slide', x); lowPass('slide_tree', x + 3, 6); b.prop('near_tree', x + 1, g, { w: 30 });   // l'arbre déraciné
+  x = step(8, 0); block('boulder', x + 3, 2, 2); b.prop('near_tree', x + 6, g, { w: 30 });
   x = step(7, 2); stump(x + 1); stump(x + 3, 1, 2); b.prop('log_cut', x + 5, g, { n: 3 });   // deux souches en escalier
   x = slopeDown(14, 4); coins([x + 4, x + 9], Math.round(onSlope(14, 4, 7)) - 2);
   b.prop('scree', x, g - 4, { w: 14 }); b.prop('half_buried', x + 11, g - 1, { r: 15 });
@@ -681,17 +686,17 @@ function build() {
   const slideMid = x + 2;
   stump(x + 6); b.prop('near_tree', x + 4, g, { w: 22 });
   x = slopeDown(10, 3); b.prop('scree', x, g - 3, { w: 10 });
-  x = step(12, 0); lowPass('slide_arch', x + 3, 6);                                                     // l'arche de rochers
+  x = step(12, 0); b.hint('slide', x); lowPass('slide_arch', x + 3, 6);                                                     // l'arche de rochers
   x = step(5, 2); b.prop('snag', x + 1, g, { h: 96, lean: 0.06 });
   x = slopeDown(12, 4); coins([x + 3, x + 8], Math.round(onSlope(12, 4, 6)) - 2);
   b.prop('scree', x, g - 4, { w: 12 }); b.prop('half_buried', x + 9, g, { r: 18 });
   x = step(10, 0); block('log_block', x + 2, 4, 1); stump(x + 7, 1, 2); b.prop('near_tree', x + 5, g, { w: 28 });
   x = slopeDown(10, 3); coin(x + 4, Math.round(onSlope(10, 3, 4)) - 2);
   b.prop('scree', x, g - 3, { w: 10 }); b.prop('snag', x + 4, g - 1, { h: 72, lean: 0.15, fallen: 0.3 });
-  x = step(12, 0); lowPass('slide_gate', x + 3, 6); b.prop('log_cut', x + 10, g, { n: 1 });            // le portique effondré
+  x = step(8, 0); stump(x + 1, 2); block('log_block', x + 4, 3, 1); b.prop('log_cut', x + 7, g, { n: 1 });
   const G12 = FORET_ROWS.vallee;
   x = step(8, G12 - g);
-  F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };
+  F.slide = { trigger: pileEnd + 10, start: PX + PW * 0.5, pile: { x: PX, w: PW, y: PG, h: PH, prof, steps }, delay: 0.55, mid: slideMid * TILE, end: (b.x - 2) * TILE, speed: 94, speedEnd: 100 };
 
   // ===========================================================================
   // ZONE 12 — La lisière crépusculaire : le calme, les derniers ryō, un coffre,

@@ -141,12 +141,15 @@ export class Avalanche {
           x += r * 1.35;
         }
       }
-      // la surface : des blocs dont le dessus suit le chemin de KAGE
+      // la surface : des blocs dont le dessus affleure là où KAGE pose le pied (les paliers)
+      const stepAt = (x) => P.steps?.find(([a, b]) => x >= a && x < b)?.[2];
       for (let x = X + 6, k = 0; x < X + W - 4; k++) {
-        const r = 11 + Math.floor(ih(k, 3, 88) * 7), y = surf(x);
+        const r = 11 + Math.floor(ih(k, 3, 88) * 7), y = stepAt(x) ?? surf(x);
         B.push([x, y + r * 0.8, r, 7]);
         x += r * 1.2;
       }
+      // au bord de chaque palier, un bloc qui en dessine l'arête (on voit la marche à sauter)
+      for (const [a, b, y] of P.steps ?? []) for (const ex of [a + 5, b - 5]) B.push([ex, y + 10, 12, 7]);
       // les cales
       for (let k = 0; k < 26; k++) {
         const x = X + 8 + ih(k, 1, 89) * (W - 16), top = surf(x);
@@ -158,7 +161,7 @@ export class Avalanche {
       for (const b of this.pile) { b.pts = shape(b.r, b.seed); b.img = stone(b.pts, b.rot, b.seed, LIT); }
       const apex = prof.reduce((a, q) => (q[1] < a[1] ? q : a), prof[0]);
       this.top = this.pile.filter((b) => b.row === 7).reduce((a, b) => (Math.abs(b.x - apex[0]) < Math.abs(a.x - apex[0]) ? b : a));
-      this.pileX = X; this.pileW = W; this.pileG = G; this.pileH = P.h; this.apexX = apex[0]; this.surf = surf;
+      this.pileX = X; this.pileW = W; this.pileG = G; this.pileH = P.h; this.apexX = apex[0]; this.surf = (x) => stepAt(x) ?? surf(x);
     }
   }
 

@@ -211,6 +211,10 @@ Planches : `docs/foret/arbre_cavites.png`, `docs/foret/arche_racines_avant_apres
   - **l'arche de rochers** : une longue dalle du même roc que l'éboulis, posée sur deux blocs (comme un dolmen), des cales, une fougère ;
   - **le portique effondré** : deux poteaux debout, la poutre tombée, les planches du toit écroulées dessus, la corde sacrée et ses papiers, une lanterne crevée.
 
+### Retours n° 17 (14 novembre 2026)
+- des trois passages en glissade, **seule l'arche de rochers reste** (l'arbre déraciné et le portique sont retirés ; à leur place, un rocher et une souche suivie d'un tronc couché) ;
+- **l'amas se gravit en sautant** : sa surface n'est plus une pente qu'on montait en marchant, mais huit **paliers rocheux** d'une ou deux cases de haut (cases « Q », pleines tant que l'amas tient : `level.solid`) ; on saute de palier en palier jusqu'au sommet, on se laisse retomber de l'autre côté ; l'apparence de l'amas ne change pas (ses pierres de surface affleurent sur les paliers, un bloc marque l'arête de chacun).
+
 ## 9. Reste à faire
 
 1. **Retours de l'utilisateur** sur cette première version (zone par zone, en jouant la version de test).
