@@ -248,8 +248,9 @@ def cape(kind):
         hx, hy = pos
         g = g.copy()
         mask = np.zeros(g.shape, bool)
-        ys, ye = (hy + 8, hy + 17) if kind == "mino" else (hy + 9, hy + 19)
-        widths = [4, 5, 5, 6, 6, 6, 6, 7, 7, 7] if kind == "mino" else [3, 4, 5, 5, 6, 6, 7, 7, 7, 7, 7]
+        ys, ye = (hy + 8, hy + 19) if kind == "mino" else (hy + 9, hy + 19)
+        # (le manteau du voyageur : étroit aux épaules, il s'évase peu à peu, long jusqu'aux chevilles)
+        widths = [3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6] if kind == "mino" else [3, 4, 5, 5, 6, 6, 7, 7, 7, 7, 7]
         TAILS = set("fFGkK")                       # les pans du bandeau passent sous la cape
         prev = None
         mino = kind == "mino"
@@ -270,6 +271,8 @@ def cape(kind):
                 span = range(xl - (3 if k == -1 else 2), xl + 1)
             else:
                 w = min(widths[min(k, len(widths) - 1)], xl - 1)   # (jamais coupée par le bord de l'image)
+                if mino and k >= 0 and k % 2 == 1 and _h(k, 31) < 0.5:
+                    w -= 1                                          # un bord qui ondule : pas un bloc carré
                 inner = 2 if k < 3 else 0          # sur l'épaule : il recouvre le haut du dos
                 span = range(xl - w, xl + inner)
             for x in span:
@@ -535,7 +538,7 @@ def apron(g):
 
 
 STAMPS["kasa_leaf"] = dict(dx=-4, dy=-2, text=kasa(leaf=True, small=True))
-STAMPS["kasa"] = dict(dx=-6, dy=-3, text=kasa())
+STAMPS["kasa"] = dict(dx=-4, dy=-2, text=kasa(small=True))
 
 
 PACKS = {

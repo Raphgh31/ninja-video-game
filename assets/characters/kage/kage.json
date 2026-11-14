@@ -1664,12 +1664,10 @@
   "skins": [
     "encre",
     "paysan",
-    "vagabond",
     "voyageur"
   ],
   "accessorySheets": {
     "paysan": "kage_acc_paysan_index.png",
-    "vagabond": "kage_acc_vagabond_index.png",
     "voyageur": "kage_acc_voyageur_index.png"
   },
   "projectiles": {

@@ -601,7 +601,7 @@ function setupSkinLab() {
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Skins');
   const f = meta.animations.idle.frames[0];
-  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0));
+  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0) || skins[a].name.localeCompare(skins[b].name));
   const buttons = ids.map((id, i) => {
     const b = button('', `${skins[id].name} (touche ${i + 1})`, () => pick(id));
     b.dataset.skin = id;

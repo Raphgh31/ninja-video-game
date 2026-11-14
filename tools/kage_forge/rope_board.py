@@ -47,7 +47,7 @@ def board(out, gif=None):
     W = 16 + len(frames) * (CW * z + 12)
     H = 16 + 2 * (CH * z + 12)
     im = Image.new("RGB", (W, H), BG)
-    for row, name in enumerate(["encre", "vagabond"]):
+    for row, name in enumerate(["encre", "voyageur"]):
         for i, g in enumerate(frames):
             im.paste(cell(g, i, skin(name), z, haul=i), (16 + i * (CW * z + 12), 16 + row * (CH * z + 12)))
     im.save(out)
