@@ -3,7 +3,7 @@
   "name": "Lumière d’or",
   "rarity": "légendaire",
   "price": 600,
-  "description": "Bandeau et pans d'or, étoffe dorée sur l'épaule, auréole à croix de lumière, un orbe qui le suit.",
+  "description": "Bandeau et pans d'or, auréole à croix de lumière, sabre d'or à poignée de cuir, shurikens dorés, traînées d'or.",
   "blurb": "La légende dit qu'il ne fait jamais nuit autour de lui.",
   "accessories": [
     "flametails",
@@ -35,15 +35,15 @@
     "G": "#f6d77a",
     "k": "#9a6a18",
     "K": "#d9a33a",
-    "x": "#15171f",
-    "X": "#4b5264",
-    "z": "#5b6377",
-    "q": "#c9ced8",
+    "x": "#a87420",
+    "X": "#ffe7a0",
+    "z": "#f2c35a",
+    "q": "#fff3c4",
     "N": "#d39a6e",
     "n": "#a86c48",
-    "W": "#d9dee6",
-    "w": "#8a92a2",
-    "g": "#2e323d",
+    "W": "#ffe28a",
+    "w": "#c98a24",
+    "g": "#6b4226",
     "r": "#3e2c1a",
     "p": "#8d6a38",
     "P": "#b88f4f",
@@ -59,5 +59,12 @@
     "S": "#ffe07a",
     "u": "#fff8d8"
   },
-  "aura": "gold"
+  "aura": "gold",
+  "projectileColors": {
+    "g": "#a87420",
+    "w": "#c98a24",
+    "W": "#ffe07a",
+    "O": "#3a2508"
+  },
+  "trail": "#f5c95a"
 }

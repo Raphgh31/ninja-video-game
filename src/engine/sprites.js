@@ -49,6 +49,30 @@ export function applySkin(indexImage, meta, skin) {
   return canvas;
 }
 
+/**
+ * Une copie de la planche où seuls certains slots restent, tous d'une même couleur (null : tous les slots) :
+ * sert aux traînées des skins (la lame seule pour le coup d'épée, la silhouette entière pour le dash).
+ */
+export function maskSheet(indexImage, meta, slots, color) {
+  const { width: w, height: h } = indexImage;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(indexImage, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h), px = data.data;
+  const keep = [];
+  for (const { index, slot } of meta.slots) keep[index] = !slots || slots.includes(slot);
+  const [r, g, b] = hexToRgb(color);
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] === 0) continue;
+    if (!keep[px[i]]) { px[i + 3] = 0; continue; }
+    px[i] = r; px[i + 1] = g; px[i + 2] = b;
+  }
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+}
+
 export async function loadCharacter(baseUrl, metaFile, skinIds) {
   const meta = await loadJson(`${baseUrl}/${metaFile}`);
   const indexImage = await loadImage(`${baseUrl}/${meta.indexImage}`);
@@ -60,13 +84,17 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
   for (const id of skinIds ?? meta.skins) {
     const skin = await loadJson(`${baseUrl}/skins/${id}.json`);
     const projectiles = {};
-    for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, skin);
+    // (un skin peut teinter ses projectiles autrement que sa lame : projectileColors)
+    const projSkin = skin.projectileColors ? { ...skin, colors: { ...skin.colors, ...skin.projectileColors } } : skin;
+    for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, projSkin);
     const sheet = applySkin(indexImage, meta, skin);
     // accessoires du skin (chapeau, cordelette…) : calque d'index à part, même
     // disposition que la planche, fondu une fois pour toutes par-dessus
     const acc = meta.accessorySheets?.[id];
     if (acc) sheet.getContext('2d').drawImage(applySkin(await loadImage(`${baseUrl}/${acc}`), meta, skin), 0, 0);
-    skins[id] = { ...skin, sheet, projectiles };
+    // les traînées (skins qui en ont) : la lame et l'arc du coup d'épée seuls ; la silhouette entière (dash)
+    const trail = skin.trail ? { blade: maskSheet(indexImage, meta, ['W', 'w', 'z', 'q', 'X'], skin.trail), body: maskSheet(indexImage, meta, null, skin.trail) } : null;
+    skins[id] = { ...skin, sheet, projectiles, trail };
   }
   return { meta, skins };
 }

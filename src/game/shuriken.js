@@ -156,9 +156,19 @@ export class Shurikens {
     for (const s of this.stuck) this.blit(ctx, sheet, s.kind, s.x, s.y, s.dir, cam);
   }
 
-  drawFlying(ctx, sheet, cam) {
+  /** trail : un skin à traînée (Lumière d'or) laisse derrière chaque shuriken trois reflets qui pâlissent. */
+  drawFlying(ctx, sheet, cam, trail = false) {
     for (const s of this.flying) {
       const k = this.meta.spin[Math.floor(s.t / SHURIKEN.spinStep) % this.meta.spin.length];
+      if (trail && Math.abs(s.vx) > 40) {
+        ctx.save();
+        for (let i = 3; i >= 1; i--) {
+          ctx.globalAlpha = 0.32 - i * 0.08;
+          const kk = this.meta.spin[Math.floor((s.t - i * 0.02) / SHURIKEN.spinStep + 64) % this.meta.spin.length];
+          this.blit(ctx, sheet, kk, s.x - s.vx * 0.016 * i, s.y - s.vy * 0.016 * i, 1, cam);
+        }
+        ctx.restore();
+      }
       this.blit(ctx, sheet, k, s.x, s.y, 1, cam);
     }
   }

@@ -138,6 +138,41 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
+/**
+ * Les traînées d'or d'un skin (Lumière d'or) : derrière le coup d'épée, les images précédentes de la lame et
+ * de son arc, de plus en plus pâles (une traînée légère) ; derrière le dash, des silhouettes dorées qui
+ * s'effacent. Rien ne change au jeu : c'est dessiné sous KAGE.
+ */
+const TRAIL_STRIKE = new Set(['attack', 'air_attack', 'flip_attack']);
+const trail = [];
+function drawTrail(cam) {
+  const now = performance.now() / 1000, st = player.state, a = player.anim;
+  const kind = TRAIL_STRIKE.has(st) ? 'blade' : st === 'dash' ? 'body' : null;
+  const last = trail[trail.length - 1];
+  if (kind && (!last || last.frame !== a.frame || last.name !== a.name || Math.abs(last.x - player.x) > 4)) {
+    trail.push({ kind, name: a.name, frame: a.frame, x: player.x, y: player.y, facing: player.facing, t: now });
+  }
+  const life = { blade: 0.16, body: 0.22 };
+  while (trail.length && now - trail[0].t > life[trail[0].kind]) trail.shift();
+  const { pivot } = meta;
+  ctx.save();
+  for (const g of trail) {
+    const k = 1 - (now - g.t) / life[g.kind];
+    // (l'image en cours n'a pas besoin de fantôme : on ne garde que celles d'avant)
+    if (g === trail[trail.length - 1] && g.frame === a.frame && g.name === a.name) continue;
+    const f = meta.animations[g.name]?.frames[g.frame];
+    if (!f) continue;
+    ctx.globalAlpha = (g.kind === 'blade' ? 0.42 : 0.3) * k;
+    const dx = Math.round(g.x - cam.x), dy = Math.round(g.y - cam.y) - pivot.y, sheet = look.trail[g.kind];
+    if (g.facing < 0 && meta.flipForLeft) {
+      ctx.save(); ctx.translate(dx, 0); ctx.scale(-1, 1);
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, -pivot.x, dy, f.w, f.h);
+      ctx.restore();
+    } else ctx.drawImage(sheet, f.x, f.y, f.w, f.h, dx - pivot.x, dy, f.w, f.h);
+  }
+  ctx.restore();
+}
+
 /** L'éclat d'un skin légendaire (Lumière d'or) : orbe, volutes, étincelles (src/game/aura.js). */
 function drawAura(cam) {
   drawAura0(ctx, Math.round(player.x - cam.x), Math.round(player.y - cam.y), player.facing, performance.now() / 1000);
@@ -925,10 +960,11 @@ function draw() {
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
+  if (look.trail && !behindGate()) drawTrail(cam);
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail);
   fx.draw(ctx, cam);
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
