@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>The Ninja Game</title>
+    <title>The Ninja Adventure</title>
   </head>
   <body>
     <header class="bar">
-      <h1>The Ninja Game</h1>
+      <h1>The Ninja Adventure</h1>
       <nav class="levels" aria-label="Niveau">
         <a href="#potager" data-level="potager">Chapitre 1 — Le Potager</a>
         <a href="#niveau-1" data-level="niveau-1">Niveau 1</a>
@@ -19,7 +19,7 @@
       <p class="state" data-state aria-live="off">idle</p>
     </header>
     <main class="stage">
-      <canvas id="game" aria-label="The Ninja Game, jeu de plateforme"></canvas>
+      <canvas id="game" aria-label="The Ninja Adventure, jeu de plateforme"></canvas>
       <div class="ui">
       <div class="zone-banner" aria-live="polite"><span data-zone-num></span><strong data-zone-name></strong></div>
       <div class="boss" aria-hidden="true"><span class="boss__name">Karasu-Kashi</span><span class="boss__bar"><i class="boss__lag"></i><i class="boss__hp"></i></span></div>
@@ -33,29 +33,18 @@
         <p class="chapter-card__line" data-card-line></p>
       </section>
       <section class="title-screen" hidden aria-label="Écran titre">
-        <h2 class="title-screen__name">The Ninja Game</h2>
+        <h2 class="title-screen__name">The Ninja Adventure</h2>
         <p class="title-screen__chapter" data-chapter></p>
         <div class="title-screen__actions">
-          <button type="button" data-continue hidden>Continuer</button>
-          <button type="button" data-new>Nouvelle partie</button>
-          <button type="button" data-multi>Jouer à plusieurs</button>
-        </div>
-        <div class="multi" data-multi-panel hidden>
-          <span class="multi__label">Nom</span>
-          <label class="multi__field"><span class="multi__view" data-name-view></span><input data-name maxlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ton nom"></label>
-          <button type="button" data-create>Créer une salle</button>
-          <span class="multi__label multi__sep">ou</span>
-          <label class="multi__field multi__code"><span class="multi__view" data-code-view>····</span><input data-code maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code de la salle"></label>
-          <button type="button" data-join>Rejoindre</button>
-          <button type="button" class="multi__back" data-multi-back>Retour</button>
-          <p class="multi__msg" data-multi-msg></p>
+          <button type="button" data-menu="aventure">Aventure</button>
+          <button type="button" data-menu="arene">Arène</button>
+          <button type="button" data-menu="ninja">Mon ninja</button>
         </div>
       </section>
       <section class="salle" hidden aria-label="Salle">
         <p class="salle__code" data-salle-code></p>
         <div class="salle__list" data-salle-list></div>
         <p class="salle__msg" data-salle-msg aria-live="polite"></p>
-        <button type="button" class="salle__quit" data-salle-quit>Quitter la salle</button>
       </section>
       <section class="shop" hidden aria-label="Le comptoir du voyageur">
         <header class="shop__head">

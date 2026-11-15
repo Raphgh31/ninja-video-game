@@ -341,7 +341,10 @@ export class Intro {
   /** Dessine l'image au temps courant (figée à l'arrivée de KAGE). */
   draw() {
     const { g, w, h } = this;
-    const t = Math.min(this.t, FREEZE);
+    // sous-menus (Aventure, Arène, Mon ninja) : le décor seul, achevé, la lune décalée sur le côté,
+    // sans le ninja ni le titre (ils dérangeaient derrière les écrans)
+    const menu = this.menuMode;
+    const t = menu ? FREEZE : Math.min(this.t, FREEZE);
     g.fillStyle = BLACK; g.fillRect(0, 0, w, h);
     if (this.gated) {
       // l'attente : une invitation discrète, qui respire lentement
@@ -361,11 +364,12 @@ export class Intro {
       g.globalAlpha = 1;
     }
     if (m > 0) {
-      const my = Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
-      g.drawImage(this.moon.c, this.moonX - this.moon.o, my - this.moon.o);
+      const my = menu ? this.moonY1 - 6 : Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
+      g.drawImage(this.moon.c, (menu ? Math.round(w * 0.82) : this.moonX) - this.moon.o, my - this.moon.o);
     }
     g.drawImage(this.black, 0, 0);
     if (light > 0) { g.globalAlpha = light; g.drawImage(this.land, 0, 0); g.globalAlpha = 1; }
+    if (menu) return;
     // l'encre : le titre lettre à lettre, puis le coup de pinceau
     this.letters.forEach((c, i) => {
       if (!c) return;
@@ -403,9 +407,11 @@ export class Intro {
       this.menuShown = false;
       this.fading = false;
       if (this.clock) { this.clock.t0 += CYCLE; this.playFrom(this.t); }
-      this.onCycle?.();
+      if (!this.menuMode) this.onCycle?.();
+      else this.menuShown = true;
     }
     const fadeAt = CYCLE - INTRO.cycleFade;
+    if (this.menuMode) return;          // dans un sous-menu, l'image reste en place (la musique boucle)
     if (!this.menuShown && this.t >= INTRO.menu && this.t < fadeAt) { this.menuShown = true; this.onMenu?.(); }
     if (!this.fading && this.t >= fadeAt) { this.fading = true; this.onFade?.(); }
   }

@@ -13,7 +13,7 @@ import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
-import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
+import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
 import { Shop } from './game/shop.js';
 import './style.css';
@@ -21,7 +21,10 @@ import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { ArenaArt } from './game/arena/art.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
-import { Multi, SLOT_COLORS } from './game/multi.js';
+import { Multi, SLOT_COLORS, MODES } from './game/multi.js';
+import { Lobby } from './game/arena/lobby.js';
+import { Menu } from './game/menu.js';
+import { loadProfile, saveProfile } from './game/profile.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -125,6 +128,7 @@ function fit() {
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
+  uiLayer.classList.toggle('short', VIEW_H < 236);   // écrans de menu compacts (téléphones allongés)
   uiLayer.style.width = `${VIEW_W}px`;
   uiLayer.style.height = `${VIEW_H}px`;
   uiLayer.style.transform = `scale(${SCALE})`;
@@ -590,28 +594,34 @@ if (level.arena) {
   };
 }
 
-// ---- jouer à plusieurs : la salle (src/engine/net.js, src/game/multi.js) -------
-// Le menu (« Jouer à plusieurs ») range le choix dans sessionStorage puis ouvre l'arène ;
-// une adresse ?salle=CODE rejoint directement une salle.
+// ---- l'arène à plusieurs : le salon, puis les combats (net.js, multi.js, arena/lobby.js) ----
+// Le menu (Arène → Créer / Rejoindre) range le choix dans sessionStorage puis ouvre l'arène ;
+// une adresse ?salle=CODE rejoint aussi directement une arène.
 let multi = null;
-const NAME_OK = /[A-Za-z0-9 \-]/;
-function defaultName() {
-  try { const n = localStorage.getItem('kage-nom'); if (n) return n; } catch { /* rien */ }
-  return `Ninja ${10 + Math.floor(Math.random() * 90)}`;
-}
+let lobby = null;
+const profile = loadProfile();
 function roomConfig() {
   let c = null;
   try { c = JSON.parse(sessionStorage.getItem('kage-salle') || 'null'); } catch { /* rien */ }
   const q = new URLSearchParams(location.search).get('salle');
-  if (!c && q && cleanCode(q).length === 4) c = { mode: 'join', code: cleanCode(q), name: defaultName() };
+  if (!c && q && cleanCode(q).length === 4) c = { mode: 'join', code: cleanCode(q) };
+  if (c) c.name = c.name || profile.name;     // (les tests donnent un nom à chaque onglet)
   return c;
+}
+/** Retour au menu de l'écran titre, sur un écran donné (avec un message), depuis l'arène. */
+function backToMenu(screen = null, extra = {}) {
+  try {
+    sessionStorage.removeItem('kage-salle');
+    if (screen) sessionStorage.setItem('kage-menu', JSON.stringify({ screen, ...extra }));
+  } catch { /* rien */ }
+  if (TEST_BUILD) labSet('chapter', 'potager');
+  location.replace(location.pathname + location.search.replace(/[?&]salle=[^&]*/, ''));
 }
 function startRoom(cfg) {
   const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
   const listEl = hud.querySelector('[data-salle-list]'), msgEl = hud.querySelector('[data-salle-msg]');
   const transport = new URLSearchParams(location.search).get('net') === 'local' || window.__KAGE_NET === 'local' ? 'local' : 'peer';
   const net = new Net({ code: cfg.code, host: cfg.mode === 'host', name: cfg.name, transport });
-  hud.hidden = false;
   let msgT = null;
   const say = (t, keep = false) => { setText(msgEl, t); clearTimeout(msgT); if (!keep) msgT = setTimeout(() => setText(msgEl, ''), 3500); };
   const nameOf = (id) => net.roster.find((p) => p.id === id)?.name ?? '?';
@@ -619,82 +629,61 @@ function startRoom(cfg) {
     listEl.replaceChildren(...net.roster.map((p) => {
       const el = document.createElement('p');
       el.style.setProperty('--slot', SLOT_COLORS[p.slot % 4]);
-      el.textContent = `${p.name}${p.id === net.id ? ' (toi)' : ''} : ${multi?.scores.get(p.id) ?? 0}`;
+      el.textContent = `${p.name} : ${multi?.scores.get(p.id) ?? 0}`;
       return el;
     }));
   };
-  setText(codeEl, `Salle KAGE-${cfg.code}`);
+  run.paused = true;                       // le salon d'abord : le combat attend que l'hôte le lance
   net.onStatus = (st, detail) => {
-    if (st === 'connexion') say(cfg.mode === 'host' ? 'Ouverture de la salle…' : 'Connexion à la salle…', true);
-    else if (st === 'ouverte') say('Salle ouverte : donne le code à tes amis', true);
-    else if (st === 'connecté') say('Tu as rejoint la salle');
-    else if (st === 'introuvable') say('Salle introuvable : vérifie le code', true);
-    else if (st === 'pleine') say('Salle pleine (4 joueurs au plus)', true);
-    else if (st === 'perdue') say("La salle s'est fermée", true);
+    if (st === 'connexion') lobby?.setStatus(cfg.mode === 'host' ? "Ouverture de l'arène…" : `Connexion à l'arène ${cfg.code}…`);
+    else if (st === 'ouverte') lobby?.setStatus('');
+    else if (st === 'connecté') lobby?.setStatus('');
+    else if (st === 'introuvable') backToMenu('rejoindre', { code: cfg.code, message: 'Arène introuvable : vérifie le code' });
+    else if (st === 'pleine') backToMenu('rejoindre', { code: cfg.code, message: 'Arène pleine : quatre joueurs au plus' });
+    else if (st === 'perdue') { lobby?.setStatus("L'hôte a quitté l'arène"); setTimeout(() => backToMenu('arene'), 2500); }
     else if (st === 'prise') {                          // ce code est déjà pris : on en tire un autre
       net.close();
       cfg.code = randomCode();
       try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); } catch { /* rien */ }
-      multi = null;
+      lobby?.el.remove(); lobby = null; multi = null;
       startRoom(cfg);
-    } else if (st === 'erreur') say(detail || 'Erreur de connexion', true);
+    } else if (st === 'erreur') {
+      if (cfg.mode === 'host') lobby?.setStatus(detail || 'Pas de connexion au service des arènes');
+      else backToMenu('rejoindre', { code: cfg.code, message: detail || 'Pas de connexion au service des arènes' });
+    }
   };
   multi = new Multi({
     net, player, shurikens, level, meta, skins, skinId: () => look.id,
     onEvent(n, d) {
-      if (n === 'roster') { showList(); if (net.roster.length > 1 && net.status === 'ouverte') say(`${net.roster.length} joueurs dans la salle`); }
-      else if (n === 'ko') { showList(); say(`Un point pour ${nameOf(d.by)}`); sfx('gong'); }
-      else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
+      if (n === 'roster') { showList(); lobby?.render(); }
+      else if (n === 'mode') lobby?.setMode(d.mode);
+      else if (n === 'start') {
+        lobby?.hide();
+        hud.hidden = false;
+        setText(codeEl, `${MODES[d.mode].name} · ${net.code}`);
+        showList(); say('Le combat commence !');
+        sfx('gong');
+        run.paused = false;
+        snapCamera();
+      } else if (n === 'ko') { showList(); say(`Un point pour ${nameOf(d.by)}`); }
+      else if (n === 'out') say('Éliminé : tu regardes la fin du combat', true);
+      else if (n === 'end') {
+        sfx('gong');
+        const lines = net.roster.map((p) => `${p.name} : ${multi.scores.get(p.id) ?? 0}`);
+        setTimeout(() => {
+          run.paused = true;
+          hud.hidden = true;
+          lobby?.result(d.name, lines);
+          setTimeout(() => { if (lobby) { lobby.show(); } }, 4000);
+        }, 900);
+      } else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
     },
   });
+  lobby = new Lobby(uiLayer, { net, multi, meta, skins, onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
   net.onStatus('connexion');
-  net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des salles'));
-  hud.querySelector('[data-salle-quit]').onclick = () => {
-    net.close();
-    try { sessionStorage.removeItem('kage-salle'); } catch { /* rien */ }
-    location.hash = '#potager';
-  };
+  net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
 if (level.arena) { const cfg = roomConfig(); if (cfg) startRoom(cfg); }
-
-/** Le menu « Jouer à plusieurs » de l'écran titre : son nom, créer une salle ou en rejoindre une. */
-function setupMultiMenu(title) {
-  const panel = title.querySelector('[data-multi-panel]'), msg = panel.querySelector('[data-multi-msg]');
-  const nameIn = panel.querySelector('[data-name]'), nameView = panel.querySelector('[data-name-view]');
-  const codeIn = panel.querySelector('[data-code]'), codeView = panel.querySelector('[data-code-view]');
-  const clean = (v) => [...v].filter((c) => NAME_OK.test(c)).join('').slice(0, 10);
-  const mirror = () => {
-    nameIn.value = clean(nameIn.value);
-    setText(nameView, nameIn.value + (document.activeElement === nameIn ? '_' : '') || 'Ninja');
-    codeIn.value = cleanCode(codeIn.value);
-    setText(codeView, (codeIn.value + '····').slice(0, 4));
-  };
-  nameIn.value = defaultName();
-  for (const el of [nameIn, codeIn]) {
-    el.addEventListener('input', mirror);
-    el.addEventListener('focus', mirror); el.addEventListener('blur', mirror);
-    el.addEventListener('keydown', (e) => e.stopPropagation());   // les touches tapées ne vont pas au jeu
-  }
-  mirror();
-  const go = (cfg) => {
-    try { localStorage.setItem('kage-nom', cfg.name); sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
-    location.hash = '#arene-potager';
-  };
-  const name = () => clean(nameIn.value).trim() || 'Ninja';
-  title.querySelector('[data-multi]').addEventListener('click', () => {
-    title.classList.add('multi-open'); panel.hidden = false; setText(msg, ''); panel.querySelector('[data-create]').focus();
-  });
-  panel.querySelector('[data-create]').addEventListener('click', () => go({ mode: 'host', code: randomCode(), name: name() }));
-  panel.querySelector('[data-join]').addEventListener('click', () => {
-    const code = cleanCode(codeIn.value);
-    if (code.length !== 4) { setText(msg, 'Le code a quatre signes (ex. 7F3Q)'); codeIn.focus(); return; }
-    go({ mode: 'join', code, name: name() });
-  });
-  codeIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') panel.querySelector('[data-join]').click(); });
-  panel.querySelector('[data-multi-back]').addEventListener('click', () => {
-    title.classList.remove('multi-open'); panel.hidden = true; title.querySelector('[data-multi]').focus();
-  });
-}
 
 // son : débloqué au premier geste ; bouton et touche M pour le couper
 const muteBtn = document.querySelector('.mute');
@@ -750,7 +739,7 @@ if (SKIN_LAB) setupSkinLab();
  */
 function setupSkinLab() {
   document.querySelector('.levels').style.display = 'none';
-  document.title = 'The Ninja Game — Test';
+  document.title = 'The Ninja Adventure — Test';
   const lab = document.createElement('div');
   lab.className = 'lab';
   const stop = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -892,7 +881,7 @@ function update(dt) {
   }
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
-  player.update(dt, run.won ? IDLE_INPUT : input);
+  if (!multi?.out) player.update(dt, run.won ? IDLE_INPUT : input);   // (Souffle unique : éliminé, il regarde)
   level.update(dt);
   level.arena?.update(dt, [player]);
   multi?.update(dt);
@@ -1160,7 +1149,7 @@ function draw() {
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
-  if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
+  if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
   arenaArt?.drawFront(ctx, cam, level.time);
@@ -1415,7 +1404,7 @@ async function playIntro() {
   it.onMenu = () => {
     title.classList.remove('waiting');
     // un peu plus tard : la touche qui a passé l'intro ne doit pas aussi choisir dans le menu
-    setTimeout(() => { if (intro === it) { const c = title.querySelector('[data-continue]'); (c.hidden ? title.querySelector('[data-new]') : c).focus(); } }, 350);
+    setTimeout(() => { if (intro === it && !menu?.current) title.querySelector('[data-menu="aventure"]')?.focus(); }, 350);
   };
   // la musique finit : le menu s'efface avec l'image, puis l'intro recommence (le menu revient à son heure)
   it.onFade = () => { title.classList.add('waiting'); document.activeElement?.blur?.(); };
@@ -1461,24 +1450,75 @@ function endIntro() {
   music.setLevel(1, 0);
   music.start();
 }
+// ---- l'écran titre : le menu (src/game/menu.js) ------------------------------------------
+let menu = null;
+/** Ce qu'on dit d'une aventure : son chapitre, sa zone (d'après sa lanterne), le corbeau. */
+function chapterOf(sv) {
+  const def = LEVELS[sv.chapter] ?? LEVELS.potager;
+  const short = (def.name ?? '').split('— ')[1] ?? def.name;
+  const x = sv.checkpointX ?? 0;
+  const zones = def.zones ?? [];
+  const z = zones.find((zz) => x >= zz.x0 * 16 && x < zz.x1 * 16) ?? zones[0];
+  return {
+    chapter: `Chapitre ${def.chapter ?? 1} · ${short}`,
+    chapterShort: `${def.chapter ?? 1} · ${short}`,
+    zone: z ? `Zone ${z.id} · ${z.name.charAt(0).toLowerCase()}${z.name.slice(1)}` : '',
+    zoneShort: z ? `${z.id} sur ${zones.length}` : '',
+    boss: !!sv.bossDefeated || sv.chapter !== 'potager',
+  };
+}
+/** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
+function goAdventure(chapter, how) {
+  try { sessionStorage.setItem('kage-go', how); } catch { /* rien */ }
+  if (TEST_BUILD) labSet('chapter', chapter);
+  location.replace(location.pathname + location.search);
+}
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');
   title.hidden = false;
   run.title = true;
   snapCamera();
   title.querySelector('[data-chapter]').textContent = level.name;
-  const existing = loadSave();
-  const cont = title.querySelector('[data-continue]');
-  cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
-  cont.addEventListener('click', () => startChapter(true));
-  setupMultiMenu(title);
-  title.querySelector('[data-new]').addEventListener('click', () => {
-    // une nouvelle partie commence toujours au chapitre 1
-    if (LEVEL_ID !== 'potager' && !hashId && !TEST_BUILD) { clearSave(); location.reload(); return; }
-    startChapter(false);
+  menu = new Menu(title, {
+    meta, skins, profile, saveProfile,
+    saves: listSaves,
+    chapterOf,
+    continueAdventure(slot) {
+      setSlot(slot);
+      const sv = loadSave(slot);
+      if (sv && sv.chapter !== LEVEL_ID) { goAdventure(sv.chapter, 'continue'); return; }
+      menu.closeAll();
+      startChapter(true);
+    },
+    newAdventure(slot) {
+      setSlot(slot);
+      clearSave(slot);
+      if (LEVEL_ID !== 'potager') { goAdventure('potager', 'new'); return; }   // une aventure commence au chapitre 1
+      menu.closeAll();
+      startChapter(false);
+    },
+    eraseAdventure(slot) {
+      clearSave(slot);
+      if (profile.shown === slot) { profile.shown = slot === 1 ? 2 : 1; saveProfile(profile); }
+    },
+    createArena() { go({ mode: 'host', code: randomCode() }); },
+    joinArena(code) { go({ mode: 'join', code }); },
+    setBackdrop(on) { if (intro) intro.menuMode = on; },
   });
-  (cont.hidden ? title.querySelector('[data-new]') : cont).focus();
-  if (existing && existing.chapter === LEVEL_ID && existing.intro) {
+  function go(cfg) {
+    try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+    location.hash = '#arene-potager';
+  }
+  title.querySelector('[data-menu="aventure"]').focus();
+  const existing = loadSave();
+  let goNow = null, back = null;
+  try {
+    goNow = sessionStorage.getItem('kage-go'); sessionStorage.removeItem('kage-go');
+    back = JSON.parse(sessionStorage.getItem('kage-menu') || 'null'); sessionStorage.removeItem('kage-menu');
+  } catch { /* rien */ }
+  if (goNow) {
+    startChapter(goNow === 'continue');             // choisi dans le menu, puis rechargé sur son chapitre
+  } else if (existing && existing.chapter === LEVEL_ID && existing.intro) {
     // on arrive du chapitre précédent : pas d'écran titre, la carte du chapitre s'efface sur la forêt
     startChapter(true);
     delete save.intro;
@@ -1486,11 +1526,13 @@ if (CHAPTER) {
     chapterCard(level.intro, true);
   } else {
     if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
-    // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni dans la version
-    // de test quand on vient de changer de chapitre par le panneau
-    const quiet = globalThis.__KAGE_SKIP_INTRO || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
+    // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni quand on revient
+    // de l'arène, ni dans la version de test quand on vient de changer de chapitre par le panneau
+    const quiet = globalThis.__KAGE_SKIP_INTRO || back || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
     sessionStorage.removeItem('kage-sans-intro');
     if (!quiet) playIntro();
+    else if (SKIN_LAB && back) { document.querySelector('.title-screen').hidden = false; run.title = true; }
+    if (back?.screen) menu.open(back.screen, back);
   }
 }
 

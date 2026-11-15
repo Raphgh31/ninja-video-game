@@ -1,7 +1,7 @@
 {
   "id": "encre",
   "name": "Encre",
-  "description": "Skin de référence : KAGE entièrement noir. Toutes les couleurs des autres skins se définissent par rapport à ces slots.",
+  "description": "Le ninja tout de noir vêtu : le skin d'origine.",
   "reference": true,
   "colors": {
     "O": "#050609",

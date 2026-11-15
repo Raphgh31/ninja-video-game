@@ -11,6 +11,12 @@ import { HEALTH } from './combat.js';
 
 const SEND_EVERY = 0.05;        // s : vingt états par seconde
 export const SLOT_COLORS = ['#e8b93c', '#5ccdc8', '#e0607a', '#9ad35a'];   // repère de chaque place (or, eau, laque, pousse)
+// les modes du combat (choisis par l'hôte dans le salon)
+export const MODES = {
+  souffle: { name: 'Souffle unique', text: 'Une vie : le dernier debout gagne.', lives: 1 },
+  trois: { name: 'Trois lames', text: 'Le premier à 3 éliminations gagne.', goal: 3 },
+  dix: { name: 'Dix lames', text: 'Le premier à 10 éliminations gagne.', goal: 10 },
+};
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -24,6 +30,8 @@ export class Multi {
     this.time = 0;
     this.lastHit = null;            // { by, t } : le dernier coup reçu
     this.placed = false;
+    this.match = null;              // le combat en cours : { mode, players (ids au départ), out (Set), over }
+    this.out = false;               // Souffle unique : KAGE est éliminé, il regarde la fin
     this.applying = false;          // vrai pendant qu'on rejoue un événement reçu (pour ne pas le renvoyer)
     // les shurikens des autres : pour les voir voler (c'est leur écran qui décide s'ils touchent)
     const quiet = Object.create(this.level);
@@ -74,6 +82,8 @@ export class Multi {
       if (!this.scores.has(p.id)) this.scores.set(p.id, 0);
     }
     if (!this.scores.has(this.net.id)) this.scores.set(this.net.id, 0);
+    this.net.send({ t: 'me', sk: this.skinId() });   // que les nouveaux voient notre skin (dans le salon)
+    if (this.net.host && this.match && !this.match.over) this.checkEnd();
     // notre place connue : on apparaît à son point de départ (une fois)
     const me = this.me;
     if (me && !this.placed) {
@@ -118,11 +128,18 @@ export class Multi {
         }
         break;
       case 'ko': {
+        if (!this.match || this.match.over) return;
         const by = m.by;
         this.scores.set(by, (this.scores.get(by) ?? 0) + 1);
         this.onEvent?.('ko', { by, victim: from });
+        if (this.net.host) this.checkEnd();
         break;
       }
+      case 'me': if (r && this.skins[m.sk]) { r.skin = m.sk; this.onEvent?.('roster', { roster: this.net.roster }); } break;
+      case 'mode': this.onEvent?.('mode', { mode: m.mode }); break;
+      case 'start': this.startMatch(m.mode); break;
+      case 'out': if (this.match) { this.match.out.add(from); if (this.net.host) this.checkEnd(); } break;
+      case 'end': this.endMatch(m.winner, m.scores); break;
       case 'throw':
         this.ghosts.stock = 99;
         this.ghosts.throw(m.x, m.y, m.dir, m.h);
@@ -158,11 +175,59 @@ export class Multi {
     return hit;
   }
 
+  // --- le combat : départ, morts, fin ------------------------------------------------------
+  /** L'hôte lance le combat (mode) : tout le monde à sa place, les points à zéro. */
+  launch(mode) {
+    if (!this.net.host) return;
+    this.net.send({ t: 'start', mode });
+    this.startMatch(mode);
+  }
+
+  startMatch(mode) {
+    this.match = { mode, players: this.net.roster.map((p) => p.id), out: new Set(), over: false };
+    this.out = false;
+    this.lastHit = null;
+    for (const id of this.scores.keys()) this.scores.set(id, 0);
+    const me = this.me, sp = this.level.arena.def.spawns;
+    if (me) this.level.spawn = { ...sp[me.slot % sp.length] };
+    this.level.arena.reset();
+    this.player.respawn(true);
+    this.shurikens.reset();
+    this.onEvent?.('start', { mode });
+  }
+
+  /** L'hôte vérifie si le combat est fini, et l'annonce. */
+  checkEnd() {
+    const m = this.match;
+    if (!m || m.over) return;
+    const mode = MODES[m.mode];
+    let done = false, winner = null;
+    if (mode.goal) {
+      for (const [id, n] of this.scores) if (n >= mode.goal) { done = true; winner = id; }
+    } else {
+      const alive = m.players.filter((id) => !m.out.has(id) && this.net.roster.some((p) => p.id === id));
+      if (alive.length <= 1) { done = true; winner = alive[0] ?? null; }
+    }
+    if (!done) return;
+    const scores = [...this.scores];
+    this.net.send({ t: 'end', winner, scores });
+    this.endMatch(winner, scores);
+  }
+
+  endMatch(winner, scores) {
+    if (!this.match || this.match.over) return;
+    this.match.over = true;
+    if (scores) for (const [id, n] of scores) this.scores.set(id, n);
+    this.onEvent?.('end', { winner, name: this.net.roster.find((p) => p.id === winner)?.name ?? null });
+  }
+
   /**
    * Mort de KAGE : un point pour l'autre joueur. À deux, c'est l'adversaire ; à plus,
    * celui qui l'a touché en dernier (et si personne ne l'a touché, personne ne marque).
+   * Souffle unique : KAGE est éliminé (il ne réapparaît pas).
    */
   onDeath() {
+    if (!this.match || this.match.over) return;
     const others = this.net.roster.filter((p) => p.id !== this.net.id);
     const by = this.lastHit && others.some((p) => p.id === this.lastHit.by) ? this.lastHit.by : others.length === 1 ? others[0].id : null;
     if (by) {
@@ -171,6 +236,13 @@ export class Multi {
       this.onEvent?.('ko', { by, victim: this.net.id });
     }
     this.lastHit = null;
+    if (MODES[this.match.mode].lives) {
+      this.out = true;
+      this.match.out.add(this.net.id);
+      this.net.send({ t: 'out' });
+      this.onEvent?.('out', {});
+    }
+    if (this.net.host) this.checkEnd();
     // réapparition : le point de départ le plus loin des autres
     const sp = this.level.arena.def.spawns, seen = [...this.remotes.values()].filter((r) => r.seen);
     if (seen.length) {
