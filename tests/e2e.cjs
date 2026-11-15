@@ -1070,7 +1070,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,voyageur,paysan'
+    expect(look[0] && look[1] === 'encre,voyageur,paysan,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1144,7 +1144,7 @@ async function main() {
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,encre,3' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+    expect(r0.join() === 'true,false,encre,4' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 

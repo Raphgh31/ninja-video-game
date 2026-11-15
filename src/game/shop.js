@@ -1,3 +1,5 @@
+import { drawAura } from './aura.js';
+
 // Boutique du marchand ambulant — plein écran (refaite en novembre 2026, demande de Raph).
 // Rayon « Apparences » : tous les skins de KAGE (assets/characters/kage/skins/*.json, champ `price` en
 // ryō), en vente dès le chapitre 1. Une grille de cartes (vignette, cadre à la couleur de la rareté, prix) ;
@@ -255,6 +257,7 @@ export class Shop {
     c.fillStyle = 'rgba(0,0,0,.35)';
     c.fillRect(20, 68, 40, 2);
     c.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * 2, f.h * 2);
+    if (sk.aura) drawAura(c, meta.pivot.x, meta.pivot.y, 1, performance.now() / 1000, 2);
   }
 
   /** Les flèches passent d'une carte à l'autre. */

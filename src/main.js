@@ -14,6 +14,7 @@ import { Fx } from './engine/fx.js';
 import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
+import { drawAura as drawAura0 } from './game/aura.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
@@ -137,24 +138,9 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
-/**
- * L'éclat d'un skin légendaire (Lumière d'or) : une poussière de lumière dorée qui tourne autour de KAGE et
- * scintille, et un léger halo. Purement décoratif : rien ne change dans le jeu.
- */
+/** L'éclat d'un skin légendaire (Lumière d'or) : orbe, volutes, étincelles (src/game/aura.js). */
 function drawAura(cam) {
-  const t = performance.now() / 1000, x = Math.round(player.x - cam.x), y = Math.round(player.y - cam.y) - 16;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 9; i++) {
-    const a = t * (0.9 + (i % 3) * 0.25) + i * 0.7, r = 11 + (i % 4) * 3 + Math.sin(t * 2 + i) * 2;
-    const px = x + Math.round(Math.cos(a) * r), py = y + Math.round(Math.sin(a) * r * 0.8 - ((t * 9 + i * 7) % 10));
-    const k = 0.5 + 0.5 * Math.sin(t * 6 + i * 2.1);
-    ctx.globalAlpha = 0.25 + 0.6 * k;
-    ctx.fillStyle = i % 3 ? '#ffd86a' : '#fff6c8';
-    ctx.fillRect(px, py, 1, 1);
-    if (k > 0.85) { ctx.fillRect(px - 1, py, 3, 1); ctx.fillRect(px, py - 1, 1, 3); }
-  }
-  ctx.restore();
+  drawAura0(ctx, Math.round(player.x - cam.x), Math.round(player.y - cam.y), player.facing, performance.now() / 1000);
 }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 // version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
