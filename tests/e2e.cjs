@@ -1550,7 +1550,7 @@ async function main() {
       await B.evaluate(() => window.__kage.player.die());
       await B.waitForFunction(() => window.__kage.multi.out && /Victoire de Raph/.test(document.querySelector('[data-salon]').textContent), null, { timeout: 4000 });
       const sudden = await B.evaluate(() => window.__kage.multi.match.over);
-      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && /Tu es invité/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
+      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
         && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
         `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}`);
     } finally { await ctx.close(); srv.close(); }
@@ -1583,9 +1583,11 @@ async function main() {
     const msg = await pm.evaluate(() => document.querySelector('[data-multi-msg]').textContent);
     await pm.click('[data-code]'); await pm.keyboard.type('3q');
     await pm.click('[data-join]');
-    await pm.waitForFunction(() => window.__kage && window.__kage.level.arena && window.__kage.multi, null, { timeout: 15000 });
-    const cfg = await pm.evaluate(() => [JSON.parse(sessionStorage.getItem('kage-salle')).code, window.__kage.multi.net.code]);
-    const visible = await pm.evaluate(() => document.body.innerText);
+    // lu d'un coup, dans la page, dès l'arrivée dans l'arène (sans service des arènes joignable ici,
+    // le jeu ramène vite au menu Rejoindre : il ne faut pas lire la page pendant ce retour)
+    const seen = await (await pm.waitForFunction(() => window.__kage?.level?.arena && window.__kage.multi
+      && [JSON.parse(sessionStorage.getItem('kage-salle')).code, window.__kage.multi.net.code, document.body.innerText], null, { timeout: 15000 })).jsonValue();
+    const cfg = seen.slice(0, 2), visible = seen[2];
     await pm.close();
     expect(main === 'aventure,arene,ninja' && cards.join() === '1,1' && two.join() === '2,77' && prof === 'Kenji' && /quatre signes/.test(msg) && cfg.join() === '7F3Q,7F3Q' && !/KAGE/i.test(visible),
       `menu ${main}, cartes ${cards}, emplacement ${two}, pseudo ${prof}, message « ${msg} », arène ${cfg}`);

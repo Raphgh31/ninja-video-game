@@ -63,7 +63,7 @@ export class Lobby {
     const s = this.el;
     s.replaceChildren(el('div', 'm-veil'));
     const hd = el('header', 'm-hd');
-    hd.append(el('h2', null, 'Arène · La rizière du gong'), el('p', 'm-sub m-warm', host ? "Tu es l'hôte" : 'Tu es invité'));
+    hd.append(el('h2', null, 'Arène'));
     const body = el('div', 'm-body');
     const grid = el('div', 'm-salon');
     // à gauche : le code, puis les modes
@@ -111,20 +111,19 @@ export class Lobby {
         const me = p.id === net.id;
         slot.append(this.face(me ? this.multi.skinId() : this.multi.remotes.get(p.id)?.skin ?? 'encre'));
         slot.append(el('p', 'm-ink', me ? `${p.name} (toi)` : p.name));
-        slot.append(el('p', `m-tag ${p.slot === 0 ? 'm-gold' : 'm-muted'}`, p.slot === 0 ? 'hôte' : 'connecté'));
-      } else slot.append(el('p', 'm-dim', "En attente d'un joueur…"));
+        if (p.slot === 0) slot.append(el('p', 'm-tag m-gold', 'hôte'));
+      }
       slots.append(slot);
     }
     right.append(slots);
-    // le message : l'état de la connexion, sinon ce qu'il y a à faire (plus court sur les écrans bas)
-    const long = host ? 'Donne le code à tes amis (Arène, puis Rejoindre). Tu choisis le mode et tu lances le combat.' : "L'hôte choisit le mode et lance le combat.";
-    const short = host ? 'Donne le code à tes amis.' : "L'hôte choisit le mode.";
-    const msg = el('p', this.status ? 'm-warm' : 'm-muted m-long-only', this.status || long);
-    msg.dataset.salonMsg = '';
-    msg.style.setProperty('--pxw', '180');
-    msg.style.marginTop = '4px';
-    right.append(msg);
-    if (!this.status) { const m2 = el('p', 'm-muted m-short-only', short); m2.style.marginTop = '2px'; right.append(m2); }
+    // un message seulement s'il y a quelque chose à dire (connexion, hôte parti…)
+    if (this.status) {
+      const msg = el('p', 'm-warm', this.status);
+      msg.dataset.salonMsg = '';
+      msg.style.setProperty('--pxw', '180');
+      msg.style.marginTop = '4px';
+      right.append(msg);
+    }
     grid.append(left, right);
     body.append(grid);
     const ft = el('footer', 'm-ft');
@@ -138,7 +137,7 @@ export class Lobby {
       go.disabled = net.roster.length < 2;
       if (go.disabled) go.title = 'Il faut au moins deux joueurs';
       ft.append(go);
-    } else ft.append(el('p', 'm-dim', "En attente de l'hôte…"));
+    }
     s.append(hd, body, ft);
     // garder le focus au même endroit après un nouveau rendu
     const keep = focused && s.querySelector(`[data-focus-key="${focused}"]`);
@@ -156,7 +155,6 @@ export class Lobby {
     box.style.cssText = 'grid-row:1 / 4;align-content:center;gap:6px';
     box.append(el('p', 'm-lbl', MODES[this.mode]?.name ?? ''), el('p', 'm-big', winnerName ? `Victoire de ${winnerName}` : 'Égalité'));
     for (const l of lines) box.append(el('p', 'm-muted', l));
-    box.append(el('p', 'm-dim', 'Retour au salon…'));
     s.append(box);
   }
 }

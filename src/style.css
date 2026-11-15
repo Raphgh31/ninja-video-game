@@ -191,12 +191,14 @@ body.mobile .talk { padding-left: 6px; }
    .short (image de moins de 236 px de haut : téléphones allongés) : versions compactes. */
 .m-screen { position: absolute; inset: 0; z-index: 6; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); padding: 8px 16px 6px; color: var(--ink); }
 .m-screen[hidden] { display: none; }
-.m-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(rgba(8, 10, 14, .76) 0%, rgba(8, 10, 14, .88) 52%, #0a0c10 62%); }
+.m-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(rgba(8, 10, 14, .62) 0%, rgba(8, 10, 14, .76) 52%, rgba(10, 12, 16, .9) 70%, #0a0c10 88%); }
 .m-screen.solid .m-veil { background: #0a0c10; }
 .m-hd { display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid #3a3f4a; }
 .m-hd h2 { margin: 0; --pxf: big; --pxs: 1; color: #f3e3c3; text-transform: uppercase; }
-.m-hd .m-sub { margin: 0 0 0 auto; color: #8e939c; }
 .m-body { position: relative; min-height: 0; padding-top: 8px; }
+.m-body.m-mid { display: grid; align-content: center; padding-top: 0; }
+.m-cards.m-compact { height: auto; }
+.m-compact .m-card { align-items: flex-start; gap: 8px; padding: 9px 12px 10px; }
 .m-ft { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; color: #6f7672; }
 .m-ft p { margin: 0; }
 .m-screen p { margin: 0; }
@@ -225,8 +227,6 @@ body.mobile .talk { padding-left: 6px; }
 .m-card .m-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .m-card .m-push { margin-top: auto; }
 .m-card canvas.m-ninja { align-self: center; image-rendering: pixelated; }
-.m-thumb { margin: -3px -6px 2px; height: 70px; background-size: cover; background-position: center; image-rendering: pixelated; }
-.short .m-thumb { height: 34px; }
 .m-field { position: relative; display: flex; align-items: center; height: 17px; padding-left: 5px; border: 1px solid #6b5236; background: rgba(18, 13, 10, .9); color: #f3e3c3; cursor: text; }
 .m-field:focus-within { border-color: #e8b93c; }
 .m-field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
