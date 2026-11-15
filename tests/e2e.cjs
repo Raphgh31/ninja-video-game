@@ -1341,6 +1341,116 @@ async function main() {
     expect(r[0] && r[1] < 10 && r[2] && r2[0] && r2[1] === ryo0, `forêt : titre caché ${r[0]}, colonne ${r[1]}, carte ${r[2]} → ${r2.join(' / ')}`);
   });
 
+  // ---- mode combat : l'arène du Potager (la rizière du gong) ----
+  const ar = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  ar.setDefaultTimeout(8000);
+  ar.on('pageerror', (e) => errors.push('[arène] ' + e.message));
+  if (!process.env.SEUL || 'arène'.includes(process.env.SEUL) || process.env.SEUL.includes('arène')) {
+    await ar.goto(PAGE + '#arene-potager'); await ar.waitForFunction(() => window.__kage && window.__kage.level.arena); await ar.waitForTimeout(300);
+  }
+  // KAGE posé en (tx, ligne du sol ty), à l'arrêt ; le temps n'avance que par step()
+  const AT = (tx, ty, extra = {}) => ar.evaluate(([tx, ty, extra]) => {
+    const g = window.__kage, pl = g.player;
+    pl.x = tx * 16 + 8; pl.y = ty * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 0; pl.hp = 5;
+    Object.assign(pl, extra); g.step(2);
+  }, [tx, ty, extra]);
+  const AK = ar.keyboard;
+
+  await test('arène : caméra — hauteur fixe ; en largeur, elle suit KAGE sans sortir de l\'arène (on en voit les deux tiers)', async () => {
+    const r = [];
+    for (const tx of [8, 28, 47]) {
+      await AT(tx, 18);
+      r.push(await ar.evaluate(() => { const g = window.__kage; for (let i = 0; i < 300; i++) g.step(1); return [Math.round(g.camera.x), Math.round(g.camera.y)]; }));
+    }
+    const w = await ar.evaluate(() => { const [l, rr] = window.__kage.level.arena.def.walls; return [l * 16, (rr + 1) * 16, window.__kage.view().w]; });
+    const share = w[2] / (w[1] - w[0] - 32);
+    expect(r[0][0] === w[0] && r[2][0] === w[1] - w[2] && r[1][0] > r[0][0] && r[1][0] < r[2][0] && r[0][1] === r[1][1] && r[1][1] === r[2][1] && share > 0.62 && share < 0.72,
+      `caméras ${JSON.stringify(r)}, arène ${w[0]}–${w[1]}, part visible ${share.toFixed(2)}`);
+  });
+
+  await test('arène : un shuriken depuis la plateforme du treuil coupe la corde ; les balles écrasent celui qui est dessous (2), restent en marches, puis la grue les remonte', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(8, 9, { facing: 1 });
+    await AK.press('KeyC');
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, a = g.level.arena, c = a.crane, out = {};
+      // une cible sous les balles : un combattant factice
+      const dummy = { x: c.x0 * 16 + 16, y: g.level.arena.def.ground, vx: 0, vy: 0, onGround: true, state: 'idle', dmg: 0,
+        box() { return { x: this.x - 4, y: this.y - 22, w: 9, h: 22 }; }, hurt(d) { this.dmg += d; return true; } };
+      for (let i = 0; i < 240 && c.state !== 'down'; i++) { g.step(1); a.updateCrane(0, [dummy]); }
+      out.cut = c.state; out.dmg = dummy.dmg;
+      out.steps = g.level.at(c.x0, 16) === 'K' && g.level.at(c.x0 + 1, 17) === 'K' && g.level.at(c.x0, c.top) !== 'K';
+      c.t = c.recharge - 0.01;
+      for (let i = 0; i < 600 && c.state !== 'hang'; i++) g.step(1);
+      out.back = c.state; out.hangs = g.level.at(c.x0, c.top) === 'K';
+      return out;
+    });
+    expect(r.cut === 'down' && r.dmg === 2 && r.steps && r.back === 'hang' && r.hangs, JSON.stringify(r));
+  });
+
+  await test('arène : le gong (sabre) ouvre les vannes ; la vague emporte KAGE vers le canal (1) et la caisse avec elle ; le gong se réarme', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(46, 9, { facing: 1 });
+    await AK.press('KeyX');
+    await ar.evaluate(() => window.__kage.step(30));
+    const rung = await ar.evaluate(() => [window.__kage.level.arena.gong.ready, window.__kage.level.arena.waves.length]);
+    await AT(12, 18);
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, pl = g.player, x0 = pl.x, crate = g.level.at(11, 17) === 'B';
+      let maxX = x0;
+      let hp = pl.hp;
+      for (let i = 0; i < 200; i++) { g.step(1); maxX = Math.max(maxX, pl.x); if (pl.state !== 'death' && pl.state !== 'respawn') hp = Math.min(hp, pl.hp); }
+      const a = g.level.arena;
+      const moved = !g.level.crates.has('11,17');
+      for (let i = 0; i < 12 * 120; i++) g.step(1);
+      return { x0, maxX: Math.round(maxX), hp, crate, moved, ready: a.gong.ready, waves: a.waves.length };
+    });
+    expect(rung[0] === false && rung[1] === 2 && r.maxX - r.x0 > 60 && r.hp === 4 && r.crate && r.moved && r.ready && r.waves === 0, `gong ${rung} ; ${JSON.stringify(r)}`);
+  });
+
+  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; une réception lourde effondre un échafaudage, rebâti ensuite', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(8, 11, { onGround: false });
+    const hay = await ar.evaluate(() => { const g = window.__kage, pl = g.player; pl.x = 8 * 16 + 6; pl.setState('fall'); const vs = []; let pv = 0;
+      for (let i = 0; i < 400; i++) { g.step(1); if (pl.vy < 0 && pv >= 0 && i > 2) vs.push(Math.round(pl.vy)); pv = pl.vy; } return vs; });
+    await AT(10, 7, { onGround: false });
+    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level; pl.setState('fall'); pl.vy = 200;
+      for (let i = 0; i < 120; i++) g.step(1);
+      const down = lv.scaffolds.map((s) => s.up).join();
+      for (let i = 0; i < 9 * 120; i++) g.step(1);
+      return [down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
+    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,false,true,true' && sc[1] === 'true,true,true,true' && sc[2] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
+  });
+
+  await test('arène : coup de pied dans une caisse — elle glisse ; poussée dans le canal, elle coule', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    // une caisse au bord du canal, KAGE derrière
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, lv = g.level;
+      lv.setTile(23, 17, 'B'); lv.crates.set('t23', { key: 't23', tx: 23, ty: 17, fall: null });
+      const pl = g.player; pl.x = 22 * 16 + 2; pl.y = 18 * 16; pl.onGround = true; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.energy.value = 1;
+      g.step(2);
+      return lv.crates.size;
+    });
+    await AK.press('KeyB');
+    const after = await ar.evaluate(() => { const g = window.__kage; g.step(10); const sl = g.level.arena.sliding.length; for (let i = 0; i < 240; i++) g.step(1); return [sl, g.level.crates.size, g.level.at(23, 17)]; });
+    expect(after[0] === 1 && after[1] === r - 1 && after[2] === '.', `avant ${r} caisses ; après ${after}`);
+  });
+
+  await test('arène : bonus — un cœur rend un point de vie, un paquet recharge les shurikens', async () => {
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, a = g.level.arena, pl = g.player;
+      a.pickups = []; a.heartClock = 99; a.bundleClock = 99;
+      g.step(2);
+      const kinds = a.pickups.map((p) => p.kind).sort().join();
+      const h = a.pickups.find((p) => p.kind === 'heart'), b = a.pickups.find((p) => p.kind === 'bundle');
+      pl.hp = 2; g.shurikens.stock = 0;
+      for (const p of [h, b]) { pl.x = p.x; pl.y = p.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); for (let i = 0; i < 60; i++) g.step(1); }
+      return { kinds, hp: pl.hp, stock: g.shurikens.stock, left: a.pickups.length };
+    });
+    expect(r.kinds === 'bundle,heart' && r.hp === 3 && r.stock === 3 && r.left === 0, JSON.stringify(r));
+  });
+
   await test('aucune erreur dans la console', async () => {
     expect(errors.length === 0, errors.join(' | '));
   });

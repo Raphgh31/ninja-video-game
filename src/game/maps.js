@@ -1,5 +1,6 @@
 import { POTAGER } from './chapters/potager.js';
 import { FORET } from './chapters/foret.js';
+import { ARENE_POTAGER } from './chapters/arene_potager.js';
 
 // Cartes des niveaux. Légende :
 //   # bloc   ^ pics   S départ   E TATE   W WARA   P lanterne (point de sauvegarde)
@@ -62,6 +63,7 @@ export const NIVEAU_1 = [
 export const LEVELS = {
   potager: POTAGER,
   foret: FORET,
+  'arene-potager': ARENE_POTAGER,     // mode combat : l'arène du Potager
   'niveau-1': { name: 'Niveau 1', map: NIVEAU_1 },
   terrain: { name: "Terrain d'essai", map: TERRAIN },
 };

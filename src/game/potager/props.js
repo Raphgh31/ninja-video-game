@@ -1880,6 +1880,7 @@ export function autoDecor(b, map, tx0, tx1) {
       }
       if (st !== 'deck' && st !== 'beam' && st !== 'plank' && st !== 'shelf') continue;
       if (map.solid(tx, ty + 1)) continue;
+      if (map.level.arena?.def.ownSupports?.some((o) => ty === o.row && tx >= o.x0 && tx <= o.x1)) continue;   // arène : supports dessinés (src/game/arena/art.js)
       const lEnd = map.styleAt(tx - 1, ty) !== st, rEnd = map.styleAt(tx + 1, ty) !== st;
       if (!lEnd && !rEnd && tx % 3) continue;
       let bot = ty + 1; while (bot < map.h && !map.solid(tx, bot) && map.at(tx, bot) !== '~') bot++;

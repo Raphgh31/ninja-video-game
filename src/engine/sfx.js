@@ -485,6 +485,20 @@ const SOUNDS = {
     for (let i = 0; i < 5; i++) air({ dur: 0.07, vol: 0.05, type: 'bandpass', q: 1, f: [[0, 900], [1, 2200]], g: [[0, 0.1], [0.4, 1], [1, 0.01]], delay: i * 0.055 + rnd(0, 0.02) });
     tone({ f: 3100, to: 2500, dur: 0.07, type: 'sine', vol: 0.02, delay: 0.05 });
   },
+  // arène : la vanne s'ouvre, l'eau déferle ; la botte de foin renvoie ; un cœur ramassé
+  waterRush: () => {
+    air({ dur: 1.6, vol: 0.13, type: 'lowpass', q: 0.7, f: [[0, 600], [0.2, 1600], [1, 500]], g: [[0, 0.1], [0.12, 1], [0.7, 0.6], [1, 0.01]] });
+    air({ dur: 1.4, vol: 0.05, type: 'highpass', q: 0.6, f: [[0, 2500], [1, 4000]], g: [[0, 0.1], [0.2, 1], [1, 0.01]], am: { rate: 17, depth: 0.5 } });
+    for (let i = 0; i < 5; i++) tone({ f: rnd(400, 800), to: rnd(900, 1500), dur: 0.05, type: 'sine', vol: 0.012, delay: 0.2 + i * 0.18 });
+  },
+  hayBounce: ({ k = 0.6 } = {}) => {
+    air({ dur: 0.22, vol: 0.09, q: 1.1, f: [[0, 1800], [1, 700]], g: [[0, 1], [0.4, 0.5], [1, 0.01]], am: { rate: 40, depth: 0.6 } });
+    tone({ f: 140 + k * 60, to: 300 + k * 160, dur: 0.18, type: 'triangle', vol: 0.07 });
+  },
+  heart: () => {
+    [784, 988, 1319].forEach((f, i) => tone({ f, dur: i === 2 ? 0.35 : 0.1, type: 'sine', vol: 0.06, delay: i * 0.07 }));
+    tone({ f: 196, dur: 0.12, type: 'triangle', vol: 0.05 });
+  },
   gateCreak: () => {
     tone({ f: 95, to: 120, dur: 1.4, type: 'triangle', vol: 0.06, attack: 0.2 });
     air({ dur: 1.5, vol: 0.05, q: 6, f: [[0, 380], [0.5, 520], [1, 300]], g: [[0, 0.05], [0.2, 1], [0.8, 0.8], [1, 0.01]], am: { rate: 11, depth: 0.8, type: 'sawtooth' } });

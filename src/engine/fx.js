@@ -14,6 +14,7 @@ const COLORS = {
   leaf: ['#2e8b57', '#4fae4e', '#83cf4c', '#1b4d3e'],     // feuilles (lianes, lierre)
   stone: ['#5c6f7b', '#7d9099', '#3a4a57', '#a3b3b6'],    // éclats de pierre
   glow: ['#c4fbff', '#6fd6ee', '#5f7fe6'],                // lueur des yeux de la statue
+  heart: ['#ff8a80', '#d23c3c', '#ffd0c8', '#fff4ec'],    // un cœur ramassé (arène)
 };
 
 export class Fx {

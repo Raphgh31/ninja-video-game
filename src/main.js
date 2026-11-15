@@ -4,7 +4,7 @@ import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
 import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
-import { Shurikens } from './game/shuriken.js';
+import { Shurikens, SHURIKEN } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
 import { Karasu, KARASU } from './game/karasu.js';
@@ -19,6 +19,7 @@ import { Shop } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
+import { ArenaArt } from './game/arena/art.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -318,7 +319,10 @@ player.onEvent = (n, d) => {
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
     case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
-    case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls; break;
+    case 'death':
+      sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls;
+      if (level.arena) level.spawn = level.arena.nextSpawn();   // arène : on revient par un autre côté
+      break;
     case 'respawn': sfx('respawn'); break;
     default:
   }
@@ -551,6 +555,35 @@ level.onEvent = (n, d) => {
   }
 };
 
+// ---- mode combat : l'arène (grue, gong et vagues, foin, caisses, bonus) ---------
+const arenaArt = level.arena && level.art ? new ArenaArt(level) : null;
+if (level.arena) {
+  level.arena.onEvent = (n, d) => {
+    switch (n) {
+      case 'gongArena': sfx('gong'); fx.shake(1.4, 0.35); fx.sparks(d.x, d.y, 10, { speed: 80 }); break;
+      case 'gongDull': sfx('block'); break;                    // déjà frappé : le bronze ne chante pas
+      case 'gongReady': sfxAt('bell', d, undefined, 0.5); break;
+      case 'sluiceRumble': sfx('woodCreak'); fx.shake(0.6, 0.5); break;
+      case 'sluiceOpen': sfxAt('waterRush', d); fx.sparks(d.x + d.dir * 10, d.y - 8, 8, { palette: 'water', speed: 90, dir: d.dir }); break;
+      case 'waveFall': sfxAt('logDip', d); fx.sparks(d.x, d.y + 14, 6, { palette: 'water', speed: 60 }); break;
+      case 'waveHit': sfxAt('logDip', d); fx.sparks(d.x, d.y - 4, 8, { palette: 'water', speed: 90, dir: d.dir }); break;
+      case 'hayBounce': sfxAt('hayBounce', d, { k: d.k }); fx.drift(d.x, d.y - 2, 4, { palette: 'straw', speed: 50, up: 40 }); fx.sparks(d.x, d.y - 2, 5, { palette: 'straw', speed: 60 }); break;
+      case 'scaffoldRebuild': sfxAt('crateLand', d, {}, 0.6); fx.dust(d.x, d.y, 6, { spread: d.w * 0.5, up: 10, life: 0.5 }); break;
+      case 'craneWinch': sfxAt('woodCreak', d); break;
+      case 'craneHit': fx.shake(2.2, 0.3); break;
+      case 'crateKick': sfx('kickHit'); fx.dust(d.x - d.dir * 6, d.y + 6, 4, { dir: -d.dir, spread: 20, up: 6 }); break;
+      case 'crateBreak': sfxAt('crate', d); fx.dust(d.x, d.y + 6, 6, { spread: 30, up: 16 }); fx.sparks(d.x, d.y, 5, { palette: 'straw', speed: 80 }); break;
+      case 'crateSplash': sfxAt('logDip', d); fx.sparks(d.x, d.y, 10, { palette: 'water', speed: 80 }); break;
+      case 'pickupAppear': sfxAt('pickup', d, undefined, 0.5); break;
+      case 'pickup':
+        if (d.kind === 'heart') { d.fighter.hp = Math.min(HEALTH.max, d.fighter.hp + 1); sfx('heart'); fx.sparks(d.x, d.y, 8, { palette: 'heart', speed: 50 }); }
+        else { shurikens.stock = SHURIKEN.stock; sfx('pickup'); fx.sparks(d.x, d.y, 6, { speed: 50 }); }
+        break;
+      default: level.onEvent?.(n, d);                         // corde, chute des balles, échafaudages : comme dans le chapitre
+    }
+  };
+}
+
 // son : débloqué au premier geste ; bouton et touche M pour le couper
 const muteBtn = document.querySelector('.mute');
 function refreshMute() {
@@ -666,6 +699,18 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  // mode combat : les arènes (une par chapitre)
+  for (const [id, l] of Object.entries(LEVELS).filter(([, v]) => v.arena)) {
+    const b = button('Arène', l.name, () => {
+      labSet('chapter', id);
+      sessionStorage.setItem('kage-sans-intro', '1');
+      location.hash = `#${id}`;
+      location.reload();
+    });
+    b.dataset.labChapter = id;
+    b.setAttribute('aria-pressed', String(id === LEVEL_ID));
+    row.append(b);
+  }
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
@@ -683,7 +728,7 @@ function setupSkinLab() {
     setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
   }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
-  if (level.zones.length) {
+  if (level.zones.length && !level.arena) {
     const zr = document.createElement('div');
     zr.className = 'lab__row';
     zr.dataset.zones = '';
@@ -737,6 +782,7 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
+  level.arena?.update(dt, [player]);
   level.forest?.update(dt, player);
   shurikens.update(dt);
   for (const t of enemies) {
@@ -776,7 +822,8 @@ function update(dt) {
     }
   }
   // caisses : le sabre et le coup de pied les brisent
-  for (const box of [ab, player.kickBox()]) {
+  if (level.arena && player.kickBox()) level.arena.kickCrates(player.kickBox(), player.facing, player);
+  for (const box of [ab, level.arena ? null : player.kickBox()]) {
     if (!box) continue;
     for (const c of level.breakCrates(box)) {
       sfx('crate');
@@ -866,7 +913,14 @@ const camGround = { y: null, k: CAM.ground };                 // sol de référe
 const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
 let camVX = 0;                                 // vitesse horizontale (amorti)
 
-const clampCamX = (x) => Math.min(Math.max(x, 0), level.width - VIEW_W);
+const clampCamX = (x) => {
+  // arène : on ne voit jamais au-delà des bosquets qui la ferment (si l'image est plus large, on la centre)
+  if (level.arena) {
+    const [l, r] = level.arena.def.walls, a = l * 16, z = (r + 1) * 16;
+    return z - a <= VIEW_W ? Math.round((a + z - VIEW_W) / 2) : Math.min(Math.max(x, a), z - VIEW_W);
+  }
+  return Math.min(Math.max(x, 0), level.width - VIEW_W);
+};
 const clampCamY = (y) => Math.min(Math.max(y, 0), level.height - VIEW_H);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // lent, rapide, lent
 
@@ -903,6 +957,8 @@ function updateCamera(dt) {
   camVX = (camVX - w * tmp) * e;
   camera.x = clampCamX(tx + (diff + tmp) * e);
   if (Math.abs(camera.x - tx) < 0.05 && Math.abs(camVX) < 0.5) { camera.x = tx; camVX = 0; }
+  // arène : la hauteur ne bouge jamais
+  if (level.arena) { camera.y = arenaCamY(); return; }
   // hauteur : paliers
   if (camGround.y == null) retargetY(player.y);
   const alive = player.state !== 'death' && player.state !== 'respawn';
@@ -933,8 +989,19 @@ function groundBelow(x, y) {
   return null;
 }
 
+/** Arène : la hauteur est fixe (le sol à 85 % de l'image) ; en largeur, la caméra suit KAGE. */
+function arenaCamY() {
+  return clampCamY(Math.round(level.arena.def.ground + VIEW_H * 0.15 - VIEW_H));
+}
+function arenaCamera() {
+  camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
+  camera.y = arenaCamY();
+  camVX = 0;
+}
+
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
+  if (level.arena) { arenaCamera(); return; }
   camGround.y = player.y;
   camera.x = clampCamX(player.x - VIEW_W * 0.42);
   camera.y = clampCamY(player.y - VIEW_H * camGroundAt(player.x));
@@ -956,6 +1023,7 @@ function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);
+  arenaArt?.drawBack(ctx, cam, level.time);
   boss?.drawBack(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   for (const t of tates) t.draw(ctx, cam, player);
@@ -966,6 +1034,7 @@ function draw() {
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
+  arenaArt?.drawFront(ctx, cam, level.time);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail);
   fx.draw(ctx, cam);
   if (run.title) return;   // écran titre : le décor seul, sans interface
