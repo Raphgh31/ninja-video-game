@@ -2,7 +2,7 @@
   "id": "or",
   "name": "Lumière d’or",
   "rarity": "légendaire",
-  "price": 800,
+  "price": 600,
   "description": "Bandeau et pans d'or, étoffe dorée sur l'épaule, auréole à croix de lumière, un orbe qui le suit.",
   "blurb": "La légende dit qu'il ne fait jamais nuit autour de lui.",
   "accessories": [
@@ -55,9 +55,9 @@
     "i": "#fff4c8",
     "j": "#dcae52",
     "J": "#f5d98a",
-    "s": "#dca43c",
-    "S": "#f2cc66",
-    "u": "#fff3c4"
+    "s": "#e3952a",
+    "S": "#ffe07a",
+    "u": "#fff8d8"
   },
   "aura": "gold"
 }
