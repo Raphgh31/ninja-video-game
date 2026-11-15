@@ -83,6 +83,7 @@ const BASE = {
   '’': '#/#',
   '"': '#.#/#.#',
   '-': '.../.../.../.../###',
+  '_': '..../..../..../..../..../..../####',   // curseur de saisie (pseudo, code d'une arène)
   '–': '..../..../..../..../####',
   '—': '....../....../....../....../######',
   '(': '.#/#./#./#./#./#./.#',
@@ -167,8 +168,8 @@ function buildSmall() {
   return g;
 }
 
-/** Scale2x (EPX) d'une grille de 0/1. */
-function scale2x(rows, w) {
+/** Scale2x (EPX) d'une grille de 0/1 ; keep : ne jamais enlever un pixel plein (coins carrés). */
+function scale2x(rows, w, keep = false) {
   const h = rows.length;
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : rows[y][x]);
   const out = Array.from({ length: h * 2 }, () => new Array(w * 2).fill(0));
@@ -179,22 +180,59 @@ function scale2x(rows, w) {
     if (a === b && a !== c && b !== d) e1 = b;
     if (d === c && d !== b && c !== a) e2 = c;
     if (b === d && b !== a && d !== c) e3 = d;
+    if (keep && p) { e0 = e1 = e2 = e3 = p; }
     out[2 * y][2 * x] = e0; out[2 * y][2 * x + 1] = e1;
     out[2 * y + 1][2 * x] = e2; out[2 * y + 1][2 * x + 1] = e3;
   }
   return out;
 }
 
+/** Scale3x (AdvMAME3x) d'une grille de 0/1 : agrandit par trois sans flou, en adoucissant les diagonales (sans arrondir les coins). */
+function scale3x(rows, w) {
+  const h = rows.length;
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : rows[y][x]);
+  const out = Array.from({ length: h * 3 }, () => new Array(w * 3).fill(0));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const A = at(x - 1, y - 1), B = at(x, y - 1), C = at(x + 1, y - 1), D = at(x - 1, y), E = at(x, y);
+    const F = at(x + 1, y), G = at(x - 1, y + 1), H = at(x, y + 1), I = at(x + 1, y + 1);
+    const e = [E, E, E, E, E, E, E, E, E];
+    if (B !== H && D !== F) {
+      e[0] = D === B ? D : E;
+      e[1] = (D === B && E !== C) || (B === F && E !== A) ? B : E;
+      e[2] = B === F ? F : E;
+      e[3] = (D === B && E !== G) || (D === H && E !== A) ? D : E;
+      e[5] = (B === F && E !== I) || (H === F && E !== C) ? F : E;
+      e[6] = D === H ? D : E;
+      e[7] = (D === H && E !== I) || (H === F && E !== G) ? H : E;
+      e[8] = H === F ? F : E;
+    }
+    // on n'enlève jamais un pixel plein (les coins restent carrés : un D reste un D) ;
+    // on ne fait qu'adoucir les marches des diagonales
+    for (let k = 0; k < 9; k++) out[3 * y + Math.floor(k / 3)][3 * x + (k % 3)] = E || e[k];
+  }
+  return out;
+}
+
+function grow3(font) {
+  const g = {};
+  for (const [ch, gl] of Object.entries(font.glyphs)) g[ch] = { w: gl.w * 3, rows: scale3x(gl.rows, gl.w) };
+  return { glyphs: g, line: font.line * 3, gap: font.gap * 3, k: font.k * 3 };
+}
+
+const SQUARE = new Set(['D']);
+
 function grow(font) {
   const g = {};
-  for (const [ch, gl] of Object.entries(font.glyphs)) g[ch] = { w: gl.w * 2, rows: scale2x(gl.rows, gl.w) };
+  // le D garde ses coins carrés : arrondis, il se lisait comme un O (« LA RIZIÈRE OU GONG »)
+  for (const [ch, gl] of Object.entries(font.glyphs)) g[ch] = { w: gl.w * 2, rows: scale2x(gl.rows, gl.w, SQUARE.has(ch)) };
   return { glyphs: g, line: font.line * 2, gap: font.gap * 2, k: font.k * 2 };
 }
 
 const SMALL = { glyphs: buildSmall(), line: LINE, gap: 1, k: 1 };
 const BIG = grow(SMALL);
 const TITLE = grow(BIG);
-export const FONTS = { small: SMALL, big: BIG, title: TITLE };
+const HEADING = grow3(SMALL);   // ×3 : le titre du jeu, « The Ninja Adventure », tient sur une ligne
+export const FONTS = { small: SMALL, big: BIG, heading: HEADING, title: TITLE };
 
 const glyphOf = (font, ch) => font.glyphs[ch] ?? font.glyphs[ch.normalize('NFD')[0]] ?? font.glyphs['?'];
 

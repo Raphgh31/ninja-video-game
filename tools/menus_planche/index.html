@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Planche des menus — The Ninja Adventure</title>
+<!-- Maquette des écrans du menu (planche de design, à valider avant l'intégration).
+     Servie par Vite (npm run dev), photographiée par tools/menus_planche/planche.cjs.
+     Même police pixel, mêmes couleurs, mêmes skins que le jeu. -->
+<link rel="stylesheet" href="/src/style.css">
+<style>
+  body { margin: 0; background: #0b0c0f; display: grid; gap: 24px; padding: 24px; justify-content: start; }
+  .wrap { width: 1344px; height: 756px; }
+  .scr { position: relative; width: 448px; height: 252px; overflow: hidden; transform: scale(3); transform-origin: 0 0;
+    font-size: 0; line-height: 0; color: var(--ink); background: #0c0e12 url(./fond_intro.png); --k: 1px; image-rendering: pixelated; }
+  /* sous-menus : le ciel de l'intro, assombri ; le bas (là où s'écrit le titre) est plein, sombre */
+  .veil { position: absolute; inset: 0; background: linear-gradient(rgba(8, 10, 14, .78) 0%, rgba(8, 10, 14, .88) 52%, #0a0c10 60%); }
+  .hd { position: absolute; left: 16px; right: 16px; top: 9px; display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid #3a3f4a; }
+  .hd h2 { margin: 0; --pxf: big; --pxs: 1; color: #f3e3c3; text-transform: uppercase; }
+  .hd .sub { margin: 0 0 0 auto; color: #8e939c; }
+  .ft { position: absolute; left: 16px; right: 16px; bottom: 7px; display: flex; align-items: center; justify-content: space-between; color: #6f7672; }
+  .ft p { margin: 0; }
+  .btn { display: inline-grid; place-items: center; padding: 2px 8px 3px; border: 1px solid #8e6a44; background: rgba(27, 19, 14, .92); color: #f3e3c3; }
+  .btn.on { background: #e9e5da; color: #15171c; border-color: #e9e5da; }
+  .btn.gold { border-color: #e8b93c; }
+  .btn.gold.on { background: #e8b93c; border-color: #e8b93c; color: #1b130e; }
+  .btn.off { color: #5d626b; border-color: #3a3f4a; background: transparent; }
+  .ghost { color: #8e939c; }
+  .muted { color: #8e939c; }
+  .dim { color: #5d626b; }
+  .warm { color: #e0a07a; }
+  .card { position: absolute; border: 1px solid #5a4630; background: rgba(27, 19, 14, .88); box-shadow: inset 0 0 0 1px #2a1d15; }
+  .card.empty { border-style: dashed; border-color: #4a4f5a; background: rgba(20, 22, 28, .6); box-shadow: none; }
+  .card.on { border-color: #e8b93c; }
+  .lbl { margin: 0; color: #8e939c; text-transform: uppercase; --pxs: 1; }
+  p { margin: 0; }
+  .center { display: grid; justify-items: center; }
+  .big { --pxf: big; --pxs: 1; }
+  .title { --pxf: title; --pxs: 4; }
+  canvas.ninja { position: absolute; image-rendering: pixelated; }
+  /* menu principal : la ligne de boutons, comme aujourd'hui */
+  .menu { position: absolute; left: 0; right: 0; top: 213px; display: flex; justify-content: center; gap: 46px; }
+  .menu span { color: #6f7672; padding: 1px 6px 2px; }
+  .menu span.on { color: #e9e5da; }
+  .menu span.on::before { content: ''; }
+  .mark { position: absolute; height: 1px; background: #e9e5da; }
+  /* salon */
+  .slot { position: absolute; height: 24px; display: flex; align-items: center; gap: 6px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); padding-left: 30px; }
+  .slot.full { border-color: #5a4630; background: rgba(27, 19, 14, .88); }
+  .slot .sbar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .tag { margin-left: auto; margin-right: 6px; color: #e8b93c; }
+  .mode { position: absolute; height: 25px; box-sizing: border-box; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); padding: 0 6px; display: grid; align-content: center; gap: 0; }
+  .mode.on { border-color: #e8b93c; background: rgba(58, 42, 18, .75); }
+  .mode .n { color: #8e939c; --pxs: 1; }
+  .mode.on .n { color: #e8b93c; }
+  .mode .d { color: #a9aea8; }
+  .codebox { position: absolute; width: 40px; height: 52px; border: 1px solid #5a4630; background: rgba(18, 13, 10, .9); display: grid; place-items: center; color: #f3e3c3; }
+  .codebox.on { border-color: #e8b93c; }
+  .row { display: flex; justify-content: space-between; padding: 1px 0 1px; border-bottom: 1px solid #2a2e36; }
+  .row p:first-child { color: #8e939c; }
+</style>
+</head>
+<body>
+
+<!-- 1. Menu principal : l'intro, puis trois choix sur une ligne -->
+<div class="wrap"><div class="scr" id="s-menu">
+  <div class="menu"><span class="on">Aventure</span><span>Arène</span><span>Mon ninja</span></div>
+</div></div>
+
+<!-- 2. Aventure : deux emplacements -->
+<div class="wrap"><div class="scr" id="s-aventure">
+  <div class="veil"></div>
+  <div class="hd"><h2>Aventure</h2><p class="sub">Deux aventures au plus</p></div>
+  <div class="card on" style="left:16px;top:42px;width:200px;height:176px">
+    <p class="lbl" style="position:absolute;left:8px;top:5px">Aventure 1</p>
+    <p class="warm" style="position:absolute;right:8px;top:5px">sur ton profil</p>
+    <canvas class="ninja" data-skin="voyageur" data-scale="2" style="left:43px;top:16px"></canvas>
+    <div style="position:absolute;left:8px;right:8px;top:94px;display:grid;gap:2px">
+      <p style="color:#f3e3c3">Chapitre 2 · La Forêt</p>
+      <p class="muted">Zone 05 · le torrent</p>
+      <p class="muted">340 ryō · 3 skins · corbeau vaincu</p>
+    </div>
+    <div style="position:absolute;left:8px;right:8px;bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <span class="btn on">Continuer l'aventure</span><span class="ghost">Effacer</span>
+    </div>
+  </div>
+  <div class="card empty" style="left:232px;top:42px;width:200px;height:176px">
+    <p class="lbl" style="position:absolute;left:8px;top:5px">Aventure 2</p>
+    <div style="position:absolute;left:0;right:0;top:52px;display:grid;justify-items:center;gap:8px">
+      <p class="dim">Emplacement libre</p>
+      <span class="btn">Nouvelle aventure</span>
+      <p class="muted" style="--pxw:176;text-align:center">Tout reprend de zéro. Ton autre aventure est gardée.</p>
+    </div>
+  </div>
+  <div class="ft"><p>← Retour</p><p>Entrée : choisir</p></div>
+</div></div>
+
+<!-- 3. Arène : créer ou rejoindre -->
+<div class="wrap"><div class="scr" id="s-arene">
+  <div class="veil"></div>
+  <div class="hd"><h2>Arène</h2><p class="sub">La rizière du gong</p></div>
+  <div class="card on" style="left:16px;top:42px;width:200px;height:176px">
+    <img src="./vignette_creer.png" style="position:absolute;left:2px;top:2px;width:196px;height:70px;image-rendering:pixelated">
+    <p class="big" style="position:absolute;left:8px;top:76px;color:#f3e3c3;--pxs:0">Créer une arène</p>
+    <p class="muted" style="position:absolute;left:8px;top:102px;--pxw:184">Tu es l'hôte : tu reçois un code à donner à tes amis et tu choisis le mode.</p>
+    <span class="btn gold on" style="position:absolute;left:8px;bottom:8px">Créer</span>
+  </div>
+  <div class="card" style="left:232px;top:42px;width:200px;height:176px">
+    <img src="./vignette_rejoindre.png" style="position:absolute;left:2px;top:2px;width:196px;height:70px;image-rendering:pixelated">
+    <p class="big" style="position:absolute;left:8px;top:76px;color:#f3e3c3;--pxs:0">Rejoindre une arène</p>
+    <p class="muted" style="position:absolute;left:8px;top:102px;--pxw:184">Tape le code de quatre signes que l'hôte t'a donné.</p>
+    <span class="btn" style="position:absolute;left:8px;bottom:8px">Rejoindre</span>
+  </div>
+  <div class="ft"><p>← Retour</p><p>Ton pseudo : Raph</p></div>
+</div></div>
+
+<!-- 4. Rejoindre une arène -->
+<div class="wrap"><div class="scr" id="s-rejoindre">
+  <div class="veil"></div>
+  <div class="hd"><h2>Rejoindre une arène</h2><p class="sub">Ton pseudo : Raph</p></div>
+  <p class="center lbl" style="position:absolute;left:0;right:0;top:44px;text-align:center">Code de l'arène</p>
+  <div class="codebox" style="left:130px;top:60px"><p class="title">7</p></div>
+  <div class="codebox" style="left:177px;top:60px"><p class="title">F</p></div>
+  <div class="codebox" style="left:224px;top:60px"><p class="title">3</p></div>
+  <div class="codebox on" style="left:271px;top:60px"><p class="title" style="color:#e8b93c">_</p></div>
+  <p class="center muted" style="position:absolute;left:0;right:0;top:118px;text-align:center">Quatre signes : lettres et chiffres</p>
+  <span class="btn gold" style="position:absolute;left:197px;top:136px">Rejoindre</span>
+  <div style="position:absolute;left:0;right:0;top:164px;display:grid;justify-items:center;gap:1px">
+    <p class="dim">ce que l'on peut lire ici :</p>
+    <p>Connexion à l'arène 7F3Q…</p>
+    <p class="warm">Arène introuvable : vérifie le code</p>
+    <p class="warm">Arène pleine : quatre joueurs au plus</p>
+  </div>
+  <div class="ft"><p>← Retour</p><p>Entrée : rejoindre</p></div>
+</div></div>
+
+<!-- 5. Le salon (hôte), plein écran -->
+<div class="wrap"><div class="scr" id="s-salon">
+  <div class="veil" style="background:#0a0c10"></div>
+  <div class="hd"><h2>Arène · La rizière du gong</h2><p class="sub warm">Tu es l'hôte</p></div>
+  <p class="lbl" style="position:absolute;left:16px;top:38px">Code de l'arène</p>
+  <p class="title" style="position:absolute;left:14px;top:48px;color:#f3e3c3;--pxs:3">7F3Q</p>
+  <span class="btn" style="position:absolute;left:162px;top:64px">Copier</span>
+  <p class="muted" style="position:absolute;left:16px;top:98px">À donner à tes amis : Arène, puis Rejoindre.</p>
+  <p class="lbl" style="position:absolute;left:16px;top:118px">Mode du combat</p>
+  <div class="mode on" style="left:16px;width:194px;top:131px"><p class="n">IPPON</p><p class="d">Une vie : le dernier debout gagne.</p></div>
+  <div class="mode" style="left:16px;width:194px;top:158px"><p class="n">SANBON</p><p class="d">Le premier à 3 éliminations gagne.</p></div>
+  <div class="mode" style="left:16px;width:194px;top:185px"><p class="n">JUPPON</p><p class="d">Le premier à 10 éliminations gagne.</p></div>
+  <p class="lbl" style="position:absolute;left:228px;top:38px">Joueurs · 2 / 4</p>
+  <div class="slot full" style="left:228px;width:204px;top:52px"><span class="sbar" style="background:#e8b93c"></span><canvas class="ninja" data-skin="or" data-crop="1" style="left:6px;top:1px"></canvas><p style="color:#f3e3c3">Raph</p><p class="tag">hôte</p></div>
+  <div class="slot full" style="left:228px;width:204px;top:79px"><span class="sbar" style="background:#5ccdc8"></span><canvas class="ninja" data-skin="paysan" data-crop="1" style="left:6px;top:1px"></canvas><p style="color:#f3e3c3">Kenji</p><p class="tag" style="color:#8e939c">connecté</p></div>
+  <div class="slot" style="left:228px;width:204px;top:106px"><span class="sbar" style="background:#4a2a34"></span><p class="dim">En attente d'un joueur…</p></div>
+  <div class="slot" style="left:228px;width:204px;top:133px"><span class="sbar" style="background:#2e4428"></span><p class="dim">En attente d'un joueur…</p></div>
+  <p class="muted" style="position:absolute;left:228px;top:166px;--pxw:204">L'hôte choisit le mode et lance le combat. Les invités voient ses choix en direct.</p>
+  <div class="ft"><p class="ghost">Quitter l'arène</p><span class="btn gold on">Lancer le combat</span></div>
+</div></div>
+
+<!-- 6. Mon ninja -->
+<div class="wrap"><div class="scr" id="s-ninja">
+  <div class="veil"></div>
+  <div class="hd"><h2>Mon ninja</h2><p class="sub">Ton profil</p></div>
+  <div class="card" style="left:16px;top:42px;width:150px;height:176px">
+    <canvas class="ninja" data-skin="or" data-scale="2" style="left:18px;top:14px"></canvas>
+    <p class="center muted" style="position:absolute;left:0;right:0;top:92px;text-align:center">Lumière d'or</p>
+    <p class="lbl" style="position:absolute;left:10px;top:116px">Pseudo</p>
+    <div style="position:absolute;left:10px;right:10px;top:130px;height:17px;border:1px solid #e8b93c;background:rgba(18,13,10,.9);display:grid;align-items:center;padding-left:5px">
+      <p style="color:#f3e3c3">Raph_</p></div>
+    <p class="dim" style="position:absolute;left:10px;top:152px;--pxw:130">C'est ton nom en arène.</p>
+  </div>
+  <div style="position:absolute;left:182px;right:16px;top:42px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:4px">
+      <p class="lbl">Aventure affichée</p>
+      <div style="display:flex;gap:6px;align-items:center"><span class="ghost">←</span><span style="color:#f3e3c3">Aventure 1</span><span class="ghost">→</span></div>
+    </div>
+    <div class="row"><p>Chapitre</p><p>2 · La Forêt</p></div>
+    <div class="row"><p>Zone</p><p>05 sur 12</p></div>
+    <div class="row"><p>Ryō</p><p>340</p></div>
+    <div class="row"><p>Skins</p><p>3 sur 4</p></div>
+    <div class="row"><p>Corbeau du Potager</p><p>vaincu</p></div>
+    <p class="lbl" style="margin-top:9px">Arène</p>
+    <p class="dim" style="margin-top:2px;--pxw:250">Bientôt : combats, victoires, éliminations, titres.</p>
+  </div>
+  <div class="ft"><p>← Retour</p><p>Entrée : modifier le pseudo</p></div>
+</div></div>
+
+<script type="module">
+  import { pixelUI } from '/src/engine/pixelui.js';
+  import { loadCharacter } from '/src/engine/sprites.js';
+  pixelUI([...document.querySelectorAll('.scr')]);
+  const { meta, skins } = await loadCharacter('/characters/kage', 'kage.json');
+  const f = meta.animations.idle.frames[0];
+  for (const cv of document.querySelectorAll('canvas.ninja')) {
+    const sk = skins[cv.dataset.skin] ?? skins.encre, k = +(cv.dataset.scale || 1);
+    const g = cv.getContext('2d');
+    if (cv.dataset.crop) {          // vignette : tête et buste
+      cv.width = 22; cv.height = 22; g.imageSmoothingEnabled = false;
+      g.drawImage(sk.sheet, f.x + 7, f.y + 3, 22, 22, 0, 0, 22, 22);
+    } else {
+      cv.width = f.w * k; cv.height = f.h * k; g.imageSmoothingEnabled = false;
+      g.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * k, f.h * k);
+    }
+  }
+  window.__pret = true;
+</script>
+</body>
+</html>

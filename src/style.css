@@ -185,23 +185,87 @@ body.mobile .talk { padding-left: 6px; }
 .title-screen.with-intro button:hover, .title-screen.with-intro button:focus {
   color: var(--ink); outline: none; }
 
-/* jouer à plusieurs : à la place du menu, sur sa ligne : son nom et « créer une salle », ou un code et « rejoindre » */
-.title-screen .multi { position: relative; display: flex; align-items: center; gap: 5px; }
-.title-screen .multi[hidden] { display: none; }
-.title-screen.with-intro .multi { position: absolute; left: 50%; top: calc(var(--menu-y, 200px) - 1px); transform: translateX(-50%); white-space: nowrap; }
-.title-screen.multi-open .title-screen__actions { display: none; }
-.multi__label { color: #6f7672; }
-.multi__sep { margin-left: 8px; }
-.multi__field { position: relative; display: grid; place-items: center; min-width: 50px; padding: 1px 4px 2px; border: 1px solid #5a4630; background: rgba(18, 13, 10, .85); color: #f3e3c3; cursor: text; }
-.multi__code { min-width: 34px; --pxs: 2; }
-.multi__field:focus-within { border-color: #e8b93c; }
-.multi__field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
-/* le message (code incomplet…) : juste au-dessus de la ligne */
-.multi__msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 2px); margin: 0; color: #e0a07a; text-align: center; }
-.title-screen .multi button { border: 0; padding: 1px 5px 2px; color: #a9aea8; background: transparent; }
-.title-screen .multi button:hover, .title-screen .multi button:focus { color: var(--ink); outline: none; }
-.title-screen .multi .multi__back { margin-left: 6px; color: #6f7672; }
-/* la salle, pendant le combat : en haut au milieu, discrète */
+/* --- Menus (src/game/menu.js) et salon de l'arène (src/game/arena/lobby.js) ---------
+   Écrans pleins : un voile sur le décor de l'intro, un titre en haut, le contenu, une
+   ligne d'aide en bas. 1px = 1 pixel de jeu ; cadres d'un pixel, jamais d'arrondi.
+   .short (image de moins de 236 px de haut : téléphones allongés) : versions compactes. */
+.m-screen { position: absolute; inset: 0; z-index: 6; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); padding: 8px 16px 6px; color: var(--ink); }
+.m-screen[hidden] { display: none; }
+.m-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(rgba(8, 10, 14, .76) 0%, rgba(8, 10, 14, .88) 52%, #0a0c10 62%); }
+.m-screen.solid .m-veil { background: #0a0c10; }
+.m-hd { display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid #3a3f4a; }
+.m-hd h2 { margin: 0; --pxf: big; --pxs: 1; color: #f3e3c3; text-transform: uppercase; }
+.m-hd .m-sub { margin: 0 0 0 auto; color: #8e939c; }
+.m-body { position: relative; min-height: 0; padding-top: 8px; }
+.m-ft { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; color: #6f7672; }
+.m-ft p { margin: 0; }
+.m-screen p { margin: 0; }
+.m-lbl { color: #8e939c; text-transform: uppercase; --pxs: 1; }
+.m-muted { color: #8e939c; }
+.m-dim { color: #5d626b; }
+.m-warm { color: #e0a07a; }
+.m-gold { color: #e8b93c; }
+.m-ink { color: #f3e3c3; }
+.m-big { --pxf: big; --pxs: 0; color: #f3e3c3; }
+.m-center { display: grid; justify-items: center; text-align: center; }
+.ui .m-screen button { display: inline-grid; place-items: center; padding: 2px 8px 3px; border: 1px solid #8e6a44; background: rgba(27, 19, 14, .92); color: #f3e3c3; cursor: pointer; }
+.ui .m-screen button:hover, .ui .m-screen button:focus { background: #e9e5da; color: #15171c; border-color: #e9e5da; outline: none; }
+.ui .m-screen button.m-gold-btn { border-color: #e8b93c; }
+.ui .m-screen button.m-gold-btn:hover, .ui .m-screen button.m-gold-btn:focus { background: #e8b93c; border-color: #e8b93c; color: #1b130e; }
+.ui .m-screen button.m-link { border: 0; background: transparent; color: #8e939c; padding: 1px 3px 2px; }
+.ui .m-screen button.m-link:hover, .ui .m-screen button.m-link:focus { background: transparent; color: var(--ink); }
+.ui .m-screen button:disabled { color: #5d626b; border-color: #3a3f4a; background: transparent; cursor: default; }
+.m-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; height: 100%; }
+.short .m-cards { gap: 10px; }
+.short .m-card { gap: 1px; padding: 3px 8px 4px; }
+.m-card { position: relative; display: flex; flex-direction: column; gap: 3px; min-height: 0; padding: 5px 8px 7px; border: 1px solid #5a4630;
+  background: rgba(27, 19, 14, .88); box-shadow: inset 0 0 0 1px #2a1d15; }
+.m-card.m-on { border-color: #e8b93c; }
+.m-card.m-empty { border-style: dashed; border-color: #4a4f5a; background: rgba(20, 22, 28, .6); box-shadow: none; }
+.m-card .m-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.m-card .m-push { margin-top: auto; }
+.m-card canvas.m-ninja { align-self: center; image-rendering: pixelated; }
+.m-thumb { margin: -3px -6px 2px; height: 70px; background-size: cover; background-position: center; image-rendering: pixelated; }
+.short .m-thumb { height: 34px; }
+.m-field { position: relative; display: flex; align-items: center; height: 17px; padding-left: 5px; border: 1px solid #6b5236; background: rgba(18, 13, 10, .9); color: #f3e3c3; cursor: text; }
+.m-field:focus-within { border-color: #e8b93c; }
+.m-field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
+.m-code { display: flex; justify-content: center; gap: 7px; }
+.m-code .m-box { position: relative; width: 40px; height: 52px; display: grid; place-items: center; border: 1px solid #5a4630; background: rgba(18, 13, 10, .9); --pxf: title; color: #f3e3c3; }
+.m-code .m-box.m-cur { border-color: #e8b93c; color: #e8b93c; }
+.short .m-code .m-box { width: 26px; height: 32px; --pxf: big; }
+.m-stats { display: grid; }
+.m-stats .m-row { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px solid #2a2e36; }
+.m-stats .m-row p:first-child { color: #8e939c; }
+.m-arrows { display: flex; align-items: center; gap: 4px; }
+/* salon : le code en grand, les modes, les quatre places */
+.m-salon { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; height: 100%; }
+.short .m-salon { gap: 10px; }
+.m-codeline { display: flex; align-items: center; gap: 10px; }
+.m-codebig { --pxf: title; --pxs: 3; color: #f3e3c3; }
+.short .m-codebig { --pxf: big; --pxs: 2; }
+.m-modes { display: grid; gap: 2px; }
+.ui .m-screen .m-mode { display: grid; justify-items: start; gap: 0; padding: 1px 6px 2px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); text-align: left; cursor: pointer; color: inherit; }
+.ui .m-screen button.m-mode:hover, .ui .m-screen button.m-mode:focus { background: rgba(58, 42, 18, .5); border-color: #8e6a44; color: inherit; }
+.m-mode .m-n { color: #8e939c; text-transform: uppercase; --pxs: 1; }
+.m-mode .m-d { color: #a9aea8; }
+.ui .m-screen .m-mode.m-on { border-color: #e8b93c; background: rgba(58, 42, 18, .75); }
+.m-mode.m-on .m-n { color: #e8b93c; }
+.short .m-mode .m-d { display: none; }
+.m-slots { display: grid; gap: 3px; }
+.m-slot { position: relative; display: flex; align-items: center; gap: 6px; height: 24px; padding-left: 30px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); }
+.short .m-slot { height: 20px; }
+.m-slot.m-full { border-color: #5a4630; background: rgba(27, 19, 14, .88); }
+.m-slot .m-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.m-slot canvas.m-face { position: absolute; left: 6px; top: 0; image-rendering: pixelated; }
+.short .m-slot canvas.m-face { top: -2px; }
+.m-slot .m-tag { margin-left: auto; margin-right: 6px; }
+.title-screen.menu-open .title-screen__actions, .title-screen.menu-open .title-screen__name, .title-screen.menu-open .title-screen__chapter { visibility: hidden; }
+.m-short-only { display: none; }
+.short .m-short-only { display: block; }
+.short .m-long-only { display: none; }
+.short .m-screen .m-mode { padding: 0 6px 1px; }
+/* pendant le combat : le cadre de la salle, en haut au milieu, discret */
 .salle {
   position: absolute; z-index: 3; top: 3px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 1px;
   padding: 2px 6px 3px; background: rgba(12, 14, 18, .55); border: 1px solid rgba(233, 229, 218, .25); pointer-events: auto;
@@ -212,8 +276,6 @@ body.mobile .talk { padding-left: 6px; }
 .salle__list p { margin: 0; color: var(--slot, #e9e5da); }
 .salle__msg { margin: 0; color: #e0a07a; }
 .salle__msg:empty { display: none; }
-.salle__quit { color: #8b9a93; background: transparent; border: 0; padding: 0 2px 1px; }
-.salle__quit:hover, .salle__quit:focus-visible { color: var(--ink); outline: none; }
 
 /* la boutique du marchand : tout l'écran (src/game/shop.js) — une enseigne, la bourse, les rayons ; à
    gauche les cartes des skins (cadre à la couleur de leur rareté), à droite le skin choisi, en grand */

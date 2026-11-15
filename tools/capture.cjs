@@ -26,6 +26,8 @@ const path = require('path');
   await p.reload();
   await p.waitForFunction(() => window.__kage);
   await p.waitForTimeout(300);
+  await p.click('[data-menu="aventure"]').catch(() => {});
+  await p.waitForTimeout(100);
   await p.click('[data-new]').catch(() => {});
   await p.waitForTimeout(500);
 

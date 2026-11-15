@@ -1,12 +1,17 @@
 # Message pour ouvrir une nouvelle conversation
 
-Copier-coller le texte ci-dessous comme premier message d'une nouvelle session Claude Code sur le dépôt `raphgh31/ninja-video-game`, **branche `main`** (la série précédente, PR #26, y est fusionnée et en ligne).
+Copier-coller le texte ci-dessous comme premier message d'une nouvelle session Claude Code sur le dépôt `raphgh31/ninja-video-game`, **branche `main`** (la série précédente, jusqu'à la PR du nouveau menu, y est fusionnée et en ligne).
 
 ---
 
-Bonjour ! On reprend mon jeu **The Ninja Game** (le ninja s'appelle KAGE), un jeu de plateforme 2D rapide en pixel art (Vite + JavaScript, Canvas 2D, tout le décor est peint en code). Réponds toujours en français.
+Bonjour ! On reprend mon jeu **The Ninja Adventure** (ex « The Ninja Game » ; le ninja n'a pas de nom pour le joueur, il s'appelle KAGE seulement dans le code), un jeu de plateforme 2D rapide en pixel art (Vite + JavaScript, Canvas 2D, tout le décor est peint en code). Réponds toujours en français.
 
-**Où on en est** (tout est dans `main` et en ligne, PR #26 fusionnée le 14 novembre 2026) : le chapitre 1 (le Potager) est terminé ; le chapitre 2 (la Forêt, 12 zones) a été beaucoup retouché :
+**Où on en est** (tout est dans `main` et en ligne, 15 novembre 2026) :
+- **menu de l'intro** : Aventure (deux aventures en parallèle : continuer, nouvelle, effacer) · Arène (créer ou rejoindre avec un code de 4 signes) · Mon ninja (pseudo, aventure affichée) ;
+- **arène du Potager** (« la rizière du gong ») et **jeu à plusieurs** : salon plein écran (code, 4 places, mode), modes **Souffle unique**, **Trois lames**, **Dix lames** ; grue et rocher ficelé, gong et vagues, échafaudages, foin, caisses, cœurs ;
+- **corbeau du Potager** corrigé (on ne le fait tomber que depuis les plateformes de bois ; intouchable en se relevant) ; poussière d'or derrière les shurikens du skin Lumière d'or.
+
+Le chapitre 1 (le Potager) est terminé ; le chapitre 2 (la Forêt, 12 zones) a été beaucoup retouché :
 - **introduction** au lancement (titre à l'encre, lune, KAGE en coup de pied sauté, musique) ; **coup de pied sauté** en jeu ; **saltos** et **coup du salto** ;
 - l'**eau et les grands vides sont mortels** dans tout le jeu ;
 - **détours** de la Forêt (cabane du guetteur, arbre aux cavités, arche de racines, belvédère) ;
@@ -26,8 +31,8 @@ Je vais te donner mes retours après avoir joué ; applique exactement ce que je
 Lance `npm install`, puis `npm run sprites` et `npm test` (92 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
 
 **Les artefacts** (`npm run standalone` les fabrique) — **la version test ne se publie que si je le dis** (« publie-le » = vas-y sans redemander ; si je ne dis rien, ne publie pas) ; pour les autres, **demande-moi l'autorisation** :
-- « The Ninja Game Test », ma version d'essai, privée (skins sans achat, chapitres et zones en un clic) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, publier sans `shared_live`) — seulement quand je dis de la publier ;
-- « The Ninja Game », le jeu pour tout le monde : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (`dist/kage-standalone.html`, `shared_live: "public"`) — à la mise en ligne ;
+- « The Ninja Adventure Test », ma version d'essai (skins sans achat, chapitres et zones en un clic, bouton Arène) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, `shared_live: "public"`) — seulement quand je dis de la publier ;
+- « The Ninja Adventure », le jeu pour tout le monde : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (`dist/kage-standalone.html`, `shared_live: "public"`) — à la mise en ligne ;
 - la carte mentale : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi (`python3 tools/carte_mentale.py --artefact <fichier>`) — à la mise en ligne.
 
 **À faire plus tard (déjà demandé)** : les **huit autres skins** de mes planches, **un par un, fidèles au modèle** (brouillons dans `tools/kage_forge/skins_brouillon/` : ninja blanc 150, écarlate 150, Ombre pourpre 150, Lumière d'or 800, pêcheur 250, Souffle de l'hiver 450, Renard blanc 500, Samouraï déchu 550 ryō ; planche de travail `tools/kage_forge/skin_design.py`) ; les ennemis du chapitre 2.

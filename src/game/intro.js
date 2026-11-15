@@ -1,6 +1,6 @@
 // Introduction au lancement du jeu (planche : docs/intro/planche_ouvertures.png, ouvertures 1 et 4
 // combinées à la demande de l'utilisateur) :
-//   1. le noir ; « THE NINJA GAME » s'écrit lettre à lettre, au pied des montagnes, puis un
+//   1. le noir ; « THE NINJA ADVENTURE » s'écrit lettre à lettre, au pied des montagnes, puis un
 //      coup de pinceau se tire dessous (large à la base, effilé à la fin, quelques éclaboussures) ;
 //   2. l'encre finie, la lune se lève derrière la grande chaîne du Potager : elle éclaircit le ciel
 //      et les montagnes sortent du noir ; leur pied se fond par paliers dans une base d'encre ;
@@ -21,8 +21,8 @@ import { bytesOf } from '../engine/bytes.js';
 import { MUSIC } from '../engine/music.js';
 
 const INK = '#e9e5da', BLACK = '#05080a';
-const TITLE = 'THE NINJA GAME';
-const FONT = { font: 'title', spacing: 1.25 };
+const TITLE = 'THE NINJA ADVENTURE';
+const FONT = { font: 'heading', spacing: 1 };   // police ×3 : le titre tient sur une ligne, même sur téléphone
 
 /**
  * Le déroulé, en secondes depuis le début (après le geste qui lance l'intro). Calé sur la musique
@@ -341,7 +341,10 @@ export class Intro {
   /** Dessine l'image au temps courant (figée à l'arrivée de KAGE). */
   draw() {
     const { g, w, h } = this;
-    const t = Math.min(this.t, FREEZE);
+    // sous-menus (Aventure, Arène, Mon ninja) : le décor seul, achevé, la lune décalée sur le côté,
+    // sans le ninja ni le titre (ils dérangeaient derrière les écrans)
+    const menu = this.menuMode;
+    const t = menu ? FREEZE : Math.min(this.t, FREEZE);
     g.fillStyle = BLACK; g.fillRect(0, 0, w, h);
     if (this.gated) {
       // l'attente : une invitation discrète, qui respire lentement
@@ -361,11 +364,12 @@ export class Intro {
       g.globalAlpha = 1;
     }
     if (m > 0) {
-      const my = Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
-      g.drawImage(this.moon.c, this.moonX - this.moon.o, my - this.moon.o);
+      const my = menu ? this.moonY1 - 6 : Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
+      g.drawImage(this.moon.c, (menu ? Math.round(w * 0.82) : this.moonX) - this.moon.o, my - this.moon.o);
     }
     g.drawImage(this.black, 0, 0);
     if (light > 0) { g.globalAlpha = light; g.drawImage(this.land, 0, 0); g.globalAlpha = 1; }
+    if (menu) return;
     // l'encre : le titre lettre à lettre, puis le coup de pinceau
     this.letters.forEach((c, i) => {
       if (!c) return;
@@ -403,9 +407,11 @@ export class Intro {
       this.menuShown = false;
       this.fading = false;
       if (this.clock) { this.clock.t0 += CYCLE; this.playFrom(this.t); }
-      this.onCycle?.();
+      if (!this.menuMode) this.onCycle?.();
+      else this.menuShown = true;
     }
     const fadeAt = CYCLE - INTRO.cycleFade;
+    if (this.menuMode) return;          // dans un sous-menu, l'image reste en place (la musique boucle)
     if (!this.menuShown && this.t >= INTRO.menu && this.t < fadeAt) { this.menuShown = true; this.onMenu?.(); }
     if (!this.fading && this.t >= fadeAt) { this.fading = true; this.onFade?.(); }
   }

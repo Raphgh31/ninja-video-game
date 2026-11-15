@@ -40,6 +40,11 @@ for (const f of [kmeta.image, kmeta.perchImage, kmeta.itemImage]) {
   embed[`./${kbase}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, kbase, f)).toString('base64');
 }
 
+// images du menu (vignettes de l'arène)
+for (const f of readdirSync(join(dist, 'menus'))) {
+  embed[`./menus/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, 'menus', f)).toString('base64');
+}
+
 // musiques des chapitres, et sons enregistrés (ailes et croassements du corbeau)
 for (const dir of ['music', 'sfx']) {
   for (const f of readdirSync(join(dist, dir))) {

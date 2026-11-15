@@ -1,6 +1,6 @@
 # ninja-video-game
 
-Jeu de plateforme 2D rapide en pixel art. Personnage principal : **KAGE**, ninja noir.
+**The Ninja Adventure** : jeu de plateforme 2D rapide en pixel art, avec une aventure en chapitres et des arènes à plusieurs. Le héros est un ninja sans nom (KAGE dans le code), tout de noir vêtu.
 
 ![KAGE](docs/kage/kage_reference.png)
 
