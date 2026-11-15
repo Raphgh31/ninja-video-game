@@ -1070,7 +1070,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,voyageur,paysan'
+    expect(look[0] && look[1] === 'encre,voyageur,paysan,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1144,7 +1144,7 @@ async function main() {
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,encre,3' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+    expect(r0.join() === 'true,false,encre,4' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -1212,7 +1212,7 @@ async function main() {
       const g = window.__kage, b = g.boss, pl = g.player, l = g.level, sc = l.scaffolds[0];
       b.reset(); b.engaged = true;
       const x = onScaffold ? (sc.x0 + 1) * 16 + 8 : (a[0] + a[1]) * 8, y = onScaffold ? sc.row * 16 : b.groundY;
-      pl.x = x; pl.y = y; pl.facing = 1; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; pl.energy.value = 1; g.shurikens.reset();
+      pl.x = x; pl.y = y; pl.fallFrom = y; pl.facing = 1; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; pl.energy.value = 1; g.shurikens.reset();
       b.setState('carry'); b.carry = { size: 0 }; b.rocksLeft = 3; b.x = x + 4; b.y = b.groundY - 76; b.facing = -1;
       return b.hp;
     }, [onScaffold, [B.a0, B.a1]]);
@@ -1239,6 +1239,38 @@ async function main() {
     expect(sword.hp === h0 && shur.hp === h0 && knock.st === 'knocked' && knock.hp < h0 && ['crash', 'stuck'].includes(after.st) && after.up === 'falsefalsefalsefalse' && stuck === before - 2,
       `sol : sabre ${sword.hp}/${sword.st}, shuriken ${shur.hp} ; plateforme : ${JSON.stringify(knock)} puis ${JSON.stringify(after)} ; planté ${before} → ${stuck}`);
     await pg.evaluate(() => window.__kage.boss.reset());
+  });
+
+  await test('potager : sur un tas de pierres, un saut + sabre depuis le sol est paré (il ne tombe pas) ; relevé, il repart intouchable', async () => {
+    // il descend saisir une pierre : KAGE, au sol juste à côté, saute et frappe
+    const hits = [];
+    for (const dx of [-14, 14]) {
+      await pg.evaluate((dx) => {
+        const g = window.__kage, b = g.boss, pl = g.player;
+        b.reset(); b.engaged = true; b.x = b.piles[0]; b.y = b.groundY - 6; b.setState('grab'); b.play('open'); b.facing = 1;
+        if (!b.__parry) { b.__parry = 1; const on = b.onEvent; b.onEvent = (n, d) => { if (n === 'parry') window.__parries = (window.__parries ?? 0) + 1; on?.(n, d); }; }
+        pl.x = b.x + dx; pl.y = b.groundY; pl.fallFrom = b.groundY; pl.facing = -Math.sign(dx); pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9;
+      }, dx);
+      const h0 = await pg.evaluate(() => window.__kage.boss.hp);
+      await PK.down('Space'); await pw(90); await PK.press('KeyX'); await pw(60); await PK.up('Space'); await pw(300);
+      hits.push(await pg.evaluate((h0) => { const b = window.__kage.boss; return `${b.hp === h0}:${b.state}`; }, h0));
+    }
+    // il se relève (fin de l'ébrouement) : pendant KARASU.regain, ni le sabre ni le shuriken ne l'atteignent
+    const r = await pg.evaluate(() => {
+      const g = window.__kage, b = g.boss, out = [];
+      b.reset(); b.engaged = true; b.x = b.arena[0] + 48; b.y = b.groundY; b.setState('shake'); b.timer = 10;
+      b.update(1 / 120, g.player);
+      const box = () => { const k = b.box(); return { x: k.x - 2, y: k.y - 2, w: k.w + 4, h: k.h + 4 }; };
+      b.kageHigh = true;      // même depuis une plateforme
+      out.push(b.state, b.takeHit(box(), b.x - 20, 9001), b.takeHit(box(), b.x - 20, null, 1));
+      for (let n = 0; n < 1.4 * 120; n++) b.update(1 / 120, g.player);
+      b.kageHigh = true;
+      out.push(b.takeHit(box(), b.x - 20, 9002));
+      b.reset();
+      return out;
+    });
+    const parries = await pg.evaluate(() => window.__parries ?? 0);
+    expect(parries === 2 && hits.every((h) => h === 'true:grab' || h === 'true:lift') && r.join() === 'return,,,hit', `parades ${parries} ; sol : ${hits.join(' ')} ; relevé : ${r.join()}`);
   });
 
   await test('potager : les plateformes restent debout tant qu\'il ne s\'est pas écrasé ; il ne plonge qu\'une fois elles tombées, en arc', async () => {
@@ -1307,6 +1339,167 @@ async function main() {
     await pw(5000);
     const r2 = await pg.evaluate(() => [document.querySelector('.chapter-card').hidden, window.__kage.save.ryo]);
     expect(r[0] && r[1] < 10 && r[2] && r2[0] && r2[1] === ryo0, `forêt : titre caché ${r[0]}, colonne ${r[1]}, carte ${r[2]} → ${r2.join(' / ')}`);
+  });
+
+  // ---- mode combat : l'arène du Potager (la rizière du gong) ----
+  const ar = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  ar.setDefaultTimeout(8000);
+  ar.on('pageerror', (e) => errors.push('[arène] ' + e.message));
+  if (!process.env.SEUL || 'arène'.includes(process.env.SEUL) || process.env.SEUL.includes('arène')) {
+    await ar.goto(PAGE + '#arene-potager'); await ar.waitForFunction(() => window.__kage && window.__kage.level.arena); await ar.waitForTimeout(300);
+  }
+  // KAGE posé en (tx, ligne du sol ty), à l'arrêt ; le temps n'avance que par step()
+  const AT = (tx, ty, extra = {}) => ar.evaluate(([tx, ty, extra]) => {
+    const g = window.__kage, pl = g.player;
+    pl.x = tx * 16 + 8; pl.y = ty * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 0; pl.hp = 5;
+    Object.assign(pl, extra); g.step(2);
+  }, [tx, ty, extra]);
+  const AK = ar.keyboard;
+
+  await test('arène : caméra — hauteur fixe ; en largeur, elle suit KAGE sans sortir de l\'arène (on en voit les deux tiers)', async () => {
+    const r = [];
+    for (const tx of [8, 28, 47]) {
+      await AT(tx, 18);
+      r.push(await ar.evaluate(() => { const g = window.__kage; for (let i = 0; i < 300; i++) g.step(1); return [Math.round(g.camera.x), Math.round(g.camera.y)]; }));
+    }
+    const w = await ar.evaluate(() => { const [l, rr] = window.__kage.level.arena.def.walls; return [l * 16, (rr + 1) * 16, window.__kage.view().w]; });
+    const share = w[2] / (w[1] - w[0] - 32);
+    expect(r[0][0] === w[0] && r[2][0] === w[1] - w[2] && r[1][0] > r[0][0] && r[1][0] < r[2][0] && r[0][1] === r[1][1] && r[1][1] === r[2][1] && share > 0.62 && share < 0.72,
+      `caméras ${JSON.stringify(r)}, arène ${w[0]}–${w[1]}, part visible ${share.toFixed(2)}`);
+  });
+
+  await test('arène : un shuriken depuis la plateforme du treuil coupe la corde ; les balles écrasent celui qui est dessous (2), restent en marches, puis la grue les remonte', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(8, 9, { facing: 1 });
+    await AK.press('KeyC');
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, a = g.level.arena, c = a.crane, out = {};
+      // une cible sous les balles : un combattant factice
+      const dummy = { x: c.x0 * 16 + 16, y: g.level.arena.def.ground, vx: 0, vy: 0, onGround: true, state: 'idle', dmg: 0,
+        box() { return { x: this.x - 4, y: this.y - 22, w: 9, h: 22 }; }, hurt(d) { this.dmg += d; return true; } };
+      for (let i = 0; i < 240 && c.state !== 'down'; i++) { g.step(1); a.updateCrane(0, [dummy]); }
+      out.cut = c.state; out.dmg = dummy.dmg;
+      out.steps = g.level.at(c.x0, 16) === 'K' && g.level.at(c.x0 + 1, 17) === 'K' && g.level.at(c.x0, c.top) !== 'K';
+      c.t = c.recharge - 0.01;
+      for (let i = 0; i < 600 && c.state !== 'hang'; i++) g.step(1);
+      out.back = c.state; out.hangs = g.level.at(c.x0, c.top) === 'K';
+      return out;
+    });
+    expect(r.cut === 'down' && r.dmg === 2 && r.steps && r.back === 'hang' && r.hangs, JSON.stringify(r));
+  });
+
+  await test('arène : le gong (sabre) ouvre les vannes ; la vague emporte KAGE vers le canal (1) et la caisse avec elle ; le gong se réarme', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(46, 9, { facing: 1 });
+    await AK.press('KeyX');
+    await ar.evaluate(() => window.__kage.step(30));
+    const rung = await ar.evaluate(() => [window.__kage.level.arena.gong.ready, window.__kage.level.arena.waves.length]);
+    await AT(12, 18);
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, pl = g.player, x0 = pl.x, crate = g.level.at(11, 17) === 'B';
+      let maxX = x0;
+      let hp = pl.hp;
+      for (let i = 0; i < 200; i++) { g.step(1); maxX = Math.max(maxX, pl.x); if (pl.state !== 'death' && pl.state !== 'respawn') hp = Math.min(hp, pl.hp); }
+      const a = g.level.arena;
+      const moved = !g.level.crates.has('11,17');
+      for (let i = 0; i < 12 * 120; i++) g.step(1);
+      return { x0, maxX: Math.round(maxX), hp, crate, moved, ready: a.gong.ready, waves: a.waves.length };
+    });
+    expect(rung[0] === false && rung[1] === 2 && r.maxX - r.x0 > 60 && r.hp === 4 && r.crate && r.moved && r.ready && r.waves === 0, `gong ${rung} ; ${JSON.stringify(r)}`);
+  });
+
+  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; une réception lourde effondre un échafaudage, rebâti ensuite', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    await AT(8, 11, { onGround: false });
+    const hay = await ar.evaluate(() => { const g = window.__kage, pl = g.player; pl.x = 8 * 16 + 6; pl.setState('fall'); const vs = []; let pv = 0;
+      for (let i = 0; i < 400; i++) { g.step(1); if (pl.vy < 0 && pv >= 0 && i > 2) vs.push(Math.round(pl.vy)); pv = pl.vy; } return vs; });
+    await AT(10, 7, { onGround: false });
+    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level; pl.setState('fall'); pl.vy = 200;
+      for (let i = 0; i < 120; i++) g.step(1);
+      const down = lv.scaffolds.map((s) => s.up).join();
+      for (let i = 0; i < 9 * 120; i++) g.step(1);
+      return [down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
+    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,false,true,true' && sc[1] === 'true,true,true,true' && sc[2] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
+  });
+
+  await test('arène : coup de pied dans une caisse — elle glisse ; poussée dans le canal, elle coule', async () => {
+    await ar.evaluate(() => window.__kage.level.arena.reset());
+    // une caisse au bord du canal, KAGE derrière
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, lv = g.level;
+      lv.setTile(23, 17, 'B'); lv.crates.set('t23', { key: 't23', tx: 23, ty: 17, fall: null });
+      const pl = g.player; pl.x = 22 * 16 + 2; pl.y = 18 * 16; pl.onGround = true; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.energy.value = 1;
+      g.step(2);
+      return lv.crates.size;
+    });
+    await AK.press('KeyB');
+    const after = await ar.evaluate(() => { const g = window.__kage; g.step(10); const sl = g.level.arena.sliding.length; for (let i = 0; i < 240; i++) g.step(1); return [sl, g.level.crates.size, g.level.at(23, 17)]; });
+    expect(after[0] === 1 && after[1] === r - 1 && after[2] === '.', `avant ${r} caisses ; après ${after}`);
+  });
+
+  await test('arène : bonus — un cœur rend un point de vie, un paquet recharge les shurikens', async () => {
+    const r = await ar.evaluate(() => {
+      const g = window.__kage, a = g.level.arena, pl = g.player;
+      a.pickups = []; a.heartClock = 99; a.bundleClock = 99;
+      g.step(2);
+      const kinds = a.pickups.map((p) => p.kind).sort().join();
+      const h = a.pickups.find((p) => p.kind === 'heart'), b = a.pickups.find((p) => p.kind === 'bundle');
+      pl.hp = 2; g.shurikens.stock = 0;
+      for (const p of [h, b]) { pl.x = p.x; pl.y = p.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); for (let i = 0; i < 60; i++) g.step(1); }
+      return { kinds, hp: pl.hp, stock: g.shurikens.stock, left: a.pickups.length };
+    });
+    expect(r.kinds === 'bundle,heart' && r.hp === 3 && r.stock === 3 && r.left === 0, JSON.stringify(r));
+  });
+
+  // ---- jouer à plusieurs : une salle à deux (transport local, deux onglets servis en http) ----
+  await test('à plusieurs : une salle à deux — liste des joueurs, positions, coup de sabre, gong partagé, point pour la victoire', async () => {
+    const http = require('node:http'), fs = require('node:fs');
+    const dist = path.resolve(__dirname, '../dist');
+    const srv = http.createServer((q, r) => fs.readFile(path.join(dist, q.url.split('?')[0].split('#')[0]), (e, d) => { r.writeHead(e ? 404 : 200, { 'content-type': 'text/html' }); r.end(d); }));
+    await new Promise((ok) => srv.listen(0, ok));
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const open = async (cfg) => {
+        const p = await ctx.newPage(); p.on('pageerror', (e) => errors.push('[salle] ' + e.message));
+        await p.addInitScript((c) => sessionStorage.setItem('kage-salle', JSON.stringify(c)), cfg);
+        await p.goto(`http://localhost:${srv.address().port}/kage-standalone.html?net=local#arene-potager`);
+        await p.waitForFunction(() => window.__kage && window.__kage.multi);
+        return p;
+      };
+      const A = await open({ mode: 'host', code: 'T3ST', name: 'Raph' });
+      const B = await open({ mode: 'join', code: 'T3ST', name: 'Kenji' });
+      await A.waitForFunction(() => window.__kage.multi.net.roster.length === 2 && [...window.__kage.multi.remotes.values()][0]?.seen);
+      await B.waitForFunction(() => window.__kage.multi.net.status === 'connecté' && [...window.__kage.multi.remotes.values()][0]?.seen);
+      const hud = await B.evaluate(() => document.querySelector('.salle').textContent.replace(/\s+/g, ' ').trim());
+      // Raph rejoint Kenji et frappe : Kenji perd 2 points de vie
+      await A.evaluate(() => { const r = [...window.__kage.multi.remotes.values()][0], pl = window.__kage.player; pl.x = r.x - 16; pl.y = r.y; pl.facing = 1; pl.vx = 0; pl.onGround = true; pl.setState('idle'); });
+      await A.waitForTimeout(250);
+      await A.keyboard.press('KeyX');
+      await B.waitForFunction(() => window.__kage.player.hp === 3, null, { timeout: 3000 });
+      // Kenji tombe (à l'eau, juste après le coup) : un point pour Raph, chez les deux
+      await B.evaluate(() => window.__kage.player.die());
+      await A.waitForFunction(() => [...window.__kage.multi.scores.values()].includes(1), null, { timeout: 3000 });
+      const score = await A.evaluate(() => window.__kage.multi.scores.get(window.__kage.multi.net.id));
+      // le gong frappé chez Raph sonne aussi chez Kenji
+      await A.evaluate(() => { const a = window.__kage.level.arena; a.hitGong(a.gongBox()); });
+      await B.waitForFunction(() => !window.__kage.level.arena.gong.ready && window.__kage.level.arena.waves.length === 2, null, { timeout: 3000 });
+      expect(/KAGE-T3ST/.test(hud) && /Raph/.test(hud) && /Kenji \(toi\)/.test(hud) && score === 1, `salle « ${hud} », score de Raph ${score}`);
+    } finally { await ctx.close(); srv.close(); }
+  });
+
+  await test('à plusieurs : le menu « Jouer à plusieurs » — un code incomplet est refusé, un code valide ouvre l\'arène', async () => {
+    const pm = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await pm.goto(PAGE); await pm.waitForFunction(() => window.__kage); await pm.waitForTimeout(200);
+    await pm.click('[data-multi]');
+    await pm.click('[data-code]'); await pm.keyboard.type('7f');
+    await pm.click('[data-join]');
+    const msg = await pm.evaluate(() => document.querySelector('[data-multi-msg]').textContent);
+    await pm.click('[data-code]'); await pm.keyboard.type('3q');
+    await pm.click('[data-join]');
+    await pm.waitForFunction(() => window.__kage && window.__kage.level.arena && window.__kage.multi, null, { timeout: 15000 });
+    const cfg = await pm.evaluate(() => [JSON.parse(sessionStorage.getItem('kage-salle')).code, document.querySelector('[data-salle-code]').textContent]);
+    await pm.close();
+    expect(/quatre signes/.test(msg) && cfg[0] === '7F3Q' && /KAGE-7F3Q/.test(cfg[1]), `message « ${msg} », salle ${cfg}`);
   });
 
   await test('aucune erreur dans la console', async () => {

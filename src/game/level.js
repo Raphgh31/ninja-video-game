@@ -4,6 +4,7 @@ import { LEVELS } from './maps.js';
 import { PotagerArt } from './potager/index.js';
 import { ForetArt } from './foret/index.js';
 import { Forest } from './foret/mechanics.js';
+import { Arena } from './arena/arena.js';
 
 export const TILE = 16;
 const DOOR_TIME = 0.6;   // s pour que la porte se lève
@@ -78,10 +79,13 @@ export class Level {
     // un shuriken dans la corde le fait tomber dans la fosse, qu'il comble (voir cutRope)
     this.cranes = (def.cranes ?? []).map((c) => ({ ...c, cut: false, cutAt: -9, drop: 0, landed: false }));
     // plateformes fragiles de l'arène du boss : { x0, w, row (cases), ground (ligne du sol dessous) }
-    this.scaffolds = (def.boss?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
+    this.scaffolds = (def.boss?.scaffolds ?? def.arena?.scaffolds ?? []).map((s) => ({ ...s, up: true, fallAt: -9, fallen: false }));
     for (const c of this.cranes) this.fillCrane(c, c.top);
     // mécaniques vivantes de la Forêt (chapitre 2) : pont qui s'effondre, lianes, statue, éboulis…
     this.forest = def.forest ? new Forest(this, def.forest) : null;
+    // mode combat : les mécanismes de l'arène (grue, gong et vagues, foin, caisses, bonus)
+    this.arena = def.arena ? new Arena(this, def.arena) : null;
+    if (this.arena && !this.spawn) this.spawn = this.arena.nextSpawn();
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
     this.art = this.theme === 'potager' ? new PotagerArt(this) : this.theme === 'foret' ? new ForetArt(this) : null;
@@ -398,6 +402,7 @@ export class Level {
 
   /** Un shuriken (boîte box) coupe-t-il la corde d'une grue ? */
   cutRope(box) {
+    if (this.arena?.cutRope(box)) return true;
     for (const c of this.cranes) {
       if (c.cut) continue;
       if (box.x < c.ropeX + 3 && box.x + box.w > c.ropeX - 3 && box.y < c.ropeY1 && box.y + box.h > c.ropeY0) {
@@ -461,7 +466,7 @@ export class Level {
         this.crates.delete(key);
         if (!cr.fall) this.setTile(cr.tx, cr.ty, '.');
         // identifiant tiré de la place d'origine de la caisse (même si elle est tombée depuis)
-        this.coins.push({ id: `c${key.replace(',', '_')}`, x: x + TILE / 2, y: y + TILE / 2, taken: false });
+        if (!this.arena) this.coins.push({ id: `c${key.replace(',', '_')}`, x: x + TILE / 2, y: y + TILE / 2, taken: false });
         broken.push({ key, x: x + TILE / 2, y: y + TILE / 2 });
       }
     }
@@ -547,7 +552,7 @@ export class Level {
 
   /** Un coup (shuriken ou sabre) frappe un gong : ouvre les portes. */
   hitGongs(box) {
-    let n = 0;
+    let n = this.arena?.hitGong(box) ? 1 : 0;
     for (const g of this.gongs) {
       if (g.hit) continue;
       const b = this.gongBox(g);

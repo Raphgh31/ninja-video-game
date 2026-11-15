@@ -4,7 +4,7 @@ import { TouchControls } from './engine/touch.js';
 import { Level } from './game/level.js';
 import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
-import { Shurikens } from './game/shuriken.js';
+import { Shurikens, SHURIKEN } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
 import { Karasu, KARASU } from './game/karasu.js';
@@ -14,10 +14,14 @@ import { Fx } from './engine/fx.js';
 import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, loadSave, writeSave } from './game/save.js';
+import { drawAura as drawAura0 } from './game/aura.js';
 import { Shop } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
+import { ArenaArt } from './game/arena/art.js';
+import { Net, randomCode, cleanCode } from './engine/net.js';
+import { Multi, SLOT_COLORS } from './game/multi.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -138,23 +142,43 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 function wearSkin(id) { look = skins[id] ?? skins.encre; }
 /**
- * L'éclat d'un skin légendaire (Lumière d'or) : une poussière de lumière dorée qui tourne autour de KAGE et
- * scintille, et un léger halo. Purement décoratif : rien ne change dans le jeu.
+ * Les traînées d'or d'un skin (Lumière d'or) : derrière le coup d'épée, les images précédentes de la lame et
+ * de son arc, de plus en plus pâles (une traînée légère) ; derrière le dash, des silhouettes dorées qui
+ * s'effacent. Rien ne change au jeu : c'est dessiné sous KAGE.
  */
-function drawAura(cam) {
-  const t = performance.now() / 1000, x = Math.round(player.x - cam.x), y = Math.round(player.y - cam.y) - 16;
+const TRAIL_STRIKE = new Set(['attack', 'air_attack', 'flip_attack']);
+const trail = [];
+function drawTrail(cam) {
+  const now = performance.now() / 1000, st = player.state, a = player.anim;
+  const kind = TRAIL_STRIKE.has(st) ? 'blade' : st === 'dash' ? 'body' : null;
+  const last = trail[trail.length - 1];
+  if (kind && (!last || last.frame !== a.frame || last.name !== a.name || Math.abs(last.x - player.x) > 4)) {
+    trail.push({ kind, name: a.name, frame: a.frame, x: player.x, y: player.y, facing: player.facing, t: now });
+  }
+  const life = { blade: 0.16, body: 0.22 };
+  while (trail.length && now - trail[0].t > life[trail[0].kind]) trail.shift();
+  const { pivot } = meta;
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 9; i++) {
-    const a = t * (0.9 + (i % 3) * 0.25) + i * 0.7, r = 11 + (i % 4) * 3 + Math.sin(t * 2 + i) * 2;
-    const px = x + Math.round(Math.cos(a) * r), py = y + Math.round(Math.sin(a) * r * 0.8 - ((t * 9 + i * 7) % 10));
-    const k = 0.5 + 0.5 * Math.sin(t * 6 + i * 2.1);
-    ctx.globalAlpha = 0.25 + 0.6 * k;
-    ctx.fillStyle = i % 3 ? '#ffd86a' : '#fff6c8';
-    ctx.fillRect(px, py, 1, 1);
-    if (k > 0.85) { ctx.fillRect(px - 1, py, 3, 1); ctx.fillRect(px, py - 1, 1, 3); }
+  for (const g of trail) {
+    const k = 1 - (now - g.t) / life[g.kind];
+    // (l'image en cours n'a pas besoin de fantôme : on ne garde que celles d'avant)
+    if (g === trail[trail.length - 1] && g.frame === a.frame && g.name === a.name) continue;
+    const f = meta.animations[g.name]?.frames[g.frame];
+    if (!f) continue;
+    ctx.globalAlpha = (g.kind === 'blade' ? 0.42 : 0.3) * k;
+    const dx = Math.round(g.x - cam.x), dy = Math.round(g.y - cam.y) - pivot.y, sheet = look.trail[g.kind];
+    if (g.facing < 0 && meta.flipForLeft) {
+      ctx.save(); ctx.translate(dx, 0); ctx.scale(-1, 1);
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, -pivot.x, dy, f.w, f.h);
+      ctx.restore();
+    } else ctx.drawImage(sheet, f.x, f.y, f.w, f.h, dx - pivot.x, dy, f.w, f.h);
   }
   ctx.restore();
+}
+
+/** L'éclat d'un skin légendaire (Lumière d'or) : orbe, volutes, étincelles (src/game/aura.js). */
+function drawAura(cam) {
+  drawAura0(ctx, Math.round(player.x - cam.x), Math.round(player.y - cam.y), player.facing, performance.now() / 1000);
 }
 // niveau : #terrain = terrain d'essai, #niveau-1 = niveau 1, sinon le chapitre 1 (Le Potager)
 // version de test (artefact « The Ninja Game Test », window.__KAGE_TEST) : pas d'écran titre,
@@ -181,6 +205,7 @@ const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
   sfx('throw');
   shurikens.throw(x, y, dir, height);
+  multi?.onThrow(x, y, dir, height);
 };
 player.canThrow = () => shurikens.canThrow();
 // ennemis : un TATE à chaque repère « E » de la carte
@@ -297,7 +322,11 @@ player.onEvent = (n, d) => {
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
     case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
-    case 'death': sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls; break;
+    case 'death':
+      sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls;
+      if (level.arena) level.spawn = level.arena.nextSpawn();   // arène : on revient par un autre côté
+      multi?.onDeath();                                          // à plusieurs : un point pour qui l'a touché, réapparition loin des autres
+      break;
     case 'respawn': sfx('respawn'); break;
     default:
   }
@@ -379,6 +408,8 @@ function onKarasuEvent(n, d) {
     case 'caw': if (d.long) sfx('karasuCawLong'); else sfxAt('karasuCaw', d); break;
     case 'straw': fx.sparks(d.x + (Math.random() - 0.5) * 20, d.y, 5, { palette: 'straw', speed: 60 }); fx.drift(d.x, d.y + 10, 3, { palette: 'straw', speed: 30 }); break;
     case 'flap': fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;   // (le son : wingbeat)
+    // sabre depuis le sol : il pare d'un coup d'aile (seul un saut depuis une plateforme le fait tomber)
+    case 'parry': sfxAt('karasuWing', d); sfxAt('block', d, undefined, 0.5); fx.drift(d.x, d.y, 4, { speed: 60, up: 30 }); fx.sparks(d.x, d.y, 4, { dir: -d.dir, speed: 70 }); break;
     case 'drop': break;
     case 'glare': sfxAt('glare', d); break;
     case 'dive': sfxAt('diveWhistle', d); fx.drift(d.x, d.y - 30, 3, { speed: 50 }); break;
@@ -528,6 +559,141 @@ level.onEvent = (n, d) => {
   }
 };
 
+// ---- mode combat : l'arène (grue, gong et vagues, foin, caisses, bonus) ---------
+const arenaArt = level.arena && level.art ? new ArenaArt(level) : null;
+if (level.arena) {
+  level.arena.onEvent = (n, d) => {
+    switch (n) {
+      case 'gongArena': sfx('gong'); fx.shake(1.4, 0.35); fx.sparks(d.x, d.y, 10, { speed: 80 }); break;
+      case 'gongDull': sfx('block'); break;                    // déjà frappé : le bronze ne chante pas
+      case 'gongReady': sfxAt('bell', d, undefined, 0.5); break;
+      case 'sluiceRumble': sfx('woodCreak'); fx.shake(0.6, 0.5); break;
+      case 'sluiceOpen': sfxAt('waterRush', d); fx.sparks(d.x + d.dir * 10, d.y - 8, 8, { palette: 'water', speed: 90, dir: d.dir }); break;
+      case 'waveFall': sfxAt('logDip', d); fx.sparks(d.x, d.y + 14, 6, { palette: 'water', speed: 60 }); break;
+      case 'waveHit': sfxAt('logDip', d); fx.sparks(d.x, d.y - 4, 8, { palette: 'water', speed: 90, dir: d.dir }); break;
+      case 'hayBounce': sfxAt('hayBounce', d, { k: d.k }); fx.drift(d.x, d.y - 2, 4, { palette: 'straw', speed: 50, up: 40 }); fx.sparks(d.x, d.y - 2, 5, { palette: 'straw', speed: 60 }); break;
+      case 'scaffoldRebuild': sfxAt('crateLand', d, {}, 0.6); fx.dust(d.x, d.y, 6, { spread: d.w * 0.5, up: 10, life: 0.5 }); break;
+      case 'craneWinch': sfxAt('woodCreak', d); break;
+      case 'craneHit': fx.shake(2.2, 0.3); break;
+      case 'crateKick': sfx('kickHit'); fx.dust(d.x - d.dir * 6, d.y + 6, 4, { dir: -d.dir, spread: 20, up: 6 }); break;
+      case 'crateBreak': sfxAt('crate', d); fx.dust(d.x, d.y + 6, 6, { spread: 30, up: 16 }); fx.sparks(d.x, d.y, 5, { palette: 'straw', speed: 80 }); break;
+      case 'crateSplash': sfxAt('logDip', d); fx.sparks(d.x, d.y, 10, { palette: 'water', speed: 80 }); break;
+      case 'pickupAppear': sfxAt('pickup', d, undefined, 0.5); break;
+      case 'pickup':
+        if (d.kind === 'heart') { d.fighter.hp = Math.min(HEALTH.max, d.fighter.hp + 1); sfx('heart'); fx.sparks(d.x, d.y, 8, { palette: 'heart', speed: 50 }); }
+        else { shurikens.stock = SHURIKEN.stock; sfx('pickup'); fx.sparks(d.x, d.y, 6, { speed: 50 }); }
+        break;
+      default: level.onEvent?.(n, d);                         // corde, chute des balles, échafaudages : comme dans le chapitre
+    }
+  };
+}
+
+// ---- jouer à plusieurs : la salle (src/engine/net.js, src/game/multi.js) -------
+// Le menu (« Jouer à plusieurs ») range le choix dans sessionStorage puis ouvre l'arène ;
+// une adresse ?salle=CODE rejoint directement une salle.
+let multi = null;
+const NAME_OK = /[A-Za-z0-9 \-]/;
+function defaultName() {
+  try { const n = localStorage.getItem('kage-nom'); if (n) return n; } catch { /* rien */ }
+  return `Ninja ${10 + Math.floor(Math.random() * 90)}`;
+}
+function roomConfig() {
+  let c = null;
+  try { c = JSON.parse(sessionStorage.getItem('kage-salle') || 'null'); } catch { /* rien */ }
+  const q = new URLSearchParams(location.search).get('salle');
+  if (!c && q && cleanCode(q).length === 4) c = { mode: 'join', code: cleanCode(q), name: defaultName() };
+  return c;
+}
+function startRoom(cfg) {
+  const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
+  const listEl = hud.querySelector('[data-salle-list]'), msgEl = hud.querySelector('[data-salle-msg]');
+  const transport = new URLSearchParams(location.search).get('net') === 'local' || window.__KAGE_NET === 'local' ? 'local' : 'peer';
+  const net = new Net({ code: cfg.code, host: cfg.mode === 'host', name: cfg.name, transport });
+  hud.hidden = false;
+  let msgT = null;
+  const say = (t, keep = false) => { setText(msgEl, t); clearTimeout(msgT); if (!keep) msgT = setTimeout(() => setText(msgEl, ''), 3500); };
+  const nameOf = (id) => net.roster.find((p) => p.id === id)?.name ?? '?';
+  const showList = () => {
+    listEl.replaceChildren(...net.roster.map((p) => {
+      const el = document.createElement('p');
+      el.style.setProperty('--slot', SLOT_COLORS[p.slot % 4]);
+      el.textContent = `${p.name}${p.id === net.id ? ' (toi)' : ''} · ${multi?.scores.get(p.id) ?? 0}`;
+      return el;
+    }));
+  };
+  setText(codeEl, `Salle KAGE-${cfg.code}`);
+  net.onStatus = (st, detail) => {
+    if (st === 'connexion') say(cfg.mode === 'host' ? 'Ouverture de la salle…' : 'Connexion à la salle…', true);
+    else if (st === 'ouverte') say('Salle ouverte : donne le code à tes amis', true);
+    else if (st === 'connecté') say('Tu as rejoint la salle');
+    else if (st === 'introuvable') say('Salle introuvable : vérifie le code', true);
+    else if (st === 'pleine') say('Salle pleine (4 joueurs au plus)', true);
+    else if (st === 'perdue') say("La salle s'est fermée", true);
+    else if (st === 'prise') {                          // ce code est déjà pris : on en tire un autre
+      net.close();
+      cfg.code = randomCode();
+      try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); } catch { /* rien */ }
+      multi = null;
+      startRoom(cfg);
+    } else if (st === 'erreur') say(detail || 'Erreur de connexion', true);
+  };
+  multi = new Multi({
+    net, player, shurikens, level, meta, skins, skinId: () => look.id,
+    onEvent(n, d) {
+      if (n === 'roster') { showList(); if (net.roster.length > 1 && net.status === 'ouverte') say(`${net.roster.length} joueurs dans la salle`); }
+      else if (n === 'ko') { showList(); say(`${nameOf(d.by)} a vaincu ${nameOf(d.victim)}`); sfx('gong'); }
+      else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
+    },
+  });
+  net.onStatus('connexion');
+  net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des salles'));
+  hud.querySelector('[data-salle-quit]').onclick = () => {
+    net.close();
+    try { sessionStorage.removeItem('kage-salle'); } catch { /* rien */ }
+    location.hash = '#potager';
+  };
+}
+if (level.arena) { const cfg = roomConfig(); if (cfg) startRoom(cfg); }
+
+/** Le menu « Jouer à plusieurs » de l'écran titre : son nom, créer une salle ou en rejoindre une. */
+function setupMultiMenu(title) {
+  const panel = title.querySelector('[data-multi-panel]'), msg = panel.querySelector('[data-multi-msg]');
+  const nameIn = panel.querySelector('[data-name]'), nameView = panel.querySelector('[data-name-view]');
+  const codeIn = panel.querySelector('[data-code]'), codeView = panel.querySelector('[data-code-view]');
+  const clean = (v) => [...v].filter((c) => NAME_OK.test(c)).join('').slice(0, 10);
+  const mirror = () => {
+    nameIn.value = clean(nameIn.value);
+    setText(nameView, nameIn.value + (document.activeElement === nameIn ? '_' : '') || 'Ninja');
+    codeIn.value = cleanCode(codeIn.value);
+    setText(codeView, (codeIn.value + '····').slice(0, 4));
+  };
+  nameIn.value = defaultName();
+  for (const el of [nameIn, codeIn]) {
+    el.addEventListener('input', mirror);
+    el.addEventListener('focus', mirror); el.addEventListener('blur', mirror);
+    el.addEventListener('keydown', (e) => e.stopPropagation());   // les touches tapées ne vont pas au jeu
+  }
+  mirror();
+  const go = (cfg) => {
+    try { localStorage.setItem('kage-nom', cfg.name); sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+    location.hash = '#arene-potager';
+  };
+  const name = () => clean(nameIn.value).trim() || 'Ninja';
+  title.querySelector('[data-multi]').addEventListener('click', () => {
+    title.classList.add('multi-open'); panel.hidden = false; setText(msg, ''); panel.querySelector('[data-create]').focus();
+  });
+  panel.querySelector('[data-create]').addEventListener('click', () => go({ mode: 'host', code: randomCode(), name: name() }));
+  panel.querySelector('[data-join]').addEventListener('click', () => {
+    const code = cleanCode(codeIn.value);
+    if (code.length !== 4) { setText(msg, 'Le code a quatre signes (ex. 7F3Q)'); codeIn.focus(); return; }
+    go({ mode: 'join', code, name: name() });
+  });
+  codeIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') panel.querySelector('[data-join]').click(); });
+  panel.querySelector('[data-multi-back]').addEventListener('click', () => {
+    title.classList.remove('multi-open'); panel.hidden = true; title.querySelector('[data-multi]').focus();
+  });
+}
+
 // son : débloqué au premier geste ; bouton et touche M pour le couper
 const muteBtn = document.querySelector('.mute');
 function refreshMute() {
@@ -643,6 +809,18 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  // mode combat : les arènes (une par chapitre)
+  for (const [id, l] of Object.entries(LEVELS).filter(([, v]) => v.arena)) {
+    const b = button('Arène', l.name, () => {
+      labSet('chapter', id);
+      sessionStorage.setItem('kage-sans-intro', '1');
+      location.hash = `#${id}`;
+      location.reload();
+    });
+    b.dataset.labChapter = id;
+    b.setAttribute('aria-pressed', String(id === LEVEL_ID));
+    row.append(b);
+  }
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
@@ -660,7 +838,7 @@ function setupSkinLab() {
     setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
   }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
-  if (level.zones.length) {
+  if (level.zones.length && !level.arena) {
     const zr = document.createElement('div');
     zr.className = 'lab__row';
     zr.dataset.zones = '';
@@ -714,6 +892,8 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
+  level.arena?.update(dt, [player]);
+  multi?.update(dt);
   level.forest?.update(dt, player);
   shurikens.update(dt);
   for (const t of enemies) {
@@ -725,6 +905,9 @@ function update(dt) {
     const power = player.state === 'flip_attack';
     const heavy = player.state === 'air_attack' || power;
     level.hitGongs(ab);
+    if (multi?.strikeBox(ab, player.x, `a${player.attackId}`, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword, 0)) {
+      sfx('bladeHit', { heavy }); fx.hitStop(power ? 0.15 : heavy ? 0.11 : 0.07);
+    }
     for (const t of enemies) {
       swordStrike = true;
       const r = t.takeHit(ab, player.x, player.attackId, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
@@ -742,6 +925,7 @@ function update(dt) {
   const kb = player.kickBox();
   if (kb) {
     level.hitGongs(kb);
+    if (multi?.strikeBox(kb, player.x, `k${player.attackId}`, DAMAGE_DEALT.kick, player.kickPush)) { sfx('kickHit'); fx.hitStop(0.06); }
     for (const t of enemies) {
       const r = t.takeHit(kb, player.x, player.attackId, DAMAGE_DEALT.kick);
       if (r) {
@@ -753,7 +937,8 @@ function update(dt) {
     }
   }
   // caisses : le sabre et le coup de pied les brisent
-  for (const box of [ab, player.kickBox()]) {
+  if (level.arena && player.kickBox()) level.arena.kickCrates(player.kickBox(), player.facing, player);
+  for (const box of [ab, level.arena ? null : player.kickBox()]) {
     if (!box) continue;
     for (const c of level.breakCrates(box)) {
       sfx('crate');
@@ -843,7 +1028,14 @@ const camGround = { y: null, k: CAM.ground };                 // sol de référe
 const camV = { from: 0, to: 0, t: 1, dur: CAM.move };   // transition verticale en cours
 let camVX = 0;                                 // vitesse horizontale (amorti)
 
-const clampCamX = (x) => Math.min(Math.max(x, 0), level.width - VIEW_W);
+const clampCamX = (x) => {
+  // arène : on ne voit jamais au-delà des bosquets qui la ferment (si l'image est plus large, on la centre)
+  if (level.arena) {
+    const [l, r] = level.arena.def.walls, a = l * 16, z = (r + 1) * 16;
+    return z - a <= VIEW_W ? Math.round((a + z - VIEW_W) / 2) : Math.min(Math.max(x, a), z - VIEW_W);
+  }
+  return Math.min(Math.max(x, 0), level.width - VIEW_W);
+};
 const clampCamY = (y) => Math.min(Math.max(y, 0), level.height - VIEW_H);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // lent, rapide, lent
 
@@ -880,6 +1072,8 @@ function updateCamera(dt) {
   camVX = (camVX - w * tmp) * e;
   camera.x = clampCamX(tx + (diff + tmp) * e);
   if (Math.abs(camera.x - tx) < 0.05 && Math.abs(camVX) < 0.5) { camera.x = tx; camVX = 0; }
+  // arène : la hauteur ne bouge jamais
+  if (level.arena) { camera.y = arenaCamY(); return; }
   // hauteur : paliers
   if (camGround.y == null) retargetY(player.y);
   const alive = player.state !== 'death' && player.state !== 'respawn';
@@ -910,8 +1104,19 @@ function groundBelow(x, y) {
   return null;
 }
 
+/** Arène : la hauteur est fixe (le sol à 85 % de l'image) ; en largeur, la caméra suit KAGE. */
+function arenaCamY() {
+  return clampCamY(Math.round(level.arena.def.ground + VIEW_H * 0.15 - VIEW_H));
+}
+function arenaCamera() {
+  camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
+  camera.y = arenaCamY();
+  camVX = 0;
+}
+
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {
+  if (level.arena) { arenaCamera(); return; }
   camGround.y = player.y;
   camera.x = clampCamX(player.x - VIEW_W * 0.42);
   camera.y = clampCamY(player.y - VIEW_H * camGroundAt(player.x));
@@ -933,16 +1138,20 @@ function draw() {
   level.draw(ctx, cam, VIEW_W, VIEW_H);
   level.drawTargets(ctx, cam);
   level.drawProps(ctx, cam);
+  arenaArt?.drawBack(ctx, cam, level.time);
   boss?.drawBack(ctx, cam);
   shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
+  multi?.draw(ctx, cam);
+  if (look.trail && !behindGate()) drawTrail(cam);
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam);
+  arenaArt?.drawFront(ctx, cam, level.time);
+  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail);
   fx.draw(ctx, cam);
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
@@ -1249,6 +1458,7 @@ if (CHAPTER) {
   const cont = title.querySelector('[data-continue]');
   cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
   cont.addEventListener('click', () => startChapter(true));
+  setupMultiMenu(title);
   title.querySelector('[data-new]').addEventListener('click', () => {
     // une nouvelle partie commence toujours au chapitre 1
     if (LEVEL_ID !== 'potager' && !hashId && !TEST_BUILD) { clearSave(); location.reload(); return; }
@@ -1416,7 +1626,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

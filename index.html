@@ -38,7 +38,24 @@
         <div class="title-screen__actions">
           <button type="button" data-continue hidden>Continuer</button>
           <button type="button" data-new>Nouvelle partie</button>
+          <button type="button" data-multi>Jouer à plusieurs</button>
         </div>
+        <div class="multi" data-multi-panel hidden>
+          <span class="multi__label">Nom</span>
+          <label class="multi__field"><span class="multi__view" data-name-view></span><input data-name maxlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ton nom"></label>
+          <button type="button" data-create>Créer une salle</button>
+          <span class="multi__label multi__sep">ou</span>
+          <label class="multi__field multi__code"><span class="multi__view" data-code-view>····</span><input data-code maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code de la salle"></label>
+          <button type="button" data-join>Rejoindre</button>
+          <button type="button" class="multi__back" data-multi-back>Retour</button>
+          <p class="multi__msg" data-multi-msg></p>
+        </div>
+      </section>
+      <section class="salle" hidden aria-label="Salle">
+        <p class="salle__code" data-salle-code></p>
+        <div class="salle__list" data-salle-list></div>
+        <p class="salle__msg" data-salle-msg aria-live="polite"></p>
+        <button type="button" class="salle__quit" data-salle-quit>Quitter la salle</button>
       </section>
       <section class="shop" hidden aria-label="Le comptoir du voyageur">
         <header class="shop__head">

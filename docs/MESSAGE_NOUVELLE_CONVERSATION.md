@@ -23,10 +23,10 @@ Je vais te donner mes retours après avoir joué ; applique exactement ce que je
 3. `docs/REPRISE.md`, seulement au besoin ;
 4. `docs/GUIDE_CHAPITRE.md` si on construit ou retouche un chapitre.
 
-Lance `npm install`, puis `npm run sprites` et `npm test` (82 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
+Lance `npm install`, puis `npm run sprites` et `npm test` (91 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
 
-**Les artefacts** (`npm run standalone` les fabrique) — **demande-moi toujours l'autorisation avant de publier** :
-- « The Ninja Game Test », ma version d'essai, privée (skins sans achat, chapitres et zones en un clic) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, publier sans `shared_live`) — à republier à chaque étape ;
+**Les artefacts** (`npm run standalone` les fabrique) — **la version test ne se publie que si je le dis** (« publie-le » = vas-y sans redemander ; si je ne dis rien, ne publie pas) ; pour les autres, **demande-moi l'autorisation** :
+- « The Ninja Game Test », ma version d'essai, privée (skins sans achat, chapitres et zones en un clic) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, publier sans `shared_live`) — seulement quand je dis de la publier ;
 - « The Ninja Game », le jeu pour tout le monde : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (`dist/kage-standalone.html`, `shared_live: "public"`) — à la mise en ligne ;
 - la carte mentale : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi (`python3 tools/carte_mentale.py --artefact <fichier>`) — à la mise en ligne.
 

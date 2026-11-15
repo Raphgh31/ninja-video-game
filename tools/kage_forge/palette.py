@@ -23,6 +23,7 @@ Slots regroupés par partie (= calque exportable) :
     cord      c C                cordelette en bandoulière (skins) : lumière / ombre
     gear      b B i              équipement des skins (cape, sac, filet, casque, masque, capuche) :
                                  ombre / base / lumière
+    halo      s S u              auréole des skins (Lumière d'or) : ombre / lumière / éclat ; jamais de contour
     gear2     j J                second matériau des skins (cornes et liseré d'or, marques rouges,
                                  maille, sangle, auréole) : ombre / base
 
@@ -71,17 +72,20 @@ SLOTS = {
     "b": ("gear", "shadow"),
     "B": ("gear", "base"),
     "i": ("gear", "light"),
+    "s": ("halo", "shadow"),
+    "S": ("halo", "light"),
+    "u": ("halo", "spark"),
     "j": ("gear2", "shadow"),
     "J": ("gear2", "base"),
 }
 
 PARTS = [
     "outline", "hood", "mask", "skin", "eyes", "outfit", "bracers",
-    "belt", "shoes", "scarf", "blade", "hilt", "accessory", "fx", "hat", "cord", "gear", "gear2",
+    "belt", "shoes", "scarf", "blade", "hilt", "accessory", "fx", "hat", "cord", "gear", "gear2", "halo",
 ]
 
 # Ordre stable des slots : sert d'index dans la carte d'index (R = index).
 SLOT_ORDER = list(SLOTS.keys())
 
 # Slots qui ne reçoivent pas de contour automatique (effets flottants).
-NO_OUTLINE = set("xXzq")
+NO_OUTLINE = set("xXzqsSu")

@@ -19,6 +19,8 @@ export class Shurikens {
     this.meta = meta.projectiles.shuriken;
     this.flying = [];
     this.stuck = [];
+    this.dust = [];        // poussière d'or (skin à traînée) : grains qui scintillent derrière le shuriken
+    this.goldDust = false; // allumée par drawFlying quand le skin a une traînée
     this.stock = SHURIKEN.stock;
     this.emptyBlink = 0;
     this.enemies = [];     // ennemis touchables (méthode takeHit)   // clignotement du compteur quand on essaie de lancer sans stock
@@ -28,6 +30,7 @@ export class Shurikens {
   reset() {
     this.flying = [];
     this.stuck = [];
+    this.dust = [];
     this.stock = SHURIKEN.stock;
   }
 
@@ -76,6 +79,7 @@ export class Shurikens {
     const lv = this.level;
     this.emptyBlink = Math.max(0, this.emptyBlink - dt);
     for (const s of this.stuck) s.age += dt;
+    this.updateDust(dt);
     for (const s of this.flying) {
       s.t += dt;
       const px = s.x, py = s.y;
@@ -135,6 +139,50 @@ export class Shurikens {
     this.flying = this.flying.filter((s) => !s.dead);
   }
 
+  /** Poussière d'or : quelques grains semés derrière chaque shuriken en vol, qui flottent, scintillent et s'éteignent. */
+  updateDust(dt) {
+    for (const d of this.dust) {
+      d.age += dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.vx *= 1 - 6 * dt;
+      d.vy += 14 * dt;          // retombe à peine
+    }
+    this.dust = this.dust.filter((d) => d.age < d.life);
+    if (!this.goldDust) return;
+    for (const s of this.flying) {
+      if (s.deflected || Math.abs(s.vx) < 40) continue;
+      s.dustT = (s.dustT ?? 0) - dt;
+      if (s.dustT > 0) continue;
+      s.dustT = 0.014 + Math.random() * 0.016;
+      this.dust.push({
+        x: s.x - s.dir * (3 + Math.random() * 3), y: s.y + (Math.random() * 5 - 2.5),
+        vx: s.vx * 0.4 + (Math.random() * 12 - 6), vy: Math.random() * 16 - 10,
+        age: 0, life: 0.16 + Math.random() * 0.2, star: Math.random() < 0.18, ph: Math.random() * 6,
+      });
+    }
+  }
+
+  drawDust(ctx, cam) {
+    if (!this.dust.length) return;
+    ctx.save();
+    for (const d of this.dust) {
+      const k = d.age / d.life;
+      // scintillement : le grain s'allume et s'éteint vite en pâlissant
+      const tw = 0.7 + 0.3 * Math.sin(d.ph + d.age * 38);
+      ctx.globalAlpha = Math.max(0, (1 - k * k) * tw);
+      const x = Math.round(d.x - cam.x), y = Math.round(d.y - cam.y);
+      ctx.fillStyle = k < 0.4 ? '#fff8d8' : k < 0.75 ? '#ffe07a' : '#f2b440';
+      ctx.fillRect(x, y, 1, 1);
+      if (d.star && k < 0.55 && tw > 0.8) {   // petite étoile en croix au plus fort de l'éclat
+        ctx.fillStyle = '#ffe07a';
+        ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1);
+        ctx.fillRect(x, y - 1, 1, 1); ctx.fillRect(x, y + 1, 1, 1);
+      }
+    }
+    ctx.restore();
+  }
+
   plant(d) {
     this.stuck.push({ ...d, age: 0 });
     this.onEvent?.('stick', d);
@@ -156,11 +204,23 @@ export class Shurikens {
     for (const s of this.stuck) this.blit(ctx, sheet, s.kind, s.x, s.y, s.dir, cam);
   }
 
-  drawFlying(ctx, sheet, cam) {
+  /** trail : un skin à traînée (Lumière d'or) laisse derrière chaque shuriken trois reflets qui pâlissent. */
+  drawFlying(ctx, sheet, cam, trail = false) {
+    this.goldDust = trail;
     for (const s of this.flying) {
       const k = this.meta.spin[Math.floor(s.t / SHURIKEN.spinStep) % this.meta.spin.length];
+      if (trail && Math.abs(s.vx) > 40) {
+        ctx.save();
+        for (let i = 3; i >= 1; i--) {
+          ctx.globalAlpha = 0.32 - i * 0.08;
+          const kk = this.meta.spin[Math.floor((s.t - i * 0.02) / SHURIKEN.spinStep + 64) % this.meta.spin.length];
+          this.blit(ctx, sheet, kk, s.x - s.vx * 0.016 * i, s.y - s.vy * 0.016 * i, 1, cam);
+        }
+        ctx.restore();
+      }
       this.blit(ctx, sheet, k, s.x, s.y, 1, cam);
     }
+    this.drawDust(ctx, cam);
   }
 
   // Dessine l'image `kind` de façon que son ancre tombe sur (x, y) : le pixel
