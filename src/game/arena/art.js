@@ -17,51 +17,87 @@ const ROPE = ['#3b2a1c', '#8a6a40', '#c9a46c'];
 // sprites peints une fois
 // ---------------------------------------------------------------------------
 
-/** Un tawara : balle de riz en paille, couchée, liée de trois cordes, couvercle tressé au bout. */
-function tawara(b, x, y, w, h, seed, capRight) {
-  for (let j = 0; j < h; j++) {
-    // section ronde : plus sombre en bas, reflet en haut
-    const t = j / (h - 1), round = Math.sin(t * Math.PI);
-    const inset = j === 0 || j === h - 1 ? 2 : j === 1 || j === h - 2 ? 1 : 0;
-    for (let i = inset; i < w - inset; i++) {
-      let v = 0.25 + round * 0.55 - t * 0.2 + (noise2((x + i) * 0.9, (y + j) * 0.35, seed) - 0.5) * 0.35;
-      if ((i + j * 3) % 5 === 0) v -= 0.08;                         // brins de paille
-      b.p(x + i, y + j, pick(C.STRAW, clamp01(v), x + i, y + j));
+/**
+ * Le rocher de la grue : un gros bloc de granit plat, de forme irrégulière (ni rond
+ * ni carré), haut comme KAGE, large comme trois KAGE côte à côte ; deux sangles de
+ * corde en travers et une ceinture, nouées. Renvoie { c, ties } : ties = les deux
+ * points du haut d'où partent les brins vers le crochet.
+ */
+function rockSprite(w, h) {
+  const c = canvas(w, h), b = new Brush(c.getContext('2d'));
+  const cx = w / 2, cy = h * 0.55, rx = w / 2 - 2, ry = h / 2 - 1;
+  // contour : douze sommets autour d'une ellipse aplatie, chacun bousculé ; le dessous plus plat
+  const pts = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + (ih(i, 1, 41) - 0.5) * 0.3;
+    const k = 0.82 + ih(i, 2, 41) * 0.22;
+    let x = cx + Math.cos(a) * rx * k, y = cy + Math.sin(a) * ry * (0.85 + ih(i, 3, 41) * 0.2);
+    if (Math.sin(a) > 0.3) y = Math.min(h - 1, cy + ry * 0.92 + (ih(i, 4, 41) - 0.5) * 2);   // il repose à plat
+    pts.push([Math.max(0.5, Math.min(w - 0.5, x)), Math.max(0.5, Math.min(h - 0.5, y))]);
+  }
+  const inside = (x, y) => {
+    let o = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) o = !o;
+    }
+    return o;
+  };
+  const GR = ['#2f2b28', '#45403b', '#5b554d', '#736c61', '#8d8578', '#a79e8e'];   // granit chaud, plus sombre que la neige du fond
+  const mask = [];
+  for (let y = 0; y < h; y++) { mask.push([]); for (let x = 0; x < w; x++) mask[y].push(inside(x + 0.5, y + 0.5)); }
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && mask[y][x];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!on(x, y)) continue;
+    // modelé : lumière du haut à gauche, dessous dans l'ombre ; grain du granit, facettes
+    const nx = (x - cx) / rx, ny = (y - cy) / ry;
+    let v = 0.62 - nx * 0.16 - ny * 0.34 + (noise2(x * 0.35, y * 0.35, 5) - 0.5) * 0.35 + (noise2(x * 1.3, y * 1.3, 9) - 0.5) * 0.18;
+    if (!on(x, y - 1)) v += 0.22;                                 // arête du haut, au soleil
+    else if (!on(x - 1, y)) v += 0.08;
+    if (!on(x, y + 1) || !on(x + 1, y)) v -= 0.25;
+    b.p(x, y, pick(GR, clamp01(v), x, y));
+    if (ih(x, y, 77) < 0.035) b.p(x, y, ih(x, y, 78) < 0.5 ? '#c9c1b0' : '#3a3632');   // mouchetures
+  }
+  // fissures : deux lignes brisées sombres, avec leur lèvre claire
+  for (const [x0, y0, len, dir] of [[w * 0.28, h * 0.3, 12, 1], [w * 0.66, h * 0.45, 9, -1]]) {
+    let x = Math.round(x0), y = Math.round(y0);
+    for (let i = 0; i < len; i++) {
+      if (on(x, y) && on(x, y + 1)) { b.p(x, y, '#2e2a26'); if (on(x + 1, y)) b.p(x + 1, y - 1, '#b8b0a0'); }
+      x += dir; if (ih(i, x, 12) < 0.45) y += 1;
     }
   }
-  // contour
-  for (let i = 2; i < w - 2; i++) { b.p(x + i, y, OUT); b.p(x + i, y + h - 1, OUT); }
-  for (let j = 2; j < h - 2; j++) { b.p(x, y + j, OUT); b.p(x + w - 1, y + j, OUT); }
-  b.p(x + 1, y + 1, OUT).p(x + w - 2, y + 1, OUT).p(x + 1, y + h - 2, OUT).p(x + w - 2, y + h - 2, OUT);
-  // trois liens de corde
-  for (const k of [0.24, 0.5, 0.76]) {
-    const lx = x + R(w * k);
-    for (let j = 1; j < h - 1; j++) b.p(lx, y + j, j % 3 === 0 ? ROPE[2] : ROPE[0]);
+  // mousse et lichen sur le dessus
+  for (let x = 0; x < w; x++) {
+    let y = 0; while (y < h && !on(x, y)) y++;
+    if (y >= h) continue;
+    if (noise2(x * 0.25, 3, 31) > 0.55) { b.p(x, y, C.MOSS[2 + (x % 2)]); if (on(x, y + 1) && ih(x, 1, 33) < 0.6) b.p(x, y + 1, C.MOSS[1]); }
+    else if (ih(x, 2, 34) < 0.06) b.p(x, y + 1, '#a8a25a');
   }
-  // couvercle tressé (sandawara) : une rosace au bout de la balle
-  const cx = capRight ? x + w - 3 : x + 2, cy = y + h / 2;
-  for (let j = -3; j <= 3; j++) for (let i = -1; i <= 1; i++) {
-    const v = 0.35 + (Math.abs(j) % 2) * 0.25 - Math.abs(j) * 0.04;
-    b.p(cx + i, R(cy + j - 0.5), pick(C.THATCH, clamp01(v), cx + i, j));
+  // contour sombre
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (on(x, y) && (!on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1))) b.p(x, y, OUT);
   }
-  b.p(cx, R(cy - 0.5), C.THATCH[0]);
-}
-
-/** Les quatre balles de la grue (2 × 2 cases), dans leur filet de corde. */
-function bundleSprite() {
-  const c = canvas(32, 32), b = new Brush(c.getContext('2d'));
-  tawara(b, 0, 18, 16, 14, 3, false);
-  tawara(b, 16, 18, 16, 14, 7, true);
-  tawara(b, 1, 5, 15, 13, 11, false);
-  tawara(b, 16, 5, 15, 13, 13, true);
-  // filet : mailles losangées par-dessus
-  for (let y = 4; y < 31; y += 5) for (let x = (y % 10 ? 2 : 4); x < 31; x += 6) {
-    b.p(x, y, ROPE[1]);
-    if (x + 1 < 32) b.p(x + 1, y + 1, ROPE[0]);
+  // la corde : deux sangles en travers (qui épousent le rocher) et une ceinture, nouées
+  const top = (x) => { let y = 0; while (y < h && !on(x, y)) y++; return y; };
+  const bot = (x) => { let y = h - 1; while (y > 0 && !on(x, y)) y--; return y; };
+  const ties = [];
+  for (const fx of [0.27, 0.73]) {
+    const x = Math.round(w * fx), t = top(x), bt = bot(x);
+    for (let y = t; y <= bt; y++) {
+      b.p(x, y, (y - t) % 3 === 0 ? ROPE[2] : ROPE[1]);
+      b.p(x + 1, y, ROPE[0]);
+    }
+    ties.push([x, t]);
   }
-  // cordes du filet qui remontent vers le joug
-  for (let i = 0; i < 5; i++) { b.p(4 + i, 4 - Math.min(4, i), ROPE[1]); b.p(27 - i, 4 - Math.min(4, i), ROPE[1]); }
-  return c;
+  const gy = Math.round(cy + 1);
+  for (let x = 0; x < w; x++) {
+    if (!on(x, gy)) continue;
+    const yy = gy + Math.round(Math.sin((x / w) * Math.PI) * -1.5);
+    b.p(x, yy, (x % 3 === 0) ? ROPE[2] : ROPE[1]);
+    b.p(x, yy + 1, ROPE[0]);
+  }
+  for (const [x] of ties) { b.r(x - 1, gy - 2, 4, 4, ROPE[0]); b.r(x, gy - 1, 2, 2, ROPE[2]); b.p(x + 2, gy + 2, ROPE[1]).p(x + 3, gy + 3, ROPE[1]); }   // nœuds
+  return { c, ties };
 }
 
 /** Botte de foin tremplin (deux cases), peinte comme celles du chapitre. */
@@ -73,40 +109,41 @@ function haySprite(w) {
   return c;
 }
 
-/** Le bâti du gong : deux poteaux laqués, linteau aux bouts relevés (comme un petit torii). */
+/** Le bâti du gong : deux poteaux laqués, linteau noir aux bouts relevés (comme un petit torii), socles de pierre. */
+const GF = { w: 52, h: 66, r: 16 };
 function gongFrame() {
-  const c = canvas(40, 52), b = new Brush(c.getContext('2d'));
+  const c = canvas(GF.w, GF.h), b = new Brush(c.getContext('2d'));
   const RED = C.RED;
-  // poteaux
-  for (const px of [5, 32]) {
-    b.r(px, 8, 3, 44, RED[2]).r(px, 8, 1, 44, RED[4]).r(px + 2, 8, 1, 44, RED[0]);
-    b.r(px - 1, 48, 5, 4, C.STONE[2]).r(px - 1, 48, 5, 1, C.STONE[4]);           // socle de pierre
+  for (const px of [6, GF.w - 10]) {
+    b.r(px, 9, 4, GF.h - 9, RED[2]).r(px, 9, 1, GF.h - 9, RED[4]).r(px + 3, 9, 1, GF.h - 9, RED[0]);
+    b.r(px - 1, GF.h - 5, 6, 5, C.STONE[2]).r(px - 1, GF.h - 5, 6, 1, C.STONE[4]).r(px - 1, GF.h - 1, 6, 1, C.STONE[0]);
+    b.r(px, 18, 4, 1, RED[0]);                                                   // bague sous le second linteau
   }
-  // linteau (kasagi) : noir laqué, bouts relevés
-  b.r(1, 3, 38, 3, '#2c262a').r(1, 3, 38, 1, '#57505a');
-  b.p(0, 2, '#2c262a').p(39, 2, '#2c262a').p(0, 1, '#2c262a').p(39, 1, '#2c262a');
-  b.r(3, 6, 34, 2, RED[2]).r(3, 6, 34, 1, RED[4]);                             // second linteau
-  b.r(18, 6, 4, 4, RED[1]);                                                     // plaque centrale
-  // corde tressée qui tient le disque
+  // linteau (kasagi) : noir laqué, bouts relevés en pointe
+  b.r(2, 3, GF.w - 4, 4, '#2c262a').r(2, 3, GF.w - 4, 1, '#5a5360');
+  for (const [x, d] of [[1, -1], [GF.w - 2, 1]]) b.p(x, 2, '#2c262a').p(x, 1, '#2c262a').p(x + d, 0, '#2c262a');
+  b.r(4, 7, GF.w - 8, 3, RED[2]).r(4, 7, GF.w - 8, 1, RED[4]).r(4, 9, GF.w - 8, 1, RED[0]);   // second linteau (nuki)
+  b.r(GF.w / 2 - 3, 7, 6, 6, RED[1]).r(GF.w / 2 - 2, 8, 4, 4, '#e8c35a').p(GF.w / 2 - 1, 9, '#2c262a');   // plaque dorée
   return c;
 }
 
-/** Disque du gong (bronze), rayon 11, prêt (clair) ou au repos (terni). */
+/** Disque du gong (bronze), prêt (doré, éclatant) ou au repos (terni). */
 function gongDisc(dim) {
-  const c = canvas(26, 26), b = new Brush(c.getContext('2d'));
-  const BR = dim ? ['#3e2f1c', '#5a4428', '#76593a', '#8f7148', '#a8875a'] : ['#4a3418', '#6f4f22', '#9a7034', '#c0924a', '#e5c27a'];
-  for (let y = -11; y <= 11; y++) for (let x = -11; x <= 11; x++) {
+  const r = GF.r, n = r * 2 + 4, c = canvas(n, n), b = new Brush(c.getContext('2d')), o = n / 2;
+  const BR = dim ? ['#3e2f1c', '#5a4428', '#76593a', '#8f7148', '#a8875a'] : ['#4a3418', '#7a5624', '#a77a36', '#d0a050', '#f2d488'];
+  for (let y = -r - 1; y <= r + 1; y++) for (let x = -r - 1; x <= r + 1; x++) {
     const d = Math.hypot(x, y);
-    if (d > 11.3) continue;
-    let v = 0.55 - (x + y) * 0.022;
-    if (d > 9.6) v -= 0.25;                     // rebord
-    if (d < 9.6 && d > 8.4) v += 0.12;           // filet en relief
-    if (d < 3.4) v += 0.18;                      // bossette centrale
-    if (d < 2) v -= 0.1;
-    b.p(13 + x, 13 + y, pick(BR, clamp01(v), x, y));
+    if (d > r + 0.3) continue;
+    let v = 0.55 - (x + y) * 0.018;
+    if (d > r - 2) v -= 0.28;                       // rebord épais
+    if (d < r - 2 && d > r - 3.4) v += 0.14;        // filet en relief
+    if (d < r - 6 && d > r - 7) v -= 0.12;          // second cercle gravé
+    if (d < 4.5) v += 0.2;                          // bossette centrale
+    if (d < 2.5) v -= 0.12;
+    b.p(o + x, o + y, pick(BR, clamp01(v), x, y));
   }
-  for (let a = 0; a < 6.28; a += 0.05) b.p(R(13 + Math.cos(a) * 11.4), R(13 + Math.sin(a) * 11.4), OUT);
-  if (!dim) { b.p(9, 8, '#fff2c4').p(10, 8, '#f6dc94').p(9, 9, '#f6dc94'); }
+  for (let a = 0; a < 6.28; a += 0.04) b.p(R(o + Math.cos(a) * (r + 0.6)), R(o + Math.sin(a) * (r + 0.6)), OUT);
+  if (!dim) { b.p(o - 5, o - 6, '#fff6d4').p(o - 4, o - 6, '#f8e2a0').p(o - 5, o - 5, '#f8e2a0').p(o - 6, o - 4, '#f8e2a0'); }
   return c;
 }
 
@@ -184,7 +221,8 @@ export class ArenaArt {
   constructor(level) {
     this.level = level;
     this.a = level.arena;
-    this.bundle = bundleSprite();
+    const cr = this.a.crane;
+    this.rock = cr ? rockSprite(cr.w * TILE - 2, cr.h * TILE) : null;   // (un peu moins large que ses cases : il ne déborde pas)
     this.frame = gongFrame();
     this.disc = [gongDisc(false), gongDisc(true)];
     this.sluice = [sluiceFrame(1), sluiceFrame(-1)];
@@ -216,6 +254,7 @@ export class ArenaArt {
   drawFront(ctx, cam, time) {
     const ox = -R(cam.x), oy = -R(cam.y);
     for (const w of this.a.waves) this.drawWave(ctx, ox, oy, time, w);
+    this.drawQuakes(ctx, ox, oy);
   }
 
   // ---- le canal d'irrigation : murs de pierre sèche, eau courante, passerelle sur pilotis ----
@@ -449,72 +488,127 @@ export class ArenaArt {
       ctx.fillStyle = '#5d636e'; ctx.fillRect(x - 1, y, 3, 3); ctx.fillRect(x + 1, y + 3, 2, 3); ctx.fillRect(x - 2, y + 5, 4, 1);
       ctx.fillStyle = '#9aa1ac'; ctx.fillRect(x - 1, y, 1, 2);
     };
-    const yoke = (y) => {
-      ctx.fillStyle = C.WOOD[1]; ctx.fillRect(bx + 3, y, c.w * TILE - 6, 3);
-      ctx.fillStyle = C.WOOD[4]; ctx.fillRect(bx + 3, y, c.w * TILE - 6, 1);
-      ctx.fillStyle = ROPE[1];
-      for (let i = 0; i < 6; i++) { ctx.fillRect(tipX - 1 - i * 2, y - 6 + i, 1, 1); ctx.fillRect(tipX + i * 2, y - 6 + i, 1, 1); }
+    // les deux brins, des sangles du rocher jusqu'au crochet
+    const strands = (y, hx, hy) => {
+      for (const [tx0, ty0] of this.rock.ties) {
+        const x0 = bx + 1 + tx0, y0 = y + ty0, n = Math.max(Math.abs(hx - x0), Math.abs(hy - y0));
+        for (let i = 0; i <= n; i++) { ctx.fillStyle = i % 3 ? ROPE[1] : ROPE[2]; ctx.fillRect(R(x0 + (hx - x0) * i / n), R(y0 + (hy - y0) * i / n), 1, 1); }
+      }
     };
     if (c.state === 'hang' || c.state === 'hoist') {
       const sway = c.state === 'hang' ? Math.sin(time * 1.1) * 0.6 : 0;
-      line(tipX, by + 8, tipX, yb - 12, sway);
-      hook(tipX, yb - 12);
-      yoke(yb - 4);
+      line(tipX, by + 8, tipX, yb - 14, sway);
+      strands(yb, tipX, yb - 8);
+      hook(tipX, yb - 14);
     } else if (c.state === 'fall' || c.state === 'down') {
-      // la corde coupée : un bout qui remonte en battant, l'autre retombé sur les balles
+      // la corde coupée : un bout qui remonte en battant ; les brins retombent sur le rocher
       const t = c.state === 'fall' ? c.t : c.t + 1, rec = Math.min(1, t / 0.5);
       const len = (c.top * TILE + oy - by - 20) * (0.6 - 0.3 * rec);
       const sway = Math.sin(t * 7) * 6 * Math.exp(-t * 1.6);
       line(tipX, by + 8, tipX + sway, by + 8 + len, sway * 0.4);
-      ctx.fillStyle = ROPE[1];
-      for (let i = 0; i < 9; i++) ctx.fillRect(bx + 8 + i, yb - 1 + (i > 5 ? 1 : 0), 1, 1);
+      const fl = Math.max(0, 6 - t * 30);
+      strands(yb, tipX + (c.state === 'fall' ? 0 : 3), yb - 2 - R(fl));
     } else if (c.state === 'lower') {
-      // le crochet redescend chercher les balles
+      // le crochet redescend chercher le rocher
       const k = Math.min(1, c.t / ARENA.crane.lower);
-      const yh = by + 10 + (yb - 12 - by - 10) * k;
+      const yh = by + 10 + (yb - 14 - by - 10) * k;
       line(tipX, by + 8, tipX, yh, Math.sin(time * 3) * 0.8);
       hook(tipX, R(yh));
-      ctx.fillStyle = ROPE[1];
-      for (let i = 0; i < 9; i++) ctx.fillRect(bx + 8 + i, yb - 1, 1, 1);
+      strands(yb, tipX + 3, yb - 2);
     }
-    ctx.drawImage(this.bundle, bx, yb);
+    ctx.drawImage(this.rock.c, bx + 1, yb);
+    // ombre portée au sol pendant la chute (elle grandit et fonce à l'approche)
+    if (c.state === 'fall' || c.state === 'hang') {
+      const g = c.floor * TILE + oy, d = g - (yb + c.h * TILE), k = Math.max(0, 1 - d / 160);
+      const sw = R((c.w * TILE - 6) * (0.55 + 0.45 * k));
+      ctx.fillStyle = `rgba(20, 14, 8, ${0.12 + 0.3 * k})`;
+      ctx.fillRect(R(bx + c.w * TILE / 2 - sw / 2), g - 2, sw, 2);
+    }
+  }
+
+  // ---- l'onde de choc du rocher : la terre se soulève en vague, un nuage de poussière roule ----
+  drawQuakes(ctx, ox, oy) {
+    for (const q of this.a.quakes) {
+      const k = q.t / 1.2, x = R(q.x) + ox, y = R(q.y) + oy;
+      // la vague de terre : deux bourrelets qui filent de part et d'autre
+      if (q.t < 0.45) {
+        const d = q.w / 2 + 6 + q.t * 150, hh = R(4 * (1 - q.t / 0.45));
+        for (const s of [-1, 1]) {
+          for (let i = 0; i < 10; i++) {
+            const px = R(x + s * (d - i)), py = y - R(Math.sin((i / 10) * Math.PI) * hh);
+            ctx.fillStyle = i < 3 ? '#8a6748' : '#6f5139';
+            ctx.fillRect(px, py - 1, 1, 2);
+          }
+        }
+      }
+      // le nuage : des volutes épaisses qui gonflent, roulent au ras du sol et s'éclaircissent
+      for (let i = 0; i < 22; i++) {
+        const sd = i % 2 ? 1 : -1, r0 = 4 + (i * 7) % 6, spread = q.w / 2 + 4 + (i * 13) % 34;
+        const grow = Math.min(1, q.t * 2.6);
+        const px = x + sd * spread * (0.3 + 0.7 * grow) * (0.55 + ((i * 3) % 7) / 10);
+        const py = y - 4 - (i % 3) * 3 - q.t * (6 + (i % 4) * 5);
+        const r = r0 + k * 8, a = 0.82 * (1 - k) * (i % 3 ? 1 : 0.8);
+        const tone = [[214, 196, 168], [190, 170, 140], [160, 140, 112]][i % 3];
+        ctx.fillStyle = `rgba(${tone[0]}, ${tone[1]}, ${tone[2]}, ${a})`;
+        for (let yy = -r; yy <= r; yy++) { const half = R(Math.sqrt(r * r - yy * yy)); ctx.fillRect(R(px) - half, R(py + yy * 0.65), half * 2 + 1, 1); }
+      }
+      // des mottes de terre projetées
+      if (q.t < 0.6) {
+        for (let i = 0; i < 10; i++) {
+          const sd = i % 2 ? 1 : -1, vx = sd * (40 + (i * 17) % 60), vy = -90 - (i * 29) % 70;
+          const px = x + sd * (q.w / 2 - 6) + vx * q.t, py = y - 4 + vy * q.t + 300 * q.t * q.t;
+          if (py > y) continue;
+          ctx.fillStyle = i % 3 ? '#6f5139' : '#3a2a1f';
+          ctx.fillRect(R(px), R(py), 2, 2);
+        }
+      }
+    }
   }
 
   // ---- le gong ---------------------------------------------------------------------------
   drawGong(ctx, ox, oy, time) {
     const g = this.a.gong;
     if (!g) return;
-    const x = R(g.x) + ox, y = R(g.y) + oy;
-    ctx.drawImage(this.frame, x - 20, y - 52);
+    const x = R(g.x) + ox, y = R(g.y) + oy, r = GF.r;
     const since = this.a.time - g.ringT;
-    const wob = since < 1 ? Math.sin(since * 46) * 2.2 * (1 - since) : 0;
-    const swing = Math.sin(time * 0.9) * 0.4 + (since < 1.4 ? Math.sin(since * 9) * 1.5 * (1.4 - since) : 0);
-    const cx = R(x + swing + wob), cy = y - 27;
+    const wob = since < 1 ? Math.sin(since * 46) * 2.6 * (1 - since) : 0;
+    const swing = Math.sin(time * 0.9) * 0.4 + (since < 1.4 ? Math.sin(since * 9) * 1.8 * (1.4 - since) : 0);
+    const cx = R(x + swing + wob), cy = y - 36;
+    // prêt : un halo chaud qui respire derrière le bronze (on le repère de loin)
+    if (g.ready) {
+      const p = 0.75 + 0.25 * Math.sin(time * 2.2);
+      for (let rr = r + 9; rr > r; rr -= 2) {
+        ctx.fillStyle = `rgba(255, 200, 110, ${0.05 * p})`;
+        for (let yy = -rr; yy <= rr; yy++) { const half = R(Math.sqrt(rr * rr - yy * yy)); ctx.fillRect(cx - half, cy + yy, half * 2 + 1, 1); }
+      }
+    }
+    ctx.drawImage(this.frame, x - GF.w / 2, y - GF.h);
     // cordes tressées
     ctx.fillStyle = C.RED[3];
-    for (let i = 0; i < 12; i++) { ctx.fillRect(R(x - 6 + (cx - x) * i / 12 - i * 0.1), y - 44 + i, 1, 1); ctx.fillRect(R(x + 6 + (cx - x) * i / 12 + i * 0.1), y - 44 + i, 1, 1); }
-    ctx.drawImage(this.disc[g.ready ? 0 : 1], cx - 13, cy - 13);
+    for (let i = 0; i < 12; i++) { ctx.fillRect(R(x - 8 + (cx - x) * i / 12 - i * 0.15), y - 56 + i, 1, 1); ctx.fillRect(R(x + 8 + (cx - x) * i / 12 + i * 0.15), y - 56 + i, 1, 1); }
+    const d = this.disc[g.ready ? 0 : 1];
+    ctx.drawImage(d, cx - d.width / 2, cy - d.height / 2);
     // prêt : un reflet passe lentement sur le bronze
     if (g.ready) {
       const k = (time * 0.35) % 1;
       if (k < 0.3) {
         const a = -2.4 + k * 9;
-        ctx.fillStyle = 'rgba(255, 240, 190, 0.55)';
-        for (let r = 3; r < 9; r++) ctx.fillRect(R(cx + Math.cos(a) * r), R(cy + Math.sin(a) * r), 1, 1);
+        ctx.fillStyle = 'rgba(255, 244, 200, 0.6)';
+        for (let rr = 4; rr < r - 3; rr++) ctx.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr), 1, 1);
       }
     }
     // maillet suspendu au poteau
-    ctx.fillStyle = C.WOOD[2]; ctx.fillRect(x + 15, y - 30, 1, 14);
-    ctx.fillStyle = C.PAPER[1]; ctx.fillRect(x + 13, y - 17, 5, 4);
-    ctx.fillStyle = C.PAPER[3]; ctx.fillRect(x + 13, y - 17, 5, 1);
-    // ondes du son : deux cercles qui s'éloignent
-    if (since < 0.9) {
-      for (const d of [0, 0.25]) {
-        const k = since - d;
+    ctx.fillStyle = C.WOOD[2]; ctx.fillRect(x + 19, y - 40, 1, 18);
+    ctx.fillStyle = C.PAPER[1]; ctx.fillRect(x + 16, y - 23, 7, 5);
+    ctx.fillStyle = C.PAPER[3]; ctx.fillRect(x + 16, y - 23, 7, 1);
+    // ondes du son : trois cercles qui s'éloignent
+    if (since < 1.1) {
+      for (const dd of [0, 0.22, 0.44]) {
+        const k = since - dd;
         if (k < 0 || k > 0.65) continue;
-        const r = 13 + k * 40;
-        ctx.fillStyle = `rgba(255, 226, 150, ${0.5 * (1 - k / 0.65)})`;
-        for (let a = 0; a < 6.28; a += 0.12) ctx.fillRect(R(cx + Math.cos(a) * r), R(cy + Math.sin(a) * r * 0.9), 1, 1);
+        const rr = r + 2 + k * 56;
+        ctx.fillStyle = `rgba(255, 226, 150, ${0.55 * (1 - k / 0.65)})`;
+        for (let a = 0; a < 6.28; a += 0.09) ctx.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * 0.9), 1, 1);
       }
     }
   }
@@ -548,65 +642,89 @@ export class ArenaArt {
   }
 
   // ---- la vague -----------------------------------------------------------------------
-  // Une nappe d'eau qui déferle de la vanne vers le canal : un rouleau haut au front,
-  // qui se recourbe et mousse, un courant strié derrière ; quand la vanne se referme,
-  // la nappe s'amincit et se vide dans le canal en cascade.
+  // Un torrent jaillit de la vanne et déferle vers le canal : une nappe épaisse dont le
+  // front se dresse en rouleau, se recourbe et se brise en écume ; derrière, le courant
+  // strié, des remous, des paquets de mousse qui filent ; quand la vanne se referme, la
+  // nappe s'amincit et se vide dans le canal en cascade. Les embruns vivent leur vie.
   drawWave(ctx, ox, oy, time, w) {
     if (w.t < 0) return;
-    const D = ARENA.wave.depth, ground = this.a.def.ground + oy, W = C.WATER;
+    const D = ARENA.wave.depth, ground = this.a.def.ground + oy, Wt = C.WATER, dir = w.dir;
     const x0 = Math.min(w.front, w.back), x1 = Math.max(w.front, w.back);
-    if (x1 - x0 < 1) return;
     const draining = w.t > ARENA.wave.open;
-    for (let x = R(x0); x < R(x1); x++) {
-      const fromFront = Math.abs(w.front - x), fromBack = Math.abs(x - w.back);
-      // profil : rouleau au front (jusqu'à D + 5 px), nappe de D/2 derrière, bord arrière effilé
-      const roll = Math.max(0, 1 - fromFront / 22);
-      let h = D * 0.5 + roll * roll * (D * 0.5 + 5) * (w.fell ? 0.55 : 1);
-      h *= Math.min(1, fromBack / 14 + (draining ? 0.15 : 0.7));
-      h += Math.sin(x * 0.3 - time * 13 * w.dir) * 1.1 + Math.sin(x * 0.11 + time * 5) * 0.6;
-      h = Math.max(1, R(h));
-      const sx = x + ox;
-      for (let j = 0; j < h; j++) {
-        const v = j / h;
-        ctx.fillStyle = v < 0.18 ? W[4] : v < 0.5 ? W[3] : v < 0.8 ? W[2] : W[1];
-        ctx.fillRect(sx, ground - h + j, 1, 1);
+    const life = draining ? Math.max(0, 1 - (w.t - ARENA.wave.open) * 1.2) : 1;
+    // embruns : des gouttes lancées par le rouleau, avec leur propre chute
+    w.spray ??= [];
+    const dt = Math.min(0.05, Math.max(0, time - (w.last ?? time)));
+    w.last = time;
+    if (!w.fell && x1 - x0 > 4) for (let i = 0; i < 3; i++) w.spray.push({ x: w.front - dir * Math.random() * 6, y: this.a.def.ground - D - 6 - Math.random() * 6, vx: dir * (40 + Math.random() * 70), vy: -60 - Math.random() * 70, t: 0 });
+    for (const p of w.spray) { p.t += dt; p.vy += 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    w.spray = w.spray.filter((p) => p.t < 0.6 && p.y < this.a.def.ground + 2);
+    if (x1 - x0 >= 1) {
+      for (let x = R(x0); x < R(x1); x++) {
+        const fromFront = Math.abs(w.front - x), fromBack = Math.abs(x - w.back);
+        // profil : la nappe (D px) ; au front, le rouleau qui se dresse (jusqu'à D + 9) ; bord arrière effilé
+        const roll = Math.max(0, 1 - fromFront / 26);
+        let h = D * (0.75 + 0.25 * life) + roll * roll * 9 * (w.fell ? 0.4 : 1);
+        h *= Math.min(1, fromBack / 18 + (draining ? 0.1 : 0.75)) * (0.35 + 0.65 * life);
+        h += Math.sin(x * 0.23 - time * 11 * dir) * 1.4 + Math.sin(x * 0.07 + time * 4.3) * 1.1 + Math.sin(x * 0.51 - time * 17 * dir) * 0.5;
+        h = Math.max(1, R(h));
+        const sx = x + ox;
+        for (let j = 0; j < h; j++) {
+          const v = j / h;
+          ctx.fillStyle = v < 0.12 ? Wt[5] : v < 0.3 ? Wt[4] : v < 0.6 ? Wt[3] : v < 0.85 ? Wt[2] : Wt[1];
+          ctx.fillRect(sx, ground - h + j, 1, 1);
+        }
+        // courant strié qui file vers le canal, remous plus sombres
+        const flow = (x - R(time * 150 * dir)) % 13;
+        if (flow === 0 && h > 4) { ctx.fillStyle = '#e8fbf6'; ctx.fillRect(sx, ground - h + 3, 1, 1); ctx.fillRect(sx - dir, ground - h + 3, 1, 1); }
+        if ((x * 7 + R(time * 90 * dir)) % 29 === 0 && h > 6) { ctx.fillStyle = Wt[1]; ctx.fillRect(sx, ground - R(h * 0.45), 2, 1); }
+        // paquets de mousse sur la crête
+        if (fromFront < 10 || noise2((x - time * 120 * dir) * 0.12, time * 0.5, 7) > 0.68) { ctx.fillStyle = '#f4fffb'; ctx.fillRect(sx, ground - h, 1, 1); if (fromFront < 6) ctx.fillRect(sx, ground - h + 1, 1, 1); }
       }
-      // stries du courant (elles filent vers le canal)
-      if ((x - R(time * 120 * w.dir)) % 9 === 0 && h > 3) { ctx.fillStyle = W[5]; ctx.fillRect(sx, ground - h + 2 + (x % 3), 1, 1); }
-      // écume sur la crête
-      if (fromFront < 8 || (x + R(time * 70 * w.dir)) % 11 === 0) { ctx.fillStyle = W[5]; ctx.fillRect(sx, ground - h, 1, 1); }
-      if (fromFront < 5) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx, ground - h - 1, 1, 2); }
+      // le rouleau se recourbe vers l'avant : une lèvre qui déborde et retombe en mousse
+      if (!w.fell) {
+        const fx = R(w.front) + ox, top = ground - D - 9;
+        for (let i = 0; i < 8; i++) {
+          const yy = top + R(i * i * 0.18), xx = fx + dir * i;
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(xx, yy, 1, 2);
+          ctx.fillStyle = Wt[4]; ctx.fillRect(xx - dir, yy + 2, 1, 2);
+        }
+        ctx.fillStyle = Wt[5];
+        for (let i = 0; i < 4; i++) ctx.fillRect(fx + dir * (7 + (i % 2)), top + 10 + i * 2, 1, 2);
+      }
     }
-    // le rouleau se recourbe vers l'avant : une lèvre d'écume qui déborde
-    if (!w.fell || !draining) {
-      const fx = R(w.front) + ox, top = ground - D - 5;
+    // embruns
+    for (const p of w.spray) { ctx.fillStyle = p.t < 0.25 ? '#ffffff' : Wt[5]; ctx.fillRect(R(p.x) + ox, R(p.y) + oy, 1, 1); }
+    // le torrent qui jaillit de la vanne, tant qu'elle est ouverte : une gerbe en arc
+    if (life > 0.05) {
+      const sx = R(w.x) + ox + (dir > 0 ? 9 : -9), top = ground - 15;
+      const power = Math.min(1, w.t * 4) * life;
+      for (let k = 0; k < 4; k++) {
+        for (let i = 0; i < 18; i++) {
+          const t = i / 18, px = sx + dir * (t * (14 + k * 3) * power), py = top + k * 2 + t * t * (14 - k * 2);
+          if (py > ground) break;
+          ctx.fillStyle = k === 0 ? '#f4fffb' : k === 1 ? Wt[4] : Wt[3];
+          ctx.fillRect(R(px), R(py) + ((i + R(time * 30)) % 5 === 0 ? 1 : 0), 1, 2);
+        }
+      }
       ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 5; i++) ctx.fillRect(fx + w.dir * i, top + R(i * i * 0.35), 1, 2);
-      ctx.fillStyle = W[5];
-      ctx.fillRect(fx + w.dir * 5, top + 9, 1, 3);
-    }
-    // embruns au front
-    for (let i = 0; i < 8; i++) {
-      const px = R(w.front + ox - w.dir * (i * 2 + ((time * 50 + i * 7) % 5)));
-      const py = ground - D - 3 - R(Math.abs(Math.sin(time * 9 + i * 1.7)) * 9);
-      ctx.fillStyle = i % 2 ? W[5] : '#ffffff';
-      ctx.fillRect(px, py, 1, 1);
+      for (let i = 0; i < 4; i++) ctx.fillRect(sx + dir * (10 + R(Math.abs(Math.sin(time * 13 + i)) * 10)), ground - 3 - R(Math.abs(Math.sin(time * 9 + i * 2)) * 5), 1, 1);
     }
     // arrivée au canal : une nappe qui retombe dans l'eau, en cascade
     if (w.fell && w.back !== w.front) {
-      const ex = R(w.front) + ox, wy = ground + 16;
-      const thick = draining ? 2 : 4;
-      for (let y = ground - 6; y < wy; y++) {
-        const off = R((y - ground + 6) * 0.3) * w.dir;
-        ctx.fillStyle = (y + R(time * 40)) % 4 === 0 ? W[5] : W[3];
-        ctx.fillRect(ex + off - (w.dir > 0 ? 0 : thick - 1), y, thick, 1);
+      const ex = R(w.front) + ox, wy = ground + 16, thick = R(2 + 4 * life);
+      for (let y = ground - 8; y < wy; y++) {
+        const off = R((y - ground + 8) * 0.35) * dir;
+        for (let i = 0; i < thick; i++) {
+          ctx.fillStyle = (y + i + R(time * 40)) % 5 === 0 ? '#f4fffb' : i === 0 ? Wt[4] : Wt[3];
+          ctx.fillRect(ex + off + (dir > 0 ? i : -i), y, 1, 1);
+        }
       }
-      ctx.fillStyle = W[5];
-      for (let i = 0; i < 6; i++) ctx.fillRect(ex + w.dir * (5 + i * 2), wy - 1 - R(Math.abs(Math.sin(time * 11 + i)) * 5), 1, 1);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(ex + w.dir * 4 - 2, wy, 6, 1);
+      ctx.fillStyle = Wt[5];
+      for (let i = 0; i < 8; i++) ctx.fillRect(ex + dir * (5 + i * 2), wy - 1 - R(Math.abs(Math.sin(time * 11 + i)) * 7), 1, 1);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(ex + dir * 3 - 3, wy, 9, 1);
     }
   }
-
 
   // ---- caisses qui glissent -------------------------------------------------------------
   drawCrates(ctx, ox, oy) {

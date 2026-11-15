@@ -17,10 +17,11 @@
 import { TILE } from '../level.js';
 
 export const ARENA = {
-  crane: { g: 1300, vmax: 620, dmg: 2, lower: 1.1, hoist: 2.4 },
+  // le rocher : il tombe vite ; dessous, on meurt ; à la réception, une onde de choc (quake px de part et d'autre) fait perdre une vie
+  crane: { g: 2600, vmax: 980, dmg: 1, quake: 44, lower: 1.1, hoist: 2.6 },
   // le gong : la vanne gronde (delay), s'ouvre ; l'eau court (speed) tant que la vanne
   // reste ouverte (open), puis la nappe se vide dans le canal ; le gong se réarme (rearm)
-  wave: { delay: 0.6, open: 1.5, speed: 230, push: 200, lift: 170, dmg: 1, rearm: 9, depth: 11 },
+  wave: { delay: 0.6, open: 1.8, speed: 250, push: 200, lift: 170, dmg: 1, rearm: 9, depth: 15 },
   hay: { min: 400, max: 540, keep: 0.9, minFall: 120, damp: 0.68, stop: 200 },
   scaffold: { heavy: 330, warn: 0.32, rebuild: 7.5 },
   crate: { kick: 270, friction: 330, dmg: 1, every: 11 },
@@ -45,6 +46,7 @@ export class Arena {
     // gong et vagues
     this.gong = def.gong ? { ...def.gong, ready: true, t: 9, ringT: -9 } : null;
     this.waves = [];
+    this.quakes = [];           // ondes de choc du rocher (dessinées par art.js)
     // bottes de foin (tremplins)
     this.hay = (def.hay ?? []).map((h) => ({ ...h, squash: 0 }));
     // caisses glissantes, bonus
@@ -119,17 +121,17 @@ export class Arena {
     if (!c) return;
     c.t += dt;
     if (c.state === 'fall') {
-      if (c.t < 0.1) return;                       // la corde claque, un temps
+      if (c.t < 0.06) return;                      // la corde claque, à peine un temps : le rocher tombe vite
       c.vy = Math.min(ARENA.crane.vmax, c.vy + ARENA.crane.g * dt);
       c.y += c.vy * dt;
       const box = this.craneBox();
       for (const f of fighters) {
         if (c.hit.has(f) || !alive(f)) continue;
-        // celui qui est dessous est écrasé (celui qui était debout dessus tombe avec)
+        // celui qui est dessous est écrasé net (celui qui était debout dessus tombe avec)
         const fb = f.box();
-        if (overlap({ ...box, y: box.y + box.h - 10, h: 10 }, fb) && fb.y > box.y + 4) {
+        if (overlap({ ...box, x: box.x + 3, w: box.w - 6, y: box.y + box.h - 12, h: 12 }, fb) && fb.y > box.y + 6) {
           c.hit.add(f);
-          f.hurt(ARENA.crane.dmg, f.x + (f.x < box.x + box.w / 2 ? 8 : -8));
+          f.die ? f.die() : f.hurt(99, f.x);
           this.onEvent?.('craneHit', { x: f.x, y: f.y - 16 });
         }
       }
@@ -139,12 +141,26 @@ export class Arena {
         c.state = 'down';
         c.t = 0;
         this.fillCrane(c.floor - c.h);
-        // personne ne reste coincé dans les balles : on le pose dessus
+        const cx = (c.x0 + c.w / 2) * TILE, floorY = c.floor * TILE, half = c.w * TILE / 2;
         for (const f of fighters) {
+          if (!alive(f)) continue;
           const fb = f.box();
-          if (overlap(this.craneBox(), fb)) { f.y = land; f.vy = Math.min(f.vy, 0); }
+          // pris dessous au dernier moment : écrasé
+          if (overlap({ ...this.craneBox(), x: this.craneBox().x + 3, w: this.craneBox().w - 6 }, fb) && !c.hit.has(f) && fb.y + fb.h > land + 6) {
+            c.hit.add(f);
+            f.die ? f.die() : f.hurt(99, f.x);
+            continue;
+          }
+          // debout dessus : on le pose dessus
+          if (overlap(this.craneBox(), fb)) { f.y = land; f.vy = Math.min(f.vy, 0); continue; }
+          // l'onde de choc : ceux qui ont les pieds au sol près de la réception perdent une vie
+          if (!c.hit.has(f) && Math.abs(f.x - cx) < half + ARENA.crane.quake && Math.abs(f.y - floorY) < 10) {
+            c.hit.add(f);
+            f.hurt(ARENA.crane.dmg, cx);
+          }
         }
-        this.onEvent?.('craneLand', { x: (c.x0 + c.w / 2) * TILE, y: c.floor * TILE, w: c.w * TILE });
+        this.quakes.push({ x: cx, y: floorY, w: c.w * TILE, t: 0 });
+        this.onEvent?.('craneLand', { x: cx, y: floorY, w: c.w * TILE, rock: true });
       }
     } else if (c.state === 'down') {
       if (c.t > c.recharge) { c.state = 'lower'; c.t = 0; this.onEvent?.('craneWinch', { x: c.ropeX, y: c.boomY }); }
@@ -172,7 +188,7 @@ export class Arena {
   }
 
   // ---- gong et vagues --------------------------------------------------------------
-  gongBox() { const g = this.gong; return { x: g.x - 12, y: g.y - 40, w: 24, h: 26 }; }
+  gongBox() { const g = this.gong; return { x: g.x - 16, y: g.y - 53, w: 32, h: 34 }; }
 
   /** Un coup (sabre, coup de pied, shuriken) frappe le gong. */
   hitGong(box) {
@@ -409,6 +425,8 @@ export class Arena {
   // ---- image par image -----------------------------------------------------------
   update(dt, fighters) {
     this.time += dt;
+    for (const q of this.quakes) q.t += dt;
+    this.quakes = this.quakes.filter((q) => q.t < 1.2);
     this.updateCrane(dt, fighters);
     this.updateWaves(dt, fighters);
     this.landings(dt, fighters);

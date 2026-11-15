@@ -80,8 +80,10 @@ function fit() {
     const dpr = window.devicePixelRatio || 1;
     const rotated = H > W;                                     // portrait : jeu pivoté
     const LW = rotated ? H : W, LH = rotated ? W : H;          // côtés du jeu, en paysage
-    // échelle entière en pixels réels de l'écran, la plus proche de 252 px de jeu en hauteur
-    let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H));
+    // échelle entière en pixels réels de l'écran : la plus proche de 252 px de jeu en hauteur, et
+    // jamais plus large que l'image de l'ordinateur (448 px) : la même échelle partout (les
+    // téléphones allongés montraient plus loin, KAGE y paraissait petit ; demande de l'utilisateur)
+    let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H), Math.round((LW * dpr) / DESK_W));
     while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
     bgK = Math.min(6, dev);
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
@@ -617,7 +619,7 @@ function startRoom(cfg) {
     listEl.replaceChildren(...net.roster.map((p) => {
       const el = document.createElement('p');
       el.style.setProperty('--slot', SLOT_COLORS[p.slot % 4]);
-      el.textContent = `${p.name}${p.id === net.id ? ' (toi)' : ''} · ${multi?.scores.get(p.id) ?? 0}`;
+      el.textContent = `${p.name}${p.id === net.id ? ' (toi)' : ''} : ${multi?.scores.get(p.id) ?? 0}`;
       return el;
     }));
   };
@@ -641,7 +643,7 @@ function startRoom(cfg) {
     net, player, shurikens, level, meta, skins, skinId: () => look.id,
     onEvent(n, d) {
       if (n === 'roster') { showList(); if (net.roster.length > 1 && net.status === 'ouverte') say(`${net.roster.length} joueurs dans la salle`); }
-      else if (n === 'ko') { showList(); say(`${nameOf(d.by)} a vaincu ${nameOf(d.victim)}`); sfx('gong'); }
+      else if (n === 'ko') { showList(); say(`Un point pour ${nameOf(d.by)}`); sfx('gong'); }
       else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
     },
   });
@@ -1073,7 +1075,7 @@ function updateCamera(dt) {
   camera.x = clampCamX(tx + (diff + tmp) * e);
   if (Math.abs(camera.x - tx) < 0.05 && Math.abs(camVX) < 0.5) { camera.x = tx; camVX = 0; }
   // arène : la hauteur ne bouge jamais
-  if (level.arena) { camera.y = arenaCamY(); return; }
+  if (level.arena) { camera.y = arenaCamY(dt); return; }
   // hauteur : paliers
   if (camGround.y == null) retargetY(player.y);
   const alive = player.state !== 'death' && player.state !== 'respawn';
@@ -1104,12 +1106,23 @@ function groundBelow(x, y) {
   return null;
 }
 
-/** Arène : la hauteur est fixe (le sol à 85 % de l'image) ; en largeur, la caméra suit KAGE. */
-function arenaCamY() {
-  return clampCamY(Math.round(level.arena.def.ground + VIEW_H * 0.15 - VIEW_H));
+/**
+ * Arène : en hauteur, le sol à 85 % de l'image, fixe, tant que l'image contient toute
+ * l'arène (ordinateur). Sur un écran plus bas (téléphone allongé, même échelle que
+ * l'ordinateur), la caméra suit doucement KAGE entre le plafond et le sol.
+ */
+let arenaY = null;
+function arenaCamY(dt = 1) {
+  const a = level.arena.def, low = Math.round(a.ground + VIEW_H * 0.15 - VIEW_H);
+  const high = Math.min(low, Math.round(a.ground - 13 * 16 - 8));     // le haut : le plafond de l'arène, juste dans l'image
+  let want = low;
+  if (high < low) want = Math.max(high, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
+  arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);
+  return clampCamY(Math.round(arenaY));
 }
 function arenaCamera() {
   camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
+  arenaY = null;
   camera.y = arenaCamY();
   camVX = 0;
 }
