@@ -262,7 +262,7 @@ def bulk(g, n):
     out = np.full(g.shape, ".", dtype=g.dtype)
     for y, x, v in pts:
         ny, nx = y - dy, x - dx
-        if not (0 <= ny < H and 0 <= nx < W) and v in "rpPQcCbBijJO":
+        if not (0 <= ny < H and 0 <= nx < W) and v in "rpPQcCbBijJsSuO":
             continue                       # (le bout d'un accessoire de skin peut déborder : on le rogne)
         assert 0 <= ny < H and 0 <= nx < W, "salto : le corps agrandi sort de la cellule"
         out[ny, nx] = v

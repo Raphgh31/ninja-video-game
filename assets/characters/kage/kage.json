@@ -330,12 +330,30 @@
     },
     {
       "index": 40,
+      "slot": "s",
+      "part": "halo",
+      "role": "shadow"
+    },
+    {
+      "index": 41,
+      "slot": "S",
+      "part": "halo",
+      "role": "light"
+    },
+    {
+      "index": 42,
+      "slot": "u",
+      "part": "halo",
+      "role": "spark"
+    },
+    {
+      "index": 43,
       "slot": "j",
       "part": "gear2",
       "role": "shadow"
     },
     {
-      "index": 41,
+      "index": 44,
       "slot": "J",
       "part": "gear2",
       "role": "base"

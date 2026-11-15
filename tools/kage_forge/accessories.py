@@ -613,15 +613,15 @@ def halo(g):
         for x in range(CW):
             d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
             if abs(d - r) < 0.55:
-                put(x, y, "j" if y + 0.5 > cy + 2 else "J")
+                put(x, y, "s" if y + 0.5 > cy + 2 else "S")
     # la croix : un trait vertical (au-dessus de la tête), un trait horizontal (à hauteur des yeux)
     for y in range(int(cy - r - 4), int(cy - r + 3)):
-        put(int(cx), y, "i" if y < cy - r - 1 else "J")
+        put(int(cx), y, "u" if y < cy - r - 1 else "S")
     for x in range(int(cx - r - 3), int(cx + r + 4)):
-        put(x, int(cy), "J" if abs(x + 0.5 - cx) > r - 1 else "j")
+        put(x, int(cy), "S" if abs(x + 0.5 - cx) > r - 1 else "s")
     # au bout de chaque bras de la croix, un éclat
     for x, y in ((int(cx), int(cy - r - 5)), (int(cx - r - 4), int(cy)), (int(cx + r + 4), int(cy))):
-        put(x, y, "i")
+        put(x, y, "u")
     return g, True
 
 
@@ -672,24 +672,38 @@ def mantlet(g):
 
 
 def hipcloth(g):
-    """Lumière d'or : un pan d'étoffe d'or qui tombe de la ceinture, derrière la hanche, et flotte en arrière."""
+    """Lumière d'or : un pan d'étoffe d'or qui tombe de la taille le long de l'arrière de la hanche et de la
+    cuisse ; il épouse le corps (il part de la ceinture, il couvre le bord du dos) et s'élargit un peu en bas."""
+    belt = None
     for y in range(CH):
-        row = "".join(g[y])
-        x = row.find("lL")
-        if x < 0:
+        if "lL" in "".join(g[y]):
+            belt = y
+            break
+    if belt is None:
+        return g, False
+    pos = find_head(g)
+    hx = pos[0] if pos else 10
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    for k, (w, inner) in enumerate(((2, 1), (3, 1), (3, 1), (3, 1), (4, 0), (4, 0), (3, 0), (2, 0))):
+        y = belt - 1 + k
+        if not 0 <= y < CH:
             continue
-        g = g.copy()
-        mask = np.zeros(g.shape, bool)
-        for k, (dx, w) in enumerate(((0, 2), (-1, 2), (-2, 3), (-3, 3), (-4, 2), (-5, 2), (-6, 1))):
-            yy = y + 1 + k
-            for q in range(w):
-                xx = x + dx - q
-                if 0 <= xx < CW and 0 <= yy < CH and g[yy, xx] in BG:
-                    g[yy, xx] = "i" if q == 0 and k < 3 else ("B" if q < w - 1 or w == 1 else "b")
-                    mask[yy, xx] = True
-        _outline(g, mask)
-        return g, True
-    return g, False
+        xl = _back_edge(g, y, hx, TORSO)
+        if xl is None:
+            continue
+        for x in range(xl - w, xl + inner):
+            if not 0 <= x < CW or g[y, x] in KEEP:
+                continue
+            if x >= xl and g[y, x] not in TORSO:
+                continue
+            if x < xl and g[y, x] not in BG:
+                continue
+            edge = x == xl - w
+            g[y, x] = "b" if edge or (k >= 6 and x == xl - w + 1) else ("i" if k < 3 and x == xl - 1 else "B")
+            mask[y, x] = True
+    _outline(g, mask)
+    return g, True
 
 
 def accessory(name):
