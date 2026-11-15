@@ -1,6 +1,6 @@
 // Introduction au lancement du jeu (planche : docs/intro/planche_ouvertures.png, ouvertures 1 et 4
 // combinées à la demande de l'utilisateur) :
-//   1. le noir ; « THE NINJA GAME » s'écrit lettre à lettre, au pied des montagnes, puis un
+//   1. le noir ; « THE NINJA ADVENTURE » s'écrit lettre à lettre, au pied des montagnes, puis un
 //      coup de pinceau se tire dessous (large à la base, effilé à la fin, quelques éclaboussures) ;
 //   2. l'encre finie, la lune se lève derrière la grande chaîne du Potager : elle éclaircit le ciel
 //      et les montagnes sortent du noir ; leur pied se fond par paliers dans une base d'encre ;
@@ -21,8 +21,8 @@ import { bytesOf } from '../engine/bytes.js';
 import { MUSIC } from '../engine/music.js';
 
 const INK = '#e9e5da', BLACK = '#05080a';
-const TITLE = 'THE NINJA GAME';
-const FONT = { font: 'title', spacing: 1.25 };
+const TITLE = 'THE NINJA ADVENTURE';
+const FONT = { font: 'heading', spacing: 1 };   // police ×3 : le titre tient sur une ligne, même sur téléphone
 
 /**
  * Le déroulé, en secondes depuis le début (après le geste qui lance l'intro). Calé sur la musique
