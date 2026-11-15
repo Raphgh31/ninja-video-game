@@ -361,11 +361,14 @@ export class Arena {
       this.crateClock = 0;
       const free = spots.filter((p) => lv.at(p.tx, p.ty) === '.' && (p.ty === Math.round(this.def.ground / TILE) - 1 || lv.at(p.tx, p.ty + 1) === 'B'));
       const p = free[Math.floor(Math.random() * free.length)];
-      if (p) {
-        const key = `a${Math.round(this.time * 100)}`;
-        lv.crates.set(key, { key, tx: p.tx, ty: 0, fall: { y: -TILE * 2, vy: 0 } });
-      }
+      if (p) { this.dropCrate(p.tx); this.onEvent?.('crateDrop', { tx: p.tx }); }
     }
+  }
+
+  /** Une caisse tombe du ciel dans la colonne tx. */
+  dropCrate(tx) {
+    const key = `a${tx}_${Math.round(this.time * 100)}`;
+    this.level.crates.set(key, { key, tx, ty: 0, fall: { y: -TILE * 2, vy: 0 } });
   }
 
   /** La caisse s'arrête : elle reprend une case (ou se brise si la place est prise). */
@@ -389,7 +392,7 @@ export class Arena {
       if (!free.length) return;
       const [s, id] = free[Math.floor(Math.random() * free.length)];
       this.pickups.push({ kind, x: s.x, y: s.y, spot: id, t: 0 });
-      this.onEvent?.('pickupAppear', { kind, x: s.x, y: s.y - 10 });
+      this.onEvent?.('pickupAppear', { kind, x: s.x, y: s.y - 10, spot: id });
     };
     if (this.heartClock > P.heart && !this.pickups.some((p) => p.kind === 'heart')) { this.heartClock = 0; spawn('heart', this.def.hearts ?? []); }
     if (this.bundleClock > P.bundle && !this.pickups.some((p) => p.kind === 'bundle')) { this.bundleClock = 0; spawn('bundle', this.def.bundles ?? []); }
@@ -398,7 +401,7 @@ export class Arena {
       if (p.t < 0.35) continue;                    // il apparaît (on ne le prend pas au vol)
       const box = { x: p.x - 6, y: p.y - 18, w: 12, h: 16 };
       const f = fighters.find((ff) => alive(ff) && overlap(box, ff.box()));
-      if (f) { p.taken = true; this.onEvent?.('pickup', { kind: p.kind, x: p.x, y: p.y - 10, fighter: f }); }
+      if (f) { p.taken = true; this.onEvent?.('pickup', { kind: p.kind, x: p.x, y: p.y - 10, fighter: f, spot: p.spot }); }
     }
     this.pickups = this.pickups.filter((p) => !p.taken);
   }

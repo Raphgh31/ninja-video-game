@@ -1451,6 +1451,57 @@ async function main() {
     expect(r.kinds === 'bundle,heart' && r.hp === 3 && r.stock === 3 && r.left === 0, JSON.stringify(r));
   });
 
+  // ---- jouer à plusieurs : une salle à deux (transport local, deux onglets servis en http) ----
+  await test('à plusieurs : une salle à deux — liste des joueurs, positions, coup de sabre, gong partagé, point pour la victoire', async () => {
+    const http = require('node:http'), fs = require('node:fs');
+    const dist = path.resolve(__dirname, '../dist');
+    const srv = http.createServer((q, r) => fs.readFile(path.join(dist, q.url.split('?')[0].split('#')[0]), (e, d) => { r.writeHead(e ? 404 : 200, { 'content-type': 'text/html' }); r.end(d); }));
+    await new Promise((ok) => srv.listen(0, ok));
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const open = async (cfg) => {
+        const p = await ctx.newPage(); p.on('pageerror', (e) => errors.push('[salle] ' + e.message));
+        await p.addInitScript((c) => sessionStorage.setItem('kage-salle', JSON.stringify(c)), cfg);
+        await p.goto(`http://localhost:${srv.address().port}/kage-standalone.html?net=local#arene-potager`);
+        await p.waitForFunction(() => window.__kage && window.__kage.multi);
+        return p;
+      };
+      const A = await open({ mode: 'host', code: 'T3ST', name: 'Raph' });
+      const B = await open({ mode: 'join', code: 'T3ST', name: 'Kenji' });
+      await A.waitForFunction(() => window.__kage.multi.net.roster.length === 2 && [...window.__kage.multi.remotes.values()][0]?.seen);
+      await B.waitForFunction(() => window.__kage.multi.net.status === 'connecté' && [...window.__kage.multi.remotes.values()][0]?.seen);
+      const hud = await B.evaluate(() => document.querySelector('.salle').textContent.replace(/\s+/g, ' ').trim());
+      // Raph rejoint Kenji et frappe : Kenji perd 2 points de vie
+      await A.evaluate(() => { const r = [...window.__kage.multi.remotes.values()][0], pl = window.__kage.player; pl.x = r.x - 16; pl.y = r.y; pl.facing = 1; pl.vx = 0; pl.onGround = true; pl.setState('idle'); });
+      await A.waitForTimeout(250);
+      await A.keyboard.press('KeyX');
+      await B.waitForFunction(() => window.__kage.player.hp === 3, null, { timeout: 3000 });
+      // Kenji tombe (à l'eau, juste après le coup) : un point pour Raph, chez les deux
+      await B.evaluate(() => window.__kage.player.die());
+      await A.waitForFunction(() => [...window.__kage.multi.scores.values()].includes(1), null, { timeout: 3000 });
+      const score = await A.evaluate(() => window.__kage.multi.scores.get(window.__kage.multi.net.id));
+      // le gong frappé chez Raph sonne aussi chez Kenji
+      await A.evaluate(() => { const a = window.__kage.level.arena; a.hitGong(a.gongBox()); });
+      await B.waitForFunction(() => !window.__kage.level.arena.gong.ready && window.__kage.level.arena.waves.length === 2, null, { timeout: 3000 });
+      expect(/KAGE-T3ST/.test(hud) && /Raph/.test(hud) && /Kenji \(toi\)/.test(hud) && score === 1, `salle « ${hud} », score de Raph ${score}`);
+    } finally { await ctx.close(); srv.close(); }
+  });
+
+  await test('à plusieurs : le menu « Jouer à plusieurs » — un code incomplet est refusé, un code valide ouvre l\'arène', async () => {
+    const pm = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await pm.goto(PAGE); await pm.waitForFunction(() => window.__kage); await pm.waitForTimeout(200);
+    await pm.click('[data-multi]');
+    await pm.click('[data-code]'); await pm.keyboard.type('7f');
+    await pm.click('[data-join]');
+    const msg = await pm.evaluate(() => document.querySelector('[data-multi-msg]').textContent);
+    await pm.click('[data-code]'); await pm.keyboard.type('3q');
+    await pm.click('[data-join]');
+    await pm.waitForFunction(() => window.__kage && window.__kage.level.arena && window.__kage.multi, null, { timeout: 15000 });
+    const cfg = await pm.evaluate(() => [JSON.parse(sessionStorage.getItem('kage-salle')).code, document.querySelector('[data-salle-code]').textContent]);
+    await pm.close();
+    expect(/quatre signes/.test(msg) && cfg[0] === '7F3Q' && /KAGE-7F3Q/.test(cfg[1]), `message « ${msg} », salle ${cfg}`);
+  });
+
   await test('aucune erreur dans la console', async () => {
     expect(errors.length === 0, errors.join(' | '));
   });

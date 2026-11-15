@@ -20,6 +20,8 @@ import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { ArenaArt } from './game/arena/art.js';
+import { Net, randomCode, cleanCode } from './engine/net.js';
+import { Multi, SLOT_COLORS } from './game/multi.js';
 
 // Ordinateur : 448×252 fixe (on voit loin, le paysage a de la place). Mobile (écran
 // tactile) : plein écran, même cadrage (~252 px de jeu en hauteur). L'échelle est
@@ -203,6 +205,7 @@ const shurikens = new Shurikens(level, meta);
 player.onThrow = (x, y, dir, height) => {
   sfx('throw');
   shurikens.throw(x, y, dir, height);
+  multi?.onThrow(x, y, dir, height);
 };
 player.canThrow = () => shurikens.canThrow();
 // ennemis : un TATE à chaque repère « E » de la carte
@@ -322,6 +325,7 @@ player.onEvent = (n, d) => {
     case 'death':
       sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls;
       if (level.arena) level.spawn = level.arena.nextSpawn();   // arène : on revient par un autre côté
+      multi?.onDeath();                                          // à plusieurs : un point pour qui l'a touché, réapparition loin des autres
       break;
     case 'respawn': sfx('respawn'); break;
     default:
@@ -584,6 +588,112 @@ if (level.arena) {
   };
 }
 
+// ---- jouer à plusieurs : la salle (src/engine/net.js, src/game/multi.js) -------
+// Le menu (« Jouer à plusieurs ») range le choix dans sessionStorage puis ouvre l'arène ;
+// une adresse ?salle=CODE rejoint directement une salle.
+let multi = null;
+const NAME_OK = /[A-Za-z0-9 \-]/;
+function defaultName() {
+  try { const n = localStorage.getItem('kage-nom'); if (n) return n; } catch { /* rien */ }
+  return `Ninja ${10 + Math.floor(Math.random() * 90)}`;
+}
+function roomConfig() {
+  let c = null;
+  try { c = JSON.parse(sessionStorage.getItem('kage-salle') || 'null'); } catch { /* rien */ }
+  const q = new URLSearchParams(location.search).get('salle');
+  if (!c && q && cleanCode(q).length === 4) c = { mode: 'join', code: cleanCode(q), name: defaultName() };
+  return c;
+}
+function startRoom(cfg) {
+  const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
+  const listEl = hud.querySelector('[data-salle-list]'), msgEl = hud.querySelector('[data-salle-msg]');
+  const transport = new URLSearchParams(location.search).get('net') === 'local' || window.__KAGE_NET === 'local' ? 'local' : 'peer';
+  const net = new Net({ code: cfg.code, host: cfg.mode === 'host', name: cfg.name, transport });
+  hud.hidden = false;
+  let msgT = null;
+  const say = (t, keep = false) => { setText(msgEl, t); clearTimeout(msgT); if (!keep) msgT = setTimeout(() => setText(msgEl, ''), 3500); };
+  const nameOf = (id) => net.roster.find((p) => p.id === id)?.name ?? '?';
+  const showList = () => {
+    listEl.replaceChildren(...net.roster.map((p) => {
+      const el = document.createElement('p');
+      el.style.setProperty('--slot', SLOT_COLORS[p.slot % 4]);
+      el.textContent = `${p.name}${p.id === net.id ? ' (toi)' : ''} · ${multi?.scores.get(p.id) ?? 0}`;
+      return el;
+    }));
+  };
+  setText(codeEl, `Salle KAGE-${cfg.code}`);
+  net.onStatus = (st, detail) => {
+    if (st === 'connexion') say(cfg.mode === 'host' ? 'Ouverture de la salle…' : 'Connexion à la salle…', true);
+    else if (st === 'ouverte') say('Salle ouverte : donne le code à tes amis', true);
+    else if (st === 'connecté') say('Tu as rejoint la salle');
+    else if (st === 'introuvable') say('Salle introuvable : vérifie le code', true);
+    else if (st === 'pleine') say('Salle pleine (4 joueurs au plus)', true);
+    else if (st === 'perdue') say("La salle s'est fermée", true);
+    else if (st === 'prise') {                          // ce code est déjà pris : on en tire un autre
+      net.close();
+      cfg.code = randomCode();
+      try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); } catch { /* rien */ }
+      multi = null;
+      startRoom(cfg);
+    } else if (st === 'erreur') say(detail || 'Erreur de connexion', true);
+  };
+  multi = new Multi({
+    net, player, shurikens, level, meta, skins, skinId: () => look.id,
+    onEvent(n, d) {
+      if (n === 'roster') { showList(); if (net.roster.length > 1 && net.status === 'ouverte') say(`${net.roster.length} joueurs dans la salle`); }
+      else if (n === 'ko') { showList(); say(`${nameOf(d.by)} a vaincu ${nameOf(d.victim)}`); sfx('gong'); }
+      else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
+    },
+  });
+  net.onStatus('connexion');
+  net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des salles'));
+  hud.querySelector('[data-salle-quit]').onclick = () => {
+    net.close();
+    try { sessionStorage.removeItem('kage-salle'); } catch { /* rien */ }
+    location.hash = '#potager';
+  };
+}
+if (level.arena) { const cfg = roomConfig(); if (cfg) startRoom(cfg); }
+
+/** Le menu « Jouer à plusieurs » de l'écran titre : son nom, créer une salle ou en rejoindre une. */
+function setupMultiMenu(title) {
+  const panel = title.querySelector('[data-multi-panel]'), msg = panel.querySelector('[data-multi-msg]');
+  const nameIn = panel.querySelector('[data-name]'), nameView = panel.querySelector('[data-name-view]');
+  const codeIn = panel.querySelector('[data-code]'), codeView = panel.querySelector('[data-code-view]');
+  const clean = (v) => [...v].filter((c) => NAME_OK.test(c)).join('').slice(0, 10);
+  const mirror = () => {
+    nameIn.value = clean(nameIn.value);
+    setText(nameView, nameIn.value + (document.activeElement === nameIn ? '_' : '') || 'Ninja');
+    codeIn.value = cleanCode(codeIn.value);
+    setText(codeView, (codeIn.value + '····').slice(0, 4));
+  };
+  nameIn.value = defaultName();
+  for (const el of [nameIn, codeIn]) {
+    el.addEventListener('input', mirror);
+    el.addEventListener('focus', mirror); el.addEventListener('blur', mirror);
+    el.addEventListener('keydown', (e) => e.stopPropagation());   // les touches tapées ne vont pas au jeu
+  }
+  mirror();
+  const go = (cfg) => {
+    try { localStorage.setItem('kage-nom', cfg.name); sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+    location.hash = '#arene-potager';
+  };
+  const name = () => clean(nameIn.value).trim() || 'Ninja';
+  title.querySelector('[data-multi]').addEventListener('click', () => {
+    title.classList.add('multi-open'); panel.hidden = false; setText(msg, ''); panel.querySelector('[data-create]').focus();
+  });
+  panel.querySelector('[data-create]').addEventListener('click', () => go({ mode: 'host', code: randomCode(), name: name() }));
+  panel.querySelector('[data-join]').addEventListener('click', () => {
+    const code = cleanCode(codeIn.value);
+    if (code.length !== 4) { setText(msg, 'Le code a quatre signes (ex. 7F3Q)'); codeIn.focus(); return; }
+    go({ mode: 'join', code, name: name() });
+  });
+  codeIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') panel.querySelector('[data-join]').click(); });
+  panel.querySelector('[data-multi-back]').addEventListener('click', () => {
+    title.classList.remove('multi-open'); panel.hidden = true; title.querySelector('[data-multi]').focus();
+  });
+}
+
 // son : débloqué au premier geste ; bouton et touche M pour le couper
 const muteBtn = document.querySelector('.mute');
 function refreshMute() {
@@ -783,6 +893,7 @@ function update(dt) {
   player.update(dt, run.won ? IDLE_INPUT : input);
   level.update(dt);
   level.arena?.update(dt, [player]);
+  multi?.update(dt);
   level.forest?.update(dt, player);
   shurikens.update(dt);
   for (const t of enemies) {
@@ -794,6 +905,9 @@ function update(dt) {
     const power = player.state === 'flip_attack';
     const heavy = player.state === 'air_attack' || power;
     level.hitGongs(ab);
+    if (multi?.strikeBox(ab, player.x, `a${player.attackId}`, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword, 0)) {
+      sfx('bladeHit', { heavy }); fx.hitStop(power ? 0.15 : heavy ? 0.11 : 0.07);
+    }
     for (const t of enemies) {
       swordStrike = true;
       const r = t.takeHit(ab, player.x, player.attackId, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword);
@@ -811,6 +925,7 @@ function update(dt) {
   const kb = player.kickBox();
   if (kb) {
     level.hitGongs(kb);
+    if (multi?.strikeBox(kb, player.x, `k${player.attackId}`, DAMAGE_DEALT.kick, player.kickPush)) { sfx('kickHit'); fx.hitStop(0.06); }
     for (const t of enemies) {
       const r = t.takeHit(kb, player.x, player.attackId, DAMAGE_DEALT.kick);
       if (r) {
@@ -1030,6 +1145,7 @@ function draw() {
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
+  multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
   if (!behindGate()) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
@@ -1342,6 +1458,7 @@ if (CHAPTER) {
   const cont = title.querySelector('[data-continue]');
   cont.hidden = !(existing && existing.chapter === LEVEL_ID && !existing.done);
   cont.addEventListener('click', () => startChapter(true));
+  setupMultiMenu(title);
   title.querySelector('[data-new]').addEventListener('click', () => {
     // une nouvelle partie commence toujours au chapitre 1
     if (LEVEL_ID !== 'potager' && !hashId && !TEST_BUILD) { clearSave(); location.reload(); return; }
@@ -1509,7 +1626,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
