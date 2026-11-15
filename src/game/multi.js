@@ -10,7 +10,6 @@ import { Shurikens } from './shuriken.js';
 import { HEALTH } from './combat.js';
 
 const SEND_EVERY = 0.05;        // s : vingt états par seconde
-const KO_WINDOW = 4;            // s : une mort dans ce délai après un coup compte pour celui qui l'a porté
 export const SLOT_COLORS = ['#e8b93c', '#5ccdc8', '#e0607a', '#9ad35a'];   // repère de chaque place (or, eau, laque, pousse)
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -161,20 +160,24 @@ export class Multi {
     return hit;
   }
 
-  /** Mort de KAGE : un point pour celui qui l'a touché en dernier (s'il y a peu). */
+  /**
+   * Mort de KAGE : un point pour l'autre joueur. À deux, c'est l'adversaire ; à plus,
+   * celui qui l'a touché en dernier (et si personne ne l'a touché, personne ne marque).
+   */
   onDeath() {
-    if (this.lastHit && this.time - this.lastHit.t < KO_WINDOW) {
-      const by = this.lastHit.by;
+    const others = this.net.roster.filter((p) => p.id !== this.net.id);
+    const by = this.lastHit && others.some((p) => p.id === this.lastHit.by) ? this.lastHit.by : others.length === 1 ? others[0].id : null;
+    if (by) {
       this.scores.set(by, (this.scores.get(by) ?? 0) + 1);
       this.net.send({ t: 'ko', by });
       this.onEvent?.('ko', { by, victim: this.net.id });
     }
     this.lastHit = null;
     // réapparition : le point de départ le plus loin des autres
-    const sp = this.level.arena.def.spawns, others = [...this.remotes.values()].filter((r) => r.seen);
-    if (others.length) {
+    const sp = this.level.arena.def.spawns, seen = [...this.remotes.values()].filter((r) => r.seen);
+    if (seen.length) {
       let best = sp[0], bestD = -1;
-      for (const s of sp) { const d = Math.min(...others.map((r) => Math.abs(r.x - s.x) + Math.abs(r.y - s.y))); if (d > bestD) { bestD = d; best = s; } }
+      for (const s of sp) { const d = Math.min(...seen.map((r) => Math.abs(r.x - s.x) + Math.abs(r.y - s.y))); if (d > bestD) { bestD = d; best = s; } }
       this.level.spawn = { ...best };
     }
   }

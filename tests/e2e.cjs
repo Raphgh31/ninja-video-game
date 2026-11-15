@@ -1356,41 +1356,43 @@ async function main() {
   }, [tx, ty, extra]);
   const AK = ar.keyboard;
 
-  await test('arène : caméra — hauteur fixe ; en largeur, elle suit KAGE sans sortir de l\'arène (on en voit les deux tiers)', async () => {
+  await test('arène : caméra — hauteur fixe ; en largeur, elle suit KAGE sans sortir de l\'arène (on en voit la moitié)', async () => {
     const r = [];
-    for (const tx of [8, 28, 47]) {
+    for (const tx of [8, 35, 61]) {
       await AT(tx, 18);
       r.push(await ar.evaluate(() => { const g = window.__kage; for (let i = 0; i < 300; i++) g.step(1); return [Math.round(g.camera.x), Math.round(g.camera.y)]; }));
     }
     const w = await ar.evaluate(() => { const [l, rr] = window.__kage.level.arena.def.walls; return [l * 16, (rr + 1) * 16, window.__kage.view().w]; });
     const share = w[2] / (w[1] - w[0] - 32);
-    expect(r[0][0] === w[0] && r[2][0] === w[1] - w[2] && r[1][0] > r[0][0] && r[1][0] < r[2][0] && r[0][1] === r[1][1] && r[1][1] === r[2][1] && share > 0.62 && share < 0.72,
+    expect(r[0][0] === w[0] && r[2][0] === w[1] - w[2] && r[1][0] > r[0][0] && r[1][0] < r[2][0] && r[0][1] === r[1][1] && r[1][1] === r[2][1] && share > 0.45 && share < 0.55,
       `caméras ${JSON.stringify(r)}, arène ${w[0]}–${w[1]}, part visible ${share.toFixed(2)}`);
   });
 
-  await test('arène : un shuriken depuis la plateforme du treuil coupe la corde ; les balles écrasent celui qui est dessous (2), restent en marches, puis la grue les remonte', async () => {
+  await test('arène : un shuriken depuis la plateforme du treuil coupe la corde ; le rocher écrase celui qui est dessous, son onde fait perdre une vie tout près, il reste en marche, puis la grue le remonte', async () => {
     await ar.evaluate(() => window.__kage.level.arena.reset());
     await AT(8, 9, { facing: 1 });
     await AK.press('KeyC');
     const r = await ar.evaluate(() => {
       const g = window.__kage, a = g.level.arena, c = a.crane, out = {};
       // une cible sous les balles : un combattant factice
-      const dummy = { x: c.x0 * 16 + 16, y: g.level.arena.def.ground, vx: 0, vy: 0, onGround: true, state: 'idle', dmg: 0,
-        box() { return { x: this.x - 4, y: this.y - 22, w: 9, h: 22 }; }, hurt(d) { this.dmg += d; return true; } };
-      for (let i = 0; i < 240 && c.state !== 'down'; i++) { g.step(1); a.updateCrane(0, [dummy]); }
-      out.cut = c.state; out.dmg = dummy.dmg;
+      const fake = (x) => ({ x, y: g.level.arena.def.ground, vx: 0, vy: 0, onGround: true, state: 'idle', dmg: 0, dead: false,
+        box() { return { x: this.x - 4, y: this.y - 22, w: 9, h: 22 }; }, hurt(d) { this.dmg += d; return true; }, die() { this.dead = true; } });
+      const under = fake(c.x0 * 16 + 32), near = fake((c.x0 + c.w) * 16 + 24), far = fake((c.x0 + c.w) * 16 + 120);
+      for (let i = 0; i < 240 && c.state === 'hang'; i++) g.step(1);           // le shuriken vole jusqu'à la corde
+      for (let i = 0; i < 240 && c.state !== 'down'; i++) a.updateCrane(1 / 120, [under, near, far]);
+      out.cut = c.state; out.under = under.dead; out.near = near.dmg; out.far = far.dmg;
       out.steps = g.level.at(c.x0, 16) === 'K' && g.level.at(c.x0 + 1, 17) === 'K' && g.level.at(c.x0, c.top) !== 'K';
       c.t = c.recharge - 0.01;
       for (let i = 0; i < 600 && c.state !== 'hang'; i++) g.step(1);
       out.back = c.state; out.hangs = g.level.at(c.x0, c.top) === 'K';
       return out;
     });
-    expect(r.cut === 'down' && r.dmg === 2 && r.steps && r.back === 'hang' && r.hangs, JSON.stringify(r));
+    expect(r.cut === 'down' && r.under && r.near === 1 && r.far === 0 && r.steps && r.back === 'hang' && r.hangs, JSON.stringify(r));
   });
 
   await test('arène : le gong (sabre) ouvre les vannes ; la vague emporte KAGE vers le canal (1) et la caisse avec elle ; le gong se réarme', async () => {
     await ar.evaluate(() => window.__kage.level.arena.reset());
-    await AT(46, 9, { facing: 1 });
+    await AT(60, 9, { facing: 1 });
     await AK.press('KeyX');
     await ar.evaluate(() => window.__kage.step(30));
     const rung = await ar.evaluate(() => [window.__kage.level.arena.gong.ready, window.__kage.level.arena.waves.length]);
@@ -1408,18 +1410,22 @@ async function main() {
     expect(rung[0] === false && rung[1] === 2 && r.maxX - r.x0 > 60 && r.hp === 4 && r.crate && r.moved && r.ready && r.waves === 0, `gong ${rung} ; ${JSON.stringify(r)}`);
   });
 
-  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; une réception lourde effondre un échafaudage, rebâti ensuite', async () => {
+  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; les échafaudages ne tombent que sous le choc du rocher, rebâtis ensuite', async () => {
     await ar.evaluate(() => window.__kage.level.arena.reset());
     await AT(8, 11, { onGround: false });
     const hay = await ar.evaluate(() => { const g = window.__kage, pl = g.player; pl.x = 8 * 16 + 6; pl.setState('fall'); const vs = []; let pv = 0;
       for (let i = 0; i < 400; i++) { g.step(1); if (pl.vy < 0 && pv >= 0 && i > 2) vs.push(Math.round(pl.vy)); pv = pl.vy; } return vs; });
+    // une grande chute sur un échafaudage ne le fait plus tomber : seul le choc du rocher l'effondre
     await AT(10, 7, { onGround: false });
-    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level; pl.setState('fall'); pl.vy = 200;
+    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level, a = lv.arena, c = a.crane; pl.setState('fall'); pl.vy = 200;
+      for (let i = 0; i < 120; i++) g.step(1);
+      const heavy = lv.scaffolds.map((s) => s.up).join();
+      a.cutRope({ x: c.ropeX - 1, y: c.boomY + 20, w: 2, h: 2 });
       for (let i = 0; i < 120; i++) g.step(1);
       const down = lv.scaffolds.map((s) => s.up).join();
       for (let i = 0; i < 9 * 120; i++) g.step(1);
-      return [down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
-    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,false,true,true' && sc[1] === 'true,true,true,true' && sc[2] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
+      return [heavy, down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
+    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,true' && sc[1] === 'false,false' && sc[2] === 'true,true' && sc[3] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
   });
 
   await test('arène : coup de pied dans une caisse — elle glisse ; poussée dans le canal, elle coule', async () => {
@@ -1427,28 +1433,39 @@ async function main() {
     // une caisse au bord du canal, KAGE derrière
     const r = await ar.evaluate(() => {
       const g = window.__kage, lv = g.level;
-      lv.setTile(23, 17, 'B'); lv.crates.set('t23', { key: 't23', tx: 23, ty: 17, fall: null });
-      const pl = g.player; pl.x = 22 * 16 + 2; pl.y = 18 * 16; pl.onGround = true; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.energy.value = 1;
+      lv.setTile(29, 17, 'B'); lv.crates.set('t29', { key: 't29', tx: 29, ty: 17, fall: null });
+      const pl = g.player; pl.x = 28 * 16 + 2; pl.y = 18 * 16; pl.onGround = true; pl.facing = 1; pl.vx = 0; pl.setState('idle'); pl.energy.value = 1;
       g.step(2);
       return lv.crates.size;
     });
     await AK.press('KeyB');
-    const after = await ar.evaluate(() => { const g = window.__kage; g.step(10); const sl = g.level.arena.sliding.length; for (let i = 0; i < 240; i++) g.step(1); return [sl, g.level.crates.size, g.level.at(23, 17)]; });
+    const after = await ar.evaluate(() => { const g = window.__kage; g.step(10); const sl = g.level.arena.sliding.length; for (let i = 0; i < 240; i++) g.step(1); return [sl, g.level.crates.size, g.level.at(29, 17)]; });
     expect(after[0] === 1 && after[1] === r - 1 && after[2] === '.', `avant ${r} caisses ; après ${after}`);
   });
 
-  await test('arène : bonus — un cœur rend un point de vie, un paquet recharge les shurikens', async () => {
+  await test('arène : un cœur rend un point de vie ; pas de paquets de shurikens : on ramasse ceux qui sont plantés, et on réapparaît avec le stock plein', async () => {
     const r = await ar.evaluate(() => {
       const g = window.__kage, a = g.level.arena, pl = g.player;
       a.pickups = []; a.heartClock = 99; a.bundleClock = 99;
       g.step(2);
-      const kinds = a.pickups.map((p) => p.kind).sort().join();
-      const h = a.pickups.find((p) => p.kind === 'heart'), b = a.pickups.find((p) => p.kind === 'bundle');
-      pl.hp = 2; g.shurikens.stock = 0;
-      for (const p of [h, b]) { pl.x = p.x; pl.y = p.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); for (let i = 0; i < 60; i++) g.step(1); }
-      return { kinds, hp: pl.hp, stock: g.shurikens.stock, left: a.pickups.length };
+      const kinds = a.pickups.map((p) => p.kind).join();
+      const h = a.pickups.find((p) => p.kind === 'heart');
+      pl.hp = 2;
+      pl.x = h.x; pl.y = h.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); for (let i = 0; i < 60; i++) g.step(1);
+      const hp = pl.hp;
+      // un shuriken lancé se plante dans le bosquet : on va le rechercher
+      pl.x = 20 * 16; pl.y = 18 * 16; pl.facing = -1; pl.onGround = true; pl.setState('idle'); g.shurikens.reset(); g.step(2);
+      g.shurikens.throw(pl.x - 8, pl.y - 18, -1, 18);
+      for (let i = 0; i < 120; i++) g.step(1);
+      const thrown = g.shurikens.stock, stuck = g.shurikens.stuck[0];
+      pl.x = stuck.x + 6; pl.y = 18 * 16; for (let i = 0; i < 60; i++) g.step(1);
+      const back = g.shurikens.stock;
+      // sans shuriken, on meurt : on revient avec les trois
+      g.shurikens.stock = 0; pl.die();
+      for (let i = 0; i < 400 && (pl.state === 'death' || pl.state === 'respawn'); i++) g.step(1);
+      return { kinds, hp, thrown, back, after: g.shurikens.stock, left: a.pickups.length };
     });
-    expect(r.kinds === 'bundle,heart' && r.hp === 3 && r.stock === 3 && r.left === 0, JSON.stringify(r));
+    expect(r.kinds === 'heart' && r.hp === 3 && r.thrown === 2 && r.back === 3 && r.after === 3 && r.left === 0, JSON.stringify(r));
   });
 
   // ---- jouer à plusieurs : une salle à deux (transport local, deux onglets servis en http) ----

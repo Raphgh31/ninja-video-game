@@ -12,10 +12,10 @@ import { Builder } from './builder.js';
 const H = 21;          // hauteur de la carte (cases) : plus haute que l'image (ciel des écrans plus hauts)
 const G = 18;          // ligne du haut du sol
 const TILE = 16;
-// L'arène fait une fois et demie la largeur de l'image : on en voit les deux tiers,
-// la caméra suit KAGE pour découvrir le reste (demande de l'utilisateur).
-const L = 6, R = 49;   // les deux bosquets de bambous qui ferment l'arène (colonnes)
-const C0 = 25, CW = 6; // le canal d'irrigation, au centre (colonnes 25 à 30)
+// L'arène fait deux fois la largeur de l'image : on en voit la moitié, la caméra
+// suit KAGE pour découvrir l'autre (demande de l'utilisateur).
+const L = 6, R = 63;   // les deux bosquets de bambous qui ferment l'arène (colonnes)
+const C0 = 31, CW = 9; // le canal d'irrigation, au centre (colonnes 31 à 39)
 export const ARENA_W = R + 7;   // largeur de la carte : l'arène et des bords peints
 
 function build() {
@@ -25,54 +25,58 @@ function build() {
   b.flat(C0);
   b.gap(CW);
   b.flat(ARENA_W - C0 - CW);
-  // la passerelle du canal : deux planches au milieu (deux sauts de 2 cases)
-  b.row(C0 + 2, 2, G, '-');
+  // la passerelle du canal : trois planches au milieu (deux sauts de 3 cases)
+  b.row(C0 + 3, 3, G, '-');
   // les bosquets qui ferment l'arène : on y grimpe en sauts muraux, on n'en sort pas
   b.block(L, 1, 0, G - 1, '|');
   b.block(R, 1, 0, G - 1, '|');
   // un plafond invisible au ras du haut de l'image : on ne sort jamais du cadre
   b.row(L + 1, R - L - 1, G - 13, '%');
 
-  // ---- gauche : la grue de bambou et ses balles de riz ----
+  // ---- gauche : la grue de bambou et son rocher ----
   b.row(L + 1, 3, G - 9, '-');                 // plateforme du treuil, accrochée au bosquet (d'ici, un shuriken coupe la corde)
   b.block(L + 2, 2, G - 1, G - 1, '%');        // botte de foin : un tremplin
   b.set(L + 5, G - 1, 'B');                    // une caisse (d'un coup de pied, elle file vers l'eau)
 
   // ---- le potager sur pilotis, à gauche : deux plateformes légères, cultivées ----
-  b.row(15, 4, G - 3, '-');
-  b.row(18, 4, G - 6, '-');
-  b.prop('crops', 15, G - 3, { w: 4, kind: 'choux' });
-  b.prop('crops', 18, G - 6, { w: 4, kind: 'carottes' });
-  b.ladder(14.4, 15.4, G, 3);
-  b.ladder(17.3, 18.4, G - 3, 3);
-  b.prop('baskets', 21, G - 6);
+  b.row(17, 4, G - 3, '-');
+  b.row(20, 4, G - 6, '-');
+  b.prop('crops', 17, G - 3, { w: 4, kind: 'choux' });
+  b.prop('crops', 20, G - 6, { w: 4, kind: 'carottes' });
+  b.ladder(16.4, 17.4, G, 3);
+  b.ladder(19.3, 20.4, G - 3, 3);
+  b.prop('baskets', 23, G - 6);
+
+  // ---- un coin plat, sans rien : une petite maison au fond, et c'est tout ----
+  b.propBack('house', 27, G, { far: true });
 
   // ---- centre : les perches de séchage du riz (hasa), au-dessus du canal ----
   b.row(C0 - 2, CW + 4, G - 9, '-');
 
-  // ---- le potager sur pilotis, à droite ----
-  b.row(39, 4, G - 3, '-');
-  b.row(42, 4, G - 6, '-');
-  b.prop('crops', 39, G - 3, { w: 4, kind: 'radis' });
-  b.prop('crops', 42, G - 6, { w: 4, kind: 'poireaux+choux' });
-  b.ladder(38.4, 39.4, G, 3);
-  b.ladder(41.3, 42.4, G - 3, 3);
-
-  // ---- droite : l'étal, les caisses, le gong ----
+  // ---- droite : l'étal, les caisses ----
   b.row(C0 + CW + 3, 3, G - 2, '=');           // l'étal : un toit bas (on passe dessous en glissade ou au dash), on monte dessus
   b.set(C0 + CW + 6, G - 1, 'B').set(C0 + CW + 6, G - 2, 'B');   // deux caisses : d'un coup de pied, sous l'étal, vers le canal
+
+  // ---- le potager sur pilotis, à droite ----
+  b.row(48, 4, G - 3, '-');
+  b.row(51, 4, G - 6, '-');
+  b.prop('crops', 48, G - 3, { w: 4, kind: 'radis' });
+  b.prop('crops', 51, G - 6, { w: 4, kind: 'poireaux+choux' });
+  b.ladder(47.4, 48.4, G, 3);
+  b.ladder(50.3, 51.4, G - 3, 3);
+
+  // ---- tout à droite : le gong sur sa tour, une botte de foin ----
   b.block(R - 3, 2, G - 1, G - 1, '%');        // botte de foin
   b.row(R - 3, 3, G - 9, '=');                 // la plateforme du gong, contre le bosquet
 
   // ---- trois arbres, de tailles et de formes variées ----
-  b.propBack('tree', 17, G, { kind: 'pommier', s: 1.3 });
-  b.propBack('tree', 47, G, { kind: 'cerisier', s: 0.8 });
-  b.propBack('tree', 45, G, { kind: 'poirier', s: 1.1 });
+  b.propBack('tree', 19, G, { kind: 'pommier', s: 1.3 });
+  b.propBack('tree', R - 2, G, { kind: 'cerisier', s: 0.8 });
+  b.propBack('tree', 55, G, { kind: 'poirier', s: 1.1 });
 
-  // échafaudages fragiles (« _ ») : bas au bord du canal, haut près de la grue et de l'étal
+  // échafaudages fragiles (« _ ») : près de la grue, et au-dessus de l'étal
   const scaffolds = [
-    { x0: C0 - 3, w: 3, row: G - 3 }, { x0: L + 3, w: 3, row: G - 6 },
-    { x0: C0 + CW, w: 3, row: G - 3 }, { x0: C0 + CW + 4, w: 3, row: G - 6 },
+    { x0: L + 3, w: 3, row: G - 6 }, { x0: C0 + CW + 4, w: 3, row: G - 6 },
   ];
   for (const sc of scaffolds) { b.row(sc.x0, sc.w, sc.row, '_'); sc.ground = G; }
 
@@ -85,12 +89,12 @@ function build() {
       // caméra : elle suit KAGE en largeur, sans sortir de l'arène ; le sol en bas de l'image
       center: (C0 + CW / 2) * TILE, ground: G * TILE, walls: [L, R],
       spawns: [
-        { x: px(16), y: G * TILE }, { x: px(41), y: G * TILE },
+        { x: px(23), y: G * TILE }, { x: px(50), y: G * TILE },
         { x: px(L + 2), y: (G - 9) * TILE }, { x: px(R - 2), y: (G - 9) * TILE },
       ],
       scaffolds,
-      // la grue : balles de riz (2 × 2 cases) suspendues, haut à la ligne top ; elles tombent au sol
-      crane: { x0: L + 6, w: 2, top: G - 8, h: 2, mastX: px(L + 1) + 6, boomY: (G - 12) * TILE + 2, recharge: 18 },
+      // la grue : un gros rocher ficelé (4 × 2 cases : haut comme KAGE, large comme trois KAGE), haut à la ligne top
+      crane: { x0: L + 6, w: 4, top: G - 8, h: 2, mastX: px(L + 1) + 6, boomY: (G - 12) * TILE + 2, recharge: 18 },
       gong: { x: px(R - 2), y: (G - 9) * TILE },
       // les vannes, au pied des bosquets : l'eau part vers le canal
       sluices: [{ x: (L + 1) * TILE, dir: 1 }, { x: R * TILE, dir: -1 }],
@@ -101,9 +105,9 @@ function build() {
       hay: [{ x0: L + 2, w: 2, row: G - 1 }, { x0: R - 3, w: 2, row: G - 1 }],
       // caisses : où elles retombent du ciel quand il en manque
       crates: [{ tx: L + 5, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 2 }],
-      // bonus : cœurs (vie) et paquets de shurikens, à des endroits disputés
-      hearts: [{ x: (C0 + CW / 2) * TILE, y: (G - 9) * TILE }, { x: px(L + 2), y: (G - 9) * TILE }, { x: px(43), y: (G - 6) * TILE }],
-      bundles: [{ x: px(C0 - 2), y: (G - 3) * TILE }, { x: px(C0 + CW + 1), y: (G - 3) * TILE }, { x: px(C0 + CW + 4), y: (G - 2) * TILE }, { x: px(19), y: (G - 6) * TILE }],
+      // bonus : des cœurs (vie), à des endroits disputés (les shurikens, on va les rechercher là où ils se sont plantés)
+      hearts: [{ x: (C0 + CW / 2) * TILE, y: (G - 9) * TILE }, { x: px(L + 2), y: (G - 9) * TILE }, { x: px(52), y: (G - 6) * TILE }],
+      bundles: [],
     },
   };
 }
