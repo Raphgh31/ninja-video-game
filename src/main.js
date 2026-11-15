@@ -400,6 +400,8 @@ function onKarasuEvent(n, d) {
     case 'caw': if (d.long) sfx('karasuCawLong'); else sfxAt('karasuCaw', d); break;
     case 'straw': fx.sparks(d.x + (Math.random() - 0.5) * 20, d.y, 5, { palette: 'straw', speed: 60 }); fx.drift(d.x, d.y + 10, 3, { palette: 'straw', speed: 30 }); break;
     case 'flap': fx.drift(d.x, d.y - 30, 2, { speed: 40 }); break;   // (le son : wingbeat)
+    // sabre depuis le sol : il pare d'un coup d'aile (seul un saut depuis une plateforme le fait tomber)
+    case 'parry': sfxAt('karasuWing', d); sfxAt('block', d, undefined, 0.5); fx.drift(d.x, d.y, 4, { speed: 60, up: 30 }); fx.sparks(d.x, d.y, 4, { dir: -d.dir, speed: 70 }); break;
     case 'drop': break;
     case 'glare': sfxAt('glare', d); break;
     case 'dive': sfxAt('diveWhistle', d); fx.drift(d.x, d.y - 30, 3, { speed: 50 }); break;

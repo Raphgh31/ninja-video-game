@@ -1212,7 +1212,7 @@ async function main() {
       const g = window.__kage, b = g.boss, pl = g.player, l = g.level, sc = l.scaffolds[0];
       b.reset(); b.engaged = true;
       const x = onScaffold ? (sc.x0 + 1) * 16 + 8 : (a[0] + a[1]) * 8, y = onScaffold ? sc.row * 16 : b.groundY;
-      pl.x = x; pl.y = y; pl.facing = 1; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; pl.energy.value = 1; g.shurikens.reset();
+      pl.x = x; pl.y = y; pl.fallFrom = y; pl.facing = 1; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9; pl.energy.value = 1; g.shurikens.reset();
       b.setState('carry'); b.carry = { size: 0 }; b.rocksLeft = 3; b.x = x + 4; b.y = b.groundY - 76; b.facing = -1;
       return b.hp;
     }, [onScaffold, [B.a0, B.a1]]);
@@ -1239,6 +1239,38 @@ async function main() {
     expect(sword.hp === h0 && shur.hp === h0 && knock.st === 'knocked' && knock.hp < h0 && ['crash', 'stuck'].includes(after.st) && after.up === 'falsefalsefalsefalse' && stuck === before - 2,
       `sol : sabre ${sword.hp}/${sword.st}, shuriken ${shur.hp} ; plateforme : ${JSON.stringify(knock)} puis ${JSON.stringify(after)} ; planté ${before} → ${stuck}`);
     await pg.evaluate(() => window.__kage.boss.reset());
+  });
+
+  await test('potager : sur un tas de pierres, un saut + sabre depuis le sol est paré (il ne tombe pas) ; relevé, il repart intouchable', async () => {
+    // il descend saisir une pierre : KAGE, au sol juste à côté, saute et frappe
+    const hits = [];
+    for (const dx of [-14, 14]) {
+      await pg.evaluate((dx) => {
+        const g = window.__kage, b = g.boss, pl = g.player;
+        b.reset(); b.engaged = true; b.x = b.piles[0]; b.y = b.groundY - 6; b.setState('grab'); b.play('open'); b.facing = 1;
+        if (!b.__parry) { b.__parry = 1; const on = b.onEvent; b.onEvent = (n, d) => { if (n === 'parry') window.__parries = (window.__parries ?? 0) + 1; on?.(n, d); }; }
+        pl.x = b.x + dx; pl.y = b.groundY; pl.fallFrom = b.groundY; pl.facing = -Math.sign(dx); pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.hp = 5; pl.invuln = 9;
+      }, dx);
+      const h0 = await pg.evaluate(() => window.__kage.boss.hp);
+      await PK.down('Space'); await pw(90); await PK.press('KeyX'); await pw(60); await PK.up('Space'); await pw(300);
+      hits.push(await pg.evaluate((h0) => { const b = window.__kage.boss; return `${b.hp === h0}:${b.state}`; }, h0));
+    }
+    // il se relève (fin de l'ébrouement) : pendant KARASU.regain, ni le sabre ni le shuriken ne l'atteignent
+    const r = await pg.evaluate(() => {
+      const g = window.__kage, b = g.boss, out = [];
+      b.reset(); b.engaged = true; b.x = b.arena[0] + 48; b.y = b.groundY; b.setState('shake'); b.timer = 10;
+      b.update(1 / 120, g.player);
+      const box = () => { const k = b.box(); return { x: k.x - 2, y: k.y - 2, w: k.w + 4, h: k.h + 4 }; };
+      b.kageHigh = true;      // même depuis une plateforme
+      out.push(b.state, b.takeHit(box(), b.x - 20, 9001), b.takeHit(box(), b.x - 20, null, 1));
+      for (let n = 0; n < 1.4 * 120; n++) b.update(1 / 120, g.player);
+      b.kageHigh = true;
+      out.push(b.takeHit(box(), b.x - 20, 9002));
+      b.reset();
+      return out;
+    });
+    const parries = await pg.evaluate(() => window.__parries ?? 0);
+    expect(parries === 2 && hits.every((h) => h === 'true:grab' || h === 'true:lift') && r.join() === 'return,,,hit', `parades ${parries} ; sol : ${hits.join(' ')} ; relevé : ${r.join()}`);
   });
 
   await test('potager : les plateformes restent debout tant qu\'il ne s\'est pas écrasé ; il ne plonge qu\'une fois elles tombées, en arc', async () => {

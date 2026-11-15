@@ -59,6 +59,10 @@ export const KARASU = {
   ],
   rollTime: 0.7,
   knockFall: 360,          // gravité de sa chute quand il est touché en vol
+  // (nov. 2026) on ne le fait tomber qu'en sautant d'une plateforme de bois : touché au
+  // sabre depuis le sol (quand il descend sur un tas de pierres), il pare d'un coup d'aile
+  parryHop: 7,             // px : il remonte d'un coup quand il pare
+  regain: 1.3,             // s : relevé, il repart sans qu'on puisse le toucher ni le refaire tomber
 };
 
 // les images où l'aile descend : le son du coup d'aile part à ce moment-là
@@ -103,6 +107,8 @@ export class Karasu {
     this.diveDone = 0;
     this.gone = false;
     this.defeatedT = 0;
+    this.guard = 0;            // s d'invulnérabilité quand il se relève et repart
+    this.kageHigh = false;     // KAGE a sauté d'une plateforme de bois (lui seul peut le faire tomber)
     this.level.restoreScaffolds?.();   // les plateformes de bois sont de nouveau debout
   }
 
@@ -167,15 +173,26 @@ export class Karasu {
   // ---- coups reçus ----------------------------------------------------------
   /**
    * Planté dans le sol : le sabre, le coup de pied et le shuriken le blessent.
-   * En vol : un coup de sabre (id = numéro du coup) le fait tomber ; un shuriken
-   * (id = null) le blesse sans le faire tomber.
+   * En vol : un coup de sabre (id = numéro du coup) porté en sautant d'une
+   * plateforme de bois le fait tomber ; depuis le sol, il le pare d'un coup
+   * d'aile. Un shuriken (id = null) le blesse sans le faire tomber.
+   * Relevé, il repart intouchable un instant (KARASU.regain) : on ne peut pas
+   * le refaire tomber pendant qu'il reprend son envol.
    */
   takeHit(box, attackerX, id = null, dmg = DAMAGE_DEALT.sword) {
     if (!this.alive || !this.engaged || (id !== null && id === this.lastHit)) return null;
     const stuck = this.state === 'stuck' || this.state === 'crash';
     if (!stuck && !this.flying) return null;
+    if (this.guard > 0) return null;
     if (!touch(box, this.box())) return null;
     if (id !== null) this.lastHit = id;
+    if (!stuck && id !== null && !this.kageHigh) {
+      // sabre depuis le sol : il pare d'un coup d'aile et remonte
+      this.y -= KARASU.parryHop;
+      this.vy = Math.min(this.vy, -60);
+      this.onEvent?.('parry', { x: this.x, y: this.y - 30, dir: Math.sign(this.x - attackerX) || 1 });
+      return 'blocked';
+    }
     this.hp = Math.max(0, this.hp - dmg);
     this.flash = KARASU.hurtFlash;
     const dir = Math.sign(this.x - attackerX) || 1;
@@ -218,6 +235,9 @@ export class Karasu {
     this.animT += dt;
     this.voice(dt);
     this.flash = Math.max(0, this.flash - dt);
+    this.guard = Math.max(0, this.guard - dt);
+    // KAGE a-t-il quitté une plateforme de bois encore debout ? (son dernier appui)
+    this.kageHigh = !!player && (this.level.scaffolds ?? []).some((s) => s.up && Math.abs(player.fallFrom - s.row * TILE) < 1);
     this.hitT = Math.max(0, (this.hitT ?? 0) - dt);
     // l'épouvantail : un ressort amorti
     this.swayV += (-this.sway * 38 - this.swayV * 3.2) * dt;
@@ -386,12 +406,20 @@ export class Karasu {
         }
         break;
       case 'shake':                  // il s'ébroue, replace son chapeau
-        if (this.timer > KARASU.shake) { this.setState('return'); this.onEvent?.('flap', { x: this.x, y: this.y }); }
+        if (this.timer > KARASU.shake) {
+          this.setState('return');
+          this.guard = KARASU.regain;            // il reprend son envol : intouchable un instant
+          this.onEvent?.('flap', { x: this.x, y: this.y });
+        }
         break;
       case 'return': {               // il regagne son perchoir
         this.play('fly');
         const top = this.perchPoint();
-        this.steer(top.x, top.y - (Math.abs(this.x - top.x) > 20 ? 30 : 0), KARASU.flySpeed * 1.3, dt);
+        // il s'arrache d'abord du sol presque à la verticale (hors de portée d'un saut
+        // depuis le sol), puis rejoint son perchoir
+        const far = Math.abs(this.x - top.x) > 20;
+        if (far && this.y > cruise + 8) this.steer(this.x + Math.sign(top.x - this.x) * 18, cruise, KARASU.flySpeed * 1.3, dt);
+        else this.steer(top.x, top.y - (far ? 30 : 0), KARASU.flySpeed * 1.3, dt);
         this.facing = Math.sign(top.x - this.x) || this.facing;
         if (Math.abs(this.x - top.x) < 3 && Math.abs(this.y - top.y) < 4) {
           this.x = top.x; this.y = top.y;
