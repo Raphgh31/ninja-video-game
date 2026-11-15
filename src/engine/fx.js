@@ -19,6 +19,7 @@ const COLORS = {
 export class Fx {
   constructor() {
     this.parts = [];
+    this.flashes = [];
     this.shakeT = 0;
     this.shakeAmp = 0;
     this.stopT = 0;
@@ -69,6 +70,16 @@ export class Fx {
     }
   }
 
+  /**
+   * Éclat de lumière en pixels nets (coup du salto) : un halo rond, un cœur blanc et huit
+   * rayons (longs à l'horizontale et à la verticale, courts en diagonale) qui s'allongent
+   * puis s'éteignent. size : longueur des grands rayons (px).
+   */
+  flash(x, y, { size = 14, life = 0.32, halo = 10, follow = null } = {}) {
+    // follow : fonction qui redonne la position à chaque image (un reflet qui suit la lame)
+    this.flashes.push({ x: Math.round(x), y: Math.round(y), t: 0, life, size, halo, follow });
+  }
+
   shake(amp, time) {
     if (amp >= this.shakeAmp || this.shakeT <= 0) {
       this.shakeAmp = amp;
@@ -89,6 +100,8 @@ export class Fx {
 
   update(dt) {
     this.shakeT = Math.max(0, this.shakeT - dt);
+    for (const f of this.flashes) f.t += dt;
+    this.flashes = this.flashes.filter((f) => f.t < f.life);
     for (const p of this.parts) {
       p.t += dt;
       p.vy += p.g * dt;
@@ -108,6 +121,30 @@ export class Fx {
   }
 
   draw(ctx, cam) {
+    for (const f of this.flashes) {
+      const k = f.t / f.life, grow = 1 - (1 - Math.min(1, k * 3)) ** 2, fade = 1 - k;
+      const at = f.follow?.();
+      if (at) { f.x = Math.round(at.x); f.y = Math.round(at.y); }
+      const x = f.x - Math.round(cam.x), y = f.y - Math.round(cam.y);
+      // halo : disque plein, très léger, tracé ligne par ligne (bords nets)
+      const r = Math.round(f.halo * (0.6 + 0.4 * grow));
+      ctx.globalAlpha = 0.28 * fade;
+      ctx.fillStyle = '#ffe9a8';
+      for (let dy = -r; dy <= r; dy++) { const w = Math.floor(Math.sqrt(r * r - dy * dy)); ctx.fillRect(x - w, y + dy, 2 * w + 1, 1); }
+      // rayons
+      const L = Math.round(f.size * grow), l = Math.round(f.size * 0.45 * grow);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = '#f6d47a';
+      ctx.fillRect(x - L, y, 2 * L + 1, 1); ctx.fillRect(x, y - L, 1, 2 * L + 1);
+      for (let i = 1; i <= l; i++) for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) ctx.fillRect(x + a * i, y + b * i, 1, 1);
+      ctx.fillStyle = '#fff6d8';
+      const c = Math.round(L * 0.45);
+      ctx.fillRect(x - c, y, 2 * c + 1, 1); ctx.fillRect(x, y - c, 1, 2 * c + 1);
+      // cœur blanc
+      const s = k < 0.35 ? 1 : 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 1 - s, y - 1 - s, 3 + 2 * s, 3 + 2 * s);
+    }
     for (const p of this.parts) {
       ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
       ctx.fillStyle = p.color;

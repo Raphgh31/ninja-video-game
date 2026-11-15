@@ -43,12 +43,18 @@
       <section class="shop" hidden aria-label="Le comptoir du voyageur">
         <header class="shop__head">
           <h2>Le comptoir du voyageur</h2>
-          <p class="shop__purse" data-purse></p>
+          <nav class="shop__tabs" data-tabs aria-label="Rayons"></nav>
+          <div class="shop__purse"><span class="shop__coin" aria-hidden="true"></span><p data-purse></p></div>
         </header>
-        <p class="shop__line" data-line></p>
-        <nav class="shop__tabs" data-tabs aria-label="Rayons"></nav>
-        <div class="shop__items" data-items></div>
-        <button type="button" class="shop__close" data-close>Reprendre la route</button>
+        <div class="shop__body">
+          <div class="shop__items" data-items></div>
+          <aside class="shop__detail" data-detail aria-live="polite"></aside>
+        </div>
+        <footer class="shop__foot">
+          <p class="shop__line" data-line></p>
+          <p class="shop__hint" data-hint></p>
+          <button type="button" class="shop__close" data-close>Reprendre la route</button>
+        </footer>
       </section>
     <div class="win" hidden>
         <p class="win__title">Niveau terminé</p>

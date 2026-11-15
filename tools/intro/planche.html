@@ -1,0 +1,277 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#111"><canvas id="board"></canvas>
+<script type="module">
+// Planche : quatre ouvertures possibles du jeu, trois images clés chacune, à la taille du jeu (448×252).
+import { renderText, measure, FONTS } from '/src/engine/pixelfont.js';
+import { canvas, pick, noise2, rgb } from '/src/game/potager/paint.js';
+
+const W = 448, H = 252, K = 2;
+const img = async (src) => { const i = new Image(); i.src = src; await i.decode(); return i; };
+const half = (i) => { const c = canvas(W, H), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(i, 0, 0, W, H); return c; };
+const SCENE = half(await img('/tools/intro/scene.png'));
+{ // le corbeau qui passe en haut à gauche de la capture : on le recouvre du ciel de la même ligne
+  const g = SCENE.getContext('2d');
+  for (let y = 0; y < 52; y++) g.drawImage(SCENE, 70, y, 1, 1, 0, y, 62, 1);
+}
+const ALL = half(await img('/tools/intro/plans_tous.png'));   // tout le paysage, ciel en magenta
+const FAR = half(await img('/tools/intro/plans_loin.png'));   // les montagnes lointaines seules
+const kageFrame = async (name) => img(`/characters/kage/frames/kage_${name}.png`);
+
+const INK = '#e9e5da', BLACK = '#05080a';
+const TITLE = 'THE NINJA GAME';
+
+// ---- outils -------------------------------------------------------------------------------
+const frame = (bg = BLACK) => { const c = canvas(W, H), g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = bg; g.fillRect(0, 0, W, H); return [c, g]; };
+/** Titre lettre par lettre ; alpha(i) donne l'opacité de la i-ième lettre (fondu lent). */
+function title(g, cy, { font = 'title', spacing = 2, color = INK, alpha = () => 1, text = TITLE } = {}) {
+  const f = FONTS[font], w = measure(text, font, spacing);
+  let x = Math.round((W - w) / 2);
+  [...text].forEach((ch, i) => {
+    const a = alpha(i);
+    if (ch !== ' ' && a > 0) { g.globalAlpha = a; g.drawImage(renderText(ch, { font, color }), x, cy); g.globalAlpha = 1; }
+    x += measure(ch, font) + f.gap + spacing * f.k;
+  });
+  const bb = bbox(renderText(text, { font, spacing }));
+  return { x0: Math.round((W - w) / 2), w, top: cy + bb.y0, bottom: cy + bb.y1 };
+}
+const line = (g, s, cy, o = {}) => { const c = renderText(s, { font: o.font ?? 'small', color: o.color ?? INK, spacing: o.spacing ?? 0 }); g.globalAlpha = o.alpha ?? 1; g.drawImage(c, Math.round((o.x ?? W / 2) - (o.left ? 0 : c.width / 2)), cy); g.globalAlpha = 1; return c; };
+/** Lettres déjà apparues : n lettres visibles, la suivante à moitié. */
+const upTo = (n) => (i) => (i < n ? 1 : i === n ? 0.45 : 0);
+const px = (c) => c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+const isMagenta = (d, i) => d[i] > 180 && d[i + 2] > 180 && d[i + 1] < 120;
+/** Les couches du paysage : 0 ciel, 1 montagnes lointaines, 2 le reste (collines, village, forêt). */
+const LAYER = (() => {
+  const a = px(ALL), f = px(FAR), m = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const j = i * 4;
+    const farHere = !isMagenta(f, j) && !(Math.abs(f[j] - a[j]) > 8 || Math.abs(f[j + 1] - a[j + 1]) > 8);
+    m[i] = isMagenta(a, j) ? 0 : farHere ? 1 : 2;
+  }
+  return m;
+})();
+const ALLPX = px(ALL);
+/** Haut de la terre dans une colonne (la crête des montagnes). */
+const ridge = (x) => { for (let y = 0; y < H; y++) if (LAYER[y * W + x]) return y; return H; };
+/**
+ * Le paysage recoloré : chaque pixel prend sa luminosité dans une rampe (aube, nuit…).
+ * layers : rampes des montagnes lointaines [1] et du reste [2] ; sky(x, y) repeint le ciel (null : on le laisse).
+ */
+function landscape(g, ramps, sky, { band = 0.5, lift = 0, gain = 1 } = {}) {
+  const out = g.getImageData(0, 0, W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, j = i * 4, L = LAYER[i];
+    let c;
+    if (L === 0) { if (!sky) continue; c = sky(x, y); }
+    else {
+      const ramp = ramps[L]; if (!ramp) continue;
+      const l = (0.3 * ALLPX[j] + 0.55 * ALLPX[j + 1] + 0.15 * ALLPX[j + 2]) / 255;
+      c = pick(ramp, lift + gain * l, x, y, band);
+    }
+    const [r, gg, b] = rgb(c); out.data[j] = r; out.data[j + 1] = gg; out.data[j + 2] = b; out.data[j + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+}
+/** Lumière ronde en paliers nets (aucun flou) : n anneaux, du plus clair au centre au plus faible au bord. */
+function rings(g, cx, cy, r, rgbStr, a0, n = 5, squash = 1.15) {
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const d = Math.hypot(x - cx, (y - cy) * squash) / r;
+    if (d >= 1) continue;
+    const step = Math.floor((1 - d) * n) + 1;
+    g.fillStyle = `rgba(${rgbStr},${(a0 * step / n).toFixed(3)})`; g.fillRect(x, y, 1, 1);
+  }
+}
+/** Boîte réelle d'un texte (les lignes et colonnes allumées). */
+function bbox(c) {
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let y0 = 1e9, y1 = -1;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return { y0, y1 };
+}
+/** Dégradé tramé vertical. */
+const vgrad = (ramp, y0, y1) => (x, y) => pick(ramp, (y - y0) / (y1 - y0), x, y, 0.6);
+/** Silhouette d'une image (une couleur) ; rim : liseré d'un pixel sur les bords tournés vers (lx, ly). */
+function silhouette(g, im, x, y, color, rim, lx = -1, ly = -1) {
+  const c = canvas(im.width, im.height), cg = c.getContext('2d', { willReadFrequently: true });
+  cg.drawImage(im, 0, 0);
+  const d = cg.getImageData(0, 0, c.width, c.height).data, on = (i, j) => i >= 0 && j >= 0 && i < c.width && j < c.height && d[(j * c.width + i) * 4 + 3] > 0;
+  for (let j = 0; j < c.height; j++) for (let i = 0; i < c.width; i++) {
+    if (!on(i, j)) continue;
+    g.fillStyle = rim && !on(i + lx, j) && on(i + 1, j) ? rim : color;
+    g.fillRect(x + i, y + j, 1, 1);
+  }
+}
+
+// ---- 1. L'encre : noir, titre lettre à lettre, un trait de pinceau, un sceau ------------------
+const T1 = { font: 'title', spacing: 1.25 };
+function brush(g, cx, y, half, a = 1) {
+  // un coup de pinceau de gauche à droite : attaque ronde et épaisse (3 px), corps plein, fin effilée et sèche
+  g.globalAlpha = a; g.fillStyle = INK;
+  for (let x = -half; x <= half; x++) {
+    const u = (x + half) / (2 * half);
+    const th = u < 0.03 ? 2 : u < 0.5 ? 4 : u < 0.78 ? 3 : u < 0.92 ? 2 : 1;
+    for (let r = 0; r < th; r++) {
+      const dry = u > 0.62 && noise2(x * 0.22, r * 3.1, 11) < (u - 0.62) * 1.6;   // les poils qui s'écartent
+      if (dry || (u > 0.97 && noise2(x, 2, 5) < 0.5)) continue;
+      g.fillRect(cx + x, y + r - (th >> 1), 1, 1);
+    }
+  }
+  g.globalAlpha = 1;
+}
+function seal(g, x0, y0, a = 1) {
+  // sceau vermillon 21×21 : double cadre, la tête de KAGE en réserve (capuche, bandeau, yeux), bords mordus
+  g.globalAlpha = a;
+  const N = 21, cx = 10, cy = 11;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const edge = Math.min(x, y, N - 1 - x, N - 1 - y);
+    if (edge === 0 && noise2(x * 0.7, y * 0.7, 4) < 0.32) continue;       // bord mordu
+    let ink = true;
+    if (edge === 2) ink = false;                                         // le filet du cadre
+    const d = Math.hypot(x - cx, (y - cy) * 1.05);
+    if (edge > 2) {
+      ink = d > 6.6 || d < 5.6;                                          // contour de la tête
+      if (d < 5.6 && y >= 9 && y <= 11) ink = false;                     // le bandeau
+      if ((y === 10) && (x === 8 || x === 9 || x === 12 || x === 13)) ink = true;   // les yeux
+      if ((x === 17 && (y === 8 || y === 10)) || (x === 18 && (y === 7 || y === 11))) ink = false;  // les pans du nœud
+    }
+    if (!ink) continue;
+    g.fillStyle = noise2(x * 0.5, y * 0.5, 9) < 0.25 ? '#a8352a' : '#c0432f';
+    g.fillRect(x0 + x, y0 + y, 1, 1);
+  }
+  g.globalAlpha = 1;
+}
+function encre(step) {
+  const [c, g] = frame();
+  const T = 78;
+  const t = title(g, T, step === 0 ? { ...T1, alpha: upTo(4) } : T1);
+  const ly = t.bottom + 12;
+  if (step === 1) brush(g, W / 2, ly, 80, 0.9);
+  if (step === 2) {
+    brush(g, W / 2, ly, t.w / 2 - 14);
+    seal(g, t.x0 + t.w - 21, ly + 10);
+    line(g, 'Continuer', ly + 34, { color: INK });
+    line(g, 'Nouvelle partie', ly + 48, { color: '#6f7672' });
+  }
+  return c;
+}
+
+// ---- 2. L'aube : les montagnes sortent du noir, plan après plan ; le titre se lève avec le jour --
+const NIGHT_FAR = ['#05080a', '#0b1119', '#121b27', '#1b2735', '#263446'];
+const DAWN_FAR = ['#1e1428', '#3a2840', '#5e3f58', '#8c5a6c', '#c2807e', '#e8b296', '#f8dcc0'];
+const DAWN_NEAR = ['#120c16', '#20152a', '#33223a', '#4a3048', '#6a4458', '#8c5e66'];
+const DAWN_SKY = vgrad(['#0d0b1a', '#1d1634', '#3b2650', '#6e3c60', '#b0606a', '#e09070', '#f6c088'], 0, 150);
+function aube(step) {
+  const [c, g] = frame();
+  const T = 26;
+  if (step === 0) landscape(g, [null, NIGHT_FAR, null], null, { lift: -0.15, gain: 0.85 });
+  if (step === 1) {
+    landscape(g, [null, DAWN_FAR, DAWN_NEAR], DAWN_SKY, { lift: -0.05, gain: 0.95 });
+    title(g, T, { font: 'title', spacing: 1.25, color: '#fff1dc', alpha: () => 0.5 });
+  }
+  if (step === 2) {
+    g.drawImage(SCENE, 0, 0);
+    title(g, T, { font: 'title', spacing: 1.25, color: '#fbf6ea' });
+    line(g, 'Continuer          Nouvelle partie', 236, { color: INK });
+  }
+  return c;
+}
+
+// ---- 3. La lanterne : une lanterne s'allume dans le noir ; sa lumière découvre le titre, puis le monde
+function lanternArt(g, x, y) {
+  // chōchin de papier : cordon, chapeau et pied noirs, côtes, papier vermillon éclairé de l'intérieur
+  g.fillStyle = '#3a302a'; g.fillRect(x, 0, 1, y);
+  const P = ['...###...', '.#######.', '.ooOOOoo.', 'ooOOYOOoo', '---------', 'oOOYYYOOo', 'oOYYWYYOo', '---------', 'oOOYYYOOo', 'ooOOYOOoo', '---------', '.ooOOOoo.', '.#######.', '...###...', '....#....', '....#....'];
+  const col = { '#': '#1c1714', o: '#a03c24', O: '#d8642e', Y: '#ffc06a', W: '#fff0c0', '-': '#702a1c' };
+  P.forEach((row, r) => [...row].forEach((ch, cc) => { if (col[ch]) { g.fillStyle = col[ch]; g.fillRect(x - 4 + cc, y + r, 1, 1); } }));
+}
+function lanterne(step) {
+  const [c, g] = frame();
+  const LX = W / 2, LY = 34, T = 108, F = { font: 'big', spacing: 5 };
+  if (step === 0) { rings(g, LX, LY + 7, 22, '255,170,90', 0.22, 4); lanternArt(g, LX, LY); }
+  if (step === 1) {
+    rings(g, LX, LY + 30, 150, '255,160,80', 0.2, 6, 1.4);
+    lanternArt(g, LX, LY);
+    // les lettres prennent la lumière : plus claires près de la lanterne
+    title(g, T, { ...F, color: '#f6dcb4', alpha: (i) => 0.25 + 0.75 * Math.max(0, 1 - Math.abs(i - 6.5) / 8) });
+  }
+  if (step === 2) {
+    // la lumière s'élargit sur le monde : la scène, assombrie par paliers hors du cercle
+    g.drawImage(SCENE, 0, 0);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = Math.hypot(x - LX, (y - LY - 60) * 1.15) / 300;
+      const k = d < 0.62 ? 0 : d < 0.72 ? 1 : d < 0.82 ? 2 : 3;
+      if (k) { g.fillStyle = `rgba(5,8,10,${[0, 0.3, 0.55, 0.75][k]})`; g.fillRect(x, y, 1, 1); }
+    }
+    rings(g, LX, LY + 7, 26, '255,190,110', 0.25, 4);
+    lanternArt(g, LX, LY);
+    const t = title(g, T, { ...F, color: '#fff4e4' });
+    line(g, 'Appuie sur une touche', t.bottom + 14, { color: '#f0d6a8' });
+  }
+  return c;
+}
+
+// ---- 4. L'ombre sous la lune : KAGE (« l'ombre ») traverse une grande lune en salto -------------
+const MOON = ['#8d93a6', '#b5b8c4', '#d7d6cf', '#ece8da'];
+function moon(g, cx, cy, r) {
+  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
+    const d = Math.hypot(x, y) / r;
+    if (d > 1) continue;
+    const lit = 0.8 - 0.3 * d + 0.3 * (noise2((cx + x) * 0.08, (cy + y) * 0.08, 3) - 0.5) - 0.18 * Math.max(0, (x + y) / r);
+    g.fillStyle = pick(MOON, lit, cx + x, cy + y, 0.5); g.fillRect(cx + x, cy + y, 1, 1);
+  }
+}
+function stars(g, n, seed) {
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(noise2(i * 7.1, seed, 1) * 99991) % W, y = Math.floor(noise2(i * 3.3, seed + 5, 2) * 79193) % 140;
+    if (LAYER[y * W + x]) continue;
+    g.fillStyle = i % 6 ? '#3e4a66' : '#a7b2c8'; g.fillRect(x, y, 1, 1);
+  }
+}
+const NIGHT_SKY = vgrad(['#04060c', '#060a14', '#0a101f', '#0f182b', '#15203a'], 0, 170);
+const NIGHT_A = ['#04070b', '#0a111c', '#121c2c', '#1b293e', '#273a54', '#3a4f6c'];
+const NIGHT_B = ['#030508', '#060a10', '#0a111b', '#101a28'];
+async function lune(step) {
+  const [c, g] = frame();
+  const MX = 214, R = 40, MY = step === 0 ? 112 : 62;
+  landscape(g, [null, null, null], NIGHT_SKY);
+  stars(g, step === 0 ? 40 : 110, 1);
+  moon(g, MX, MY, R);
+  landscape(g, [null, NIGHT_A, NIGHT_B], null, { lift: step === 0 ? -0.35 : -0.15, gain: 0.95 });
+  if (step === 1) silhouette(g, await kageFrame('air_attack_02'), MX - 24, MY - 26, '#05070b');
+  if (step === 2) {
+    // KAGE posé sur la crête, à droite, son liseré du côté de la lune
+    // une vraie pointe, du ciel des deux côtés, entière dans l'image
+    const peaks = [];
+    for (let x = 250; x < 430; x++) { const r = ridge(x); if (r > 40 && r <= ridge(x - 1) && r < ridge(x + 1) && ridge(x - 9) > r + 6 && ridge(x + 9) > r + 6) peaks.push(x); }
+    const px = peaks.sort((a, b) => ridge(a) - ridge(b))[0] ?? 340;
+    silhouette(g, await kageFrame('idle_00'), px - 19, ridge(px) - 34, '#05070b', '#6f7a93', -1, -1);
+    const t = title(g, 156, { font: 'title', spacing: 1.25, color: INK });
+    line(g, 'Appuie sur une touche', t.bottom + 14, { color: '#8d93a6' });
+  }
+  return c;
+}
+
+// ---- planche ----------------------------------------------------------------------------------
+const ROWS = [
+  ['1 · L\'ENCRE', 'Le noir. Le titre s\'écrit lettre à lettre, lentement, puis un trait de pinceau se tire dessous et un petit sceau vermillon (la tête de KAGE) se pose. Le menu, sans cadre. Puis fondu sur le Potager.', encre, ['0 s : les lettres une à une', '4 s : le trait de pinceau', '7 s : le sceau, le menu']],
+  ['2 · L\'AUBE SUR LES MONTAGNES', 'Les montagnes du Potager sortent du noir en silhouettes, puis le jour se lève (rose, or) et le titre monte avec lui dans le ciel. L\'image se fond dans le vrai début du jeu, KAGE devant sa maison.', aube, ['0 s : silhouettes dans le noir', '4 s : l\'aube, le titre se lève', '8 s : le jeu, le menu en bas']],
+  ['3 · LA LANTERNE', 'Une lanterne de papier s\'allume dans le noir. Sa lumière éclaire le titre (les lettres proches d\'elle d\'abord), puis s\'élargit et découvre le monde autour. Le geste des lanternes du jeu.', lanterne, ['0 s : la lanterne s\'allume', '3 s : le titre dans sa lumière', '7 s : la lumière gagne le monde']],
+  ['4 · L\'OMBRE SOUS LA LUNE', 'KAGE veut dire « l\'ombre ». Une grande lune se lève sur les montagnes du Kagero ; KAGE la traverse d\'un coup de sabre, en ombre chinoise ; il se pose sur un sommet et le titre apparaît sous la lune.', lune, ['0 s : la lune se lève', '3 s : KAGE la traverse', '6 s : le titre, KAGE sur le sommet']],
+];
+const PAD = 24, GAP = 16, LABEL = 96;
+const b = document.getElementById('board');
+b.width = PAD * 2 + 3 * W * K + 2 * GAP; b.height = PAD + ROWS.length * (LABEL + H * K + 40) ;
+const G = b.getContext('2d'); G.imageSmoothingEnabled = false; G.fillStyle = '#14181c'; G.fillRect(0, 0, b.width, b.height);
+const text = (s, x, y, o = {}) => { const c = renderText(s, { color: o.color ?? INK, font: o.font ?? 'small', spacing: o.spacing ?? 0, maxW: o.maxW ?? 0, leading: 2 }); const k = o.k ?? 2; G.drawImage(c, x, y, c.width * k, c.height * k); };
+let y = PAD;
+for (const [name, desc, fn, caps] of ROWS) {
+  text(name, PAD, y, { font: 'big', spacing: 1 });
+  text(desc, PAD, y + 34, { color: '#9aa39d', maxW: 1300 });
+  y += LABEL;
+  for (let s = 0; s < 3; s++) {
+    const x = PAD + s * (W * K + GAP);
+    G.drawImage(await fn(s), x, y, W * K, H * K);
+    text(caps[s], x, y + H * K + 8, { color: '#7d8a84' });
+  }
+  y += H * K + 40;
+}
+console.log('titre (title, espacement 2) :', measure(TITLE, 'title', 2), 'px ; (big, 5) :', measure(TITLE, 'big', 5), 'px');
+window.__done = true;
+</script>

@@ -6,6 +6,8 @@ reçoit le contour. Chaque frame est posée individuellement.
 """
 from core import A, G, S, Frame
 from rig import pose
+from intro_kick import AIR_KICK, AIR_KICK_DURATIONS
+from rope import ROPE_PULL, ROPE_PULL_DURATIONS, ROPE_GRIP, ROPE_SHOULDER
 
 
 def F(grid, *retouches, **meta):
@@ -660,6 +662,49 @@ AIR_ATTACK = [
 ]
 
 # ---------------------------------------------------------------------------
+# FLIP ATTACK — le coup du salto : le coup aérien porté juste après un salto,
+# le plus puissant de KAGE (4 dégâts). La lame dressée tremble et s'allume,
+# puis s'abat ; à l'impact, un éclat de lumière à la pointe.
+# ---------------------------------------------------------------------------
+def _shake(frame, dx):
+    """La même image, décalée de dx px (tremblement de la charge)."""
+    import numpy as _np
+    return Frame([G(_np.roll(op.grid, dx, axis=1)) if isinstance(op, G) else op for op in frame.ops], meta=frame.meta)
+
+
+_TOP_POSE = dict(torso="up", tx=12, ty=20, head="head_r_squint", **TUCK,
+                 near_arm=[(18, 16), (19, 10)], far_arm=[(17, 16), two_hands((19, 10), (21, 0))], blade=(21, 0), near_behind=True,
+                 tail_long=[(-2, 1), (-4, 4), (-5, 7)], tail_short=[(-2, 2), (-3, 4), (-4, 6)])
+_GLINT = A("q\nX", x=21, top=1)                       # la lame s'allume (reflet sur le tranchant)
+_GLINT_BIG = A(".q.\nqXq\n.q.", x=20, top=1)          # puis brille franchement
+FLIP_ATTACK = [
+    AIR_ATTACK[0],
+    # sommet : lame dressée, elle s'allume ; le corps tremble sous l'effort (décalé d'un pixel)
+    Frame([G(pose(**_TOP_POSE)), _GLINT]),
+    _shake(Frame([G(pose(**_TOP_POSE)), _GLINT_BIG]), 1),
+    Frame([G(pose(**_TOP_POSE)), _GLINT_BIG]),
+    # descente : traînée plus large et plus claire que le coup aérien simple
+    Frame([slash(-115, -45, [(21, "q"), (20, "q"), (19, "X"), (18, "X")], OVER_C),
+           G(pose(torso="lean", tx=13, ty=19, head="head_r_squint", **TUCK,
+                  near_arm=[(20, 16), (22, 13)], far_arm=[(19, 17), two_hands((22, 13), (33, 2))], blade=(33, 2),
+                  tail_long=[(-3, -1), (-6, -2), (-9, -3)], tail_short=[(-3, 0), (-5, 1), (-7, 1)]))]),
+    # frappe : buste plongé, bras tendus, la lame tranche devant lui
+    Frame([slash(-115, -40, [(20, "X"), (19, "X")], OVER_C), slash(-40, 40, [(21, "q"), (20, "q"), (19, "q"), (18, "X")], OVER_C),
+           G(pose(torso="dive", tx=14, ty=20, head="head_r_squint", **TUCK,
+                  near_arm=[(22, 21), (25, 20)], far_arm=[(21, 22), two_hands((25, 20), (38, 26))], blade=(38, 26),
+                  tail_long=[(-3, -2), (-6, -4), (-9, -5)], tail_short=[(-3, -1), (-5, -1), (-7, -2)]))]),
+    # impact : la lame arrive en bas, éclat de lumière à la pointe (étoile à huit branches)
+    Frame([slash(10, 60, [(21, "z"), (20, "z")], OVER_C),
+           A("...q...\n.q.X.q.\n..XqX..\nqXqqqXq\n..XqX..\n.q.X.q.", x=29, top=25),
+           G(pose(torso="dive", tx=14, ty=21, **TUCK,
+                  near_arm=[(22, 23), (24, 24)], far_arm=[(21, 24), two_hands((24, 24), (32, 30))], blade=(32, 30),
+                  tail_long=[(-3, -2), (-6, -3), (-9, -3)], tail_short=[(-3, -1), (-5, 0), (-7, 0)]))]),
+    AIR_ATTACK[5],
+]
+FLIP_ATTACK_IMPACT = {"frame": 6, "x": 32, "y": 28}     # centre de l'éclat (cellule 48×32), repris en jeu
+FLIP_ATTACK_GLINT = {"frame": 1, "x": 21, "y": 2}       # reflet sur la lame dressée pendant la charge
+
+# ---------------------------------------------------------------------------
 # AIR THROW — shuriken en l'air : armé, bras tendu au lâcher, accompagnement
 # ---------------------------------------------------------------------------
 AIR_THROW_RELEASE = {"frame": 1, "x": 28, "y": 18}
@@ -888,11 +933,19 @@ ANIMS = {
     "wall_jump":     dict(frames=WALL_JUMP, fps=10, loop=False, state="wall_jump"),
     "air_attack":    dict(frames=AIR_ATTACK, fps=16, loop=False, state="air_attack",
                           durations=[60, 90, 40, 50, 80, 70]),
+    "flip_attack":   dict(frames=FLIP_ATTACK, fps=16, loop=False, state="flip_attack",
+                          durations=[60, 60, 50, 60, 40, 50, 130, 80], impact=FLIP_ATTACK_IMPACT, glint=FLIP_ATTACK_GLINT),
     "air_throw":     dict(frames=AIR_THROW, fps=14, loop=False, state="air_throw",
                           durations=[70, 45, 90, 90], release=AIR_THROW_RELEASE),
     "skid":          dict(frames=SKID,    fps=12, loop=True,  state="skid"),
     "kick":          dict(frames=KICK,    fps=14, loop=False, state="kick",
                           durations=[70, 50, 120, 90, 130]),
+    # coup de pied en l'air : le coup de pied sauté de l'introduction (intro_kick.py)
+    "air_kick":      dict(frames=AIR_KICK, fps=14, loop=False, state="air_kick",
+                          durations=AIR_KICK_DURATIONS),
+    # tirer la corde de la statue (zone 9 de la Forêt) : rope.py ; la corde est tracée par le jeu
+    "rope_pull":     dict(frames=ROPE_PULL, fps=5, loop=True, state="rope_pull",
+                          durations=ROPE_PULL_DURATIONS, grip=ROPE_GRIP, shoulder=ROPE_SHOULDER),
     "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),

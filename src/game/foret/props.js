@@ -12,6 +12,7 @@ import { ih, noise1, noise2, fbm2, pick, worley, bayer } from '../potager/paint.
 import * as C from './palette.js';
 import * as L from './layers.js';
 import { Window } from './world.js';
+import { shape as rockShape, stone as rockStone, LIT as ROCK_LIT } from './avalanche.js';
 
 const TILE = 16;
 
@@ -66,6 +67,21 @@ export class ForetProps {
           add('over', X - 8, Y - 6, p.w * TILE + 16, hpx + 12, (pix) => boulder(pix, X, Y, p.w * TILE, hpx, p.x, p.wet));
           break;
         }
+        case 'rope_branch': {
+          // la grande branche de la statue : elle sort de la falaise au-dessus du tunnel (zone 9)
+          const xr = p.x1 * TILE, G = p.ground * TILE;
+          // l'arbre qui s'agrippe au pilier (comme aux temples envahis) : derrière, son tronc et ses racines
+          add('front', xr - 30, Y - 200, 110, G - Y + 204, (pix) => pillarTree(pix, xr + 26, Y, G, xr, p.x * 3 + 9));
+          add('over', X - 40, Y - 70, xr - X + 80, 120, (pix) => ropeBranch(pix, X, xr, Y, p.twig ?? p.x1 * TILE - 105, p.x * 3 + 5));
+          break;
+        }
+        case 'river_rock': {
+          // un rocher pointu dans le lit du torrent, derrière les rondins : le pied noyé (l'eau, dessinée
+          // devant, le cache), l'écume autour (live.js) ; on ne s'y pose pas
+          const h = [9, 13, 18][p.s ?? 1], w = [12, 16, 22][p.s ?? 1];
+          add('behind', X - w, Y - h - 4, 2 * w + 16, h + 26, (pix) => riverRock(pix, X + 8, Y + 6, w, h, p.x * 7 + (p.s ?? 1)));
+          break;
+        }
         case 'stump': {
           const base = regionGround(level, p.x, p.w, p.y), hpx = (base - p.y) * TILE;
           mask(p.x, p.w, p.y, base - 1);
@@ -110,7 +126,51 @@ export class ForetProps {
         case 'rock_pillar': case 'rock_ledge': {
           const bottom = level.h;
           mask(p.x, p.w, p.y, bottom - 1);
-          add('over', X - 6, Y - 4, p.w * TILE + 12, (bottom - p.y) * TILE + 4, (pix) => rockColumn(pix, X, Y, p.w * TILE, (bottom - p.y) * TILE, p.x, p.type === 'rock_ledge'));
+          add('over', X - 10, Y - 18, p.w * TILE + 20, (bottom - p.y) * TILE + 18, (pix) => rockColumn(pix, X, Y, p.w * TILE, (bottom - p.y) * TILE, p.x, p.type === 'rock_ledge'));
+          break;
+        }
+        // la descente (zone 11) : rochers à demi enterrés, arbres morts cassés par d'anciens éboulis, éboulis de cailloux
+        case 'half_buried': {
+          const r = p.r ?? 12, cx = X + 8, base = surfaceY(level, cx, p.y * TILE);
+          add('over', cx - r * 2 - 4, base - r * 2 - 6, r * 4 + 8, r * 2 + 12, (pix) => { L.rock(pix, cx, base + Math.round(r * 0.35), Math.round(r * 1.3), Math.round(r * 1.25), p.x * 7 + 3); });
+          break;
+        }
+        case 'snag': {
+          const h = p.h ?? 70, base = surfaceY(level, X + 8, p.y * TILE);
+          add('behind', X - 70, base - h - 30, 160, h + 40, (pix) => snag(pix, X + 8, base + 6, h, p.lean ?? 0.1, p.fallen ?? 0, p.x * 5 + 1));
+          break;
+        }
+        // un arbre plus proche (décor : on passe devant), du sommet de l'image jusqu'au sol de la pente
+        case 'near_tree': {
+          const w = p.w ?? 26, cx = X + 8, base = surfaceY(level, cx, p.y * TILE);
+          add('behind', cx - 90, base - 420, 180, 430, (pix) => nearTree(pix, cx, base, w, p.x * 11 + 3));
+          break;
+        }
+        // des tronçons de bois coupés, posés au sol (décor)
+        case 'log_cut': {
+          const base = surfaceY(level, X + 8, p.y * TILE);
+          add('over', X - 6, base - 22, 64, 26, (pix) => logCuts(pix, X, base, p.n ?? 2, p.x * 13 + 1));
+          break;
+        }
+        // obstacles de la descente (zone 11), pleins : un tronc couché, une pile de bûches
+        case 'log_block': case 'log_pile': {
+          const base = regionGround(level, p.x, p.w, p.y), hpx = (base - p.y) * TILE;
+          mask(p.x, p.w, p.y, base - 1);
+          add('over', X - 12, Y - 8, p.w * TILE + 24, hpx + 12, (pix) => (p.type === 'log_block' ? lyingTrunk : logPile)(pix, X, Y, p.w * TILE, hpx, p.x * 9 + 2));
+          break;
+        }
+        // passages bas de la descente (zone 11) : une bande pleine de 3 cases au-dessus d'une case libre, à
+        // franchir en glissade ; ce qui la porte (motte de racines, pieds de l'arche, poteaux) est derrière KAGE
+        case 'slide_tree': case 'slide_arch': case 'slide_gate': {
+          const g = p.g, top = (g - 4) * TILE, gap = (g - 1) * TILE - 6, X1 = X + p.w * TILE, G = g * TILE;
+          mask(p.x, p.w, g - 4, g - 2);
+          const paint = { slide_tree: uprootedTree, slide_arch: rockArch, slide_gate: fallenGate }[p.type];
+          add('behind', X - 90, top - 110, p.w * TILE + 190, G - top + 120, (pix) => paint(pix, X, X1, top, gap, G, p.x * 7 + 5, 'back'));
+          add('over', X - 60, top - 40, p.w * TILE + 130, gap - top + 50, (pix) => paint(pix, X, X1, top, gap, G, p.x * 7 + 5, 'band'));
+          break;
+        }
+        case 'scree': {
+          add('over', X - 4, p.y * TILE - 60, p.w * TILE + 8, 90, (pix) => scree(pix, level, X, p.w * TILE, p.y * TILE, p.x * 3 + 7));
           break;
         }
         case 'fallen_log': {
@@ -141,7 +201,35 @@ export class ForetProps {
           add('over', X - 80, (p.y - p.h - 4) * TILE, p.w * TILE + 160, (p.h + 7) * TILE, (pix) => oakRoot(pix, p));
           break;
         }
-        case 'last_tree': add('behind', X - 90, Y - 330, 200, 334, (pix) => lastTree(pix, X + 8, Y + 2)); break;
+        case 'treehouse': {
+          // la cabane du guetteur (zone 1) : le chêne et l'arrière de la cabane derrière le terrain ;
+          // le bord de la plateforme, la balustrade et l'avant-toit devant (derrière KAGE)
+          const ox = X + 8, base = Y + 2, dY = p.deck * TILE;
+          add('behind', ox - 170, dY - 230, 340, base - dY + 240, (pix) => oakTree(pix, ox, base, dY, p.seed));
+          add('behind', p.x0 * TILE - 12, dY - 70, (p.x1 - p.x0) * TILE + 24, base - dY + 74, (pix) => treehouse(pix, p, 'back'));
+          add('over', p.x0 * TILE - 12, dY - 70, (p.x1 - p.x0) * TILE + 24, base - dY + 74, (pix) => treehouse(pix, p, 'front'));
+          break;
+        }
+        case 'root_arch': {
+          // l'arche de racines (zone 3) : les racines qui portent la motte, derrière KAGE ; les racines
+          // en marche (« - ») et le chevelu qui pend sous la motte, devant le terrain
+          const x0 = Math.min(...p.steps.map((q) => q[0])) * TILE - 24, x1 = (p.x + p.w) * TILE + 60, Gy = p.ground * TILE;
+          mask(p.x, p.w, p.y, p.y + 2);                   // la motte : peinte ici (une boule de terre ronde), pas par le terrain
+          add('behind', x0, Y, x1 - x0, Gy - Y + 6, (pix) => rootArch(pix, p, 'legs'));
+          add('over', x0, Y, x1 - x0, Gy - Y + 6, (pix) => rootArch(pix, p, 'front'));
+          break;
+        }
+        case 'sacred_tree': add('behind', X - 110, Y - 190, 236, 194, (pix) => sacredTree(pix, X + 8, Y + 1, p.seed ?? p.x)); break;
+        case 'hokora': add('behind', X - 16, Y - 34, 48, 36, (pix) => hokora(pix, X + 8, Y + 1)); break;
+        case 'tree_crown': {
+          // la couronne d'un grand tronc jouable (détours) : des masses de feuillage autour du fût,
+          // derrière lui et ses branches ; quelques grappes et lianes devant (sans jamais cacher KAGE)
+          const W = p.w * TILE, top = p.top * TILE, bot = p.y * TILE;
+          add('behind', X - 120, top - 30, W + 240, bot - top + 90, (pix) => treeCrown(pix, X, W, top, bot, p.seed ?? p.x, 'back'));
+          add('over', X - 120, top - 30, W + 240, bot - top + 90, (pix) => treeCrown(pix, X, W, top, bot, p.seed ?? p.x, 'front'));
+          break;
+        }
+        case 'last_tree': add('behind', X - 140, Y - 440, 300, 444, (pix) => lastTree(pix, X + 8, Y + 2)); break;
         case 'horizon': add('behind', X - 40, Y - 200, 26 * TILE, 204, (pix) => horizon(pix, X, Y, 24 * TILE)); break;
         default: break;
       }
@@ -149,8 +237,8 @@ export class ForetProps {
     // la grande branche des lianes balancier (zone 10), portée par des fûts qui montent du ravin
     const vb = level.props.filter((p) => p.type === 'vine_branch');
     if (vb.length) {
-      const x0 = (vb[0].x - 9) * TILE, x1 = (vb[vb.length - 1].x + 9) * TILE, y = vb[0].y * TILE;
-      add('behind', x0 - 40, y - 90, x1 - x0 + 80, level.height - y + 90, (pix) => vineBough(pix, level, x0, x1, y, vb));
+      const x0 = (vb[0].x - 9) * TILE, x1 = (vb[vb.length - 1].x + 12) * TILE, y = Math.min(...vb.map((p) => p.y)) * TILE;
+      add('behind', x0 - 60, y - 140, x1 - x0 + 120, level.height - y + 140, (pix) => vineBough(pix, level, x0, x1, vb));
     }
     // les galeries de terre de la zone 5 : leur fond (strates, racines, pierres, lueurs)
     if (F.galleries) {
@@ -175,7 +263,8 @@ export class ForetProps {
   branches(add) {
     const lv = this.level, climbs = lv.props.filter((p) => p.type === 'climb_trunk'), statue = lv.props.find((p) => p.type === 'statue');
     const decl = lv.props.filter((p) => p.type === 'branch');
-    const trees = lv.props.filter((p) => p.type === 'canopy_trunk');
+    const trees = lv.props.filter((p) => p.type === 'canopy_trunk')
+      .concat(lv.props.filter((p) => p.type === 'last_tree').map((p) => ({ x: p.x, y: p.y, w: 40, cedar: true })));
     for (let ty = 0; ty < lv.h; ty++) {
       const row = lv.rows[ty];
       for (let tx = 0; tx < lv.w; tx++) {
@@ -187,6 +276,12 @@ export class ForetProps {
           add('over', X - 8, Y - 6, W + 16, 14, (pix) => leafMat(pix, X, Y, W, tx));
           continue;
         }
+        // la grande branche de la statue : elle se dessine elle-même (prop rope_branch)
+        if (lv.props.some((p) => p.type === 'rope_branch' && p.y === ty && tx >= p.x && tx < p.x1)) continue;
+        // les racines en marche de l'arche (zone 3) : elle les dessine elle-même
+        if (lv.props.some((p) => p.type === 'root_arch' && p.steps.some((q) => q[1] === ty && tx >= q[0] && tx < q[0] + q[2]))) continue;
+        // la plateforme, l'échelle et le toit de la cabane du guetteur : elle les dessine elle-même
+        if (lv.props.some((p) => p.type === 'treehouse' && tx >= p.x0 && tx < p.x1 && ty >= p.roof && ty < p.y)) continue;
         // dans le boyau de l'arbre creux géant : un simple nœud du bois, pas d'arbre
         const hg = lv.props.find((p) => p.type === 'hollow_giant' && tx >= p.x && tx < p.x + p.w && ty > p.top);
         if (hg) { add('over', X - 4, Y - 4, W + 8, 14, (pix) => limb(pix, X - 2, X + W + 2, Y, tx === hg.x + 1 ? -1 : 1, tx * 7 + ty, false)); continue; }
@@ -198,9 +293,27 @@ export class ForetProps {
         if (host) {
           const tcx = host.x * TILE + 8, half = (host.w ?? 20) / 2 - 3;
           // un bras de chaque côté du fût que la branche dépasse
-          if (X - 4 < tcx - half) add('over', X - 16, Y - 12, tcx - X + 24, 28, (pix) => limb(pix, X - 4, tcx - half, Y, -1, tx * 7 + ty, true));
-          if (X + W + 4 > tcx + half) add('over', tcx - 8, Y - 12, X + W - tcx + 24, 28, (pix) => limb(pix, tcx + half, X + W + 4, Y, 1, tx * 7 + ty + 1, true));
+          if (host.cedar) {
+            // le grand cèdre de la lisière : chaque branche porte un plateau de feuillage (on marche sur son dessus)
+            if (X - 4 < tcx - half) add('over', X - 20, Y - 10, tcx - X + 28, 40, (pix) => cedarTier(pix, X - 6, tcx - half + 2, Y, -1, tx * 7 + ty));
+            if (X + W + 4 > tcx + half) add('over', tcx - 8, Y - 10, X + W - tcx + 28, 40, (pix) => cedarTier(pix, tcx + half - 2, X + W + 6, Y, 1, tx * 7 + ty + 1));
+          } else {
+            if (X - 4 < tcx - half) add('over', X - 16, Y - 12, tcx - X + 24, 28, (pix) => limb(pix, X - 4, tcx - half, Y, -1, tx * 7 + ty, true));
+            if (X + W + 4 > tcx + half) add('over', tcx - 8, Y - 12, X + W - tcx + 24, 28, (pix) => limb(pix, tcx + half, X + W + 4, Y, 1, tx * 7 + ty + 1, true));
+          }
+          // une branche en travers du fût (une fourche) : un rebord de bois moussu devant lui
+          if (X < tcx - half && X + W > tcx + half) add('over', tcx - half - 4, Y - 4, 2 * half + 8, 14, (pix) => crotch(pix, tcx, half + 3, Y, tx));
           if (d?.nest) add('over', X + W / 2 - 18, Y - 14, 36, 18, (pix) => nest(pix, X + W / 2, Y));
+          continue;
+        }
+        // une branche qui sort d'un grand tronc jouable (« | » au bout) : un bras feuillu, pas d'arbre en plus
+        const bole = row[tx + w] === '|' ? 1 : row[tx - 1] === '|' ? -1 : 0;
+        if (bole) {
+          const edge = bole > 0 ? (tx + w) * TILE + 3 : tx * TILE - 3;
+          // l'arbre aux cavités (un tronc jouable couronné) : de vieilles branches naturelles, effilées
+          const crowned = lv.props.some((p) => p.type === 'tree_crown' && Math.abs((bole > 0 ? tx + w : tx - 3) - p.x) <= 1);
+          if (crowned) add('over', X - 30, Y - 22, W + 60, 46, (pix) => oldBough(pix, bole > 0 ? X - 4 : edge, bole > 0 ? edge : X + W + 4, Y, -bole, tx * 7 + ty));
+          else add('over', X - 16, Y - 14, W + 32, 32, (pix) => limb(pix, bole > 0 ? X - 4 : edge, bole > 0 ? edge : X + W + 4, Y, -bole, tx * 7 + ty, true));
           continue;
         }
         if (climb) {
@@ -318,6 +431,110 @@ function birch(pix, cx, base, h, seed) {
 }
 
 /** Rocher moussu qui remplit exactement son bloc (son dessus est à la hauteur des pieds de KAGE). */
+/**
+ * Le grand arbre agrippé au pilier de la statue (zone 9) : un tronc épais plaqué contre la maçonnerie (cx),
+ * qui monte vers la canopée au-dessus de l'image ; sous la branche (Y), ses racines ruissellent le long
+ * des pierres jusqu'au sol (G), en laissant libre l'entrée du tunnel (à door).
+ */
+function pillarTree(pix, cx, Y, G, door, seed) {
+  // le tronc : un cylindre éclairé à gauche, sillons verticaux, mousse
+  for (let y = Y - 200; y < Y + 26; y++) {
+    const half = 12 + Math.max(0, (y - Y) / 26) * 6 + (noise1(y * 0.05, seed) - 0.5) * 2;
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) {
+      const u = (x - (cx - half)) / (2 * half);
+      let v = 0.82 - u * 0.66 + (noise2(x * 0.5, y * 0.08, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.32, y * 0.025, seed + 1) - 0.5) < 0.05) v -= 0.3;
+      const moss = u < 0.35 && fbm2(x * 0.1, y * 0.06, 2, seed + 2) > 0.58;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.4 + (1 - u) * 0.4, x, y) : pick(C.BARK, v, x, y));
+    }
+  }
+  // le départ de la grande branche : un collet épais, du tronc jusqu'au bord du pilier (la poulie est juste à gauche)
+  for (let x = door - 2; x <= cx - 8; x++) {
+    const t = (x - (door - 2)) / Math.max(1, cx - 8 - (door - 2)), th = Math.round(15 + t * 9);
+    for (let j = 0; j < th; j++) {
+      const y = Y - Math.round(t * 4) + j, k = j / th;
+      const moss = j <= 1 ? (ih(x, 1, seed) < 0.6 ? C.MOSS[5] : C.MOSS[4]) : null;
+      pix.set(x, y, moss ?? pick(C.BARK, 0.8 - k * 0.7 + (noise2(x * 0.4, y * 0.4, seed + 5) - 0.5) * 0.2, x, y));
+    }
+  }
+  // en haut, il se perd dans le feuillage
+  for (let k = 0; k < 4; k++) L.bush(pix, cx - 18 + k * 12, Y - 196 + (k % 2) * 8, 22, 14, C.LEAF, seed + k);
+  // les racines : elles descendent le long du pilier, s'écartent de l'entrée du tunnel (à gauche, la porte)
+  // et s'arrêtent au-dessus de son plafond : rien ne passe devant le bloc ni ne cache KAGE qui y glisse
+  const roots = [[-2, door + 26, 6, G - 3 * TILE], [4, door + 14, 4, G - 4 * TILE], [9, door + 38, 5, G - 3 * TILE - 6], [-11, door + 2, 3, G - 3 * TILE - 2]];
+  for (const [i, [dx, xg, w, yEnd]] of roots.entries()) rootStroke(pix, cx + dx, Y + 18, xg, yEnd, w, 2, (i % 2 ? 8 : -6), seed + 30 + i, 1);
+}
+
+/**
+ * La grande branche de la statue (zone 9), de X0 (son bout, à gauche) à X1 (la falaise) ; dessus plat à Y
+ * (on y marche). Massive contre la roche (un collet, des racines qui l'agrippent), elle s'effile vers la
+ * gauche ; des touffes de feuilles dessous et au bout, de la mousse, des brins qui pendent ; un grand
+ * rameau en Y dressé à twigX (sa fourche, 13 px au-dessus du dessus), où la corde se coincera au retour.
+ */
+function ropeBranch(pix, X0, X1, Y, twigX, seed) {
+  const len = X1 - X0;
+  for (let x = X0 - 6; x <= X1 + 6; x++) {
+    const t = (X1 - x) / len;                                            // 0 contre la falaise, 1 au bout
+    const th = Math.max(5, Math.round(16 - t * 9 + Math.max(0, 1 - (X1 - x) / 22) * 10 + (noise1(x * 0.17, seed) - 0.5) * 2));
+    const top = Y + (x > X1 - 10 ? -Math.round((x - (X1 - 10)) * 0.6) : 0) + Math.round((noise1(x * 0.09, seed + 1) - 0.5) * 1.2);
+    for (let y = top; y < Y + th; y++) {
+      const k = (y - top) / (Y + th - top);
+      let v = 0.82 - k * 0.72 + (noise2(x * 0.4, y * 0.5, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.05, y * 0.45, seed + 2) - 0.5) < 0.04) v -= 0.28;     // les sillons de l'écorce
+      const moss = y - top <= 1 ? (ih(x, 1, seed) < 0.65 ? C.MOSS[5] : C.MOSS[4]) : y - top === 2 && ih(x, 2, seed) < 0.45 ? C.MOSS[3] : null;
+      pix.set(x, y, moss ?? pick(C.BARK, v, x, y));
+    }
+  }
+  // contre la falaise : des racines qui s'enfoncent dans les fissures de la roche
+  for (let k = 0; k < 4; k++) rootStroke(pix, X1 - 4, Y + 4 + k * 3, X1 + 10 + k * 5, Y - 30 + k * 22, 5 - (k % 2), 1, (k % 2 ? 4 : -4), seed + 20 + k);
+  // le bout : un rameau qui se relève, une grosse touffe
+  for (let i = 0; i < 10; i++) { const x = X0 - 6 - i, y = Y + 2 - Math.round((i / 10) ** 1.5 * 7); pix.set(x, y, C.BARK[2]); pix.set(x, y + 1, C.BARK[1]); }
+  L.bush(pix, X0 - 16, Y - 6, 18, 11, C.LEAF, seed + 3);
+  // des touffes sous la branche (le dessus reste libre), de la mousse et des brins qui pendent
+  for (let x = X0 + 10; x < X1 - 20; x += 22 + Math.floor(ih(x, 3, seed) * 14)) L.bush(pix, x, Y + 14, 12 + Math.floor(ih(x, 4, seed) * 8), 7, C.LEAF, seed + x);
+  for (let x = X0 + 4; x < X1 - 6; x += 4) if (ih(x, 5, seed) < 0.45) L.strand(pix, x, Y + 10 + Math.floor(ih(x, 6, seed) * 4), 4 + Math.floor(ih(x, 7, seed) * 12), C.LEAF, seed + x, 0.5);
+  for (let x = X0; x < X1 - 4; x += 3) if (ih(x, 8, seed) < 0.45) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 9, seed) * 2), C.FERN, x);
+  // le grand rameau en Y : une tige qui sort du dessus (un empattement moussu), se fourche à 13 px ; un bras
+  // part loin vers la gauche, l'autre se dresse ; des feuilles en touffes au bout de chacun, quelques-unes
+  // le long des bras ; la corde se coince dans la fourche
+  const tx = Math.round(twigX), fy = Y - 13;
+  for (let k = -3; k <= 4; k++) if (Math.abs(k) < 3 || ih(k, 11, seed) < 0.6) pix.set(tx + 1 + k, Y - 1, k < 1 ? C.MOSS[4] : C.BARK[2]);
+  rootStroke(pix, tx + 3, Y + 1, tx, fy, 7, 4, 0.8, seed + 40, 1);              // la tige
+  rootStroke(pix, tx - 1, fy + 1, tx - 21, Y - 31, 4, 2, -2, seed + 41);       // le bras de gauche, qui part loin
+  rootStroke(pix, tx + 1, fy + 1, tx - 2, Y - 36, 3.5, 1.5, 1.2, seed + 42);    // le bras dressé
+  rootStroke(pix, tx - 12, Y - 24, tx - 16, Y - 38, 2, 1, 0.6, seed + 43);     // une brindille
+  rootStroke(pix, tx - 18, Y - 29, tx - 27, Y - 33, 1.5, 1, -0.5, seed + 47);   // et une autre, au bout
+  L.bush(pix, tx - 24, Y - 29, 10, 8, C.LEAF, seed + 44);
+  L.bush(pix, tx - 2, Y - 34, 8, 9, C.LEAF, seed + 45);
+  L.bush(pix, tx - 15, Y - 36, 7, 7, C.LEAF, seed + 46);
+  for (const [dx, dy] of [[-6, -18], [-9, -22], [3, -24], [-1, -17], [-14, -26], [2, -30]]) { pix.set(tx + dx, Y + dy, C.LEAF[4]); pix.set(tx + dx + 1, Y + dy, C.LEAF[3]); pix.set(tx + dx, Y + dy - 1, C.LEAF[5]); }
+}
+
+/**
+ * Un rocher du torrent (décor) : pointu, de biais, luisant d'eau ; base à cy (la ligne d'eau), w de large,
+ * h de haut au-dessus de l'eau ; plus bas, il continue sous l'eau (cachée devant lui).
+ */
+function riverRock(pix, cx, cy, w, h, seed) {
+  const S = ['#1a2328', '#25323a', '#33454f', '#4a5f69', '#6a808a', '#93a7ad', '#c9d8da'];
+  const lean = (ih(seed, 1, 71) - 0.5) * 0.6, peak = cx + Math.round(lean * w);
+  for (let y = cy - h; y < cy + 14; y++) {
+    const k = Math.min(1, (y - (cy - h)) / h);                          // 0 à la pointe, 1 à la ligne d'eau
+    const half = w * Math.pow(k, 0.7) * (1 + (noise1(y * 0.3, seed) - 0.5) * 0.35) + (y > cy ? (y - cy) * 0.4 : 0);
+    const c0 = peak + (cx - peak) * k;
+    for (let x = Math.floor(c0 - half); x <= Math.ceil(c0 + half); x++) {
+      const u = (x - (c0 - half)) / Math.max(1, 2 * half);             // 0 à gauche (lumière), 1 à droite
+      let v = 0.78 - u * 0.62 - k * 0.12 + (noise2(x * 0.3, y * 0.3, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.15, y * 0.4, seed + 1) - 0.5) < 0.035) v -= 0.3;   // fissures
+      let c = pick(S, v, x, y);
+      if (y > cy - 3 && y <= cy) c = S[1];                              // la ligne mouillée, sombre
+      if (u < 0.25 && k < 0.6 && ih(x, y, seed) < 0.12) c = S[6];       // l'eau qui luit
+      pix.set(x, y, c);
+    }
+  }
+  // un filet de mousse sur le côté abrité, des gouttes au pied
+  for (let y = cy - Math.round(h * 0.5); y < cy - 2; y++) if (ih(y, 2, seed) < 0.5) pix.set(Math.round(cx + w * 0.35 + (cx - peak) * 0.2), y, C.MOSS[2]);
+}
+
 function boulder(pix, X, Y, W, Hh, seed, wet) {
   const moss = wet ? [C.MOSS[0], C.MOSS[1], C.MOSS[2], C.MOSS[2], C.MOSS[3], C.MOSS[4], C.MOSS[4]] : C.MOSS;
   const ramp = wet ? ['#1a2830', '#26393f', '#34505a', '#486b72', '#62878b', '#88a9a6'] : C.ROCK;
@@ -438,7 +655,7 @@ export function limbSprite(x0, x1, Y, dir, seed) {
   return { img: pix.done(), x: X, y: Y - 16 };
 }
 
-function limb(pix, x0, x1, Y, dir, seed, leafy) {
+function limb(pix, x0, x1, Y, dir, seed, leafy, ramp = C.LEAF) {
   const a = Math.min(x0, x1), b = Math.max(x0, x1), len = b - a;
   for (let x = a; x <= b; x++) {
     const t = dir > 0 ? (x - a) / len : (b - x) / len;               // 0 côté tronc, 1 au bout
@@ -450,11 +667,89 @@ function limb(pix, x0, x1, Y, dir, seed, leafy) {
     }
   }
   if (leafy) {
-    L.bush(pix, dir > 0 ? b - 2 : a + 2, Y + 3, 12, 8, C.LEAF, seed + 3);
-    for (let x = a + 4; x < b - 4; x += 5) if (ih(x, 3, seed) < 0.45) L.strand(pix, x, Y + 6, 4 + Math.floor(ih(x, 4, seed) * 9), C.LEAF, seed + x, 0.5);
+    L.bush(pix, dir > 0 ? b - 2 : a + 2, Y + 3, 12, 8, ramp, seed + 3);
+    for (let x = a + 4; x < b - 4; x += 5) if (ih(x, 3, seed) < 0.45) L.strand(pix, x, Y + 6, 4 + Math.floor(ih(x, 4, seed) * 9), ramp, seed + x, 0.5);
   }
   for (let x = a + 2; x < b; x += 3) if (ih(x, 5, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 6, seed) * 2), C.FERN, x);
 }
+
+/**
+ * Une vieille branche de l'arbre aux cavités, de x0 à x1 (dir : côté du bout). Épaisse au tronc (un collet
+ * qui s'y fond), elle s'effile jusqu'au bout, où un rameau se relève ; le dessus reste plat là où l'on
+ * marche, moussu ; quelques rameaux portent des touffes de feuilles, une grosse touffe coiffe le bout.
+ */
+function oldBough(pix, x0, x1, Y, dir, seed) {
+  const a = Math.min(x0, x1), b = Math.max(x0, x1), len = b - a;
+  const at = (t) => (dir > 0 ? a + t * len : b - t * len);
+  for (let x = a; x <= b; x++) {
+    const t = dir > 0 ? (x - a) / len : (b - x) / len;               // 0 côté tronc, 1 au bout
+    const collar = Math.max(0, 1 - t * len / 9);                      // le collet, contre le tronc
+    const th = Math.max(3, Math.round(10 - t * 6 + collar * 6 + (noise1(x * 0.21, seed) - 0.5) * 2));
+    const top = Y + Math.round((noise1(x * 0.11, seed + 1) - 0.5) * 1.2) - Math.round(collar * 3);
+    for (let j = 0; j < th + (top < Y ? Y - top : 0); j++) {
+      const y = top + j, k = j / th;
+      const v = 0.8 - k * 0.7 + (noise2(x * 0.45, y * 0.6, seed) - 0.5) * 0.18 - (Math.abs(noise2(x * 0.06, y * 0.5, seed + 2) - 0.5) < 0.04 ? 0.25 : 0);
+      const moss = j <= 1 && y <= Y + 1 ? (ih(x, 1, seed) < 0.62 ? C.MOSS[5] : C.MOSS[4]) : j === 2 && ih(x, 2, seed) < 0.4 ? C.MOSS[3] : null;
+      pix.set(x, y, moss ?? pick(C.BARK, v, x, y));
+    }
+  }
+  // le bout : un rameau qui se relève, au-delà de la partie où l'on marche
+  const tipX = dir > 0 ? b : a;
+  for (let i = 0; i < 9; i++) {
+    const x = tipX + dir * i, y = Y + 1 - Math.round((i / 9) ** 1.6 * 6);
+    pix.set(x, y, C.BARK[2]); pix.set(x, y + 1, C.BARK[1]);
+  }
+  L.bush(pix, tipX + dir * 9, Y - 4, 14, 9, C.LEAF, seed + 3);
+  // des rameaux le long de la branche : vers le bas surtout (le dessus reste libre), une touffe au bout de chacun
+  for (let k = 0; k < 3; k++) {
+    if (ih(k, 4, seed) < 0.3) continue;
+    const t = 0.3 + k * 0.22 + (ih(k, 5, seed) - 0.5) * 0.1, x = Math.round(at(t)), down = ih(k, 6, seed) < 0.75;
+    const n = 6 + Math.floor(ih(k, 7, seed) * 7);
+    let ex = x, ey = Y;
+    for (let i = 0; i < n; i++) {
+      ex = x + dir * Math.round(i * 0.7); ey = down ? Y + 6 + Math.round(i * 0.6) : Y - 1 - Math.round(i * 0.8);
+      pix.set(ex, ey, C.BARK[1]);
+    }
+    L.bush(pix, ex, ey + (down ? 1 : -2), 8 + Math.floor(ih(k, 8, seed) * 5), 6, C.LEAF, seed + 10 + k);
+  }
+  // des brins de mousse et de feuilles qui pendent, et des touffes d'herbe sur le dessus
+  for (let x = a + 6; x < b - 3; x += 5) if (ih(x, 3, seed) < 0.4) L.strand(pix, x, Y + 7, 3 + Math.floor(ih(x, 4, seed) * 8), C.LEAF, seed + x, 0.5);
+  for (let x = a + 2; x < b; x += 3) if (ih(x, 5, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 6, seed) * 2), C.FERN, x);
+}
+
+/** La fourche d'un grand arbre, là où une branche le traverse : un bourrelet de bois sur lequel on se pose. */
+function crotch(pix, cx, half, Y, seed) {
+  for (let x = cx - half; x <= cx + half; x++) {
+    const t = (x - (cx - half)) / (2 * half), th = Math.round(5 + Math.sin(t * Math.PI) * 3);
+    for (let j = 0; j < th; j++) pix.set(x, Y + j, j === 0 ? (ih(x, 1, seed) < 0.5 ? C.MOSS[4] : C.MOSS[3]) : pick(C.BARK, 0.8 - t * 0.5 - j / th * 0.35, x, Y + j));
+  }
+}
+
+/** Le feuillage du cèdre au couchant : les aiguilles sombres, bleuies par le soir, et le liseré chaud du soleil bas. */
+const CEDAR = ['#0f1a1c', '#16262a', '#1f3434', '#2a453f', '#3a5a4a', '#577055', '#8a8a62'];
+
+/**
+ * Un plateau de cèdre le long d'une branche (de x0 à x1, dir : côté du bout) : le dessus presque plat
+ * (on s'y pose), l'épaisseur qui retombe en franges, plus épaisse près du fût, éclairée du haut à
+ * gauche ; une branche sombre dedans ; le soleil couchant ourle le dessus.
+ */
+function cedarTier(pix, x0, x1, Y, dir, seed) {
+  const a = Math.min(x0, x1), b = Math.max(x0, x1), len = b - a;
+  const th = (x) => { const t = dir > 0 ? (x - a) / len : (b - x) / len; return 13 - t * 7 + Math.sin(x * 0.55 + seed) * 2 + (noise1(x * 0.3, seed) - 0.5) * 4; };
+  const inside = (x, y) => {
+    if (x < a - 3 || x > b + 3) return -1;
+    const end = dir > 0 ? b - x : x - a, round = Math.min(1, end / 6);
+    const top = Y - 2 - round * 2, bot = Y + th(x) * (0.4 + 0.6 * round);
+    return Math.min(y - top, bot - y) / 3 + (noise2(x * 0.4, y * 0.4, seed) - 0.5) * 0.8;
+  };
+  // la branche, devinée sous le feuillage
+  for (let x = a; x <= b; x++) { const t = dir > 0 ? (x - a) / len : (b - x) / len; for (let j = 0; j < Math.max(2, 5 - t * 3); j++) pix.set(x, Y + 3 + j, C.BARK[j ? 0 : 2]); }
+  L.leafMass(pix, [a - 4, Y - 6, b + 4, Y + 18], inside, (x, y) => 0.78 - (y - Y + 4) / 18 - (x - a) / 900, CEDAR, seed, { step: 2, wide: 0 });
+  // le liseré du couchant sur le dessus (c'est là qu'on marche)
+  for (let x = a + 1; x < b; x++) if (inside(x, Y - 1) > 0 && ih(x, 3, seed) < 0.7) pix.set(x, Y - 1 + (ih(x, 4, seed) < 0.3 ? 1 : 0), ih(x, 5, seed) < 0.4 ? '#c99a62' : CEDAR[5]);
+}
+
+const DUSK_LEAF = ['#1a1420', '#2a1f2e', '#3a2a36', '#4f3a40', '#6b4d4a', '#8c6a56', '#b08a62'];   // feuillage au couchant (le dernier grand arbre)
 
 /** L'arbre qui porte une branche : son tronc descend jusqu'au sol ; le houppier s'ouvre au-dessus. */
 function branchTree(pix, cx, Y, bottom, topY, seed, wide = 0) {
@@ -477,6 +772,336 @@ function branchTree(pix, cx, Y, bottom, topY, seed, wide = 0) {
       return best * 3 + (noise2(x * 0.25, y * 0.25, seed + k) - 0.5) * 0.9 + (y > ly ? Math.sin(x * 0.7) * 0.4 : 0);
     };
     L.leafMass(pix, [lx - lw * 1.4, ly - lw, lx + lw * 1.4, ly + lw * 0.9], inside, (x, y) => 0.62 - (y - ly + lw * 0.6) / (lw * 1.6) - (x - lx) / (lw * 5), leaf, seed + k * 7);
+  }
+}
+
+/**
+ * Couronne d'un grand tronc jouable : de gros lobes de feuillage étagés autour du fût, éclairés du
+ * haut à gauche, qui retombent en franges ; des branches maîtresses qui y plongent ; des lianes.
+ * part 'back' : la masse (derrière le tronc et le terrain) ; 'front' : quelques grappes sur les
+ * bords du fût et des feuilles qui pendent, devant le terrain mais derrière KAGE.
+ */
+function treeCrown(pix, X, W, top, bot, seed, part) {
+  const cx = X + W / 2;
+  if (part === 'back') {
+    // des touffes étagées le long du fût, de part et d'autre, chacune au bout de sa branche
+    // (le même dessin que les vieux chênes : on voit le ciel entre elles)
+    const tufts = [];
+    const n = 11;
+    for (let i = 0; i < n; i++) {
+      const side = (i + (seed % 2)) % 2 ? 1 : -1, u = i / (n - 1);
+      const y = top + 18 + u * (bot - top - 46) + (ih(i, 1, seed) - 0.5) * 14;
+      const reach = W / 2 + 26 + ih(i, 2, seed) * 46 + Math.sin(u * Math.PI) * 26;
+      tufts.push({ x: cx + side * reach, y, rx: 24 + ih(i, 3, seed) * 16, ry: 15 + ih(i, 4, seed) * 9, side, back: ih(i, 5, seed) < 0.3 });
+    }
+    tufts.push({ x: cx + 4, y: top + 4, rx: 40, ry: 22, side: 0, back: false });
+    const deep = L.hazeRamp(C.LEAF, '#0c2a22', 0.35);
+    tufts.sort((a, b) => (b.back - a.back) || (a.y - b.y));
+    for (const [k, t] of tufts.entries()) {
+      if (t.side) {
+        const sx = cx + t.side * (W / 2 - 2), sy = t.y + t.ry * 0.9 + 10, ex = t.x - t.side * t.rx * 0.25, ey = t.y + t.ry * 0.35;
+        const len = Math.ceil(Math.hypot(ex - sx, ey - sy));
+        for (let q = 0; q <= len; q++) {
+          const u = q / len, x = sx + (ex - sx) * u, y = sy + (ey - sy) * u - Math.sin(u * Math.PI) * 6, w = Math.max(1, Math.round(5 - u * 3.5));
+          for (let j = 0; j < w; j++) pix.set(Math.round(x), Math.round(y) + j, j === 0 ? C.BARK[t.back ? 2 : 4] : j === w - 1 ? C.BARK[0] : C.BARK[t.back ? 1 : 2]);
+        }
+      }
+      const inside = (x, y) => (1 - Math.hypot((x - t.x) / t.rx, ((y - t.y) / t.ry) * (y > t.y ? 1.25 : 1))) * 3 + (noise2(x * 0.22, y * 0.22, seed + k) - 0.5) * 1.6;
+      const light = (x, y) => (t.back ? 0.5 : 0.82) - ((y - t.y) / t.ry) * 0.42 - ((x - t.x) / t.rx) * 0.22;
+      L.leafMass(pix, [Math.floor(t.x - t.rx - 8), Math.floor(t.y - t.ry - 8), Math.ceil(t.x + t.rx + 8), Math.ceil(t.y + t.ry + 8)], inside, light, t.back ? deep : C.LEAF, seed + k * 3);
+      if (t.side && ih(k, 9, seed) < 0.55) L.strand(pix, Math.round(t.x + (ih(k, 10, seed) - 0.5) * t.rx), Math.round(t.y + t.ry * 0.6), 8 + Math.floor(ih(k, 11, seed) * 24), C.LEAF, seed + k, 0.6);
+    }
+  } else {
+    // devant : de petites grappes collées aux flancs du fût (elles cassent sa silhouette droite)
+    for (let k = 0; k < 6; k++) {
+      const side = k % 2 ? 1 : -1, y = top + 30 + k * ((bot - top - 50) / 6) + ih(k, 4, seed) * 12;
+      L.bush(pix, Math.round(cx + side * (W / 2 + 4)), Math.round(y), 9 + Math.floor(ih(k, 5, seed) * 5), 7, C.LEAF, seed + k * 5);
+    }
+    for (let i = 0; i < 5; i++) L.strand(pix, Math.round(cx + (i % 2 ? 1 : -1) * (W / 2 + 2 + i * 3)), Math.round(top + 50 + i * 30), 8 + Math.floor(ih(i, 7, seed) * 12), C.LEAF, seed + 30 + i, 0.9);
+  }
+}
+
+/** Le vieux chêne de la cabane du guetteur : un fût court et noueux qui se divise en grosses
+ *  branches au-dessus de la plateforme, et un houppier large et touffu. */
+function oakTree(pix, cx, base, deckY, seed) {
+  const fork = deckY - 34;
+  L.bigTrunk(pix, cx, 34, base, seed, C.BARK, C.MOSS, { top: fork, roots: 1.35 });
+  // les grosses branches : elles partent du haut du fût en éventail
+  const arms = [[-1, 0.55, 70, 9], [1, 0.45, 82, 10], [-1, 1.15, 50, 7], [1, 1.25, 46, 7], [0, 1.6, 40, 8]];
+  for (const [side, rise, len, w0] of arms) {
+    for (let q = 0; q < len; q++) {
+      const t = q / len, w = Math.max(2, Math.round(w0 * (1 - t * 0.7)));
+      const x = cx + side * q * (side ? 1 : 0.15) + (side ? 0 : Math.sin(q * 0.08) * 4), y = fork + 4 - q * rise * (1 - t * 0.3);
+      for (let j = -Math.floor(w / 2); j <= Math.floor(w / 2); j++) {
+        const u = (j + w / 2) / w;
+        pix.set(Math.round(x + (side ? 0 : j)), Math.round(y + (side ? j : 0)), pick(C.BARK, 0.75 - u * 0.55 + (noise2(q * 0.3, j, seed) - 0.5) * 0.15, x, y));
+      }
+    }
+  }
+  clumpCrown(pix, cx, fork, 150, seed);
+}
+
+/** Un houppier en touffes séparées (pins japonais, vieux chênes) sur sa ramure ; R : rayon (px). */
+function clumpCrown(pix, cx, fork, R, seed, n = Math.round(18 * R / 150), ramp = C.LEAF) {
+  const k = R / 150;
+  // le houppier : des touffes bien séparées (on voit le ciel entre elles), chacune éclairée du haut
+  // à gauche et sombre dessous ; celles du fond, plus sombres, d'abord
+  const tufts = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI + (i + 0.5) / n * Math.PI + (ih(i, 1, seed) - 0.5) * 0.25;
+    const r = 0.55 + ih(i, 2, seed) * 0.45;
+    tufts.push({ x: cx + Math.cos(a) * R * r, y: fork - 60 * k + Math.sin(a) * R * 0.8 * r, rx: (26 + ih(i, 3, seed) * 18) * k, ry: (18 + ih(i, 4, seed) * 12) * k, back: ih(i, 5, seed) < 0.4 });
+  }
+  tufts.push({ x: cx - 8 * k, y: fork - 30 * k, rx: 44 * k, ry: 22 * k, back: true }, { x: cx + 40 * k, y: fork - 150 * k, rx: 38 * k, ry: 26 * k, back: false });
+  tufts.sort((a, b) => (b.back - a.back) || (a.y - b.y));
+  const deep = L.hazeRamp(ramp, ramp === C.LEAF ? '#0c2a22' : '#140c18', 0.35);
+  // la ramure : quatre branches maîtresses qui montent en s'écartant, puis un rameau vers chaque touffe
+  const limbLine = (sx, sy, ex, ey, w0, w1, bend, dark) => {
+    const n = Math.ceil(Math.hypot(ex - sx, ey - sy));
+    const pts = [];
+    for (let q = 0; q <= n; q++) {
+      const u = q / n, x = sx + (ex - sx) * u + Math.sin(u * Math.PI) * bend * 0.4, y = sy + (ey - sy) * u - Math.sin(u * Math.PI) * bend;
+      const w = Math.max(1, Math.round(w0 + (w1 - w0) * u));
+      for (let j = 0; j < w; j++) pix.set(Math.round(x), Math.round(y) + j, j === 0 ? (dark ? C.BARK[2] : C.BARK[4]) : j === w - 1 ? C.BARK[0] : pick(C.BARK, dark ? 0.25 : 0.45, x, y + j));
+      pts.push([x, y]);
+    }
+    return pts;
+  };
+  const mains = [[-150, -70], [-70, -150], [60, -155], [140, -80]].map(([dx, dy], i) => limbLine(cx + Math.sign(dx) * 4 * k, fork + 8 * k, cx + dx * 0.72 * k, fork + dy * 0.72 * k, Math.max(3, 8 * k), Math.max(1, 3 * k), (10 + i * 3) * k, false));
+  for (const [k, t] of tufts.entries()) {
+    // le point de la ramure le plus proche de la touffe : le rameau en part
+    let best = null, bd = 1e9;
+    for (const m of mains) for (let q = Math.floor(m.length * 0.35); q < m.length; q += 3) { const d = Math.hypot(m[q][0] - t.x, m[q][1] - t.y); if (d < bd) { bd = d; best = m[q]; } }
+    limbLine(best[0], best[1], t.x - Math.sign(t.x - cx) * t.rx * 0.15, t.y + t.ry * 0.4, t.back ? 3 : 4, 1, 4 + ih(k, 12, seed) * 6, t.back);
+  }
+  for (const [k, t] of tufts.entries()) {
+    const inside = (x, y) => {
+      const nx = (x - t.x) / t.rx, ny = (y - t.y) / t.ry;
+      return (1 - Math.hypot(nx, ny * (y > t.y ? 1.25 : 1))) * 3 + (noise2(x * 0.22, y * 0.22, seed + k) - 0.5) * 1.6;
+    };
+    const light = (x, y) => (t.back ? 0.5 : 0.82) - ((y - t.y) / t.ry) * 0.42 - ((x - t.x) / t.rx) * 0.22 - (x - cx) / 900;
+    L.leafMass(pix, [Math.floor(t.x - t.rx - 8), Math.floor(t.y - t.ry - 8), Math.ceil(t.x + t.rx + 8), Math.ceil(t.y + t.ry + 8)], inside, light, t.back ? deep : ramp, seed + k * 3);
+  }
+  // quelques brins qui pendent des touffes basses
+  for (const [i, t] of tufts.entries()) if (t.y > fork - 80 * k && ih(i, 9, seed) < 0.6) L.strand(pix, Math.round(t.x + (ih(i, 10, seed) - 0.5) * t.rx), Math.round(t.y + t.ry * 0.6), Math.round((8 + Math.floor(ih(i, 11, seed) * 22)) * k), ramp, seed + i, 0.6);
+}
+
+/**
+ * Un « orteil » de racine qui rampe au sol depuis le pied d'un pilier : posé sur la ligne y0, il part vers
+ * dir (-1 ou 1) sur len px, de h0 px de haut à rien ; le dessus moussu, il ondule un peu.
+ */
+function rootToe(pix, x0, y0, len, dir, h0, seed) {
+  for (let i = 0; i <= len; i++) {
+    const u = i / len, h = Math.round(h0 * Math.pow(1 - u, 0.8) + (noise1(i * 0.2, seed) - 0.5) * 1.5);
+    if (h < 1) continue;
+    const x = Math.round(x0 + dir * i), top = y0 - h + Math.round((noise1(i * 0.15, seed + 1) - 0.5) * 2);
+    for (let y = top; y <= y0; y++) {
+      const t = (y - top) / Math.max(1, y0 - top);
+      const moss = y - top < 2 && fbm2(x * 0.12, y * 0.2, 2, seed + 2) > 0.45;
+      pix.set(x, y, moss ? (y === top ? C.MOSS[4] : C.MOSS[3]) : pick(C.BARK, 0.75 - t * 0.45 - u * 0.1 + (noise2(x * 0.4, y * 0.4, seed) - 0.5) * 0.15, x, y));
+    }
+  }
+}
+
+/** Une racine épaisse, de (x0, y0) à (x1, y1), de largeur w0 à w1, courbée de bend (px) ; éclairée à gauche. */
+function rootStroke(pix, x0, y0, x1, y1, w0, w1, bend, seed, mossy = 0) {
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 1.3);
+  const nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny) || 1;
+  for (let q = 0; q <= n; q++) {
+    const u = q / n, b = Math.sin(u * Math.PI) * bend + (noise1(u * 6, seed) - 0.5) * 3;
+    const cx = x0 + (x1 - x0) * u + (nx / nl) * b, cy = y0 + (y1 - y0) * u + (ny / nl) * b;
+    const w = w0 + (w1 - w0) * u;
+    for (let j = -w / 2; j <= w / 2; j += 0.5) {
+      const x = Math.round(cx + j), y = Math.round(cy);
+      const t = (j + w / 2) / Math.max(1, w);                              // 0 à gauche (lumière), 1 à droite
+      let v = 0.78 - t * 0.6 + (noise2(x * 0.5, y * 0.12, seed) - 0.5) * 0.18;
+      if (Math.abs(noise2(x * 0.3, y * 0.04, seed + 1) - 0.5) < 0.03) v -= 0.25;   // sillons de l'écorce
+      const moss = mossy && t < 0.45 && fbm2(x * 0.1, y * 0.08, 2, seed + 2) > 0.62 - mossy * 0.1;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.3 + (1 - t) * 0.5, x, y) : pick(C.BARK, v, x, y));
+    }
+  }
+}
+
+/** L'arche de racines (zone 3). part 'legs' : les deux pieds et des racines qui descendent ; 'front' : les marches, le chevelu sous la motte. */
+function rootArch(pix, p, part) {
+  const T = TILE, X0 = p.x * T, X1 = (p.x + p.w) * T, bot = (p.y + 3) * T, G = p.ground * T, seed = p.seed;
+  if (part === 'legs') {
+    // des racines-piliers (comme un banian) : larges et évasées au sol, où elles s'étalent en « orteils »
+    // dans la mousse, elles s'affinent en montant vers la motte qu'elles portent
+    const leg = (xg, xt, yt, wg, wt, bend, s, toes = [1, -1]) => {
+      rootStroke(pix, xg, G + 3, xt, yt, wg, wt, bend, s, 1);
+      for (const [k, dir] of toes.entries()) rootToe(pix, xg + dir * (wg * 0.25), G + 2, 10 + wg * (0.7 + 0.5 * ih(k, 3, s)), dir, Math.max(3, wg * 0.42), s + k);
+    };
+    // le pied gauche : la grosse racine passe par les deux marches (ses genoux) avant de plonger dans la rive
+    const st = [...p.steps].sort((a, b) => a[1] - b[1]);                   // de la plus haute à la plus basse
+    const pts = [[X0 + 10, bot - 8], ...st.map(([c, r, w]) => [(c + w / 2) * T, r * T + 6]), [st[st.length - 1][0] * T - 18, G + 3]];
+    const nSeg = pts.length - 1;
+    for (let i = 0; i < nSeg; i++) rootStroke(pix, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 9 + i * 5, 14 + i * 5, i % 2 ? 4 : -4, seed + i, 1);
+    for (const [k, dir] of [-1, 1].entries()) rootToe(pix, pts[nSeg][0] + dir * 5, G + 2, 18 + k * 8, dir, 9, seed + 40 + k);
+    leg(X0 - 22, X0 + 20, bot - 4, 22, 7, -8, seed + 3);                  // le second pied gauche
+    // le pied droit : le plus massif, deux piliers jumeaux
+    leg(X1 + 38, X1 - 14, bot - 6, 30, 10, 14, seed + 7);
+    leg(X1 + 14, X1 - 28, bot - 3, 20, 7, 7, seed + 9, [-1]);
+    // au milieu, deux racines plus fines (loin du passage, derrière KAGE), évasées elles aussi
+    leg(X0 + 26, X0 + 40, bot - 2, 11, 4, 5, seed + 13, [-1]);
+    leg(X1 - 30, X1 - 44, bot - 2, 10, 4, -5, seed + 15, [1]);
+    return;
+  }
+  // les marches : des genoux de la grosse racine, renflés, le dessus moussu et plat (on s'y pose)
+  for (const [c, r, w] of p.steps) {
+    const x0 = c * T - 3, x1 = (c + w) * T + 3, y = r * T;
+    for (let x = x0; x <= x1; x++) {
+      const t = (x - x0) / (x1 - x0), th = Math.round(6 + Math.sin(t * Math.PI) * 6);
+      for (let j = 0; j < th; j++) pix.set(x, y + j, j === 0 ? (ih(x, 1, seed) < 0.6 ? C.MOSS[5] : C.MOSS[4]) : j === 1 ? C.MOSS[3] : pick(C.BARK, 0.8 - t * 0.35 - (j / th) * 0.4, x, y + j));
+    }
+    for (let x = x0 + 3; x < x1; x += 4) if (ih(x, 2, seed) < 0.5) L.grassTuft(pix, x, y - 1, 2 + Math.floor(ih(x, 3, seed) * 2), C.FERN, x);
+  }
+  // la motte : une boule de terre et de racines, ronde dessous, la mousse qui déborde du dessus
+  const Y = p.y * T, mid = (X0 + X1) / 2, half = (X1 - X0) / 2;
+  for (let y = Y - 2; y < bot + 10; y++) for (let x = X0 - 8; x <= X1 + 8; x++) {
+    const d = (y - Y) / (bot + 8 - Y);                                   // 0 en haut, 1 au fond de la boule
+    const w = half + 4 * Math.sin(Math.min(1, d * 1.6) * Math.PI) - Math.max(0, d - 0.55) * 1.9 * half * (d - 0.55) / 0.45
+      + (noise1(y * 0.25, seed + 20) - 0.5) * 3;
+    if (Math.abs(x - mid) > w || (y < Y && Math.abs(x - mid) > half - 2)) continue;
+    const e = w - Math.abs(x - mid), lit = (x - mid) / w;                 // distance au bord ; -1 à gauche (lumière)
+    let c;
+    if (y < Y + 3) c = y < Y ? C.MOSS[5] : pick(C.MOSS, 0.75 - (y - Y) * 0.15 - lit * 0.1, x, y);
+    else if (y < Y + 6 && noise1(x * 0.4, seed + 21) > 0.35 - (y - Y - 3) * 0.15) c = C.MOSS[2 + (lit < 0 ? 1 : 0)];   // la mousse qui coule
+    else {
+      let v = 0.5 - lit * 0.25 - d * 0.35 + (noise2(x * 0.25, y * 0.25, seed + 22) - 0.5) * 0.22;
+      if (e < 2) v -= 0.2;
+      if (Math.abs(fbm2(x * 0.06, y * 0.03, 2, seed + 23) - 0.5) < 0.03) { pix.set(x, y, C.BARK[2]); continue; }   // racines prises dans la terre
+      if (worley(x, y, 9, seed + 24).d < 1.6 && ih(Math.floor(x / 9), Math.floor(y / 9), seed) < 0.25) { pix.set(x, y, C.PEBBLE[1]); continue; }
+      c = pick(C.HUMUS, v + 0.35, x, y);
+    }
+    pix.set(x, y, c);
+  }
+  for (let x = X0 - 4; x < X1 + 4; x += 3) if (ih(x, 7, seed) < 0.6) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 8, seed) * 3), C.FERN, x);
+  // les racines qui enserrent la motte : elles montent des piliers et la tiennent par les flancs, de plus
+  // en plus fines (comme des doigts), quelques-unes en travers de la terre
+  const grip = [
+    [X0 + 8, bot - 6, X0 - 5, Y + 7, 6, 2, -5], [X0 + 20, bot - 2, X0 + 2, Y + 13, 4, 1, -3],
+    [X1 - 12, bot - 6, X1 + 5, Y + 6, 7, 2, 5], [X1 - 26, bot - 2, X1 - 4, Y + 12, 4, 1, 3],
+    [X0 + 40, bot + 2, X0 + 50, bot - 7, 3, 1, 2], [X1 - 44, bot + 2, X1 - 54, bot - 6, 3, 1, -2],
+  ];
+  for (const [i, [a0, b0, a1, b1, w0, w1, bend]] of grip.entries()) rootStroke(pix, a0, b0, a1, b1, w0, w1, bend, seed + 60 + i, 1);
+  // le chevelu : des radicelles qui pendent sous la boule (plus longues aux bords, courtes au-dessus du passage)
+  for (let x = X0 + 6; x < X1 - 6; x += 2 + Math.floor(ih(x, 4, seed) * 3)) {
+    const edge = Math.min(x - X0, X1 - x) / (X1 - X0), d = Math.abs(x - mid) / half;
+    const y0 = Math.round(bot + 8 - Math.max(0, d - 0.3) * 22);
+    const len = Math.round(3 + ih(x, 5, seed) * 9 + Math.max(0, 0.2 - edge) * 60);
+    for (let y = 0; y < len; y++) pix.set(x + Math.round(Math.sin(y * 0.3 + x) * 0.7), y0 + y, ih(x, y, seed) < 0.15 ? C.MOSS[3] : C.BARK[y > len - 3 ? 2 : 1]);
+  }
+}
+
+/** L'arbre sacré de l'arche : un tronc trapu, la corde de paille (shimenawa) et ses papiers en zigzag, un houppier en touffes. */
+function sacredTree(pix, cx, base, seed) {
+  const fork = base - 58;
+  L.bigTrunk(pix, cx, 22, base, seed, C.BARK, C.MOSS, { top: fork, roots: 1.4 });
+  clumpCrown(pix, cx, fork, 92, seed, 13);
+  // la corde sacrée : une grosse tresse de paille autour du tronc, deux glands, deux papiers en zigzag
+  const ry = base - 26, ROPE = ['#7d6a3c', '#a88f52', '#cdb877', '#ead9a2'];
+  for (let x = cx - 14; x <= cx + 14; x++) for (let j = 0; j < 5; j++) {
+    const tw = ((x + j * 2) % 6 + 6) % 6;
+    pix.set(x, ry + j + Math.round(Math.abs(x - cx) / 12), tw < 2 ? ROPE[3] : tw < 4 ? ROPE[2] : j === 4 ? ROPE[0] : ROPE[1]);
+  }
+  for (const tx of [cx - 8, cx + 7]) for (let y = 0; y < 7; y++) for (let k = -1; k <= 1; k++) if (Math.abs(k) <= y / 3) pix.set(tx + k, ry + 6 + y, y > 5 ? ROPE[0] : ROPE[2]);
+  for (const sx of [cx - 3, cx + 12]) {
+    let x = sx;
+    for (let y = 0; y < 13; y++) {
+      if (y % 3 === 0 && y) x += (Math.floor(y / 3) % 2 ? 2 : -2);
+      pix.set(x, ry + 5 + y, '#f6f4ea'); pix.set(x + 1, ry + 5 + y, y % 3 === 2 ? '#c9c6b8' : '#ffffff');
+    }
+  }
+}
+
+/** Petit sanctuaire de pierre (hokora) : un socle, une niche de bois sombre, un toit de pierre moussu. */
+function hokora(pix, cx, base) {
+  const S = ['#1f2a33', '#2f3d49', '#445663', '#5c6f7b', '#7d9099', '#a3b3b6'];
+  const block = (x0, y0, w, h, v0) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) pix.set(x, y, pick(S, v0 - (x - x0) / w * 0.35 - (y === y0 + h - 1 ? 0.2 : 0) + (y === y0 ? 0.15 : 0) + (noise2(x * 0.6, y * 0.6, 81) - 0.5) * 0.15, x, y)); };
+  block(cx - 11, base - 5, 22, 5, 0.6);                 // le socle
+  block(cx - 7, base - 18, 14, 13, 0.5);                // la niche
+  for (let y = base - 15; y < base - 6; y++) for (let x = cx - 4; x <= cx + 3; x++) pix.set(x, y, y < base - 13 ? '#14100c' : '#211912');
+  pix.set(cx - 1, base - 8, '#c0392b'); pix.set(cx, base - 8, '#e05a3a'); pix.set(cx - 1, base - 7, '#8e2a20');   // une offrande
+  for (let y = 0; y < 8; y++) {                         // le toit : deux pans de pierre, mousse au faîte
+    const w = 6 + y * 2;
+    for (let x = cx - w; x <= cx + w - 1; x++) pix.set(x, base - 26 + y, y < 2 && Math.abs(x - cx) < 4 ? C.MOSS[4] : pick(S, (x < cx ? 0.7 : 0.4) - y * 0.03 + (noise2(x * 0.5, y, 82) - 0.5) * 0.15, x, y));
+  }
+  for (let x = cx - 14; x <= cx + 13; x++) pix.set(x, base - 18, S[0]);
+}
+
+/** La cabane du guetteur : plateforme, échelle de corde, cabane d'affût (part 'back' ou 'front'). */
+function treehouse(pix, p, part) {
+  const T = TILE, x0 = p.x0 * T, x1 = p.x1 * T, dY = p.deck * T, base = p.y * T;
+  const WOOD = ['#2a1a10', '#3f2a1a', '#5a3d25', '#765233', '#946a43', '#b08655'];
+  const ROPE = ['#5e5034', '#8c7f57', '#c2ae78', '#e2d29d'];
+  const hx0 = p.hut * T + 2, hx1 = hx0 + 4 * T - 6, hTop = p.roof * T;          // la cabane (4 cases)
+  const plank = (x, y, len, vertical, v0) => {
+    for (let i = 0; i < len; i++) {
+      const xx = vertical ? x : x + i, yy = vertical ? y + i : y;
+      pix.set(xx, yy, pick(WOOD, v0 + (noise2(xx * 0.5, yy * 0.15, 61) - 0.5) * 0.25, xx, yy));
+    }
+  };
+  if (part === 'back') {
+    // l'échelle de corde : deux cordes et des barreaux, du bord de la plateforme jusqu'au sol
+    const lx0 = p.ladder * T + 3, lx1 = lx0 + 2 * T - 7;
+    for (const lx of [lx0, lx1]) for (let y = dY + 4; y < base - 1; y++) pix.set(lx + Math.round(Math.sin(y * 0.05) * 0.6), y, (y + lx) % 3 ? ROPE[1] : ROPE[2]);
+    for (let y = dY + 16; y < base - 4; y += 16) {
+      for (let x = lx0 + 1; x < lx1; x++) { pix.set(x, y, WOOD[4]); pix.set(x, y + 1, WOOD[1]); }
+      pix.set(lx0, y, ROPE[3]); pix.set(lx1, y, ROPE[3]);
+    }
+    // sous la plateforme : deux jambes de force qui s'appuient sur le fût
+    const cx = p.x * T + 8;
+    for (const side of [-1, 1]) {
+      const n = 34;
+      for (let q = 0; q <= n; q++) { const x = cx + side * (16 + n - q), y = dY + 5 + q; pix.set(x, y, WOOD[3]); pix.set(x, y + 1, WOOD[2]); pix.set(x, y + 2, WOOD[1]); }
+    }
+    // la cabane : le mur du fond en planches verticales, une petite fenêtre ronde, l'ombre dedans
+    for (let x = hx0; x <= hx1; x++) {
+      const board = Math.floor((x - hx0) / 6);
+      for (let y = hTop + 6; y < dY; y++) {
+        const seam = (x - hx0) % 6 === 0;
+        let v = 0.3 + (ih(board, 1, 62) - 0.5) * 0.18 + (noise2(x * 0.3, y * 0.08, 63) - 0.5) * 0.12 - (y - hTop) / 160;
+        if (seam) v -= 0.25;
+        const wx = (hx0 + hx1) / 2, wy = hTop + 20, dw = Math.hypot(x - wx, (y - wy) * 1.1);
+        if (dw < 5) { pix.set(x, y, dw < 4 ? (y < wy ? '#8fc7c0' : '#5c9a96') : WOOD[1]); continue; }   // fenêtre : le ciel de l'autre côté
+        pix.set(x, y, pick(WOOD, v, x, y));
+      }
+    }
+    // une lanterne de papier pendue sous l'avant-toit
+    const lx = hx0 - 6, ly = hTop + 10;
+    for (let y = hTop + 2; y < ly; y++) pix.set(lx, y, ROPE[0]);
+    for (let y = ly; y < ly + 9; y++) for (let x = lx - 3; x <= lx + 3; x++) if (Math.abs(x - lx) < 3 + (y > ly && y < ly + 8 ? 1 : 0) - (y === ly || y === ly + 8 ? 1 : 0)) pix.set(x, y, y === ly + 3 || y === ly + 6 ? '#c9822e' : x < lx ? '#ffe2a0' : '#f2b85a');
+    return;
+  }
+  // devant : le plancher (planches posées en long), son chant éclairé, des clous
+  for (let x = x0 - 2; x <= x1 + 1; x++) {
+    const b = Math.floor((x - x0 + 40) / 23);
+    for (let j = 0; j < 6; j++) {
+      const y = dY + j + ((ih(b, 2, 64) < 0.3 && j === 0) ? 0 : 0);
+      let v = j === 0 ? 0.92 : j === 1 ? 0.7 : 0.5 - j * 0.06;
+      if ((x - x0 + 40) % 23 === 0 && j > 0) v -= 0.3;
+      pix.set(x, y, pick(WOOD, v + (noise2(x * 0.4, j, 65) - 0.5) * 0.15, x, y));
+    }
+    if ((x - x0 + 40) % 23 === 3) pix.set(x, dY + 3, '#2a2a30');
+    if (ih(x, 3, 66) < 0.25) pix.set(x, dY - 1, C.MOSS[ih(x, 4, 66) < 0.5 ? 4 : 5]);        // mousse sur le bord
+  }
+  // la balustrade : des poteaux et une corde, du côté opposé à l'échelle (le vide reste libre devant l'échelle)
+  const posts = [x1 - 1, hx0 - 18];
+  for (const px of posts) for (let y = dY - 14; y < dY; y++) { pix.set(px, y, WOOD[3]); pix.set(px + 1, y, WOOD[1]); }
+  for (let x = posts[1]; x <= posts[0]; x++) { const y = dY - 12 + Math.round(Math.sin(((x - posts[1]) / (posts[0] - posts[1])) * Math.PI) * 2); pix.set(x, y, ROPE[2]); pix.set(x, y + 1, ROPE[0]); }
+  // la cabane : deux poteaux d'angle et le toit d'écorce à deux pans, moussu (on le voit par l'avant ouvert)
+  for (const px of [hx0 - 1, hx1 + 1]) for (let y = hTop + 4; y < dY; y++) { pix.set(px, y, WOOD[4]); pix.set(px + 1, y, WOOD[2]); }
+  const rx0 = hx0 - 9, rx1 = hx1 + 9, ry = hTop + 6, peak = (rx0 + rx1) / 2;
+  for (let x = rx0; x <= rx1; x++) {
+    const d = Math.abs(x - peak) / ((rx1 - rx0) / 2), top = Math.round(ry - (1 - d) * 12);
+    for (let y = top; y <= ry + 2; y++) {
+      const shingle = Math.floor((y - top + (Math.floor((x - rx0) / 7) % 2) * 3) / 5);
+      let v = 0.55 - d * 0.15 + (x < peak ? 0.12 : -0.12) - ((y - top) % 5 === 4 ? 0.3 : 0) + (ih(shingle, Math.floor(x / 7), 67) - 0.5) * 0.2;
+      const moss = fbm2(x * 0.08, y * 0.2, 2, 68) > 0.58 && y < top + 4;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.4 + (1 - d) * 0.4, x, y) : pick(['#24150d', '#3a2416', '#55351f', '#7a5030', '#946a43'], v, x, y));
+    }
+    pix.set(x, ry + 3, '#1a0f09');                    // l'ombre sous l'avant-toit
   }
 }
 
@@ -872,8 +1497,261 @@ function rockColumn(pix, X, Y, W, Hh, seed, ledge) {
       else pix.set(x, y, pick(C.ROCK, v, x, y));
     }
   }
+  // le coussin de mousse déborde du sommet et coule le long des flancs
+  for (let x = X - 2; x < X + W + 2; x++) {
+    const edge = Math.min(x - X, X + W - 1 - x);
+    if (edge < 2 && ih(x, 9, seed) < 0.75) pix.set(x, Y, C.MOSS[3]);
+    const drip = edge < 3 ? 3 + Math.floor(ih(x, 10, seed) * 9) : ih(x, 11, seed) < 0.15 ? 2 + Math.floor(ih(x, 12, seed) * 3) : 0;
+    for (let k = 1; k <= drip; k++) pix.set(x, Y + k, k === drip ? C.MOSS[1] : k < 2 ? C.MOSS[4] : C.MOSS[2]);
+  }
   for (let x = X + 2; x < X + W - 2; x += 3) if (ih(x, 1, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 2, seed) * 4), C.FERN, x);
+  // des fougères aux coins, quelques fleurs, du lierre qui descend
+  L.fern(pix, X + 4, Y, 8 + Math.floor(ih(seed, 13, 3) * 4), C.FERN, seed + 14);
+  if (W > 60) L.fern(pix, X + W - 6, Y, 7, C.FERN, seed + 15);
+  for (let k = 0; k < 4; k++) { const x = X + 6 + Math.floor(ih(k, 16, seed) * (W - 12)); pix.set(x, Y - 2, k % 2 ? '#f2c6d8' : '#fff1c2'); pix.set(x, Y - 1, C.FERN[3]); }
+  L.strand(pix, X + 2, Y + 3, 14 + Math.floor(ih(seed, 17, 3) * 18), C.LEAF, seed + 18, 0.6);
+  if (!ledge) L.strand(pix, X + W - 3, Y + 3, 10 + Math.floor(ih(seed, 19, 3) * 14), C.LEAF, seed + 20, 0.4);
   if (ledge) for (let i = 0; i < 3; i++) L.strand(pix, X + W - 6 - i * 10, Y + 6, 20 + i * 14, C.LEAF, seed + i, 0.7);
+}
+
+
+/** La surface du sol sous x (les pentes comprises), en partant de la rangée y0 (pixels). */
+function surfaceY(level, x, y0) {
+  for (const q of level.forest?.slopes ?? []) if (!q.pile && x >= q.x0 && x < q.x1) return Math.round(q.y0 + ((x - q.x0) * (q.y1 - q.y0)) / (q.x1 - q.x0));
+  const tx = Math.floor(x / TILE);
+  for (let r = Math.floor(y0 / TILE) - 4; r < level.h; r++) if (level.solid(tx, r)) return r * TILE;
+  return y0;
+}
+
+/**
+ * Un arbre mort, cassé par un ancien éboulis (zone 11) : un fût gris qui penche, cassé net en échardes ;
+ * fallen : sa partie haute gît à côté, en travers de la pente. Écorce qui pèle, quelques moignons.
+ */
+function snag(pix, cx, base, h, lean, fallen, seed) {
+  const DEAD = ['#2a2220', '#43372f', '#665446', '#8c7766', '#b39d86', '#d6c3a8'];
+  const top = base - h, tx = cx + lean * h;
+  for (let y = top; y <= base; y++) {
+    const u = (base - y) / h, xc = cx + (tx - cx) * u, half = 9 - u * 3 + (noise1(y * 0.2, seed) - 0.5) * 1.4;
+    for (let x = Math.round(xc - half); x <= Math.round(xc + half); x++) {
+      const k = (x - (xc - half)) / (2 * half);
+      let v = 0.75 - k * 0.6 + (noise2(x * 0.6, y * 0.06, seed) - 0.5) * 0.25;
+      if (Math.abs(noise2(x * 0.4, y * 0.03, seed + 1) - 0.5) < 0.05) v -= 0.3;   // les fentes du bois mort
+      pix.set(x, y, pick(DEAD, v, x, y));
+    }
+  }
+  // la cassure : des échardes en dents de scie
+  for (let i = -7; i <= 7; i++) { const sp = 2 + Math.floor(ih(i, 1, seed) * 10); for (let j = 0; j < sp; j++) pix.set(Math.round(tx + i), top - j, j === sp - 1 ? DEAD[4] : DEAD[2 + (i > 0 ? 0 : 1)]); }
+  // deux moignons de branches
+  for (let q = 0; q < 2; q++) { const y = Math.round(top + h * (0.3 + q * 0.3)), x = Math.round(cx + (tx - cx) * (1 - (y - top) / h)), d = q ? 1 : -1; for (let s = 0; s < 6; s++) { pix.set(x + d * (6 + s), y - Math.round(s * 0.6), DEAD[3]); pix.set(x + d * (6 + s), y - Math.round(s * 0.6) + 1, DEAD[1]); } }
+  // le haut, tombé en travers de la pente
+  if (fallen) {
+    const len = 40 + Math.floor(ih(seed, 3, 1) * 30), x0 = tx + 4, y0 = base - 6;
+    for (let s = 0; s < len; s++) {
+      const x = Math.round(x0 + s), y = Math.round(y0 - s * fallen), th = 6 - (s / len) * 3;
+      for (let j = -th; j <= th; j++) pix.set(x, y + j, pick(DEAD, 0.65 - (j + th) / (2 * th) * 0.55 + (noise2(x * 0.5, j, seed) - 0.5) * 0.2, x, j));
+    }
+  }
+}
+
+/** Un éboulis de cailloux le long du sol (pentes comprises) : des pierres de 1 à 4 px, plus denses par endroits. */
+function scree(pix, level, X, W, y0, seed) {
+  const S = ['#2b2522', '#463a33', '#66574b', '#8a7764', '#ad9781'];
+  for (let i = 0; i < W; i += 2) {
+    const x = X + i, d = noise1(x * 0.04, seed);
+    if (ih(x, 1, seed) > 0.45 + d * 0.5) continue;
+    const g = Math.round(surfaceY(level, x, y0)) + 1, r = 1 + Math.floor(ih(x, 2, seed) * (2 + d * 3));
+    for (let yy = -r; yy <= 0; yy++) for (let xx = -r; xx <= r; xx++) {
+      if (xx * xx + yy * yy * 2 > r * r + 1) continue;
+      pix.set(x + xx, g + yy, yy === -r ? S[4] : xx > 0 ? S[1] : S[2 + (ih(xx, yy, x) < 0.5 ? 1 : 0)]);
+    }
+  }
+}
+
+
+/** Un arbre plus proche que le fond (zone 11) : fût roux, racines qui s'étalent sur la pente, deux ou trois
+ *  branches feuillues dans l'image, du lierre ; jamais deux pareils. */
+function nearTree(pix, cx, base, w, seed) {
+  const bark = L.hazeRamp(C.BARK, '#5a3b52', 0.18), moss = L.hazeRamp(C.MOSS, '#5a3b52', 0.2), leaf = L.hazeRamp(C.LEAF, '#5a3b52', 0.18);
+  L.bigTrunk(pix, cx, w, base + 4, seed, bark, moss, { top: base - 420, roots: 0.8 });
+  const nb = 2 + Math.floor(ih(seed, 1, 3) * 2);
+  for (let q = 0; q < nb; q++) {
+    const side = (q + Math.floor(ih(seed, 2, 3) * 2)) % 2 ? 1 : -1, y0 = base - 120 - Math.floor(ih(q, 3, seed) * 110);
+    const len = 30 + Math.floor(ih(q, 4, seed) * 40), x0 = cx + side * (w / 2 - 3), x1 = x0 + side * len, y1 = y0 - 12 - Math.floor(ih(q, 5, seed) * 26);
+    rootStroke(pix, x0, y0, x1, y1, 6, 1.5, side * 4, seed + q);
+    for (let f = 0; f < 3; f++) L.bush(pix, Math.round(x1 - side * f * 11), Math.round(y1 + 6 + f * 3), 12 + Math.floor(ih(f, q, seed) * 8), 9 + Math.floor(ih(f, q + 2, seed) * 5), leaf, seed + q * 5 + f);
+  }
+  L.strand(pix, cx - Math.round(w * 0.2), base - 150, 40 + Math.floor(ih(seed, 6, 3) * 50), leaf, seed + 9, 0.5);
+}
+
+/** Des tronçons de bois coupés, couchés : écorce, et la coupe claire avec ses cernes. */
+function logCuts(pix, X, base, n, seed) {
+  let x = X;
+  for (let k = 0; k < n; k++) {
+    const len = 10 + Math.floor(ih(k, 1, seed) * 9), d = 7 + Math.floor(ih(k, 2, seed) * 4), top = base - d + 1 - (k === 2 ? d - 2 : 0), x0 = k === 2 ? X + 6 : x;
+    for (let i = 0; i < len; i++) for (let j = 0; j < d; j++) {
+      const v = 0.75 - (j / d) * 0.6 + (noise2((x0 + i) * 0.4, j, seed) - 0.5) * 0.2;
+      pix.set(x0 + i, top + j, Math.abs(noise2((x0 + i) * 0.08, j * 0.6, seed + k) - 0.5) < 0.05 ? C.BARK[0] : pick(C.BARK, v, x0 + i, j));
+    }
+    // la coupe, au bout : un disque clair et ses cernes
+    const cx = x0 + len, cy = top + d / 2;
+    for (let j = -d / 2; j <= d / 2; j++) for (let i = -2; i <= 2; i++) {
+      const r = Math.hypot(i / 2.4, j / (d / 2));
+      if (r > 1) continue;
+      pix.set(cx + i, Math.round(cy + j), r > 0.82 ? C.BARK[2] : Math.sin(r * 9) > 0.2 ? '#c49a62' : '#e0bf86');
+    }
+    if (k !== 1) x += len + 4;
+  }
+}
+
+
+/** Un tronc couché en travers du chemin (plein, on le saute) : écorce fendue, mousse dessus, une coupe claire,
+ *  un moignon de branche ; il déborde un peu de ses cases. */
+function lyingTrunk(pix, X, Y, W, H, seed) {
+  const d = H + 2, top = Y - 1;
+  for (let x = X - 4; x < X + W + 4; x++) for (let j = 0; j < d; j++) {
+    const v0 = j / d, cyl = Math.sin(v0 * Math.PI);
+    let v = 0.2 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.06, j * 0.5, seed) - 0.5) * 0.2;
+    const m = fbm2(x * 0.08, j * 0.15, 3, seed + 2) + (v0 < 0.25 ? 0.3 : 0) - 0.12;
+    let c = m > 0.7 ? pick(C.MOSS, v + 0.2, x, j) : Math.abs(fbm2(x * 0.02, j * 0.3, 2, seed) - 0.5) < 0.025 ? C.BARK[0] : pick(C.BARK, v, x, j);
+    const ex = X + W + 3 + Math.round(Math.sin(v0 * Math.PI) * 2);
+    if (x > ex) { const r = Math.hypot((x - ex) / 3, (j - d / 2) / (d / 2)); if (r > 1) continue; c = r > 0.85 ? C.BARK[2] : Math.sin(r * 11) > 0.3 ? '#b08a58' : '#d2b07a'; }
+    pix.set(x, top + j, c);
+  }
+  // un moignon de branche, et des champignons au pied
+  const sx = X + Math.floor(W * (0.3 + ih(seed, 1, 3) * 0.4));
+  for (let s = 0; s < 6; s++) { pix.set(sx + Math.round(s * 0.5), top - 1 - s, C.BARK[3]); pix.set(sx + 1 + Math.round(s * 0.5), top - 1 - s, C.BARK[1]); }
+  L.mushroom(pix, X + 2, top + d, 2); L.mushroom(pix, X + W - 4, top + d, 3);
+}
+
+/** Une pile de bûches coupées (pleine) : des rondins empilés en pyramide, leurs coupes claires de face. */
+function logPile(pix, X, Y, W, H, seed) {
+  const r = 7, rows = Math.max(1, Math.min(Math.floor((H + 4) / (2 * r - 2)), Math.floor(W / (2 * r))));
+  for (let k = 0; k < rows; k++) {
+    const n = Math.max(1, Math.floor(W / (2 * r)) - k), cy = Y + H - r - k * (2 * r - 3), x0 = X + (W - n * 2 * r) / 2 + r;
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + i * 2 * r + (ih(i, k, seed) - 0.5) * 2, rr = r - Math.floor(ih(i, k + 3, seed) * 2);
+      for (let y = -rr; y <= rr; y++) for (let x = -rr; x <= rr; x++) {
+        const d = Math.hypot(x, y) / rr;
+        if (d > 1) continue;
+        pix.set(Math.round(cx + x), Math.round(cy + y), d > 0.8 ? (y < 0 ? C.BARK[3] : C.BARK[1]) : Math.sin(d * 9 + i) > 0.2 ? '#c49a62' : '#e0bf86');
+      }
+      pix.set(Math.round(cx), Math.round(cy), '#7a5634');
+    }
+  }
+  for (let x = X; x < X + W; x += 3) if (ih(x, 2, seed) < 0.5) pix.set(x, Y + H - 1, C.MOSS[3]);
+}
+
+
+/**
+ * L'arbre déraciné (zone 11) : arraché par un ancien éboulis, il s'est couché en travers du chemin ; derrière,
+ * sa motte de racines dressée (terre, pierres, racines qui pendent) ; son tronc passe au-dessus du chemin, son
+ * houppier cassé repose sur un rocher de l'autre côté. On glisse sous le tronc.
+ */
+function uprootedTree(pix, X0, X1, top, gap, G, seed, part) {
+  const cy = (top + gap) / 2, R = (gap - top) / 2;
+  if (part === 'back') {
+    // la motte : un disque de terre dressé, des racines qui en rayonnent et pendent, des pierres prises dedans
+    const mx = X1 + 22, my = cy - 4, rx = 30, ry = 50;
+    for (let y = my - ry - 6; y <= G + 2; y++) for (let x = mx - rx - 8; x <= mx + rx + 8; x++) {
+      const d = Math.hypot((x - mx) / rx, (y - my) / ry) + (noise2(x * 0.15, y * 0.15, seed) - 0.5) * 0.25;
+      if (d > 1 || y > G) continue;
+      let v = 0.45 - (x - mx) / rx * 0.18 - d * 0.15 + (noise2(x * 0.3, y * 0.3, seed + 1) - 0.5) * 0.25;
+      let c = pick(C.HUMUS, v, x, y);
+      if (d > 0.82) c = C.HUMUS[0];
+      if (ih(x >> 2, y >> 2, seed) < 0.06) c = pick(C.ROCK, 0.5, x, y);
+      pix.set(x, y, c);
+    }
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2 + ih(k, 1, seed) * 0.3, len = 26 + ih(k, 2, seed) * 30;
+      const x1 = mx + Math.cos(a) * (rx + len * 0.5), y1 = Math.min(G - 2, my + Math.sin(a) * (ry * 0.6) + len * 0.5);
+      rootStroke(pix, mx + Math.cos(a) * rx * 0.6, my + Math.sin(a) * ry * 0.6, x1, y1, 3, 1, (ih(k, 3, seed) - 0.5) * 8, seed + k);
+    }
+    // le rocher où repose le houppier, avant le passage
+    L.rock(pix, X0 - 18, G + 2, 16, Math.round(G - gap + 4), seed + 3);
+    return;
+  }
+  // le tronc : un gros cylindre couché, écorce fendue, mousse dessus ; il entre dans la motte à droite
+  for (let x = X0 - 26; x <= X1 + 20; x++) {
+    const t = (x - X0) / (X1 - X0), half = R + t * 1.5;
+    for (let y = Math.round(cy - half); y <= Math.round(cy + half); y++) {
+      const v0 = (y - (cy - half)) / (2 * half), cyl = Math.sin(v0 * Math.PI);
+      let v = 0.18 + cyl * 0.55 - v0 * 0.3 + (noise2(x * 0.05, y * 0.4, seed) - 0.5) * 0.2;
+      if (Math.abs(noise2(x * 0.02, y * 0.25, seed + 2) - 0.5) < 0.03) v -= 0.25;
+      const moss = v0 < 0.28 && fbm2(x * 0.08, y * 0.2, 3, seed + 3) > 0.5;
+      pix.set(x, y, moss ? pick(C.MOSS, 0.3 + cyl * 0.5, x, y) : pick(C.BARK, v, x, y));
+    }
+  }
+  // le bout cassé du côté du houppier : des échardes, deux grosses branches brisées
+  for (let j = -R; j <= R; j += 2) { const sp = 3 + Math.floor(ih(j, 1, seed) * 8); for (let s = 0; s < sp; s++) pix.set(X0 - 26 - s, Math.round(cy + j), C.BARK[2 + (j > 0 ? -1 : 1)]); }
+  rootStroke(pix, X0 - 10, cy - R + 4, X0 - 40, cy - R - 26, 7, 2, -4, seed + 20);
+  rootStroke(pix, X0 + 14, cy - R + 2, X0 + 4, cy - R - 34, 5, 1.5, 3, seed + 21);
+  for (const [bx, by] of [[X0 - 40, cy - R - 26], [X0 + 4, cy - R - 34]]) L.bush(pix, bx, by + 6, 12, 9, L.hazeRamp(C.LEAF, '#7a5a3a', 0.35), seed + bx);
+  // des radicelles et de la mousse qui pendent sous le tronc, sans descendre dans le passage
+  for (let x = X0 + 4; x < X1; x += 5) if (ih(x, 4, seed) < 0.45) { const len = 2 + Math.floor(ih(x, 5, seed) * 4); for (let s = 0; s < len; s++) pix.set(x + Math.round(Math.sin(s) * 0.6), gap + 1 + s, s === len - 1 ? C.MOSS[2] : C.BARK[1]); }
+}
+
+/**
+ * L'arche de rochers (zone 11) : une longue dalle tombée d'un ancien éboulis repose sur deux blocs ; on glisse
+ * dessous. Le même roc chaud que l'éboulis, des cales, de la mousse et une fougère sur le dessus.
+ */
+function rockArch(pix, X0, X1, top, gap, G, seed, part) {
+  const put = (img, cx, cy) => { const c = img.img, g = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (g[i + 3] > 0) pix.set(Math.round(cx - img.ext + x), Math.round(cy - img.ext + y), '#' + [g[i], g[i + 1], g[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')); } };
+  if (part === 'back') {
+    // les deux pieds de l'arche, et des blocs plus petits autour
+    for (const [cx, r, s] of [[X0 - 6, 22, 1], [X1 + 6, 24, 2], [X0 - 30, 11, 3], [X1 + 32, 12, 4]]) put(rockStone(rockShape(r, seed + s), ih(s, 1, seed) * 6.28, seed + s, ROCK_LIT), cx, G - r * 0.8);
+    return;
+  }
+  // la dalle : un long polygone irrégulier, posé un peu de biais
+  // (le dessous est plat et bas sur toute la largeur, dès l'entrée : on voit tout de suite qu'il faut se
+  // baisser ; le dessus, arrondi, reste sous le haut de la bande)
+  const lo = gap + 1, hi = top + 12, cx = (X0 + X1) / 2, cy = (hi + lo) / 2, rx = (X1 - X0) / 2 + 20, ry = (lo - hi) / 2, pts = [];
+  for (let i = 0; i <= 6; i++) pts.push([rx - (i / 6) * 2 * rx + (ih(i, 3, seed) - 0.5) * 3, ry - (i === 0 || i === 6 ? 4 : ih(i, 4, seed) * 1.5)]);
+  for (let i = 1; i < 8; i++) { const a = Math.PI + (i / 8) * Math.PI; pts.push([Math.cos(a) * rx * (0.94 + ih(i, 1, seed) * 0.08), Math.sin(a) * ry * (0.85 + ih(i, 2, seed) * 0.2)]); }
+  put(rockStone(pts, 0, seed + 9, ROCK_LIT), cx, cy);
+  // des cales et un bloc posé dessus, de la mousse et une fougère
+  put(rockStone(rockShape(10, seed + 11), 0.6, seed + 11, ROCK_LIT), cx + rx * 0.4, hi - 4);
+  put(rockStone(rockShape(7, seed + 12), 1.4, seed + 12, ROCK_LIT), cx - rx * 0.5, hi);
+  for (let x = Math.round(X0 - 10); x < X1 + 10; x++) if (fbm2(x * 0.08, 1, 2, seed) > 0.5) pix.set(x, Math.round(hi + 2 + Math.sin(x * 0.07) * 1.5), C.MOSS[4]);
+  L.fern(pix, Math.round(cx - rx * 0.15), Math.round(hi + 3), 10, C.FERN, seed + 13);
+}
+
+/**
+ * Le portique effondré (zone 11) : les restes d'un abri de sentier ; deux poteaux debout (derrière KAGE),
+ * la poutre tombée en travers du chemin, des planches du toit écroulées dessus, une corde sacrée qui pend,
+ * une lanterne de papier crevée. On glisse sous la poutre.
+ */
+function fallenGate(pix, X0, X1, top, gap, G, seed, part) {
+  const WOOD = ['#2a1a10', '#3f2a1a', '#5a3d25', '#765233', '#946a43', '#b08458'];
+  if (part === 'back') {
+    for (const px of [X0 - 4, X1 - 4]) {
+      for (let y = top - 60; y < G; y++) for (let x = 0; x < 8; x++) pix.set(px + x, y, pick(WOOD, 0.75 - x * 0.09 + (noise2(px + x, y * 0.1, seed) - 0.5) * 0.15, px + x, y));
+      for (let x = -2; x < 10; x++) for (let y = top - 66; y < top - 60; y++) pix.set(px + x, y, WOOD[1 + (y % 2)]);   // la tête du poteau
+    }
+    // l'ancienne traverse du haut, cassée, qui pend d'un poteau
+    for (let s = 0; s < 40; s++) for (let j = 0; j < 6; j++) pix.set(X1 - 4 - s, top - 58 + Math.round(s * 0.9) + j, pick(WOOD, 0.6 - j * 0.08, s, j));
+    return;
+  }
+  // la poutre : équarrie, posée de biais (un pixel d'écart), le bois fendu ; des planches du toit par-dessus
+  const h = gap - top;
+  for (let x = X0 - 18; x <= X1 + 18; x++) {
+    const tilt = Math.round((x - X0) / (X1 - X0 + 36) * 2);
+    for (let y = gap - 18 + tilt; y <= gap + tilt; y++) {
+      const k = (y - (gap - 18 + tilt)) / 18;
+      let v = 0.78 - k * 0.6 + (noise2(x * 0.05, y * 0.5, seed) - 0.5) * 0.18;
+      if (Math.abs(noise2(x * 0.03, y * 0.6, seed + 1) - 0.5) < 0.04) v -= 0.25;
+      pix.set(x, Math.min(y, gap), pick(WOOD, v, x, y));
+    }
+  }
+  for (let q = 0; q < 6; q++) {
+    const a = -0.5 + ih(q, 1, seed) * 1.0, len = 30 + ih(q, 2, seed) * 30, bx = X0 + 6 + q * (X1 - X0 - 12) / 5, by = gap - 18;
+    for (let s = 0; s < len; s++) for (let j = 0; j < 4; j++) { const x = Math.round(bx + Math.cos(a) * (s - len / 2)), y = Math.round(by - 4 - Math.abs(Math.sin(a)) * (s * 0.4) - j); if (y >= top) pix.set(x, y, pick(WOOD, 0.62 - j * 0.1 + q * 0.03, x, j)); }
+  }
+  // la corde sacrée et ses papiers, qui pendent de la poutre (au-dessus du passage)
+  for (let x = X0 + 4; x < X1 - 4; x++) pix.set(x, gap - 3 + Math.round(Math.sin((x - X0) / (X1 - X0) * Math.PI) * 2), x % 3 ? '#d8c08a' : '#a88a54');
+  for (let k = 0; k < 4; k++) { const x = X0 + 10 + k * (X1 - X0 - 20) / 3; for (let s = 0; s < 4; s++) { pix.set(Math.round(x) + (s % 2), gap + s - 1, '#f2eee2'); } }
+  // la lanterne crevée, accrochée au bout de la poutre
+  const lx = X1 + 10;
+  for (let y = gap - 4; y < gap + 6; y++) for (let x = -3; x <= 3; x++) if (Math.abs(x) + (y - gap) / 3 < 4) pix.set(lx + x, y, (x + y) % 5 === 0 ? '#3a2a1a' : '#e8d8b0');
 }
 
 /** Tronc couché (zone 11) : on glisse dessous ; il repose sur deux pierres. */
@@ -900,10 +1778,13 @@ function fallenLog(pix, X, top, W, ground, seed) {
 /** Le dernier grand arbre (zone 12). */
 function lastTree(pix, cx, base) {
   L.bigTrunk(pix, cx, 40, base, 77, C.BARK, C.MOSS, { top: base - 300, roots: 1.0 });
-  const leaf = ['#1a1420', '#2a1f2e', '#3a2a36', '#4f3a40', '#6b4d4a', '#8c6a56', '#b08a62'];
-  L.bush(pix, cx, base - 250, 80, 54, leaf, 78);
-  L.bush(pix, cx - 60, base - 214, 36, 26, leaf, 79);
-  L.bush(pix, cx + 64, base - 220, 40, 28, leaf, 80);
+  // la cime du cèdre, au-dessus de la fourche du belvédère (à 15 cases) : des étages qui se resserrent en pointe
+  for (let k = 0; k < 6; k++) {
+    const y = base - 262 - k * 24, half = 92 - k * 15;
+    cedarTier(pix, cx - half, cx - 10, y, -1, 300 + k * 7);
+    cedarTier(pix, cx + 10, cx + half, y, 1, 400 + k * 7);
+  }
+  L.fir(pix, cx, base - 380, 70, 22, [CEDAR[1], CEDAR[3], CEDAR[5]], 9);
 }
 
 /** La sortie : la forêt s'ouvre ; deux vieux fûts sombres encadrent le passage, des fougères à leurs pieds. */
@@ -916,23 +1797,139 @@ function horizon(pix, X, Y, W) {
   }
 }
 
-/** Les deux arbres et la grande branche d'où pendent les lianes balancier (zone 10). */
-function vineBough(pix, level, x0, x1, y, vb) {
-  const bark = L.hazeRamp(C.BARK, '#123a40', 0.35), moss = L.hazeRamp(C.MOSS, '#123a40', 0.35), leaf = L.hazeRamp(C.LEAF, '#123a40', 0.3);
+/**
+ * Les lianes balancier (zone 10) : de grands fûts montent du fond du ravin (derrière les piliers, et au
+ * milieu des longues traversées) ; de chacun, une grosse branche part vers la liane la plus proche : elle
+ * monte un peu en quittant le tronc, puis s'avance en s'effilant, et la liane y est nouée par quelques
+ * tours. Sur les branches : mousse, touffes de feuilles, une fougère épiphyte, de la barbe de lichen qui
+ * pend ; tout en haut, le feuillage des houppiers ferme l'image.
+ */
+function vineBough(pix, level, x0, x1, vb) {
+  const bark = L.hazeRamp(C.BARK, '#123a40', 0.3), moss = L.hazeRamp(C.MOSS, '#123a40', 0.25), leaf = L.hazeRamp(C.LEAF, '#123a40', 0.22);
+  const limbBark = L.hazeRamp(C.BARK, '#123a40', 0.12), limbMoss = L.hazeRamp(C.MOSS, '#123a40', 0.1), limbLeaf = L.hazeRamp(C.LEAF, '#123a40', 0.1);
+  const BEARD = ['#5f7a66', '#7f9a82', '#a3b99c'];
   const H = level.height;
-  // des fûts qui montent du fond du ravin (derrière les piliers), tous les deux ou trois balanciers
-  const posts = [x0 + 10, ...vb.filter((_, i) => i % 2 === 1).map((v) => v.x * TILE + 64), x1 - 10];
-  for (const [i, px] of posts.entries()) L.bigTrunk(pix, px, 24 + (i % 2) * 8, H, 100 + i, bark, moss, { top: y - 90, roots: 0 });
-  // la branche : épaisse, moussue dessus, des nœuds là où pendent les lianes
-  for (let x = x0; x < x1; x++) {
-    const yy = y - 6 + Math.round(Math.sin(x * 0.012) * 4 + (noise1(x * 0.05, 3) - 0.5) * 3);
-    const th = 12 + Math.round(noise1(x * 0.02, 4) * 5);
-    for (let j = 0; j < th; j++) {
-      const v = 0.7 - (j / th) * 0.6 + (noise2(x * 0.3, j * 0.5, 5) - 0.5) * 0.15;
-      pix.set(x, yy + j, j < 2 ? moss[5 - j] : pick(bark, v, x, yy + j));
+  const anchors = vb.map((p) => ({ x: Math.round(p.x * TILE), y: Math.round(p.y * TILE) }));
+  // les fûts : derrière chaque pilier, au départ ; un de plus quand une liane serait trop loin d'un tronc
+  const trunks = [x0 + 18];
+  for (const q of level.props) if ((q.type === 'rock_pillar' || q.type === 'rock_ledge') && q.x * TILE > x0 && q.x * TILE < x1) trunks.push(q.x * TILE + (q.w * TILE) / 2);
+  for (const a of anchors) if (Math.min(...trunks.map((t) => Math.abs(t - a.x))) > 8 * TILE) trunks.push(a.x + 3 * TILE);
+  trunks.sort((a, b) => a - b);
+  const top = Math.min(...anchors.map((a) => a.y)) - 130;
+  // aucun arbre pareil : largeur, branches de décor, houppier, lierre, tout est tiré pour chacun
+  const tw = (k) => 18 + Math.floor(ih(k, 1, 91) * 16);
+  const limbYs = anchors.map((a) => a.y), aTop = Math.min(...limbYs);
+  for (const [k, cx] of trunks.entries()) {
+    const w = tw(k), sd = 700 + k * 31;
+    L.bigTrunk(pix, cx, w, H, 100 + k, bark, moss, { top, roots: 0 });
+    // du lierre qui grimpe le long du fût
+    for (let q = 0; q < 1 + Math.floor(ih(k, 2, sd) * 3); q++) {
+      const lx = cx + Math.round((ih(k, 3 + q, sd) - 0.5) * w * 0.7), ly = top + 60 + Math.floor(ih(k, 6 + q, sd) * 90);
+      L.strand(pix, lx, ly, 18 + Math.floor(ih(k, 9 + q, sd) * 40), leaf, sd + q, 0.5);
+    }
+    // des branches de décor (on ne s'y accroche pas) : plus ou moins hautes, d'un côté ou de l'autre,
+    // qui montent en biais ; certaines cassées ; un bouquet de feuilles au bout des autres
+    const nb = 3 + Math.floor(ih(k, 12, sd) * 4);
+    for (let q = 0; q < nb; q++) {
+      const side = ih(k, 13 + q, sd) < 0.5 ? -1 : 1;
+      const y0 = aTop - 44 + Math.floor(ih(k, 20 + q, sd) * 170);
+      if (limbYs.some((ly) => Math.abs(ly - 6 - y0) < 22)) continue;          // pas sur une branche à liane
+      const len = 18 + Math.floor(ih(k, 27 + q, sd) * 42), rise = 6 + Math.floor(ih(k, 34 + q, sd) * 34);
+      const bx0 = cx + side * (w / 2 - 2), bx1 = bx0 + side * len, by1 = y0 - rise;
+      const broken = ih(k, 41 + q, sd) < 0.2;
+      rootStroke(pix, bx0, y0, broken ? bx0 + side * len * 0.4 : bx1, broken ? y0 - rise * 0.4 : by1, 5 + Math.floor(ih(k, 48 + q, sd) * 4), broken ? 3 : 1.2, side * (ih(k, 55 + q, sd) - 0.3) * 6, sd + q);
+      if (broken) continue;
+      // un rameau qui part du milieu, et le feuillage
+      const mx = bx0 + side * len * 0.55, my = y0 - rise * 0.55;
+      rootStroke(pix, mx, my, mx + side * (6 + ih(k, 62 + q, sd) * 10), my - 8 - ih(k, 69 + q, sd) * 10, 2, 1, 0, sd + q + 9);
+      const nl = 2 + Math.floor(ih(k, 76 + q, sd) * 3);
+      for (let f = 0; f < nl; f++) L.bush(pix, Math.round(bx1 - side * f * 10 + (ih(f, q, sd) - 0.5) * 8), Math.round(by1 + 5 + f * 2 - ih(f, q + 3, sd) * 6), 10 + Math.floor(ih(f, q + 5, sd) * 11), 8 + Math.floor(ih(f, q + 7, sd) * 7), f % 2 ? leaf : limbLeaf, sd + q * 7 + f);
+      L.bush(pix, Math.round(mx + side * 10), Math.round(my - 10), 7 + Math.floor(ih(k, 83 + q, sd) * 5), 6, leaf, sd + q * 5 + 40);
     }
   }
-  for (let x = x0; x < x1; x += 34) L.bush(pix, x + Math.floor(ih(x, 1, 9) * 20), y - 14, 22, 16, leaf, x);
+  // les houppiers : de grosses masses de feuillage au sommet de chaque fût, qui descendent dans l'image
+  // (peintes avant les branches à liane, qui passent devant), et des brins qui en pendent
+  for (const [k, cx] of trunks.entries()) {
+    const sd = 900 + k * 37, n2 = 10 + Math.floor(ih(k, 1, sd) * 7), spread = 50 + ih(k, 2, sd) * 40, lean = (ih(k, 3, sd) - 0.5) * 40;
+    for (let q = 0; q < n2; q++) {
+      const u = q / (n2 - 1) - 0.5;
+      const bx = cx + lean * (0.5 - Math.abs(u)) + u * 2 * spread + (ih(q, 4, sd) - 0.5) * 18;
+      const base = aTop - 14 - Math.abs(u) * 12 - ih(q, 5, sd) * 40 + (ih(k, 6, sd) - 0.5) * 16;
+      if (anchors.some((a) => Math.abs(a.x - bx) < 22 && base > a.y - 26)) continue;   // jamais devant le nœud d'une liane
+      L.bush(pix, Math.round(bx), Math.round(base), 14 + Math.floor(ih(q, 7, sd) * 16), 14 + Math.floor(ih(q, 8, sd) * 12), q % 3 ? leaf : limbLeaf, sd + q);
+    }
+    for (let q = 0; q < 3 + Math.floor(ih(k, 9, sd) * 4); q++) {
+      const hx = cx + Math.round((ih(q, 10, sd) - 0.5) * spread * 2);
+      L.strand(pix, hx, aTop - 26 + Math.floor(ih(q, 11, sd) * 10), 10 + Math.floor(ih(q, 12, sd) * 26), limbLeaf, sd + q * 3, 0.6);
+    }
+  }
+  // les branches, une par liane
+  for (const [n, a] of anchors.entries()) {
+    let k = 0; for (let q = 1; q < trunks.length; q++) if (Math.abs(trunks[q] - a.x) < Math.abs(trunks[k] - a.x)) k = q;
+    const t = trunks[k], dir = a.x >= t ? 1 : -1, seed = 300 + n * 17;
+    const xs = t + dir * (tw(k) / 2 - 3), xe = a.x + dir * (22 + Math.floor(ih(n, 1, seed) * 12));
+    const span = Math.abs(xe - xs), ua = Math.abs(a.x - xs) / span;
+    // chaque branche a sa forme : un coude (elle part haut du tronc), presque à plat, ou bien elle part plus
+    // bas et monte en biais vers la liane ; plus ou moins arquée, plus ou moins tombante au bout
+    const kind = ih(n, 20, seed), dy0 = kind < 0.4 ? -16 - ih(n, 21, seed) * 14 : kind < 0.65 ? -4 + ih(n, 22, seed) * 6 : 12 + ih(n, 23, seed) * 14;
+    const pw = 1.1 + ih(n, 24, seed) * 1.2, sag = ih(n, 25, seed) * 7, droop = ih(n, 26, seed) * 7;
+    const base = (u) => dy0 * Math.pow(1 - u, pw) - Math.sin(Math.PI * u) * sag + u * u * droop;
+    const yAt = (u) => a.y - 5 + base(u) - base(ua) + (noise1(u * 4, seed) - 0.5) * 2;
+    const th0 = 13 + ih(n, 27, seed) * 6, thAt = (u) => Math.max(3.5, th0 - u * (th0 - 4) + (noise1(u * 9, seed + 7) - 0.5) * 2.5);
+    for (let i = 0; i <= span; i++) {
+      const u = i / span, x = xs + dir * i, yc = yAt(u), th = thAt(u);
+      const y0 = Math.round(yc - th / 2), y1 = Math.round(yc + th / 2);
+      for (let y = y0; y <= y1; y++) {
+        const k2 = (y - y0) / Math.max(1, y1 - y0);
+        let v = 0.82 - k2 * 0.72 + (noise2(x * 0.35, y * 0.5, seed) - 0.5) * 0.18;
+        if (Math.abs(noise2(x * 0.05, y * 0.6, seed + 2) - 0.5) < 0.04) v -= 0.25;              // sillons de l'écorce
+        const mossTop = y - y0 <= 1 + (fbm2(x * 0.08, 1, 2, seed + 3) > 0.55 ? 1 : 0);
+        pix.set(x, y, mossTop ? (y === y0 ? limbMoss[5] : limbMoss[3]) : pick(limbBark, v, x, y));
+      }
+      if (ih(x, 2, seed) < 0.05 && u > 0.15) L.grassTuft(pix, x, y0, 2 + Math.floor(ih(x, 3, seed) * 3), C.FERN, x);
+    }
+    // un rameau secondaire qui part vers le haut et vers l'avant, coiffé de feuilles
+    {
+      const u0 = 0.32 + ih(n, 8, seed) * 0.18, bx = xs + dir * u0 * span, by = yAt(u0) - thAt(u0) / 2 + 1;
+      const tx2 = bx + dir * (12 + ih(n, 9, seed) * 10), ty2 = by - 14 - ih(n, 10, seed) * 8;
+      rootStroke(pix, bx, by, tx2, ty2, 3.5, 1.2, dir * 2, seed + 11);
+      L.bush(pix, Math.round(tx2), Math.round(ty2 + 3), 8, 7, limbLeaf, seed + 12);
+    }
+    // des loupes sous la branche
+    for (let q = 0; q < 2; q++) {
+      const u = 0.2 + q * 0.35 + ih(n, 13 + q, seed) * 0.1, x = Math.round(xs + dir * u * span), y = Math.round(yAt(u) + thAt(u) / 2);
+      for (let dx = -3; dx <= 3; dx++) for (let dy = 0; dy < 3 - Math.abs(dx) / 1.5; dy++) pix.set(x + dx, y + dy, pick(limbBark, 0.35 - dy * 0.1 - dx * 0.03, x + dx, y + dy));
+    }
+    // le collet contre le tronc
+    for (let j = -10; j <= 8; j++) for (let q = 0; q < 5 - Math.abs(j) / 3; q++) pix.set(xs - dir * q, Math.round(yAt(0) + j), pick(limbBark, 0.5 - j * 0.02, xs, j));
+    // la liane nouée : trois tours de tige verte autour de la branche, un nœud dessous
+    const yk = yAt(ua), thk = thAt(ua);
+    for (let r = 0; r < 3; r++) for (let j = -Math.ceil(thk / 2) - 1; j <= Math.ceil(thk / 2); j++) {
+      const x = a.x - 3 + r * 3 + Math.round((j + thk / 2) * 0.35);
+      pix.set(x, Math.round(yk + j), j < -thk / 2 + 1 ? limbLeaf[5] : limbLeaf[2]);
+    }
+    for (const [dx, dy, c] of [[-1, 0, 1], [0, 0, 3], [1, 0, 2], [0, 1, 1]]) pix.set(a.x + dx, a.y - 1 + dy, limbLeaf[c]);
+    // des touffes de feuilles sur la branche (pas au-dessus de la liane), au bout, et une fougère épiphyte
+    for (const u of [0.1, 0.18 + ih(n, 4, seed) * 0.15, 0.4, 0.55, 0.72, 1].filter((u, q) => q % 2 === 1 || ih(n, 30 + q, seed) < 0.6)) {
+      if (Math.abs(u - ua) < 0.12) continue;
+      const x = xs + dir * u * span, y = yAt(u) - thAt(u) / 2 + 2;
+      L.bush(pix, Math.round(x), Math.round(y), 9 + Math.floor(ih(n, u * 10, seed) * 6), 7 + Math.floor(ih(n, u * 9, seed) * 4), limbLeaf, seed + Math.round(u * 50));
+    }
+    L.fern(pix, Math.round(xs + dir * span * 0.38), Math.round(yAt(0.38) - thAt(0.38) / 2), 9, C.FERN, seed + 5);
+    // des brins feuillus qui pendent de la branche (pas devant la liane)
+    for (let q = 0; q < 2 + Math.floor(ih(n, 40, seed) * 3); q++) {
+      const u = 0.12 + ih(n, 41 + q, seed) * 0.8, x = Math.round(xs + dir * u * span);
+      if (Math.abs(x - a.x) < 10) continue;
+      L.strand(pix, x, Math.round(yAt(u) + thAt(u) / 2) - 1, 8 + Math.floor(ih(n, 46 + q, seed) * 18), limbLeaf, seed + q, 0.7);
+    }
+    // la barbe de lichen : des fils pâles qui pendent sous la branche
+    for (let i = 4; i < span - 4; i += 3) {
+      if (ih(i, 6, seed) > 0.32) continue;
+      const u = i / span, x = xs + dir * i, y = Math.round(yAt(u) + thAt(u) / 2), len = 4 + Math.floor(ih(i, 7, seed) * 14);
+      if (Math.abs(x - a.x) < 5) continue;
+      for (let s2 = 0; s2 < len; s2++) pix.set(x + Math.round(Math.sin(s2 * 0.4 + i) * 0.7), y + s2, BEARD[s2 < len * 0.3 ? 0 : s2 < len * 0.75 ? 1 : 2]);
+    }
+  }
 }
 
 /** Deux racines basses de part et d'autre du pied d'un grand tronc. */

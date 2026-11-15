@@ -15,27 +15,47 @@ export const FOREST = {
   collapse: { grace: 0.7, speed: 107, warn: 0.5 },      // le front d'effondrement avance à 107 px/s (course 96, sprint 140)
   crumble: { hold: 0.7, back: 2.6 },
   snap: { hold: 0.38, hinge: 0.16 },   // la branche qui rompt (zone 7) : elle tient 0,38 s, pivote 0,16 s à sa jointure, puis tombe
-  bridge: { rotten: [4, 8, 12, 16], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
+  // planches de 18 px séparées de 6 px : les jours se marchent sans tomber, mais une planche tombée laisse
+  // un trou de 30 px qu'aucun sprint ne passe sans sauter (une planche ne rattrape KAGE qu'à 9 px sous elle)
+  bridge: { plankW: 18, plankGap: 6, rotten: [2, 5, 8, 10], hold: 0.45, bounce: 3.5, maxAmp: 6, damp: 1.6, freq: 9, dip: 5 },   // pont suspendu (canopée)                   // la planche cède après 0,7 s, repousse 2,6 s plus tard
   log: { sink: 5.6, rise: 9, max: 13, bob: 1.2 },      // px/s ; pieds dans l'eau à ~9 px d'enfoncement (~1,6 s)
+  // lianes. Refonte de novembre 2026 (demande de Raph : balancier bien plus lent, plus dur à lancer, plus
+  // naturel, moins de portée) : lianes courtes (~7 cases), pesanteur du pendule adoucie (période ~3 s),
+  // l'élan ne vient qu'en poussant dans le sens du mouvement (il faut « pomper » au bon moment), le
+  // balancier plafonne vers 50° et KAGE repart à la vitesse du balancier, sans plus.
   vine: {
-    g: 980,            // pesanteur du balancier
-    pump: 2.6,         // élan donné par gauche / droite (rad/s²)
-    damp: 0.22,        // frottement d'une liane balancier
+    g: 520,            // pesanteur du balancier (le saut et la chute gardent la leur, 980)
+    pumpK: 0.07,       // élan donné en poussant dans le sens du mouvement, en fraction de g / r (≈ +0,14 rad par demi-balancement)
+    pumpStart: 0.35,   // à l'arrêt (|av| petit), une poussée plus faible permet de démarrer
+    pumpBack: 0.5,     // pousser contre le mouvement freine (fraction de la poussée)
+    damp: 0.1,         // frottement d'une liane balancier
     dampStill: 3.2,    // frottement d'une liane immobile (statue)
     climb: 46,         // px/s le long de la liane
     grab: 12,          // distance (px) à laquelle la main attrape la liane
     letGo: 0.07,       // s sans aucune direction avant de lâcher
     cooldown: 0.42,    // s avant de pouvoir rattraper la même liane
     jumpUp: 320,       // impulsion du bond pour quitter une liane immobile (statue, canopée : de quoi passer sur la branche)
-    hop: 0,            // sur une liane qui se balance, sauter revient à lâcher (l'élan vient du balancier)
-    boost: 1.08,       // l'élan du balancier est rendu à KAGE, très légèrement amplifié
+    hop: 30,           // sur une liane qui se balance, sauter à contretemps n'est qu'un coup de reins
+    // sauter au bon moment, quand la liane remonte en fin de balancement (juste avant qu'elle s'arrête),
+    // c'est profiter de sa propulsion : KAGE part plus haut et plus loin. q (0 à 1) mesure le bon moment
+    // (de swingQ0 à swingQ1 rad d'angle, en remontant) ; bond de swingUp px/s vers le haut, swingFwd vers l'avant
+    swingQ0: 0.22, swingQ1: 0.55, swingUp: 175, swingFwd: 66,
+    boost: 1.0,        // l'élan du balancier est rendu à KAGE, tel quel
     gripX: 6, gripY: 19,   // la main, par rapport au point d'ancrage de KAGE (sous ses pieds)
     minR: 22,          // on ne monte pas plus près de l'accroche
-    maxAngle: 1.0,
-    pumpAngle: 0.62,   // au-delà, gauche / droite ne donnent plus d'élan
-    maxSpeed: 300,     // vitesse rendue au lâcher, au plus (px/s)
+    maxAngle: 1.05,
+    pumpAngle: 0.78,   // au-delà, gauche / droite ne donnent plus d'élan (le balancier plafonne vers 50°)
+    maxSpeed: 230,     // vitesse rendue au lâcher, au plus (px/s)
   },
   statue: { reach: 22, delay: 0.9, gateTime: 2.8 },   // la dalle de la porte remonte en 2,8 s
+  // la corde de la statue : tirée le long de la branche, elle lève le bloc (lift = pull × ratio) ; lâchée,
+  // elle revient vers la poulie (le bloc retombe) — sauf si son bout a dépassé le rameau, qui l'arrête
+  // corde de la statue : pull = vitesse moyenne du tirage (24 px/s, puis 20 % plus lent à la demande de Raph),
+  // tirée par à-coups (surge autour de la moyenne, une saccade par pas : heave s) ; energy = énergie dépensée
+  // par seconde de tirage (à bout de souffle, KAGE tient la corde sans pouvoir tirer) ; breaths / shakes :
+  // intervalles (s) entre deux souffles de KAGE et deux petites secousses de l'image pendant l'effort
+  rope: { reach: 14, pull: 24 * 0.8, give: 46, ret: 150, ratio: 1 / 3, past: 8, strainEvery: 0.55,
+    surge: 0.65, heave: 0.46, energy: 0.25, breaths: [1.3, 1.9, 1.5, 2.2], shakes: [1.7, 2.6, 2.1], pant: 0.8 },
   slide: { margin: 6 },
 };
 
@@ -54,14 +74,16 @@ export class Forest {
     }
     this.crumbles = def.crumbles.map((c) => ({ kind: 'crumble', x: c.x, y: c.y, y0: c.y, w: c.w, state: 'idle', t: 0, active: true, dx: 0, dy: 0, load: false, vy: 0 }));
     this.logs = def.logs.map((l) => ({
-      kind: 'log', x0: l.x0, x1: l.x1, w: l.w, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
+      kind: 'log', x0: l.x0, x1: l.x1, w: l.w, d: l.d ?? 11, speed: Math.abs(l.speed), dir: l.speed < 0 ? -1 : 1,
       x: l.x0 + (l.x1 - l.x0) * (l.start ?? 0), y: l.y, y0: l.y, sink: 0, active: true, dx: 0, dy: 0, load: false, phase: l.x0 * 0.07,
     }));
-    // le pont suspendu : une planche par case ; les planches pourries lâchent sous le pied
+    // le pont suspendu : des planches espacées, centrées entre les deux troncs ; les pourries lâchent sous le pied
     this.bridges = (def.bridges ?? []).map((br) => {
       const B = { ...br, amp: 0, t: 0, dipX: null, loaded: false, planks: [] };
-      for (let x = br.x0, i = 0; x < br.x1; x += TILE, i++) {
-        B.planks.push({ kind: 'plank', bridge: B, i, x, w: TILE, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
+      const { plankW: w, plankGap: g } = FOREST.bridge, n = Math.floor((br.x1 - br.x0 + g) / (w + g));
+      const x0 = br.x0 + Math.floor((br.x1 - br.x0 - (n * (w + g) - g)) / 2);
+      for (let i = 0; i < n; i++) {
+        B.planks.push({ kind: 'plank', bridge: B, i, x: x0 + i * (w + g), w, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
       }
       return B;
     });
@@ -69,18 +91,27 @@ export class Forest {
     this.platforms = [...this.snaps, ...this.crumbles, ...this.logs, ...this.bridges.flatMap((b) => b.planks)];
     this.vines = def.vines.map((v, i) => ({ ...v, i, angle: 0, av: 0, rider: null, still: !v.swing }));
     this.statue = def.statue ? { ...def.statue, lit: [false, false], litAt: [-9, -9], wake: -1, gate: 0 } : null;
-    this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false } : null;
+    // la corde : rest (au repos, son bout près de la poulie), held (tenue par KAGE), back (elle revient),
+    // caught (emmêlée dans le rameau : le bloc reste levé d'une case)
+    this.rope = def.rope ? { ...def.rope, state: 'rest', pull: 0, lift: 0, holder: null, strain: 0, t: 0 } : null;
+    // pentes (zone 11) : segments de sol en biais { x0, y0, x1, y1 } (pixels) ; sous eux, les tuiles
+    // restent au-dessous de la surface (foret.js), la pente seule porte KAGE
+    this.slopes = def.slopes ?? [];
+    this.slide = def.slide ? { ...def.slide, x: def.slide.start, from: def.slide.trigger, active: false, done: false, t: 0, wait: 0, pileGone: false } : null;
     this.dark = def.dark ?? null;
   }
 
   emit(name, data = {}) { this.level.onEvent?.(name, data); }
 
-  /** La statue est-elle ouverte (la porte de pierre ne bloque plus) ? */
-  get statueOpen() { return !!this.statue && this.statue.gate >= 0.85; }
+  /** La statue est-elle ouverte (le bloc, levé, laisse passer en glissade) ? */
+  get statueOpen() { return this.rope?.state === 'caught'; }
+
+  /** Une case « J » (le bloc) est-elle libre ? Seulement la rangée du bas, quand la corde est coincée. */
+  gateOpen(ty) { return this.rope?.state === 'caught' && ty === Math.round(this.rope.ground / TILE) - 1; }
 
   // --- sauvegarde ---------------------------------------------------------------
   applySave(s) {
-    if (this.statue && s?.statue) { this.statue.lit = [true, true]; this.statue.wake = 0; this.statue.gate = 1; }
+    if (this.rope && s?.statue) this.catchRope(true);
   }
 
   // --- réapparition de KAGE : tout se remet en place ------------------------------
@@ -93,13 +124,15 @@ export class Forest {
     for (const c of this.crumbles) { c.state = 'idle'; c.t = 0; c.y = c.y0; c.vy = 0; c.active = true; }
     for (const q of this.snaps) Object.assign(q, { state: 'idle', t: 0, y: q.y0, active: true, ang: 0, fx: 0, fy: 0, vx: 0, vy: 0 });   // la branche revient
     for (const l of this.logs) { l.sink = 0; l.y = l.y0; }
-    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + 8); } }
+    for (const B of this.bridges) { B.amp = 0; B.dipX = null; for (const p of B.planks) { if (p.state === 'fall' || p.state === 'gone') { p.state = 'gone'; p.active = false; continue; } p.state = 'idle'; p.t = 0; p.active = true; p.vy = 0; p.y = this.deckY(B, p.x + p.w / 2); } }
     for (const v of this.vines) v.rider = null;
     if (this.slide) {
       const S = this.slide;
-      S.active = false; S.done = false;
+      S.active = false; S.done = false; S.t = 0; S.wait = 0;
       // reprise à mi-pente : l'éboulis repart de derrière la lanterne, dès que KAGE s'en éloigne
+      // (l'amas du sommet n'est plus là) ; au sommet, l'amas est de nouveau debout
       const mid = spawn && spawn.x > S.trigger;
+      S.pileGone = !!mid;
       S.x = mid ? spawn.x - 11 * TILE : S.start;
       S.from = mid ? spawn.x + 12 : S.trigger;
     }
@@ -119,6 +152,20 @@ export class Forest {
     return null;
   }
 
+  /** Hauteur de la pente sous les pieds (x : milieu des pieds), si KAGE s'y pose ou y reste ; sinon null. */
+  slopeY(x, feet, dy, sticky) {
+    for (const s of this.slopes) {
+      if (x < s.x0 || x >= s.x1) continue;
+      if (s.pile && this.slide?.pileGone) continue;                       // l'amas s'est effondré
+      // l'amas est un obstacle : qui se retrouve sous sa surface (arrivé de côté, retombé dedans) est remis dessus
+      if (s.pile) { const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0); if (feet >= y - (sticky ? 7 : 0)) { this.slopeDir = Math.sign(s.y1 - s.y0); return y; } continue; }
+      const y = s.y0 + ((x - s.x0) * (s.y1 - s.y0)) / (s.x1 - s.x0);
+      // il retombe dessus, ou (déjà sur la pente) elle descend un peu sous lui ou monte un peu devant lui
+      if (feet >= y - (sticky ? 7 : 0) && feet - dy <= y + (sticky ? 10 : 4)) { this.slopeDir = Math.sign(s.y1 - s.y0); return y; }
+    }
+    return null;
+  }
+
   update(dt, player) {
     this.time += dt;
     const alive = player.state !== 'death' && player.state !== 'respawn';
@@ -129,6 +176,7 @@ export class Forest {
     this.updateLogs(dt);
     this.updateVines(dt);
     this.updateStatue(dt, player, alive);
+    this.updateRope(dt);
     this.updateSlide(dt, player, alive);
     for (const p of this.platforms) p.load = false;
   }
@@ -238,13 +286,13 @@ export class Forest {
           continue;
         }
         if (p.state === 'gone') continue;
-        if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + 8, y: p.y }); }
+        if (p.rotten && p.state === 'idle' && p.load) { p.state = 'shake'; p.t = 0; this.emit('crumbleCreak', { x: p.x + p.w / 2, y: p.y }); }
         if (p.state === 'shake') {
           p.t += dt;
-          if (p.t >= W.hold) { p.state = 'fall'; p.t = 0; p.active = false; p.vy = 30; this.emit('plankFall', { x: p.x + 8, y: p.y }); continue; }
+          if (p.t >= W.hold) { p.state = 'fall'; p.t = 0; p.active = false; p.vy = 30; this.emit('plankFall', { x: p.x + p.w / 2, y: p.y }); continue; }
         }
         if (p.state === 'grow') { p.t += dt; if (p.t >= 0.4) p.state = 'idle'; }
-        const ny = this.deckY(B, p.x + 8);
+        const ny = this.deckY(B, p.x + p.w / 2);
         p.dy = ny - p.y; p.y = ny;
       }
     }
@@ -329,11 +377,15 @@ export class Forest {
     player.vineR = r;
     // balancier : pesanteur, frottement, élan donné par le joueur
     let acc = -(V.g / r) * Math.sin(v.angle) - (v.still ? V.dampStill : V.damp) * v.av;
-    // (on ne pousse plus au-delà d'un certain angle : le balancier reste lisible)
-    if (Math.abs(v.angle) < V.pumpAngle || Math.sign(v.angle) !== dir) acc += dir * V.pump * (v.still ? 0.25 : 1) * Math.cos(v.angle);
+    // l'élan : KAGE se penche et pousse ; ça ne paie que dans le sens du mouvement (au bon moment), un peu
+    // pour démarrer à l'arrêt, et à contre-sens ça freine ; plus d'élan au-delà de pumpAngle
+    if (dir && (Math.abs(v.angle) < V.pumpAngle || Math.sign(v.angle) !== dir)) {
+      const k = Math.abs(v.av) < 0.25 ? V.pumpStart : Math.sign(v.av) === dir ? 1 : V.pumpBack;
+      acc += dir * k * V.pumpK * (V.g / r) * (v.still ? 0.25 : 1) * Math.cos(v.angle);
+    }
     v.av += acc * dt;
     v.angle += v.av * dt;
-    if (Math.abs(v.angle) > V.maxAngle) { v.angle = Math.sign(v.angle) * V.maxAngle; v.av = 0; }
+    if (Math.abs(v.angle) > V.maxAngle && Math.sign(v.av) === Math.sign(v.angle)) { v.angle = Math.sign(v.angle) * V.maxAngle; v.av = 0; }
     if (dir) player.facing = dir;
     else if (!v.still && Math.abs(v.av) > 0.5) player.facing = Math.sign(v.av);
     const p = this.vinePoint(v, r);
@@ -380,8 +432,15 @@ export class Forest {
     player.vy = -vt * Math.sin(v.angle);
     // le bond : franc sur une liane immobile (on passe d'une mèche à l'autre), un simple
     // coup de reins sur une liane qui se balance (l'élan vient du balancier, pas du saut)
+    let perfect = false;
     if (jump && v.still) { player.vy = Math.min(player.vy, 0) - V.jumpUp; player.vx += dir * 70; }
-    else if (jump) player.vy -= V.hop;
+    else if (jump) {
+      const out = Math.sign(v.av) === Math.sign(v.angle) && Math.abs(v.av) > 0.05;     // elle remonte
+      const q = out ? Math.max(0, Math.min(1, (Math.abs(v.angle) - V.swingQ0) / (V.swingQ1 - V.swingQ0))) : 0;
+      player.vy -= V.hop + V.swingUp * q;
+      player.vx += Math.sign(v.av) * V.swingFwd * q;
+      perfect = q > 0.6;
+    }
     v.rider = null;
     player.vine = null;
     player.lastVine = v;
@@ -398,7 +457,7 @@ export class Forest {
     player.airDash = true;
     player.fling = true;
     player.jumpBuffer = 0;
-    player.emit('vine_release', { jump });
+    player.emit('vine_release', { jump, perfect, x: player.x, y: player.y });
     if (dash) {
       player.airDash = false;
       player.facing = dash;
@@ -410,43 +469,131 @@ export class Forest {
     }
   }
 
-  // --- zone 9 : la statue -------------------------------------------------------------------
-  updateStatue(dt, player, alive) {
-    const s = this.statue;
-    if (!s) return;
-    const S = FOREST.statue;
-    if (alive) {
-      s.eyes.forEach((e, i) => {
-        if (s.lit[i]) return;
-        if (Math.abs(player.x - e.x) < S.reach && Math.abs(player.y - 14 - e.y) < S.reach) {
-          s.lit[i] = true; s.litAt[i] = this.time;
-          this.emit('eyeLit', { x: e.x, y: e.y, both: s.lit[0] && s.lit[1] });
-        }
-      });
+  // --- zone 9 : la corde de la statue ---------------------------------------------------------------
+  /** Où est le bout de la corde (là où KAGE la saisit) ; il recule à mesure qu'on tire. */
+  ropeEnd() { const r = this.rope; return r.end - r.pull; }
+
+  /**
+   * KAGE au sol sur la branche, tout près du bout de la corde : ↑ (au clavier), ou le bouton de saut sur
+   * téléphone (comme pour une liane), la lui fait saisir. Renvoie true s'il l'a saisie.
+   */
+  tryRope(player, input) {
+    const r = this.rope;
+    if (!r || r.state !== 'rest' || !player.onGround || Math.abs(player.y - r.branchY) > 3) return false;
+    if (Math.abs(player.x - (this.ropeEnd() - 6)) > FOREST.rope.reach) return false;
+    const want = input.wasPressed('up') || (this.touch && input.wasPressed('jump'));
+    if (!want) return false;
+    input.pressed.delete('up'); input.pressed.delete('jump'); player.jumpBuffer = 0;
+    r.state = 'held'; r.holder = player; r.strain = 0;
+    player.facing = -1; player.vx = 0; player.vy = 0;
+    player.x = this.ropeEnd() - 6;
+    player.setState('rope_pull');
+    this.emit('ropeGrab', { x: player.x, y: player.y });
+    return true;
+  }
+
+  /**
+   * KAGE tient la corde (état rope_pull) : il la tire en s'éloignant de la poulie (lentement, il peine),
+   * il la laisse filer en revenant vers elle ; le saut la lâche. Le bloc suit (lift = pull × ratio).
+   */
+  haulRope(player, dt, input) {
+    const r = this.rope, R = FOREST.rope;
+    if (input.wasPressed('jump') || !r || r.state !== 'held') {
+      input.pressed.delete('jump'); player.jumpBuffer = 0;
+      this.releaseRope(player);
+      return;
     }
-    if (s.lit[0] && s.lit[1] && s.gate < 1) {
-      if (s.wake < 0) s.wake = this.time;
-      if (this.time - s.wake >= S.delay) {
-        const dx = s.door * TILE + 8;
-        if (s.gate === 0) this.emit('gateOpen', { x: dx, y: s.ground });
-        const before = s.gate;
-        s.gate = Math.min(1, s.gate + dt / S.gateTime);
-        if (before < 1 && s.gate >= 1) this.emit('gateDone', { x: dx, y: s.ground });
+    const L = input.isHeld('left'), Rt = input.isHeld('right');
+    const before = r.pull, E = player.energy, spent = E.exhausted;
+    if (L && !Rt && r.pull < r.max) {
+      if (spent) E.flash = 0.5;   // à bout de souffle : il tient la corde, sans pouvoir tirer
+      else {
+        // la corde résiste : KAGE tire par saccades, une à chaque pas (vitesse moyenne R.pull)
+        r.heaveT = (r.heaveT ?? 0) + dt;
+        const k = 1 + R.surge * Math.sin((r.heaveT / R.heave) * Math.PI * 2);
+        r.pull = Math.min(r.max, r.pull + R.pull * k * dt);
+        E.spend(R.energy * dt);
+      }
+    } else if (Rt && !L) r.pull = Math.max(0, r.pull - R.give * dt);
+    const moved = r.pull - before;
+    r.lift = r.pull * R.ratio;
+    player.x = this.ropeEnd() - 6; player.y = r.branchY; player.vx = 0; player.vy = 0;
+    player.onGround = true; player.facing = -1;
+    // l'animation n'avance que s'il marche ; à l'arrêt, il reste arc-bouté
+    if (moved !== 0) player.anim.update(dt * (moved > 0 ? 1 : 0.8));
+    if (moved > 0) {
+      r.strain -= dt;
+      if (r.strain <= 0) { r.strain = R.strainEvery; this.emit('ropeStrain', { x: player.x, y: player.y, lift: r.lift }); }
+      // l'effort : de temps en temps, la branche et la poulie encaissent (petite secousse de l'image)
+      r.shakeIn = (r.shakeIn ?? R.shakes[0]) - dt;
+      if (r.shakeIn <= 0) { r.nShake = ((r.nShake ?? 0) + 1) % R.shakes.length; r.shakeIn = R.shakes[r.nShake]; this.emit('ropeHeave', { x: player.x, y: player.y }); }
+    }
+    // KAGE souffle par moments en tirant (comme au retrait du coup de pied) ; à bout de souffle, il halète
+    if (moved > 0 || spent) {
+      r.breathIn = (r.breathIn ?? R.breaths[0]) - dt;
+      if (r.breathIn <= 0) {
+        r.nBreath = ((r.nBreath ?? 0) + 1) % R.breaths.length;
+        r.breathIn = spent ? R.pant : R.breaths[r.nBreath];
+        this.emit('ropeBreath', { x: player.x, y: player.y, facing: player.facing, spent });
       }
     }
   }
+
+  /** KAGE lâche la corde : elle revient vers la poulie (si son bout a dépassé le rameau, il l'arrêtera). */
+  releaseRope(player) {
+    const r = this.rope;
+    if (r && r.state === 'held') {
+      r.state = 'back'; r.holder = null;
+      r.snag = r.pull >= (r.end - r.twig) + FOREST.rope.past;
+      this.emit('ropeRelease', { x: player.x, y: player.y });
+    }
+    if (player.state === 'rope_pull') { player.setState('idle'); player.jumpBuffer = 0; }
+  }
+
+  /** La corde se coince dans le rameau : le bloc reste levé d'une case (sauvegardé). */
+  catchRope(quiet = false) {
+    const r = this.rope;
+    r.state = 'caught'; r.pull = r.end - r.twig; r.lift = TILE; r.holder = null;
+    if (!quiet) this.emit('gateOpen', { x: r.door * TILE + 8, y: r.ground });
+  }
+
+  updateRope(dt) {
+    const r = this.rope;
+    if (!r) return;
+    r.t += dt;
+    if (r.state !== 'back') return;
+    // elle revient, de plus en plus vite (le poids du bloc) ; le bloc redescend avec elle
+    r.v = Math.min(FOREST.rope.ret * 2.2, (r.v ?? 30) + FOREST.rope.ret * 3 * dt);
+    r.pull = Math.max(0, r.pull - r.v * dt);
+    const stop = r.end - r.twig;
+    if (r.snag && r.pull <= stop) { r.v = 0; this.catchRope(); return; }
+    r.lift = Math.min(r.lift, r.pull * FOREST.rope.ratio);
+    if (r.pull <= 0) { r.state = 'rest'; r.v = 0; r.lift = 0; this.emit('blockFall', { x: r.door * TILE + 8, y: r.ground }); }
+  }
+
+  /** Les yeux de la statue : plus de déclencheur (le mécanisme est la corde) ; gardé pour la peinture. */
+  updateStatue() {}
 
   // --- zone 11 : l'éboulis ------------------------------------------------------------------
   updateSlide(dt, player, alive) {
     const S = this.slide;
     if (!S || S.done) return;
     if (!S.active) {
-      if (alive && player.x > S.from && player.x < S.end) { S.active = true; this.emit('slideStart', { x: S.x }); }
+      if (alive && player.x > S.from && player.x < S.end) {
+        S.active = true; S.t = 0; S.wait = S.pileGone ? 0 : S.delay ?? 0; S.withPile = !S.pileGone;
+        this.emit('slideStart', { x: S.x, pile: !S.pileGone });
+        S.pileGone = true;
+      }
       return;
     }
+    S.t += dt;
+    // l'amas s'effondre d'abord : la masse ne se met en marche qu'une fois les premiers blocs tombés
+    if (S.wait > 0) { S.wait -= dt; if (alive && player.x < S.x - FOREST.slide.margin && player.x > S.start - 120) { this.emit('slideHit', { x: player.x, y: player.y }); player.die(); } return; }
     const k = Math.max(0, Math.min(1, (S.x - S.start) / (S.end - S.start)));
-    S.x += (S.speed + (S.speedEnd - S.speed) * k) * dt;
-    if (S.x >= S.end) { S.x = S.end; S.active = false; S.done = true; this.emit('slideEnd', { x: S.x }); return; }
+    // sur ses dix dernières cases, l'éboulis ralentit et s'étale avant de s'arrêter
+    const brake = Math.max(0.12, Math.min(1, (S.end - S.x) / 160));
+    S.x += (S.speed + (S.speedEnd - S.speed) * k) * brake * dt;
+    if (S.x >= S.end - 1) { S.x = S.end; S.active = false; S.done = true; this.emit('slideEnd', { x: S.x }); return; }
     if (alive && player.x < S.x - FOREST.slide.margin && player.x > S.start - 32) {
       this.emit('slideHit', { x: player.x, y: player.y });
       player.die();

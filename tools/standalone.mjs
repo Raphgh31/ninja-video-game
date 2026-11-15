@@ -17,6 +17,7 @@ for (const p of Object.values(meta.projectiles ?? {})) {
 for (const id of meta.skins) {
   embed[`./${base}/skins/${id}.json`] = JSON.parse(readFileSync(join(dist, base, 'skins', `${id}.json`), 'utf8'));
 }
+if (meta.intro) embed[`./${base}/${meta.intro.image}`] = 'data:image/png;base64,' + readFileSync(join(dist, base, meta.intro.image)).toString('base64');
 for (const f of Object.values(meta.accessorySheets ?? {})) {
   embed[`./${base}/${f}`] = 'data:image/png;base64,' + readFileSync(join(dist, base, f)).toString('base64');
 }

@@ -61,11 +61,16 @@ window.bot = {
       this.set({ right: true, left: false, sprint: !!(typeof o.sprint === 'function' ? o.sprint(p) : o.sprint) });
       if (p.onGround) {
         airDashed = false;
-        const wall = l.solid(c + 1, r - 1) && p.x % 16 > 6;
+        // une pente devant (ou l'amas de la descente) : ce n'est ni un trou ni un mur, on la suit
+        const F = l.forest, ax = p.x + 18;
+        const slope = !!F?.slopes?.some((q) => ax >= q.x0 && ax < q.x1 && !(q.pile && F.slide?.pileGone)) || (p.onSlope && !!F);
+        // un obstacle de deux cases un peu plus loin : on saute plus tôt
+        const tall = !slope && l.solid(c + 2, r - 1) && l.solid(c + 2, r - 2) && !l.solid(c + 1, r - 1) && p.x % 16 > 4;
+        const wall = !slope && (l.solid(c + 1, r - 1) && p.x % 16 > 6 || tall);
         const low = l.solid(c + 1, r - 2) && !l.solid(c + 1, r - 1);         // plafond bas devant : glissade
         // une simple marche vers le bas : on se laisse descendre, sans sauter
-        const drop = !this.groundAt(c + 1, r, 2) && l.at(c + 1, r) !== '~' && l.at(c + 1, r + 1) !== '~' && this.groundAt(c + 1, r + 2, 2);
-        const edge = !drop && (!this.groundAt(c + 1, r, 2) || l.at(c + 1, r) === '~') && p.x % 16 > 9;
+        const drop = !slope && !this.groundAt(c + 1, r, 2) && l.at(c + 1, r) !== '~' && l.at(c + 1, r + 1) !== '~' && this.groundAt(c + 1, r + 2, 2);
+        const edge = !slope && !drop && (!this.groundAt(c + 1, r, 2) || l.at(c + 1, r) === '~') && p.x % 16 > 9;
         if (low && p.state !== 'slide') this.tap('down');
         else if ((wall || edge) && p.state !== 'slide') this.tap('jump');
         else this.set({ jump: false });
@@ -81,6 +86,49 @@ window.bot = {
         if (o.aim && this._land) this.set({ right: p.x < this._land - 3, left: p.x > this._land + 12 });
         if (!airDashed && o.dashGap && this._gap >= o.dashGap && p.vy > -40 && p.airDash) { this.dash(1); airDashed = true; }
       }
+      return false;
+    });
+  },
+  /**
+   * Monte de branche en branche (« - », traversables par-dessous) : sous la branche suivante,
+   * un saut ; s'arrête quand les pieds sont sur la ligne topRow (détours le long d'un grand tronc).
+   */
+  boughs(seconds, topRow) {
+    let target = null;
+    return this.run(seconds, (p) => {
+      const l = this.k.level, c = Math.floor(p.x / 16), r = Math.round(p.y / 16);
+      if (p.onGround && r <= topRow) { this.clear(); return true; }
+      if (p.onGround) {
+        // la branche la plus proche au-dessus (1 à 4 cases), à moins de 8 colonnes
+        target = null;
+        // d'abord une branche juste au-dessus (on monte tout droit), sinon la plus proche
+        for (let dr = 1; dr <= 3 && !target; dr++) if (l.at(c, r - dr) === '-') { let a = c, z = c; while (l.at(a - 1, r - dr) === '-') a--; while (l.at(z + 1, r - dr) === '-') z++; target = { a, z, row: r - dr }; }
+        for (let dr = 1; dr <= 4 && !target; dr++) {
+          let best = null;
+          for (let dc = -8; dc <= 8; dc++) if (l.at(c + dc, r - dr) === '-' && (!best || Math.abs(dc) < Math.abs(best - c))) best = c + dc;
+          if (best != null) { let a = best, z = best; while (l.at(a - 1, r - dr) === '-') a--; while (l.at(z + 1, r - dr) === '-') z++; target = { a, z, row: r - dr }; }
+        }
+        if (!target) return true;
+        const mid = ((target.a + target.z + 1) / 2) * 16;
+        const under = p.x > target.a * 16 + 4 && p.x < (target.z + 1) * 16 - 4;
+        const dir = p.x < mid ? 1 : -1, cc = Math.floor((p.x + dir * 6) / 16);
+        const edge = !l.solid(cc, r) && !l.ledge(cc, r) && l.at(cc, r) !== '-';   // le sol s'arrête devant : on saute en avançant
+        if (under && Math.abs(p.vx) < 30) { this.set({ left: false, right: false }); this.tap('jump'); }
+        else if (edge) { this.set({ right: dir > 0, left: dir < 0 }); this.tap('jump'); }
+        else this.set({ right: p.x < mid - 4, left: p.x > mid + 4, jump: false });
+      } else if (target) {
+        const mid = ((target.a + target.z + 1) / 2) * 16;
+        this.set({ right: p.x < mid - 6, left: p.x > mid + 6 });
+      }
+      return false;
+    });
+  },
+  /** Marche dans la direction dir jusqu'au sol de la ligne row (on se laisse tomber de branche en branche). */
+  walkDown(seconds, dir, row) {
+    return this.run(seconds, (p) => {
+      if (this.dead()) return true;
+      if (p.onGround && Math.round(p.y / 16) >= row) { this.clear(); return true; }
+      this.set({ right: dir > 0, left: dir < 0, jump: false });
       return false;
     });
   },

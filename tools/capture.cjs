@@ -19,6 +19,7 @@ const path = require('path');
   const page = path.resolve(process.env.PAGE || 'dist/kage-standalone.html');
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: +(process.env.VW || 1920), height: +(process.env.VH || 1200) } });
+  await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; });   // pas d'introduction
   await p.goto('file://' + page);
   await p.waitForFunction(() => window.__kage);
   await p.evaluate(() => localStorage.clear());

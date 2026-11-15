@@ -14,6 +14,9 @@ const P = {
   fallLimit: 168,    // chute mortelle au-delà de 10,5 cases entre le sol quitté et le sol d'arrivée
                      // (la poutre de la serre, 10 cases au-dessus du sol, est la limite sans dégâts ; le toit, 13 cases, tue)     // après le lâcher d'une liane : léger freinage de l'élan tant qu'on ne pousse pas à contre-sens
   gravity: 980,
+  // salto au deuxième appui : gravité allégée pendant la rotation, petit élan (px/s), au plus une
+  // demi-case au-dessus d'un saut plein ; durées des 11 images (s) : environ 0,95 s en tout
+  flip: { gravity: 0.42, kick: 120, rise: 8, brake: 0.3, wallGap: 40, times: [0.13, 0.1, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.1, 0.14] },
   maxFall: 420,
   jump: 315,
   jumpCut: 0.45,     // relâcher le saut tôt = saut plus court
@@ -67,6 +70,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.timer = 0;
     this.airDash = true;
+    this.airY0 = this.y; this.airFacing = this.facing; this.flipUsed = false; this.flipK = 1; this.flipDone = false;
     this.wallLock = 0;
     this.wallCoyote = 0;
     this.lastWall = 0;        // côté du dernier mur touché
@@ -91,7 +95,89 @@ export class Player {
     this.setState(instant ? 'idle' : 'respawn');
   }
 
+  isFlipping() { return this.state === 'flip' || this.state === 'backflip'; }
+
+  /**
+   * Salto groupé, au deuxième appui sur saut en l'air (avant, ou arrière si la direction
+   * tenue est opposée au sens du départ). « Envolée bridée » : un petit élan vers le haut
+   * et une gravité allégée pendant la rotation laissent au salto le temps d'être lent,
+   * sans que KAGE monte plus d'une demi-case au-dessus d'un saut plein ni aille plus loin
+   * qu'un saut normal (sa vitesse vers l'avant est freinée d'autant : flipK).
+   */
+  startFlip(kind) {
+    const F = P.flip, g = P.gravity, gF = g * F.gravity;
+    const nominal = F.times.slice(0, 9).reduce((a, b) => a + b, 0);   // (gravité allégée jusqu'à la fin de la rotation)
+    const level = Math.max(this.airY0, this.y);                       // hauteur de référence : le sol quitté
+    // temps de vol restant sans salto, puis avec : la vitesse vers l'avant est réduite d'autant
+    const tNormal = this.airTime(this.y, this.vy, level, g, g, 0);
+    const apex = this.airY0 - (P.jump * P.jump) / (2 * g) - F.rise;
+    const room = Math.max(0, this.y - apex);
+    // en montée ou au sommet : un petit élan (plafonné) ; déjà en redescente : la chute est seulement freinée
+    if (this.vy < 60) this.vy = -Math.min(Math.max(-this.vy, F.kick), Math.sqrt(2 * gF * room));
+    else this.vy *= F.brake;
+    const tFlip = this.airTime(this.y, this.vy, level, gF, g, nominal);
+    this.flipK = Math.max(0.15, Math.min(1, tNormal / Math.max(1e-3, tFlip)));
+    this.vx *= this.flipK;
+    this.setState(kind);
+    this.facing = this.airFacing;
+    this.flipT = 0;
+    this.flipEnd = Infinity;
+    this.flipSpun = false;
+    this.flipUsed = true;
+    this.flipDone = true;                // (le prochain coup de sabre en l'air sera le coup du salto)
+    this.jumpBuffer = 0;                 // (ce deuxième appui ne relance pas un saut à la réception)
+  }
+
+  /** Temps pour redescendre au niveau `level` (gravité g1 pendant t1 secondes, puis g2). */
+  airTime(y, vy, level, g1, g2, t1) {
+    let t = 0;
+    const dt = 1 / 120;
+    while (t < 3) {
+      vy = Math.min(P.maxFall, vy + (t < t1 ? g1 : g2) * dt);
+      y += vy * dt;
+      t += dt;
+      if (vy > 0 && y >= level) return t;
+    }
+    return t;
+  }
+
+  /**
+   * Images du salto sur leur propre horloge (P.flip.times) : impulsion, groupé, sept images
+   * de rotation, ouverture, puis jambes tendues jusqu'au sol. Si le sol approche trop tôt
+   * (deuxième appui tardif), l'horloge accélère juste assez pour finir la rotation à temps.
+   */
+  updateFlip(dt) {
+    const F = P.flip, total = F.times.reduce((a, b) => a + b, 0);
+    let rate = 1;
+    if (this.flipT < total) {
+      const g = P.gravity * (this.anim.frame <= 8 ? F.gravity : 1);
+      const left = this.airTime(this.y, this.vy, Math.max(this.airY0, this.y + 1), g, g, 0);
+      rate = Math.min(3, Math.max(1, (total - this.flipT) / Math.max(0.05, left - 0.03)));
+    }
+    this.flipT += dt * rate;
+    let f = 0, acc = 0;
+    while (f < 10 && this.flipT >= acc + F.times[f]) acc += F.times[f++];
+    if (f >= 10 && this.flipEnd === Infinity) this.flipEnd = this.timer;
+    if (f >= 2 && !this.flipSpun) { this.flipSpun = true; this.emit('flip', { kind: this.state }); }
+    this.anim.frame = f;
+    this.anim.time = 0;
+    this.anim.finished = false;
+  }
+
+  /** Le deuxième appui peut-il lancer un salto ? (pas tout près du sol en retombant : c'est alors un saut mis en réserve) */
+  canFlip() {
+    if (this.onGround || this.coyote > 0 || this.flipUsed || this.isFlipping()) return false;
+    if (this.timer === 0) return false;            // (le saut vient de partir, sur ce même appui)
+    if (this.wallNear(P.flip.wallGap)) return false;   // (près d'un mur, l'appui sert au saut mural)
+    if (this.state !== 'jump' && this.state !== 'fall' && this.state !== 'wall_jump') return false;
+    if (this.vy <= 0) return true;
+    const tx = Math.floor(this.x / TILE), ty = Math.floor(this.y / TILE);
+    for (let r = ty; r <= ty + 1; r++) if (this.level.solid(tx, r) || this.level.ledge?.(tx, r)) return false;
+    return true;
+  }
+
   setState(s) {
+    if (!['flip', 'backflip', 'fall', 'land', 'air_attack', 'flip_attack', 'air_kick'].includes(s)) this.flipK = 1;   // (un dash, un mur, une liane : la vitesse redevient libre)
     this.state = s;
     this.timer = 0;
     this.anim.play(s, { restart: true });
@@ -113,6 +199,15 @@ export class Player {
       if (this.level.solid(lx, ty)) return -1;
     }
     return 0;
+  }
+
+  /** Un mur à moins de `gap` px d'un côté ou de l'autre (à hauteur du corps) ? */
+  wallNear(gap) {
+    const b = this.box();
+    const y0 = Math.floor((b.y + 2) / TILE), y1 = Math.floor((b.y + b.h - 3) / TILE);
+    const l0 = Math.floor((b.x - gap) / TILE), r1 = Math.floor((b.x + b.w + gap) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = l0; tx <= r1; tx++) if (this.level.solid(tx, ty)) return true;
+    return false;
   }
 
   /** Colonne de tuiles du mur situé du côté `side`. */
@@ -138,6 +233,7 @@ export class Player {
     this.airDash = true;
     this.emit('wall_jump', { side });
     this.setState('wall_jump');
+    this.flipUsed = true;               // (enchaînement de sauts muraux : plus de salto jusqu'au retour au sol)
   }
 
   /** Boîte de collision selon l'état (définie dans kage.json, relative à la cellule). */
@@ -173,6 +269,12 @@ export class Player {
         this.anim.update(dt);
         if (this.anim.finished) this.setState('idle');
         return;
+      case 'rope_pull':
+        // la corde de la statue : tirer, laisser filer et lâcher sont gérés par la forêt
+        this.level.forest.haulRope(this, dt, input);
+        this.fallFrom = this.y;
+        this.energy.update(dt, { walking: true });
+        return;
       case 'vine':
         // accroché à une liane : balancier, grimpe et lâcher sont gérés par la forêt
         this.level.forest.rideVine(this, dt, input);
@@ -200,26 +302,41 @@ export class Player {
         else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
       case 'attack':
-      case 'air_attack': {
+      case 'air_attack':
+      case 'flip_attack': {
         // au sol : légère fente pendant le dégainé et le demi-cercle ; en l'air : on garde l'élan
         const f = this.anim.frame;
         const lunge = this.state === 'attack' && this.onGround;
         const want = lunge ? (f >= 1 && f <= 3 ? this.facing * P.lunge : 0) : this.onGround ? 0 : this.vx;
         // coup aérien : léger plongeon pendant la frappe (images 3 à 5)
         if (this.state === 'air_attack' && !this.onGround && f >= 2 && f <= 4) this.vy = Math.max(this.vy, P.airChopPlunge);
+        if (this.state === 'flip_attack') {
+          // coup du salto : plongeon plus franc pendant la frappe ; reflet sur la lame pendant la
+          // charge, éclat de lumière quand la lame arrive en bas (main.js : lumière, secousse)
+          if (!this.onGround && f >= 4 && f <= 6) this.vy = Math.max(this.vy, P.airChopPlunge * 1.15);
+          for (const key of ['glint', 'impact']) {
+            const m = this.meta.animations.flip_attack[key];
+            if (m && f === m.frame && this.fxDone !== key + this.attackId) {
+              this.fxDone = key + this.attackId;
+              const { pivot } = this.meta;
+              this.emit(key === 'glint' ? 'blade_glint' : 'blade_flash', { x: this.x + this.facing * (m.x - pivot.x), y: this.y + m.y - pivot.y });
+            }
+          }
+        }
         this.vx += Math.sign(want - this.vx) * Math.min(Math.abs(want - this.vx), P.friction * dt);
         const box = this.attackBox();
         if (box) this.level.hitTargets(box, this.facing);
         if (this.anim.finished) this.endSpecial();
         break;
       }
-      case 'kick': {
-        // au sol on se plante sur sa jambe d'appui ; en l'air on garde son élan
+      case 'kick':
+      case 'air_kick': {
+        // au sol on se plante sur sa jambe d'appui ; en l'air (coup de pied sauté) on garde son élan
         if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
         const box = this.kickBox();
         if (box) this.level.hitTargets(box, this.facing);
         // retrait de la jambe : KAGE souffle (le coup lui coûte)
-        if (this.anim.frame >= 3 && !this.breathed) {
+        if (this.state === 'kick' && this.anim.frame >= 3 && !this.breathed) {
           this.breathed = true;
           this.emit('kick_breath');
         }
@@ -294,6 +411,7 @@ export class Player {
         else if (!this.onGround) this.setState('fall');
         break;
       default: {
+        const flipping = this.isFlipping();
         // contrôle horizontal
         // sprint : touche maintenue, en mouvement, et pas essoufflé
         this.sprinting = input.isHeld('sprint') && dir !== 0 && !this.energy.exhausted && this.energy.value > 0;
@@ -313,20 +431,22 @@ export class Player {
           this.setState('skid');
           break;
         }
-        const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run);
+        const target = dir * (tired ? P.walk : this.sprinting ? P.sprint : P.run) * (this.onGround ? 1 : this.flipK ?? 1);
         if (this.onGround) this.fling = false;
         if (this.fling && dir !== -Math.sign(this.vx) && Math.abs(this.vx) > Math.abs(target)) {
           // élan d'une liane : il porte KAGE, les commandes ne le brident pas
           this.vx -= Math.sign(this.vx) * P.flingDrag * dt;
-          if (dir !== 0) this.facing = dir;
+          if (dir !== 0 && !flipping) this.facing = dir;
         } else if (this.wallLock <= 0) {
           this.fling = false;
           const a = dir !== 0 ? P.accel : this.onGround ? P.friction : P.airFriction;
           if (this.vx < target) this.vx = Math.min(target, this.vx + a * dt);
           else if (this.vx > target) this.vx = Math.max(target, this.vx - a * dt);
-          if (dir !== 0) this.facing = dir;
+          if (dir !== 0 && !flipping) this.facing = dir;   // (pendant un salto, KAGE garde son orientation)
         }
 
+        // la corde de la statue (zone 9) : ↑ près de son bout (ou le saut, sur téléphone) la saisit, avant tout saut
+        if (this.level.forest?.tryRope(this, input)) break;
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = -P.jump;
           this.energy.spend(ENERGY.jump);   // le saut reste toujours possible
@@ -343,6 +463,10 @@ export class Player {
             break;
           }
         }
+        // deuxième appui sur saut, en l'air : salto (arrière si la direction tenue s'oppose au sens du départ)
+        if (input.wasPressed('jump') && this.state !== 'wall_slide' && this.canFlip()) {
+          this.startFlip(dir !== 0 && dir === -this.airFacing ? 'backflip' : 'flip');
+        }
         if (!input.isHeld('jump') && this.vy < 0 && this.state === 'jump' && !this.fling) {
           this.vy *= 1 - P.jumpCut * dt * 10;
         }
@@ -356,15 +480,18 @@ export class Player {
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
-          this.emit(this.onGround ? 'swing' : 'swing_heavy');
-          this.setState(this.onGround ? 'attack' : 'air_attack');
+          // en l'air juste après un salto (ou pendant) : le coup du salto, le plus puissant
+          const power = !this.onGround && this.flipDone;
+          this.flipDone = false;
+          this.emit(this.onGround ? 'swing' : power ? 'swing_power' : 'swing_heavy');
+          this.setState(this.onGround ? 'attack' : power ? 'flip_attack' : 'air_attack');
           break;
         }
         if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
           this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
           this.breathed = false;
-          this.emit('kick');
-          this.setState('kick');
+          this.emit('kick', { air: !this.onGround });
+          this.setState(this.onGround ? 'kick' : 'air_kick');   // en l'air : le coup de pied sauté
           break;
         }
         if (input.wasPressed('throw') && this.throwCd <= 0 && (this.canThrow?.() ?? true)) {
@@ -384,9 +511,10 @@ export class Player {
 
     // gravité (sauf pendant le dash)
     if (this.state !== 'dash') {
-      this.vy = Math.min(P.maxFall, this.vy + P.gravity * dt);
+      const light = this.isFlipping() && this.anim.frame <= 8;      // (salto : envolée bridée)
+      this.vy = Math.min(P.maxFall, this.vy + P.gravity * (light ? P.flip.gravity : 1) * dt);
       if (this.state === 'wall_slide') this.vy = Math.min(this.vy, P.wallSlide);
-      if (this.state === 'air_attack') this.vy = Math.min(this.vy, P.airAttackFall);
+      if (this.state === 'air_attack' || this.state === 'flip_attack' || this.state === 'air_kick') this.vy = Math.min(this.vy, P.airAttackFall);
     }
     const wasGround = this.onGround;
     const fallSpeed = this.vy;
@@ -405,6 +533,11 @@ export class Player {
 
     if (this.onGround) {
       this.coyote = P.coyote;
+      this.airY0 = this.y;               // (salto : sol quitté, sens du départ)
+      this.airFacing = this.facing;
+      this.flipUsed = false;
+      this.flipDone = false;
+      this.flipK = 1;
       this.airDash = true;
       this.lastWallJump = null;
     } else {
@@ -414,7 +547,7 @@ export class Player {
     // transitions d'animation
     const s = this.state;
     const moving = this.energy.exhausted ? 'walk' : this.sprinting ? 'sprint' : 'run';
-    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'walk' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump') {
+    if (s === 'idle' || s === 'run' || s === 'sprint' || s === 'walk' || s === 'land' || s === 'jump' || s === 'fall' || s === 'wall_jump' || s === 'flip' || s === 'backflip') {
       const side = this.wallSide();
       if (!this.onGround && this.vy > 0 && side && dir === side && s !== 'wall_jump' || (s === 'wall_jump' && this.vy > 0 && side && dir === side)) {
         // contre un mur en tombant, en poussant vers lui : glissade murale
@@ -422,6 +555,9 @@ export class Player {
         this.facing = -side;
         this.emit('wall_grab', { side });
         this.setState('wall_slide');
+      } else if (!this.onGround && (s === 'flip' || s === 'backflip')) {
+        // le salto va jusqu'au bout ; s'il reste du chemin à tomber (sol plus bas), KAGE tombe ensuite
+        if (this.timer - this.flipEnd > 0.2 && this.vy > 0) this.setState('fall');
       } else if (!this.onGround) {
         if (this.vy > 30 && s !== 'fall') this.setState('fall');
         else if (s !== 'jump' && s !== 'fall' && s !== 'wall_jump') this.setState('fall');
@@ -438,9 +574,13 @@ export class Player {
     }
 
     // en l'air, une direction tenue : il attrape la liane qu'il touche
-    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump') && this.level.forest?.tryGrab(this, input)) return;
+    if (!this.onGround && (this.state === 'jump' || this.state === 'fall' || this.state === 'wall_jump' || this.isFlipping()) && this.level.forest?.tryGrab(this, input)) return;
 
     if (this.y > this.level.height + 64 || this.level.hitsVoid?.(this.box())) {
+      this.die();
+    } else if (this.level.hitsWater?.(this.box())) {
+      // l'eau est mortelle dans tout le jeu (demande de l'utilisateur, novembre 2026) : retour à la lanterne
+      this.emit('drown', { x: this.x, y: this.y });
       this.die();
     } else if (this.level.hitsSpike(this.box()) && this.y - this.fallFrom > P.fallLimit) {
       // tombé de trop haut dans l'eau (ou sur des pics) : la chute est mortelle, comme sur le sol
@@ -456,14 +596,18 @@ export class Player {
     } else if (this.onGround && !this.ride && this.state !== 'hurt') {
       this.safe = { x: this.x, y: this.y };
     }
+    const downhill = this.onSlope && this.vx * (this.slopeDir ?? 0) > 0;
     this.energy.update(dt, {
-      running: this.onGround && (this.state === 'run' || this.state === 'sprint') && Math.abs(this.vx) > 10,
+      // dévaler une pente en courant ne coûte rien (la pente porte KAGE) : il y reprend même son souffle,
+      // comme en marchant ; le sprint, lui, coûte toujours
+      running: this.onGround && (this.state === 'sprint' || (this.state === 'run' && !downhill)) && Math.abs(this.vx) > 10,
       sprinting: this.onGround && this.state === 'sprint',
       resting: this.onGround && (this.state === 'idle' || this.state === 'land'),
-      walking: this.onGround && this.state === 'walk',
+      walking: this.onGround && (this.state === 'walk' || (this.state === 'run' && downhill)),
     });
     const before = this.anim.frame, stateBefore = this.state;
     this.anim.update(dt);
+    if (this.isFlipping()) this.updateFlip(dt);
     // bruit de pas : seulement quand le pied touche le sol dans le cycle, et que
     // KAGE avance vraiment (rien à l'arrêt, ni en entrant dans la course)
     const f = this.anim.frame;
@@ -509,7 +653,7 @@ export class Player {
 
   /** Zone de frappe du sabre, active seulement sur les frames du demi-cercle. */
   attackBox() {
-    if (this.state !== 'attack' && this.state !== 'air_attack') return null;
+    if (this.state !== 'attack' && this.state !== 'air_attack' && this.state !== 'flip_attack') return null;
     const a = this.meta.hitbox[this.state];
     if (!a.frames.includes(this.anim.frame)) return null;
     const { pivot } = this.meta;
@@ -517,10 +661,10 @@ export class Player {
     return { x: this.x + ox, y: this.y - pivot.y + a.y, w: a.w, h: a.h };
   }
 
-  /** Zone de frappe du coup de pied, active pendant la détente et l'impact. */
+  /** Zone de frappe du coup de pied (au sol : détente et impact ; en l'air : la jambe tendue). */
   kickBox() {
-    if (this.state !== 'kick') return null;
-    const a = this.meta.hitbox.kick;
+    if (this.state !== 'kick' && this.state !== 'air_kick') return null;
+    const a = this.meta.hitbox[this.state];
     if (!a.frames.includes(this.anim.frame)) return null;
     const { pivot } = this.meta;
     const ox = this.facing > 0 ? a.x - pivot.x : pivot.x - (a.x + a.w);
@@ -597,6 +741,15 @@ export class Player {
         p.load = true;
       }
     }
+    // les pentes (forêt) : un sol en biais qu'on suit en montant comme en descendant (on y reste collé
+    // en courant vers le bas ; un saut s'en détache)
+    let onSlope = false;
+    // (même posé sur des tuiles : l'amas de la descente repose sur le sol, sa surface est au-dessus)
+    if (this.vy >= 0 && lv.forest?.slopes?.length) {
+      const fb = this.box(), sy = lv.forest.slopeY(fb.x + fb.w / 2, fb.y + fb.h, this.vy * dt, this.onSlope || this.onGround);
+      if (sy != null) { this.y -= fb.y + fb.h - sy; this.vy = 0; this.onGround = true; onSlope = true; this.slopeDir = lv.forest.slopeDir; }
+    }
+    this.onSlope = onSlope;
   }
 
   draw(ctx, sheet, cam) {

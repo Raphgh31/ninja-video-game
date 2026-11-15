@@ -3,7 +3,7 @@
 // Chaque sonde (tests/foret_pilotes.js) pilote KAGE dans une zone et affiche ce qui s'est passé.
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 (async () => {
-  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 900, height: 600 } });
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 900, height: 600 } }); await p.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; });
   p.on('pageerror', (e) => console.log('ERR', e.message));
   await p.goto('file://' + path.resolve('dist/kage-test.html') + '#foret'); await p.waitForFunction(() => window.__kage);
   for (const f of [path.join(__dirname, 'foret_bot.js'), process.env.PILOTES || path.join(__dirname, 'foret_pilotes.js')]) await p.addScriptTag({ content: fs.readFileSync(f, 'utf8') });
