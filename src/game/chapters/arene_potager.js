@@ -68,7 +68,7 @@ function build() {
 
   // ---- tout à droite : le gong sur sa tour, une botte de foin ----
   b.block(R - 3, 2, G - 1, G - 1, '%');        // botte de foin
-  b.row(R - 3, 3, G - 9, '=');                 // la plateforme du gong, contre le bosquet
+  b.row(R - 7, 7, G - 9, '=');                 // la plateforme du gong, contre le bosquet ; elle déborde de sa tour vers la gauche (on y accède depuis le potager)
 
   // ---- trois arbres, de tailles et de formes variées ----
   b.propBack('tree', 19, G, { kind: 'pommier', s: 1.3 });
@@ -84,6 +84,7 @@ function build() {
   b.zones[0].x1 = b.x;
   const px = (c) => c * TILE + TILE / 2;
   const rack = { x0: C0 - 2, x1: C0 + CW + 1, row: G - 9 }, deck = { x0: L + 1, x1: L + 3, row: G - 9 };
+  const gongDeck = { x0: R - 7, x1: R - 1, tower: R - 3, row: G - 9 };
   return {
     b,
     arena: {
@@ -101,8 +102,8 @@ function build() {
       sluices: [{ x: (L + 1) * TILE, dir: 1 }, { x: R * TILE, dir: -1 }],
       canal: [C0 * TILE, (C0 + CW) * TILE],
       rack, deck,                                        // les perches de séchage, la plateforme du treuil
-      gongDeck: { x0: R - 3, x1: R - 1, row: G - 9 },
-      ownSupports: [rack, deck],                         // supports dessinés par l'arène (pas de poteaux automatiques)
+      gongDeck, // la tour du gong (ses poteaux) ; à gauche, le débord sur une jambe de force
+      ownSupports: [rack, deck, gongDeck],                         // supports dessinés par l'arène (pas de poteaux automatiques)
       hay: [{ x0: L + 2, w: 2, row: G - 1 }, { x0: R - 3, w: 2, row: G - 1 }],
       // caisses (au départ)
       crates: [{ tx: L + 5, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 2 }],

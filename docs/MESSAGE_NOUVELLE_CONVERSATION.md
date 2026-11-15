@@ -23,7 +23,7 @@ Je vais te donner mes retours après avoir joué ; applique exactement ce que je
 3. `docs/REPRISE.md`, seulement au besoin ;
 4. `docs/GUIDE_CHAPITRE.md` si on construit ou retouche un chapitre.
 
-Lance `npm install`, puis `npm run sprites` et `npm test` (91 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
+Lance `npm install`, puis `npm run sprites` et `npm test` (92 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
 
 **Les artefacts** (`npm run standalone` les fabrique) — **la version test ne se publie que si je le dis** (« publie-le » = vas-y sans redemander ; si je ne dis rien, ne publie pas) ; pour les autres, **demande-moi l'autorisation** :
 - « The Ninja Game Test », ma version d'essai, privée (skins sans achat, chapitres et zones en un clic) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, publier sans `shared_live`) — seulement quand je dis de la publier ;

@@ -1428,6 +1428,24 @@ async function main() {
     expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,true' && sc[1] === 'false,false' && sc[2] === 'true,true' && sc[3] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
   });
 
+  await test('arène : la plateforme du gong déborde vers la gauche — on l\'atteint d\'un saut depuis le haut du potager ; un saut plein sur les perches du milieu (plus de mur invisible)', async () => {
+    const tryJump = async (x) => {
+      await ar.evaluate(() => { const g = window.__kage, pl = g.player; pl.x = 822; pl.y = 12 * 16; pl.onGround = true; pl.vx = 0; pl.vy = 0; pl.facing = 1; pl.setState('idle'); pl.energy.value = 1; pl.invuln = 9; g.step(10); });
+      await AK.down('ArrowRight');
+      await ar.evaluate((x) => { const g = window.__kage; for (let i = 0; i < 400 && g.player.x < x; i++) g.step(1); }, x);
+      await AK.down('Space'); await ar.evaluate(() => window.__kage.step(30)); await AK.up('Space');
+      await ar.evaluate(() => window.__kage.step(90)); await AK.up('ArrowRight'); await ar.evaluate(() => window.__kage.step(20));
+      return ar.evaluate(() => Math.round(window.__kage.player.y / 16));
+    };
+    const rows = [];
+    for (const x of [856, 862, 868, 874]) rows.push(await tryJump(x));
+    await AT(34, 9);
+    await AK.down('Space');
+    const top = await ar.evaluate(() => { let m = 999; for (let i = 0; i < 50; i++) { window.__kage.step(1); m = Math.min(m, window.__kage.player.y); } return Math.round(144 - m); });
+    await AK.up('Space'); await ar.evaluate(() => window.__kage.step(60));
+    expect(rows.filter((r) => r === 9).length >= 2 && top >= 46, `rangées d'arrivée ${rows} ; hauteur du saut sur les perches ${top} px`);
+  });
+
   await test('arène : coup de pied dans une caisse — elle glisse ; poussée dans le canal, elle coule', async () => {
     await ar.evaluate(() => window.__kage.level.arena.reset());
     // une caisse au bord du canal, KAGE derrière
