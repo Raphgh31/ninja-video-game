@@ -1107,14 +1107,14 @@ function groundBelow(x, y) {
 }
 
 /**
- * Arène : en hauteur, le sol à 85 % de l'image, fixe, tant que l'image contient toute
- * l'arène (ordinateur). Sur un écran plus bas (téléphone allongé, même échelle que
- * l'ordinateur), la caméra suit doucement KAGE entre le plafond et le sol.
+ * Arène : en hauteur, le sol à 85 % de l'image ; quand KAGE monte sur l'étage du haut
+ * (et sur un écran plus bas, téléphone allongé), la caméra le suit doucement, sans
+ * jamais monter au-dessus de son saut ni descendre sous le sol.
  */
 let arenaY = null;
 function arenaCamY(dt = 1) {
   const a = level.arena.def, low = Math.round(a.ground + VIEW_H * 0.15 - VIEW_H);
-  const high = Math.min(low, Math.round(a.ground - 13 * 16 - 8));     // le haut : le plafond de l'arène, juste dans l'image
+  const high = Math.min(low, Math.round(a.ground - 15 * 16));         // le plus haut : un saut depuis l'étage du haut reste dans l'image
   let want = low;
   if (high < low) want = Math.max(high, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
   arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);

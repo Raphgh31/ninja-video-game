@@ -30,8 +30,9 @@ function build() {
   // les bosquets qui ferment l'arène : on y grimpe en sauts muraux, on n'en sort pas
   b.block(L, 1, 0, G - 1, '|');
   b.block(R, 1, 0, G - 1, '|');
-  // un plafond invisible au ras du haut de l'image : on ne sort jamais du cadre
-  b.row(L + 1, R - L - 1, G - 13, '%');
+  // un plafond invisible, haut au-dessus des plateformes (on saute normalement depuis
+  // les perches du milieu) : on ne passe jamais par-dessus les bosquets
+  b.row(L + 1, R - L - 1, G - 16, '%');
 
   // ---- gauche : la grue de bambou et son rocher ----
   b.row(L + 1, 3, G - 9, '-');                 // plateforme du treuil, accrochée au bosquet (d'ici, un shuriken coupe la corde)
@@ -103,7 +104,7 @@ function build() {
       gongDeck: { x0: R - 3, x1: R - 1, row: G - 9 },
       ownSupports: [rack, deck],                         // supports dessinés par l'arène (pas de poteaux automatiques)
       hay: [{ x0: L + 2, w: 2, row: G - 1 }, { x0: R - 3, w: 2, row: G - 1 }],
-      // caisses : où elles retombent du ciel quand il en manque
+      // caisses (au départ)
       crates: [{ tx: L + 5, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 2 }],
       // bonus : des cœurs (vie), à des endroits disputés (les shurikens, on va les rechercher là où ils se sont plantés)
       hearts: [{ x: (C0 + CW / 2) * TILE, y: (G - 9) * TILE }, { x: px(L + 2), y: (G - 9) * TILE }, { x: px(52), y: (G - 6) * TILE }],
