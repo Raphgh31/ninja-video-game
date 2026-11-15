@@ -337,7 +337,7 @@ export class ArenaArt {
       ctx.fillStyle = B[1]; ctx.fillRect(x0, y, x1 - x0, 2);                 // longeron de bambou sous les planches
     }
     if (d.gongDeck) {
-      const x0 = d.gongDeck.x0 * TILE + ox, x1 = (d.gongDeck.x1 + 1) * TILE + ox, y = (d.gongDeck.row + 1) * TILE + oy;
+      const gd = d.gongDeck, x0 = (gd.tower ?? gd.x0) * TILE + ox, x1 = (gd.x1 + 1) * TILE + ox, y = (gd.row + 1) * TILE + oy;
       for (const px of [x0 + 3, x1 - 7]) {
         ctx.fillStyle = W[2]; ctx.fillRect(px, y, 4, ground - y);
         ctx.fillStyle = W[4]; ctx.fillRect(px, y, 1, ground - y);
@@ -352,6 +352,21 @@ export class ArenaArt {
       const w = x1 - x0 - 14;
       for (let i = 0; i < w; i += 2) { ctx.fillRect(x0 + 7 + i, y + 3 + R(i * 36 / w), 1, 1); ctx.fillRect(x1 - 8 - i, y + 3 + R(i * 36 / w), 1, 1); }
       for (let i = 0; i < w; i += 2) { ctx.fillRect(x0 + 7 + i, y + 46 + R(i * 70 / w), 1, 1); ctx.fillRect(x1 - 8 - i, y + 46 + R(i * 70 / w), 1, 1); }
+      // le débord à gauche de la tour : une jambe de force en triangle, du poteau jusque sous le bout
+      // de la plateforme (une poutre en biais, son tasseau sous les lattes, chevillée aux deux bouts)
+      if (gd.tower != null && gd.tower > gd.x0) {
+        const ex = gd.x0 * TILE + ox + 5, py = x0 + 3, foot = y + 34, len = py - ex;
+        ctx.fillStyle = W[1]; ctx.fillRect(ex - 2, y, len + 2, 3);                     // tasseau sous le débord
+        ctx.fillStyle = W[3]; ctx.fillRect(ex - 2, y, len + 2, 1);
+        for (let i = 0; i <= len; i++) {
+          const yy = R(foot - (foot - y - 2) * (1 - i / len));
+          ctx.fillStyle = W[2]; ctx.fillRect(ex + i, yy, 1, 4);
+          ctx.fillStyle = W[4]; ctx.fillRect(ex + i, yy, 1, 1);
+          ctx.fillStyle = W[0]; ctx.fillRect(ex + i, yy + 3, 1, 1);
+        }
+        ctx.fillStyle = OUT;                                                            // chevilles
+        ctx.fillRect(ex, y + 3, 2, 2); ctx.fillRect(py - 2, foot + 1, 2, 2);
+      }
     }
   }
 

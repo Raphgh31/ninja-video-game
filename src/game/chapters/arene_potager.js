@@ -30,8 +30,9 @@ function build() {
   // les bosquets qui ferment l'arène : on y grimpe en sauts muraux, on n'en sort pas
   b.block(L, 1, 0, G - 1, '|');
   b.block(R, 1, 0, G - 1, '|');
-  // un plafond invisible au ras du haut de l'image : on ne sort jamais du cadre
-  b.row(L + 1, R - L - 1, G - 13, '%');
+  // un plafond invisible, haut au-dessus des plateformes (on saute normalement depuis
+  // les perches du milieu) : on ne passe jamais par-dessus les bosquets
+  b.row(L + 1, R - L - 1, G - 16, '%');
 
   // ---- gauche : la grue de bambou et son rocher ----
   b.row(L + 1, 3, G - 9, '-');                 // plateforme du treuil, accrochée au bosquet (d'ici, un shuriken coupe la corde)
@@ -67,7 +68,7 @@ function build() {
 
   // ---- tout à droite : le gong sur sa tour, une botte de foin ----
   b.block(R - 3, 2, G - 1, G - 1, '%');        // botte de foin
-  b.row(R - 3, 3, G - 9, '=');                 // la plateforme du gong, contre le bosquet
+  b.row(R - 7, 7, G - 9, '=');                 // la plateforme du gong, contre le bosquet ; elle déborde de sa tour vers la gauche (on y accède depuis le potager)
 
   // ---- trois arbres, de tailles et de formes variées ----
   b.propBack('tree', 19, G, { kind: 'pommier', s: 1.3 });
@@ -83,6 +84,7 @@ function build() {
   b.zones[0].x1 = b.x;
   const px = (c) => c * TILE + TILE / 2;
   const rack = { x0: C0 - 2, x1: C0 + CW + 1, row: G - 9 }, deck = { x0: L + 1, x1: L + 3, row: G - 9 };
+  const gongDeck = { x0: R - 7, x1: R - 1, tower: R - 3, row: G - 9 };
   return {
     b,
     arena: {
@@ -100,10 +102,10 @@ function build() {
       sluices: [{ x: (L + 1) * TILE, dir: 1 }, { x: R * TILE, dir: -1 }],
       canal: [C0 * TILE, (C0 + CW) * TILE],
       rack, deck,                                        // les perches de séchage, la plateforme du treuil
-      gongDeck: { x0: R - 3, x1: R - 1, row: G - 9 },
-      ownSupports: [rack, deck],                         // supports dessinés par l'arène (pas de poteaux automatiques)
+      gongDeck, // la tour du gong (ses poteaux) ; à gauche, le débord sur une jambe de force
+      ownSupports: [rack, deck, gongDeck],                         // supports dessinés par l'arène (pas de poteaux automatiques)
       hay: [{ x0: L + 2, w: 2, row: G - 1 }, { x0: R - 3, w: 2, row: G - 1 }],
-      // caisses : où elles retombent du ciel quand il en manque
+      // caisses (au départ)
       crates: [{ tx: L + 5, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 1 }, { tx: C0 + CW + 6, ty: G - 2 }],
       // bonus : des cœurs (vie), à des endroits disputés (les shurikens, on va les rechercher là où ils se sont plantés)
       hearts: [{ x: (C0 + CW / 2) * TILE, y: (G - 9) * TILE }, { x: px(L + 2), y: (G - 9) * TILE }, { x: px(52), y: (G - 6) * TILE }],

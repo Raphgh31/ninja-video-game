@@ -11,7 +11,7 @@
 //   - les échafaudages fragiles : seul le choc du rocher les fait s'effondrer ; on les
 //     rebâtit un peu plus tard ;
 //   - les bottes de foin : un tremplin ;
-//   - les caisses : d'un coup de pied, elles filent au ras du sol ; il en retombe du ciel ;
+//   - les caisses : d'un coup de pied, elles filent au ras du sol ;
 //   - les bonus : cœurs (un point de vie) et paquets de shurikens.
 // Le dessin est dans art.js ; les sons et les effets passent par onEvent (main.js).
 import { TILE } from '../level.js';
@@ -24,7 +24,7 @@ export const ARENA = {
   wave: { delay: 0.6, open: 1.8, speed: 250, push: 200, lift: 170, dmg: 1, rearm: 9, depth: 15 },
   hay: { min: 400, max: 540, keep: 0.9, minFall: 120, damp: 0.68, stop: 200 },
   scaffold: { warn: 0.32, rebuild: 7.5 },   // ils ne tombent que sous le choc du rocher, rebâtis ensuite
-  crate: { kick: 270, friction: 330, dmg: 1, every: 11 },
+  crate: { kick: 270, friction: 330, dmg: 1 },
   pickup: { heart: 17, firstHeart: 9, bundle: 10, firstBundle: 5, heal: 1 },
 };
 
@@ -51,7 +51,6 @@ export class Arena {
     this.hay = (def.hay ?? []).map((h) => ({ ...h, squash: 0 }));
     // caisses glissantes, bonus
     this.sliding = [];
-    this.crateClock = 0;
     this.pickups = [];
     this.heartClock = ARENA.pickup.heart - ARENA.pickup.firstHeart;
     this.bundleClock = ARENA.pickup.bundle - ARENA.pickup.firstBundle;
@@ -362,27 +361,12 @@ export class Arena {
       if (!s.vx) this.settle(s);
     }
     this.sliding = this.sliding.filter((s) => !s.dead && !s.done);
-    // caisses tombées à l'eau (du ciel, ou poussées) : elles coulent
+    // caisses tombées à l'eau : elles coulent
     for (const [key, cr] of lv.crates) {
       if (!cr.fall) continue;
       const below = Math.floor((cr.fall.y + TILE) / TILE);
       if (lv.at(cr.tx, below) === '~') { lv.crates.delete(key); this.onEvent?.('crateSplash', { x: cr.tx * TILE + 8, y: (lv.h - 2) * TILE }); }
     }
-    // il en retombe du ciel quand il en manque
-    const spots = this.def.crates ?? [];
-    this.crateClock += dt;
-    if (this.crateClock > ARENA.crate.every && lv.crates.size + this.sliding.length < spots.length) {
-      this.crateClock = 0;
-      const free = spots.filter((p) => lv.at(p.tx, p.ty) === '.' && (p.ty === Math.round(this.def.ground / TILE) - 1 || lv.at(p.tx, p.ty + 1) === 'B'));
-      const p = free[Math.floor(Math.random() * free.length)];
-      if (p) { this.dropCrate(p.tx); this.onEvent?.('crateDrop', { tx: p.tx }); }
-    }
-  }
-
-  /** Une caisse tombe du ciel dans la colonne tx. */
-  dropCrate(tx) {
-    const key = `a${tx}_${Math.round(this.time * 100)}`;
-    this.level.crates.set(key, { key, tx, ty: 0, fall: { y: -TILE * 2, vy: 0 } });
   }
 
   /** La caisse s'arrête : elle reprend une case (ou se brise si la place est prise). */

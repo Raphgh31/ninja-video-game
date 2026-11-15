@@ -4,7 +4,7 @@
 // leur nom au-dessus de la tête. Un coup est décidé par l'écran de celui qui le
 // porte (sabre, coup de pied, shuriken) : il prévient sa cible, qui encaisse.
 // Les pièges de l'arène (gong, corde de la grue, caisses, échafaudages) sont
-// partagés ; les bonus et les caisses qui tombent du ciel, c'est l'hôte qui les décide.
+// partagés ; les bonus, c'est l'hôte qui les décide.
 import { renderText } from '../engine/pixelfont.js';
 import { Shurikens } from './shuriken.js';
 import { HEALTH } from './combat.js';
@@ -57,7 +57,6 @@ export class Multi {
       if (!this.applying) {
         if (n === 'pickupAppear' && net.host) net.send({ t: 'pk', kind: d.kind, x: d.x, y: d.y + 10, spot: d.spot });
         if (n === 'pickup') net.send({ t: 'take', spot: d.spot });
-        if (n === 'crateDrop' && net.host) net.send({ t: 'drop', tx: d.tx });
       }
       ev?.(n, d);
     };
@@ -136,7 +135,6 @@ export class Multi {
       case 'col': this.apply(() => { const s = this.level.scaffolds[m.i]; if (s) a.collapse(s, m.x); }); break;
       case 'pk': this.apply(() => { if (!a.pickups.some((p) => p.spot === m.spot)) { a.pickups.push({ kind: m.kind, x: m.x, y: m.y, spot: m.spot, t: 0 }); a.onEvent?.('pickupAppear', { kind: m.kind, x: m.x, y: m.y - 10, spot: m.spot }); } }); break;
       case 'take': a.pickups = a.pickups.filter((p) => p.spot !== m.spot); break;
-      case 'drop': this.apply(() => a.dropCrate(m.tx)); break;
       default:
     }
   }
@@ -189,7 +187,7 @@ export class Multi {
     this.time += dt;
     const p = this.player, a = this.level.arena;
     // pas hôte : les bonus et les caisses du ciel viennent de l'hôte
-    if (!this.net.host) { a.heartClock = -1e9; a.bundleClock = -1e9; a.crateClock = -1e9; }
+    if (!this.net.host) { a.heartClock = -1e9; a.bundleClock = -1e9; }
     this.sendT -= dt;
     if (this.sendT <= 0 && this.net.id && (this.net.status === 'ouverte' || this.net.status === 'connecté')) {
       this.sendT = SEND_EVERY;
