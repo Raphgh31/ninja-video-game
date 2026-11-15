@@ -1410,18 +1410,22 @@ async function main() {
     expect(rung[0] === false && rung[1] === 2 && r.maxX - r.x0 > 60 && r.hp === 4 && r.crate && r.moved && r.ready && r.waves === 0, `gong ${rung} ; ${JSON.stringify(r)}`);
   });
 
-  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; une réception lourde effondre un échafaudage, rebâti ensuite', async () => {
+  await test('arène : la botte de foin est un tremplin (rebonds amortis) ; les échafaudages ne tombent que sous le choc du rocher, rebâtis ensuite', async () => {
     await ar.evaluate(() => window.__kage.level.arena.reset());
     await AT(8, 11, { onGround: false });
     const hay = await ar.evaluate(() => { const g = window.__kage, pl = g.player; pl.x = 8 * 16 + 6; pl.setState('fall'); const vs = []; let pv = 0;
       for (let i = 0; i < 400; i++) { g.step(1); if (pl.vy < 0 && pv >= 0 && i > 2) vs.push(Math.round(pl.vy)); pv = pl.vy; } return vs; });
+    // une grande chute sur un échafaudage ne le fait plus tomber : seul le choc du rocher l'effondre
     await AT(10, 7, { onGround: false });
-    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level; pl.setState('fall'); pl.vy = 200;
+    const sc = await ar.evaluate(() => { const g = window.__kage, pl = g.player, lv = g.level, a = lv.arena, c = a.crane; pl.setState('fall'); pl.vy = 200;
+      for (let i = 0; i < 120; i++) g.step(1);
+      const heavy = lv.scaffolds.map((s) => s.up).join();
+      a.cutRope({ x: c.ropeX - 1, y: c.boomY + 20, w: 2, h: 2 });
       for (let i = 0; i < 120; i++) g.step(1);
       const down = lv.scaffolds.map((s) => s.up).join();
       for (let i = 0; i < 9 * 120; i++) g.step(1);
-      return [down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
-    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'false,true' && sc[1] === 'true,true' && sc[2] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
+      return [heavy, down, lv.scaffolds.map((s) => s.up).join(), lv.at(10, 12)]; });
+    expect(hay.length >= 2 && hay[0] < -400 && hay[1] > hay[0] * 0.75 && sc[0] === 'true,true' && sc[1] === 'false,false' && sc[2] === 'true,true' && sc[3] === '_', `rebonds ${hay} ; échafaudages ${sc}`);
   });
 
   await test('arène : coup de pied dans une caisse — elle glisse ; poussée dans le canal, elle coule', async () => {

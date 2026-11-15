@@ -8,7 +8,7 @@
 //     puis la grue les remonte ;
 //   - le gong : frappé (sabre, coup de pied, shuriken), il ouvre les vannes au pied
 //     des bosquets ; une vague balaie la rizière basse vers le canal ;
-//   - les échafaudages fragiles : une réception lourde les fait s'effondrer ; on les
+//   - les échafaudages fragiles : seul le choc du rocher les fait s'effondrer ; on les
 //     rebâtit un peu plus tard ;
 //   - les bottes de foin : un tremplin ;
 //   - les caisses : d'un coup de pied, elles filent au ras du sol ; il en retombe du ciel ;
@@ -23,7 +23,7 @@ export const ARENA = {
   // reste ouverte (open), puis la nappe se vide dans le canal ; le gong se réarme (rearm)
   wave: { delay: 0.6, open: 1.8, speed: 250, push: 200, lift: 170, dmg: 1, rearm: 9, depth: 15 },
   hay: { min: 400, max: 540, keep: 0.9, minFall: 120, damp: 0.68, stop: 200 },
-  scaffold: { heavy: 330, warn: 0.32, rebuild: 7.5 },
+  scaffold: { warn: 0.32, rebuild: 7.5 },   // ils ne tombent que sous le choc du rocher, rebâtis ensuite
   crate: { kick: 270, friction: 330, dmg: 1, every: 11 },
   pickup: { heart: 17, firstHeart: 9, bundle: 10, firstBundle: 5, heal: 1 },
 };
@@ -160,6 +160,8 @@ export class Arena {
           }
         }
         this.quakes.push({ x: cx, y: floorY, w: c.w * TILE, t: 0 });
+        // le choc du rocher fait trembler l'arène : les échafaudages fragiles s'effondrent (comme sous le corbeau)
+        for (const sc of this.level.scaffolds) this.collapse(sc, cx);
         this.onEvent?.('craneLand', { x: cx, y: floorY, w: c.w * TILE, rock: true });
       }
     } else if (c.state === 'down') {
@@ -277,10 +279,6 @@ export class Arena {
           hay.squash = 1;
           this.onEvent?.('hayBounce', { x: f.x, y: f.y, k: v / ARENA.hay.max });
         }
-        // échafaudage : une réception lourde (grande chute, coup de pied sauté, coup du salto)
-        const sc = lv.scaffolds.find((s) => s.up && ty === s.row && tx >= s.x0 && tx < s.x0 + s.w);
-        const heavy = fall >= ARENA.scaffold.heavy || ['air_kick', 'flip_attack', 'air_attack'].includes(tr.state);
-        if (sc && heavy) this.collapse(sc, f.x);
       }
       this.track.set(f, { vy: f.vy, onGround: f.onGround, state: f.state, chain: tr.chain ?? 0 });
     }

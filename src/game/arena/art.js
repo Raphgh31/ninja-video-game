@@ -492,7 +492,13 @@ export class ArenaArt {
     const strands = (y, hx, hy) => {
       for (const [tx0, ty0] of this.rock.ties) {
         const x0 = bx + 1 + tx0, y0 = y + ty0, n = Math.max(Math.abs(hx - x0), Math.abs(hy - y0));
-        for (let i = 0; i <= n; i++) { ctx.fillStyle = i % 3 ? ROPE[1] : ROPE[2]; ctx.fillRect(R(x0 + (hx - x0) * i / n), R(y0 + (hy - y0) * i / n), 1, 1); }
+        // même corde que la principale : deux pixels, un clair et un sombre, torsadée
+        for (let i = 0; i <= n; i++) {
+          const px = R(x0 + (hx - x0) * i / n), py = R(y0 + (hy - y0) * i / n);
+          ctx.fillStyle = ROPE[1]; ctx.fillRect(px, py, 1, 1);
+          ctx.fillStyle = ROPE[0]; ctx.fillRect(px + (hx > x0 ? -1 : 1), py, 1, 1);
+          if (i % 4 === 0) { ctx.fillStyle = ROPE[2]; ctx.fillRect(px, py, 1, 1); }
+        }
       }
     };
     if (c.state === 'hang' || c.state === 'hoist') {
