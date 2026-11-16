@@ -891,17 +891,18 @@ def _wind(g, hx, hy):
 # (première rangée, relative à la tête). Lumière à gauche : le bord extérieur clair (Q), le creux contre le
 # dos à l'ombre (p), un pli (p) ; r : le bout sombre d'un lambeau.
 CAPE = {
-    # au repos : plaquée dans le dos, des épaules aux genoux, cinq pixels au plus derrière l'épaule (Raph la
-    # trouvait trop large à sept) ; bord extérieur droit, une entaille sur le côté, le bas en pointes déchirées
+    # au repos : plaquée dans le dos, des épaules aux genoux, trois pixels derrière l'épaule (Raph la trouvait
+    # trop large à sept, puis à cinq) ; un bord extérieur droit (jamais de renflement : pas un sac), une petite
+    # entaille sur le côté, le bas en deux pointes déchirées. (Course et chute gardent leur longueur.)
     "calm": (10, [
-        "..Qpp",
-        "..Qpp",
-        ".QPpp",
-        "..Ppp",
-        "QPPpp",
-        "QPPpp",
-        "r.P.p",
-        "r.r..",
+        "QPp",
+        "QPp",
+        "QPp",
+        "QPp",
+        "QPp",
+        ".Pp",
+        "QPp",
+        "r.r",
     ]),
     # en course : elle vole haut derrière les épaules, le bord du haut bien droit, trois lambeaux au bout
     "back": (10, [
