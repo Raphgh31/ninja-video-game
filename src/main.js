@@ -708,6 +708,8 @@ function refreshMute() {
   muteBtn.setAttribute('aria-pressed', String(isMuted()));
 }
 muteBtn.addEventListener('click', () => { setMuted(!isMuted()); refreshMute(); muteBtn.blur(); });
+// version de test : pas de bouton « Son » (demande de Raph : moins de choses sur l'image ; la touche M coupe toujours)
+if (TEST_BUILD) muteBtn.hidden = true;
 refreshMute();
 // musique du chapitre : chargée tout de suite, jouée au premier geste du joueur
 const music = new Music();

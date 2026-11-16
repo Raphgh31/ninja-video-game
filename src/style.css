@@ -73,6 +73,7 @@ html, body { overflow-x: hidden; }
   color: var(--ink); background: transparent;
   border: 2px solid var(--line); padding: 2px 8px; cursor: pointer;
 }
+.mute[hidden] { display: none; }
 .mute:hover { border-color: var(--muted); }
 .mute[aria-pressed="true"] { color: var(--muted); }
 body.mobile .mute {
@@ -375,4 +376,4 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
 .lab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
 .lab__row span { color: #fff7e6; padding: 0 3px 1px; }
 .skinlab canvas:not(.pxt) { width: 32px; height: 26px; image-rendering: pixelated; }
-body.mobile .lab { top: 20px; }
+body.mobile .lab { top: 4px; }   /* (la version de test n'a pas de bouton « Son » : le panneau prend sa place) */
