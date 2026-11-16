@@ -345,7 +345,8 @@ def ribbon(g, flutter=True):
     g = g.copy()
     for y in range(CH):
         for x in range(0, min(CW, hx + 2)):
-            if g[y, x] in "fFGkK" and y > hy + 3:
+            # les pans qui pendent (sous le nœud) et ceux qui remontent derrière la tête (chute, glissade murale)
+            if (g[y, x] in "fFGkK" and y > hy + 3) or (g[y, x] in "fFG" and x < hx - 1):
                 g[y, x] = "."
     # le contour devenu orphelin
     for y in range(CH):
@@ -519,6 +520,20 @@ def apron(g):
 
 STAMPS["kasa_leaf"] = dict(dx=-4, dy=-2, text=kasa(leaf=True, small=True))
 STAMPS["kasa"] = dict(dx=-4, dy=-2, text=kasa(small=True))
+
+
+def kasa_peche():
+    """Le sugegasa du pêcheur : le grand (comme sur le modèle, deux fois la largeur de la tête), une bande de
+    tressage gris-bleu (j) qui descend du sommet sur la pente gauche, et un bouton sombre au sommet."""
+    rows = [list(r) for r in _rows(KASA)]
+    rows[0][10:13] = list("rjr")
+    for y, xs in ((2, (9,)), (3, (7, 8)), (4, (5, 6)), (5, (3, 4)), (6, (1, 2))):
+        for x in xs:
+            rows[y][x] = "j"
+    return "\n".join("".join(r) for r in rows)
+
+
+STAMPS["kasa_peche"] = dict(dx=-6, dy=-3, text=kasa_peche())
 
 
 PACKS = {
@@ -1071,7 +1086,140 @@ def samurai_trim(g):
     return g, True
 
 
+# ---------------------------------------------------------------------------
+# Le pêcheur (planche de Raph, n° 12) : sugegasa tressé de bleu, pan bleu au vent, tenue bleu nuit semée
+# d'éclats dorés, corde tressée claire en bandoulière (rope), grand filet rond sur le dos, toiles de paille
+# aux chevilles, petite marque dorée sur le masque.
+# Lettres : b B i filet (cadre, fond, mailles) · j bande du chapeau · J éclats et marque · c C corde
+# ---------------------------------------------------------------------------
+ROUND_NET = """
+...bbbb...
+.bbiBiBbb.
+.biBiBiBb.
+bBiBiBiBib
+biBiBiBiBb
+bBiBiBiBib
+biBiBiBiBb
+bBiBiBiBib
+.biBiBiBb.
+.bbiBiBbb.
+...bbbb...
+"""
+# le même, plus petit, pour les saltos (en boule, le corps est agrandi : le grand filet y faisait une tache)
+ROUND_NET_SMALL = """
+.bbbb.
+bBiBib
+biBiBb
+bBiBib
+biBiBb
+bBiBib
+.bbbb.
+"""
+
+
+def round_net(g):
+    """Le filet rond du pêcheur, sur le dos, de l'omoplate à la cuisse : un cadre sombre, des mailles claires en
+    losanges ; il passe derrière le corps et derrière la main qui le tient."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    xl = None
+    for dy in (13, 14, 12, 15, 11):                 # (le dos à la taille ; en sprint, cette rangée est un contour)
+        xl = _back_edge(g, hy + dy, hx, TORSO)
+        if xl is not None:
+            break
+    if xl is None:
+        return g, False
+    # un salto (la forge trace ses pans après : la pose n'en a pas) : le petit filet
+    flip = not any(g[y, x] in "fFG" for y in range(CH) for x in range(max(0, hx + 2)))
+    rows = _rows(ROUND_NET_SMALL if flip else ROUND_NET)
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    x0, y0 = (xl - len(rows[0]) + 2, hy + 10) if flip else (xl - len(rows[0]) + 3, hy + 9)
+    for j, row in enumerate(rows):
+        for i, c in enumerate(row):
+            x, y = x0 + i, y0 + j
+            if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def rope(g):
+    """La corde tressée du pêcheur, en bandoulière de l'épaule avant à la hanche arrière : deux pixels de large,
+    crème et grège en alternance (une tresse), posée sur la tenue seulement."""
+    b = _belt(g)
+    if b is None:
+        return g, False
+    by, bx, be = b
+    g = g.copy()
+    for k in range(6):
+        for t in (0, 1):
+            x, y = bx + 6 - k - t, by - 6 + k
+            if 0 <= x < CW and 0 <= y < CH and g[y, x] in "tTUFG":
+                g[y, x] = "c" if (k + t) % 2 == 0 else "C"
+    # la boucle claire, au milieu de la ceinture
+    mid = (bx + be) // 2
+    if g[by, mid] in "lL":
+        g[by, mid] = "c"
+    return g, True
+
+
+def specks(g):
+    """Quelques éclats dorés semés sur la tenue (poitrine, ventre, cuisses), accrochés à la ceinture : ils
+    suivent le corps."""
+    b = _belt(g)
+    if b is None:
+        return g, False
+    by, bx, be = b
+    g = g.copy()
+    for dx, dy in ((1, -5), (4, -3), (2, -1), (0, 2), (3, 4), (5, 2)):
+        x, y = bx + dx, by + dy
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in "tTU":
+            g[y, x] = "J"                              # (jamais sur la corde)
+    return g, True
+
+
+def wraps(g):
+    """Les toiles de paille serrées aux chevilles : la rangée du haut de chaque chaussure."""
+    g = g.copy()
+    done = False
+    for x in range(CW):
+        for y in range(1, CH - 1):
+            if g[y, x] in "dD" and g[y - 1, x] not in "dD" and g[y + 1, x] in "dD":
+                g[y, x] = "P"
+                done = True
+                break
+    return g, done
+
+
+def mask_mark(g):
+    """La petite marque dorée du masque, sous l'œil avant."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    y = hy + 8
+    for x in (hx + 9,):
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in "hHIM":
+            g[y, x] = "J"
+    return g, True
+
+
 def accessory(name):
+    if name == "round_net":
+        return round_net
+    if name == "specks":
+        return specks
+    if name == "rope":
+        return rope
+    if name == "wraps":
+        return wraps
+    if name == "mask_mark":
+        return mask_mark
     if name == "kabuto":
         return kabuto
     if name == "hakama":
