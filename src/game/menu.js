@@ -230,7 +230,7 @@ export class Menu {
     const s = this.frame('Effacer');
     const box = el('div', 'm-center');
     box.style.cssText = 'gap:8px;padding-top:24px';
-    box.append(el('p', 'm-big', `Effacer l'aventure ${slot} ?`), el('p', 'm-muted', 'Sa progression, ses ryō et ses skins seront perdus.'));
+    box.append(el('p', 'm-big', `Effacer l'aventure ${slot} ?`));
     const row = el('div', 'm-row');
     row.style.gap = '12px';
     const no = button('Garder', null, () => this.back());
@@ -291,7 +291,7 @@ export class Menu {
     input.value = code;
     const join = () => {
       const c = cleanCode(input.value);
-      if (c.length !== 4) { msg.textContent = 'Le code a quatre signes (par exemple 7F3Q)'; input.focus(); return; }
+      if (c.length !== 4) { msg.textContent = 'Le code a quatre signes'; input.focus(); return; }
       this.joinArena(c);
     };
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); join(); } else if (e.key !== 'Escape') e.stopPropagation(); });

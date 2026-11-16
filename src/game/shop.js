@@ -5,7 +5,8 @@ import { drawAura } from './aura.js';
 // ryō), en vente dès le chapitre 1. Une grille de cartes (vignette, cadre à la couleur de la rareté, prix) ;
 // un clic ouvre le skin en grand à droite (il s'anime : repos, course, saut, sabre…), avec sa rareté, son
 // prix, et l'achat, à confirmer (sans description : le bouton d'achat se voit tout de suite, demande de Raph,
-// 16 novembre 2026). Encre est toujours possédé.
+// 16 novembre 2026). Encre est toujours possédé. Menus sobres : le marchand ne parle pas, aucune ligne d'aide ;
+// en bas, seulement « Reprendre la route ».
 // Version de test (window.__KAGE_TEST) : tous les skins se portent sans achat.
 // Les rayons Ressources et Objets sont encore vides.
 
@@ -14,14 +15,6 @@ export const SHOP_CATEGORIES = [
   { id: 'ressources', name: 'Ressources', items: [] },
   { id: 'objets', name: 'Objets', items: [] },
 ];
-
-export const MERCHANT_LINES = {
-  first: "Un long voyage t'attend, jeune ninja. Repasse me voir lorsque tu en auras besoin !",
-  again: 'Te revoilà ! Regarde donc ce que la route m\'a apporté.',
-  bought: 'Il te va comme un gant. Bonne route, jeune ninja !',
-  poor: "Reviens quand ta bourse sera plus lourde.",
-  look: (name) => `${name} ? Un bon choix. Regarde-le de près.`,
-};
 
 /** Les raretés : nom affiché et couleur du cadre. */
 export const RARITIES = {
@@ -50,9 +43,7 @@ export class Shop {
     this.tabs = this.root.querySelector('[data-tabs]');
     this.list = this.root.querySelector('[data-items]');
     this.detail = this.root.querySelector('[data-detail]');
-    this.line = this.root.querySelector('[data-line]');
     this.purse = this.root.querySelector('[data-purse]');
-    this.hint = this.root.querySelector('[data-hint]');
     for (const c of SHOP_CATEGORIES) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -67,7 +58,6 @@ export class Shop {
 
   open({ firstVisit, save }) {
     this.save = save;
-    this.line.textContent = firstVisit ? MERCHANT_LINES.first : MERCHANT_LINES.again;
     this.updatePurse();
     this.root.hidden = false;
     this.isOpen = true;
@@ -100,11 +90,10 @@ export class Shop {
       this.showSkins();
       return;
     }
-    this.hint.textContent = '';
     if (!cat.items.length) {
       const p = document.createElement('p');
       p.className = 'shop__empty';
-      p.textContent = 'Rien sur cet étal pour le moment. Le marchand reviendra avec de nouvelles marchandises.';
+      p.textContent = 'Rien pour l\'instant.';
       this.list.append(p);
     }
   }
@@ -148,12 +137,10 @@ export class Shop {
       card.addEventListener('click', () => this.select(id));
       this.list.append(card);
     }
-    this.hint.textContent = this.wardrobe.test ? 'Version de test : tous les skins se portent sans achat.' : '';
     this.showDetail();
   }
 
   select(id) {
-    if (id !== this.selected) this.line.textContent = MERCHANT_LINES.look(this.wardrobe.skins[id].name);
     this.selected = id;
     this.confirming = false;
     for (const b of this.list.querySelectorAll('.shop__card')) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
@@ -202,7 +189,7 @@ export class Shop {
         b.textContent = `Acheter · ${sk.price} ryō`;
         if (save.ryo < sk.price) b.classList.add('shop__poor');
         b.addEventListener('click', () => {
-          if (save.ryo < sk.price) { this.line.textContent = MERCHANT_LINES.poor; return; }
+          if (save.ryo < sk.price) return;   // (le bouton grisé suffit : pas de réplique)
           this.confirming = true;
           this.showDetail();
           this.detail.querySelector('[data-confirm]')?.focus();
@@ -228,12 +215,7 @@ export class Shop {
 
   buy(id) {
     this.confirming = false;
-    if (this.wardrobe.buy(id)) {
-      this.line.textContent = MERCHANT_LINES.bought;
-      this.updatePurse();
-    } else {
-      this.line.textContent = MERCHANT_LINES.poor;
-    }
+    if (this.wardrobe.buy(id)) this.updatePurse();
     this.showSkins();
     this.focusSkin(id);
   }

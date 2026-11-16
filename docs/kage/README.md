@@ -68,7 +68,7 @@ En l'air contre un mur, en poussant vers lui : glissade (chute limitée à 50 px
 
 - **Poussière** (`src/engine/fx.js`) : saut, atterrissage (selon la hauteur), dash, foulées du sprint, dérapage, glissade, glissade murale, saut mural, shuriken qui se plante, pas lourds et chute de TATE.
 - **Étincelles** sur le bouclier, **micro-arrêt de l'image** sur un coup de sabre (0,07 s s'il touche, 0,04 s s'il est bloqué), **secousse de l'écran** à la charge de TATE, quand KAGE est touché et à la chute de TATE.
-- **Sons synthétisés** en direct (`src/engine/sfx.js`, Web Audio, aucun fichier) : pas, saut, atterrissage, dash, dérapage, glissade, mur, lame, impacts, bouclier, shuriken (lancer, planté, dévié, ramassé, stock vide), dégâts, mort, réapparition, et tous les sons de TATE. Bouton « Son » et touche M pour couper (choix mémorisé).
+- **Sons synthétisés** en direct (`src/engine/sfx.js`, Web Audio, aucun fichier) : pas, saut, atterrissage, dash, dérapage, glissade, mur, lame, impacts, bouclier, shuriken (lancer, planté, dévié, ramassé, stock vide), dégâts, mort, réapparition, et tous les sons de TATE. Le son est toujours actif : ni bouton ni touche pour le couper (16 novembre 2026, demande de Raph).
 
 ## Énergie
 

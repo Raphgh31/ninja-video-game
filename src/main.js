@@ -11,7 +11,7 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
@@ -70,10 +70,6 @@ const stage = canvas.parentElement;
 const uiLayer = document.querySelector('.ui');
 /** Change un texte seulement s'il a changé (chaque changement redessine son canvas). */
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
-if (MOBILE) {
-  // le bouton du son tourne avec le jeu, à l'échelle de ses pixels
-  uiLayer.append(document.querySelector('.mute'));
-}
 const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
 let touchView = { w: 320, h: 180, scale: 1 };
@@ -701,16 +697,8 @@ function setCloseUp(on) {
 if (level.arena && !SKIN_LAB) { const s = loadSave(); if (s?.skin && (s.skins ?? []).includes(s.skin)) wearSkin(s.skin); }
 if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
 
-// son : débloqué au premier geste ; bouton et touche M pour le couper
-const muteBtn = document.querySelector('.mute');
-function refreshMute() {
-  muteBtn.textContent = isMuted() ? 'Son coupé' : 'Son';
-  muteBtn.setAttribute('aria-pressed', String(isMuted()));
-}
-muteBtn.addEventListener('click', () => { setMuted(!isMuted()); refreshMute(); muteBtn.blur(); });
-// version de test : pas de bouton « Son » (demande de Raph : moins de choses sur l'image ; la touche M coupe toujours)
-if (TEST_BUILD) muteBtn.hidden = true;
-refreshMute();
+// son : débloqué au premier geste, toujours actif (aucun bouton ni touche pour le couper : le joueur passe son
+// téléphone en silencieux s'il le veut)
 // musique du chapitre : chargée tout de suite, jouée au premier geste du joueur
 const music = new Music();
 music.load(level.music);
@@ -848,7 +836,7 @@ function setupSkinLab() {
   setInterval(() => {
     const ac = audioOutput()?.ac;
     const it = !intro || intro.closing ? 'finie' : intro.gated ? 'en attente' : intro.voice ? 'musique' : intro.waking ? 'démarrage…' : 'sans musique';
-    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
+    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'} · Intro : ${it}`);
   }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
   if (level.zones.length && !level.arena) {
@@ -904,7 +892,6 @@ function gotoZone(i) {
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
-  if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }
   // écran titre ou boutique ouverte : le monde attend
   if (run.paused) {
     if (shop.isOpen && input.wasPressed('escape')) shop.close();
@@ -1466,9 +1453,8 @@ async function playIntro() {
   // la musique finit : le menu s'efface avec l'image, puis l'intro recommence (le menu revient à son heure)
   it.onFade = () => { title.classList.add('waiting'); document.activeElement?.blur?.(); };
   it.start();
-  // sans son (coupé), ou son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
-  if (isMuted()) it.begin(false);
-  else if (musicOutput()?.ac.state === 'running') it.begin(true);
+  // son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
+  if (musicOutput()?.ac.state === 'running') it.begin(true);
 }
 /** Place l'intro et le menu sur l'image de jeu (à chaque changement de taille). */
 function placeIntro() {
@@ -1486,13 +1472,13 @@ function introGesture(e) {
   if (!intro || intro.closing || e.target?.closest?.('.lab')) return;
   if (e.type !== 'keydown' && !stage.contains(e.target)) return;   // (souris et doigt : sur l'image du jeu seulement)
   if (intro.gated) {
-    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(!isMuted()); intro.begunAt = performance.now(); }
+    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(true); intro.begunAt = performance.now(); }
     return;
   }
   // (le geste qui vient de lancer l'intro ne la passe pas : une touche tenue, ou le clic qui suit le doigt levé)
   const fresh = performance.now() - (intro.begunAt ?? 0) < 400;
   if ((e.type === 'keydown' || e.type === 'pointerdown') && !fresh && !intro.menuShown) intro.skip();
-  if (!intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
+  if (!intro.clock) { unlockAudio(); intro.wake(); }
 }
 for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(t, introGesture, { capture: true, passive: true });
 /** La partie commence : l'intro s'efface sur le jeu. */
@@ -1734,7 +1720,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 fit();
-pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('.mute')]);
+pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.

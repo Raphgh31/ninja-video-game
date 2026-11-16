@@ -14,7 +14,6 @@ const KEYMAP = {
   KeyB: 'kick', KeyN: 'kick',                           // coup de pied : B ou N
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyH: 'debug',
-  KeyM: 'mute',
 };
 
 export class Input {

@@ -405,12 +405,10 @@ async function main() {
     expect(w.x < 490 && seen.has('air'), `x ${w.x}, états ${[...seen].join(', ')}`);
   });
 
-  await test('touche M : coupe le son', async () => {
-    const before = await page.locator('.mute').getAttribute('aria-pressed');
+  await test('son : toujours actif, ni bouton ni touche pour le couper (le joueur passe son téléphone en silencieux)', async () => {
     await k.press('KeyM'); await wait(60);
-    const after = await page.locator('.mute').getAttribute('aria-pressed');
-    await k.press('KeyM');
-    expect(before === 'false' && after === 'true', `${before} -> ${after}`);
+    const r = await page.evaluate(() => [document.querySelectorAll('.mute, [data-mute]').length, [...document.querySelectorAll('.keys dd')].some((d) => /son/i.test(d.textContent))]);
+    expect(r[0] === 0 && r[1] === false, `boutons ${r[0]}, aide « son » ${r[1]}`);
   });
 
   // ---- tactile ---------------------------------------------------------------

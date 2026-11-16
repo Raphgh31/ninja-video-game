@@ -1002,7 +1002,8 @@ def kusazuri(g):
 
 
 def sode(g):
-    """La grande épaulière, sur l'épaule arrière : une plaque laquée carrée (le haut à plat : elle donne au
+    """L'épaulière, sur l'épaule arrière, resserrée (elle ne dépasse plus que d'un pixel derrière l'épaule : Raph
+    la confondait avec la cape) : une plaque laquée carrée (le haut à plat : elle donne au
     ninja des épaules plus carrées, demande de Raph), le haut bordeaux, une marque d'or, le bord bas d'or."""
     pos = find_head(g)
     if pos is None:
@@ -1013,7 +1014,7 @@ def sode(g):
         return g, False
     g = g.copy()
     mask = np.zeros(g.shape, bool)
-    shape = ((10, -4, "tTTTUU"), (11, -4, "tTHJHH"), (12, -4, "tHHHHH"), (13, -4, "jJJJJ"))
+    shape = ((10, -1, "tUU"), (11, -1, "tJH"), (12, -1, "tHH"), (13, -1, "jJJ"))
     for dy, x0, cols in shape:
         y = hy + dy
         for k, c in enumerate(cols):
