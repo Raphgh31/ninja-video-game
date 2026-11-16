@@ -1073,7 +1073,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,voyageur,paysan,samourai,or'
+    expect(look[0] && look[1] === 'encre,paysan,samourai,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1094,7 +1094,7 @@ async function main() {
         return `${id}:${ra.bottom <= r.bottom + 0.5 && !d.querySelector('.shop__desc') ? 'ok' : `caché (${Math.round(ra.bottom - r.bottom)} px, « ${d.textContent.replace(/\s+/g, ' ')} »)`}`; }, id));
     }
     await PK.press('Escape'); await pw(200);
-    expect(ids.length >= 5 && seen.every((v) => v.endsWith(':ok')), seen.join(' '));
+    expect(ids.length >= 4 && seen.every((v) => v.endsWith(':ok')), seen.join(' '));
   });
 
   await test('introduction : un geste la lance, l\'encre, la lune, KAGE figé au centre de la lune ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
@@ -1174,7 +1174,7 @@ async function main() {
     const closed2 = await shown();
     await lp.close();
     expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
-      && r0.join() === 'true,false,encre,5' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      && r0.join() === 'true,false,encre,4' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 

@@ -13,7 +13,6 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | id | Nom | Rareté | Prix | Accessoires | Particularités |
 |---|---|---|---|---|---|
 | `encre` | Encre | origine | — | — | le skin d'origine, toujours possédé |
-| `voyageur` | Le voyageur | commun | 100 | `ribbon`, `mino`, `sash`, `apron`, `kasa_leaf` | sugegasa tressé, manteau de feuilles et de paille, cordon doré |
 | `paysan` | Paysan des rizières | commun | 100 | `notails`, `pants`, `dots`, `farmer`, `sash`, `kasa` | kimono vert, tonnelet et panier sur le dos, bambou |
 | `samourai` | Samouraï déchu | rare | 450 | `arm_in`, `hakama`, `kusazuri`, `rag`, `sode`, `samurai_trim`, `kabuto` | kabuto aux cornes d'or en croissant et cimier rouge, pans au vent, épaulière carrée resserrée sur l'épaule, cape en lambeaux (plaquée au repos, au vent en course), tassettes bordées d'or ; bras arrière rapproché du corps ; `barLift: 4` (barre de vie au-dessus des cornes) |
 | `or` | Lumière d'or | légendaire | 600 | `flametails`, `halo`, `hipcloth`, `mantlet`, `sash`, `apron` | `aura: 'gold'` (éclat : `src/game/aura.js`), shurikens dorés (`projectileColors`), traînées d'or (`trail`), poussière d'or derrière les shurikens (`goldDust`, `src/game/shuriken.js`) |
@@ -29,7 +28,7 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `hiver.json` | Souffle de l'hiver | 450 | épique |
 | `renard.json` | Renard blanc | 500 | rare |
 
-Le **vagabond** (premier skin) a été **retiré**.
+Le **vagabond** (premier skin) a été **retiré**, puis le **voyageur** (16 novembre 2026, demande de Raph ; ses planches restent dans `docs/kage/skins/`, ses accessoires `mino`, `ribbon`, `kasa_leaf` dans la forge). Un joueur qui portait un skin retiré repasse en Encre (`startChapter`, `main.js`).
 
 Les **modèles** sont des planches dessinées par Raph : il les envoie en image dans la conversation. Il faut les lui redemander si on ne les a pas.
 

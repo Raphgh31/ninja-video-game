@@ -1407,7 +1407,9 @@ function startChapter(resume) {
   save.skins ??= ['encre'];   // sauvegarde d'avant les skins
   save.chests ??= [];        // sauvegarde d'avant les coffres
   save.cranes ??= [];        // grues dont la corde a été coupée
-  save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
+  save.skins = save.skins.filter((id) => skins[id]);   // (un skin retiré du jeu, comme le voyageur, s'efface)
+  if (!save.skins.includes('encre')) save.skins.unshift('encre');
+  save.skin = (save.skins.includes(save.skin) || TEST_BUILD) && skins[save.skin] ? save.skin : 'encre';
   if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);
   run.time = save.time;

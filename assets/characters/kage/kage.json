@@ -1683,14 +1683,12 @@
     "encre",
     "or",
     "paysan",
-    "samourai",
-    "voyageur"
+    "samourai"
   ],
   "accessorySheets": {
     "or": "kage_acc_or_index.png",
     "paysan": "kage_acc_paysan_index.png",
-    "samourai": "kage_acc_samourai_index.png",
-    "voyageur": "kage_acc_voyageur_index.png"
+    "samourai": "kage_acc_samourai_index.png"
   },
   "projectiles": {
     "shuriken": {
