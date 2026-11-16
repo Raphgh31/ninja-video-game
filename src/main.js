@@ -758,6 +758,10 @@ function setupSkinLab() {
   document.title = 'The Ninja Adventure — Test';
   const lab = document.createElement('div');
   lab.className = 'lab';
+  // tout le panneau (skins, chapitres, zones…) s'ouvre et se ferme d'un seul bouton ; fermé, on ne voit que
+  // ce bouton (demande de Raph : que le panneau n'empiète pas sur l'image)
+  const panel = document.createElement('div');
+  panel.className = 'lab__panel';
   const stop = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const button = (label, title, onClick) => {
     const b = document.createElement('button');
@@ -798,7 +802,7 @@ function setupSkinLab() {
     const n = Number(e.key);
     if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
   });
-  lab.append(bar);
+  panel.append(bar);
   // --- chapitres : un clic recharge la page sur le chapitre choisi ---
   const chapters = Object.entries(LEVELS).filter(([, l]) => l.chapter != null).sort((a, b) => a[1].chapter - b[1].chapter);
   const row = document.createElement('div');
@@ -831,13 +835,13 @@ function setupSkinLab() {
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
-  lab.append(row);
+  panel.append(row);
   // témoin du son (pour comprendre, sur l'appareil de l'utilisateur, pourquoi une musique ne sort pas)
   const sound = document.createElement('div');
   sound.className = 'lab__row lab__sound';
   const soundText = document.createElement('span');
   sound.append(soundText);
-  lab.append(sound);
+  panel.append(sound);
   const SOUND = { running: 'en marche', suspended: 'suspendu', interrupted: 'interrompu', closed: 'fermé' };
   setInterval(() => {
     const ac = audioOutput()?.ac;
@@ -857,8 +861,18 @@ function setupSkinLab() {
     const next = button('→', 'Zone suivante', () => gotoZone(cur() + 1));
     next.dataset.zone = 'next';
     zr.append(prev, labZone, next);
-    lab.append(zr);
+    panel.append(zr);
   }
+  const toggle = button('Réglages', 'Ouvrir ou fermer le panneau de test', () => setOpen(panel.hidden));
+  toggle.className = 'lab__toggle';
+  toggle.dataset.labToggle = '';
+  function setOpen(open) {
+    panel.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    labSet('open', open ? '1' : '0');
+  }
+  setOpen(labGet('open') === '1');      // fermé au premier lancement, puis comme on l'a laissé
+  lab.append(toggle, panel);
   uiLayer.append(lab);
   pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
 }

@@ -1083,6 +1083,22 @@ async function main() {
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
   });
 
+  await test('boutique : sans description, le bouton d\'achat de chaque skin se voit tout de suite (sans défiler)', async () => {
+    const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
+    await pat(mx - 1); await pw(200);
+    await PK.press('ArrowUp'); await pw(200);
+    const ids = await pg.evaluate(() => [...document.querySelectorAll('.shop__card')].map((c) => c.dataset.skin));
+    const seen = [];
+    for (const id of ids) {
+      await pg.click(`[data-skin="${id}"]`); await pw(80);
+      seen.push(await pg.evaluate((id) => { const d = document.querySelector('.shop__detail'), a = d.querySelector('[data-action]');
+        const r = d.getBoundingClientRect(), ra = a.getBoundingClientRect();
+        return `${id}:${ra.bottom <= r.bottom + 0.5 && !d.querySelector('.shop__desc') ? 'ok' : `caché (${Math.round(ra.bottom - r.bottom)} px, « ${d.textContent.replace(/\s+/g, ' ')} »)`}`; }, id));
+    }
+    await PK.press('Escape'); await pw(200);
+    expect(ids.length >= 5 && seen.every((v) => v.endsWith(':ok')), seen.join(' '));
+  });
+
   await test('introduction : un geste la lance, l\'encre, la lune, KAGE figé au centre de la lune ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
     const ictx = await rawNewContext({ viewport: { width: 1280, height: 720 } }), ip = await ictx.newPage();
     await ip.goto(PAGE); await ip.waitForFunction(() => window.__kage && window.__kage.intro);
@@ -1134,10 +1150,15 @@ async function main() {
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
 
-  await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
+  await test('version de test : pas d\'écran titre ; un bouton ouvre et ferme tout le panneau ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
     const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await lp.waitForFunction(() => window.__kage);
     await lp.evaluate(() => localStorage.clear()); await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
+    // fermé au premier lancement : seul le bouton se voit ; il ouvre tout le panneau
+    const shown = () => lp.evaluate(() => [document.querySelector('.lab__panel').hidden, !!document.querySelector('.skinlab').offsetParent, !!document.querySelector('[data-lab-toggle]').offsetParent]);
+    const closed0 = await shown();
+    await lp.click('[data-lab-toggle]'); await lp.waitForTimeout(100);
+    const opened = await shown();
     const r0 = await lp.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.run.paused, window.__kage.skin, document.querySelectorAll('.skinlab button').length]);
     await lp.keyboard.press('2'); await lp.waitForTimeout(100);
     const r2 = await lp.evaluate(() => window.__kage.skin);
@@ -1148,9 +1169,15 @@ async function main() {
     await lp.click('[data-zone="next"]'); await lp.waitForTimeout(400);
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
+    // de nouveau le bouton : tout se referme ; il le reste après un rechargement
+    await lp.click('[data-lab-toggle]'); await lp.waitForTimeout(100);
+    const closed1 = await shown();
+    await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(300);
+    const closed2 = await shown();
     await lp.close();
-    expect(r0.join() === 'true,false,encre,5' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
-      `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
+    expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
+      && r0.join() === 'true,false,encre,5' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
   await test('skins : ce qu\'un accessoire retire de la pose (pans du bandeau rangés, bras rapproché) est bien effacé en jeu ; le samouraï déchu porte ses cornes d\'or', async () => {
@@ -1208,7 +1235,7 @@ async function main() {
     });
     await tp.waitForTimeout(300);
     await tp.keyboard.press('ArrowUp'); await tp.waitForTimeout(200);
-    await tp.click('[data-skin="paysan"]'); await tp.waitForTimeout(100);
+    await tp.click('.shop__card[data-skin="paysan"]'); await tp.waitForTimeout(100);
     const label = await tp.evaluate(() => document.querySelector('[data-action]')?.textContent);
     await tp.click('[data-action]'); await tp.waitForTimeout(100);
     const r = await tp.evaluate(() => [window.__kage.skin, window.__kage.save.ryo]);

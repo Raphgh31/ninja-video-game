@@ -869,53 +869,93 @@ def hakama(g):
     return g, True
 
 
+def _wind(g, hx, hy):
+    """Le vent de la pose, lu sur les pans du bandeau de KAGE (la forge les anime déjà) : « calm » quand ils
+    pendent (repos, marche, liane, glissade murale…), « back » quand ils filent à l'horizontale derrière lui
+    (course, sprint, dash, coups lancés), « up » quand ils se dressent (chute)."""
+    pts = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "fFG" and (x < hx + 2 or y < hy)]
+    if not pts:
+        return "calm"                                 # (salto : la forge trace les pans après)
+    reach = hx - min(x for _, x in pts)
+    low = max(y for y, _ in pts) - hy
+    high = hy - min(y for y, _ in pts)
+    if reach >= 9 and low <= 9:
+        return "back"
+    if high >= 4 and reach >= 6 and low <= 4:
+        return "up"
+    return "calm"
+
+
+# la cape, dessinée à la main pour chaque vent (des angles nets, des côtés déchirés : jamais un sac ni une queue).
+# Chaque rangée est calée à droite contre le dos (le dernier caractère touche le bord arrière de l'épaule) ;
+# (première rangée, relative à la tête). Lumière à gauche : le bord extérieur clair (Q), le creux contre le
+# dos à l'ombre (p), un pli (p) ; r : le bout sombre d'un lambeau.
+CAPE = {
+    # au repos : plaquée dans le dos, des épaules aux genoux ; bord extérieur droit, une entaille sur le côté,
+    # le bas en pointes déchirées
+    "calm": (10, [
+        "..QPPpp",
+        "..QPPpp",
+        ".QPpPpp",
+        "..PpPpp",
+        "QPPpPpp",
+        "QPPpPpp",
+        "r.P.r.p",
+        "r...r..",
+    ]),
+    # en course : elle vole haut derrière les épaules, le bord du haut bien droit, trois lambeaux au bout
+    "back": (10, [
+        ".QPPPPPpPp",
+        "rQPPpPPpPp",
+        "..QPPpPPpp",
+        ".rQPPpPPpp",
+        "...QPpPPpp",
+        "....rPpPpp",
+        ".......Ppp",
+    ]),
+    # en chute : elle se soulève derrière lui
+    "up": (7, [
+        "rQ......",
+        ".QPP....",
+        "rPPpP...",
+        ".QPPpPp.",
+        "..PpPPpp",
+        "...QPpPp",
+        "....PpPp",
+        ".....pPp",
+        "......pp",
+    ]),
+}
+
+
 def rag(g):
-    """La cape rouge déchirée : du dessous de l'épaulière jusqu'aux mollets, derrière le corps ; elle s'évase
-    vers l'arrière, plis sombres, accrocs plus clairs, le bas en lambeaux (trois pointes inégales)."""
+    """La cape rouge déchirée, sous l'épaulière (demandes de Raph : plus large, plus courte, des angles nets,
+    jamais une queue ni un sac). Au repos, elle tombe plaquée dans le dos, des épaules aux genoux ; en course,
+    elle vole haut derrière les épaules ; en chute, elle se soulève (gabarits CAPE)."""
     pos = find_head(g)
     if pos is None:
         return g, False
     hx, hy = pos
+    wind = _wind(g, hx, hy)
+    xs = _back_edge(g, hy + 11, hx, TORSO)
+    if xs is None:
+        return g, False
     g = g.copy()
     mask = np.zeros(g.shape, bool)
-    # elle s'arrête au-dessus des pieds, quelle que soit la pose (en boule, pendant un salto, le corps finit
-    # plus haut)
-    feet = [y for y in range(CH) if any(c in "tTUdDhHI" for c in g[y])]
-    ys, ye = hy + 10, min(hy + 18, (max(feet) if feet else CH) - 4)
-    widths = [2, 3, 3, 3, 4, 4, 5, 5, 5]
-    TIPS = (1, 0, 2, 1, 0, 2)                     # longueur des lambeaux sous le bas, selon la distance au dos
     TAILS = set("fFGkK")
-    prev = None
-    for y in range(ys, ye + 4):
-        if not 0 <= y < CH:
+    # (en boule, pendant un salto, le corps finit plus haut : la cape aussi)
+    feet = [y for y in range(CH) if any(c in "tTUdDhHI" for c in g[y])]
+    bottom = (max(feet) if feet else CH) - 3
+    dy0, rows = CAPE[wind]
+    for j, row in enumerate(rows):
+        y = hy + dy0 + j
+        if not 0 <= y < CH or (wind == "calm" and y > bottom):
             continue
-        xl = _back_edge(g, min(y, ye), hx, TORSO)
-        if xl is None:
-            xl = prev
-        if xl is None:
-            continue
-        prev = xl
-        k = y - ys
-        w = min(widths[min(k, len(widths) - 1)], xl - 1)     # (jamais coupée par le bord de l'image)
-        for x in range(xl - w, xl):
-            if not 0 <= x < CW or not (g[y, x] in BG or g[y, x] in TAILS):
-                continue
-            u = xl - 1 - x                            # distance derrière le dos
-            last = ye - ys + 1
-            if k >= last:
-                if k - last + 1 > TIPS[u % len(TIPS)]:
-                    continue
-            c = "P"
-            if u % 3 == 1 and k >= 2:
-                c = "p"                               # un pli
-            if u == w - 1:
-                c = "p"                               # le bord, à l'ombre
-            if k >= last:
-                c = "r" if k - last + 1 == TIPS[u % len(TIPS)] else "p"
-            if _h(u, k, 7) < 0.12 and c == "P":
-                c = "Q"                               # un accroc plus clair
-            g[y, x] = c
-            mask[y, x] = True
+        for i, c in enumerate(row):
+            x = xs - len(row) + i
+            if c != "." and 1 <= x < CW and (g[y, x] in BG or g[y, x] in TAILS):
+                g[y, x] = c
+                mask[y, x] = True
     _outline(g, mask)
     return g, True
 

@@ -3,8 +3,9 @@ import { drawAura } from './aura.js';
 // Boutique du marchand ambulant — plein écran (refaite en novembre 2026, demande de Raph).
 // Rayon « Apparences » : tous les skins de KAGE (assets/characters/kage/skins/*.json, champ `price` en
 // ryō), en vente dès le chapitre 1. Une grille de cartes (vignette, cadre à la couleur de la rareté, prix) ;
-// un clic ouvre le skin en grand à droite (il s'anime : repos, course, saut, sabre…), avec sa rareté, sa
-// description, son prix, et l'achat, à confirmer. Encre est toujours possédé.
+// un clic ouvre le skin en grand à droite (il s'anime : repos, course, saut, sabre…), avec sa rareté, son
+// prix, et l'achat, à confirmer (sans description : le bouton d'achat se voit tout de suite, demande de Raph,
+// 16 novembre 2026). Encre est toujours possédé.
 // Version de test (window.__KAGE_TEST) : tous les skins se portent sans achat.
 // Les rayons Ressources et Objets sont encore vides.
 
@@ -159,7 +160,7 @@ export class Shop {
     this.showDetail();
   }
 
-  /** Le skin choisi, en grand : rareté, nom, aperçu animé, description, prix, et l'achat (à confirmer). */
+  /** Le skin choisi, en grand : rareté, nom, aperçu animé, prix, et l'achat (à confirmer). */
   showDetail() {
     const id = this.selected, sk = this.wardrobe.skins[id];
     if (!sk) return;
@@ -172,12 +173,13 @@ export class Shop {
     const stage = el('div', 'shop__stage');
     this.preview = document.createElement('canvas');
     this.preview.className = 'shop__preview';
-    this.preview.width = 114; this.preview.height = 72;
+    // (sur un écran bas, un téléphone : l'aperçu à l'échelle 1 — aussi grand que le ninja en jeu — pour que le
+    // bouton d'achat tienne dans le panneau)
+    this.pz = this.root.closest('.short') ? 1 : 2;
+    this.preview.width = 57 * this.pz; this.preview.height = 36 * this.pz;
     stage.append(this.preview);
     this.showT0 = performance.now();
     this.detail.append(el('p', 'shop__rar', rar.name), el('h3', 'shop__name', sk.name), stage);
-    // (pendant la confirmation, la question prend la place de la description)
-    if (!this.confirming) this.detail.append(el('p', 'shop__desc', sk.description ?? sk.blurb ?? ''));
     const act = el('div', 'shop__act');
     act.dataset.act = '';
     if (this.confirming) {
@@ -209,6 +211,19 @@ export class Shop {
       act.append(b);
     }
     this.detail.append(act);
+    // le bouton doit toujours se voir sans défiler : s'il passe sous le bord (un nom long sur deux lignes, une
+    // image peu haute), l'aperçu passe à l'échelle 1 (mesuré une fois le texte en pixels posé)
+    requestAnimationFrame(() => this.fitDetail());
+  }
+
+  fitDetail() {
+    const d = this.detail, a = d?.querySelector('.shop__act'), cv = this.preview;
+    if (!a || !cv?.isConnected || this.pz === 1) return;
+    if (a.getBoundingClientRect().bottom > d.getBoundingClientRect().bottom + 0.5) {
+      this.pz = 1;
+      cv.width = 57; cv.height = 36;
+      cv.classList.add('shop__preview--small');
+    }
   }
 
   buy(id) {
@@ -254,10 +269,11 @@ export class Shop {
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, cv.width, cv.height);
     // une ombre portée sous ses pieds
+    const z = this.pz ?? 2;
     c.fillStyle = 'rgba(0,0,0,.35)';
-    c.fillRect(20, 68, 40, 2);
-    c.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * 2, f.h * 2);
-    if (sk.aura) drawAura(c, meta.pivot.x, meta.pivot.y, 1, performance.now() / 1000, 2);
+    c.fillRect(10 * z, 34 * z, 20 * z, z);
+    c.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * z, f.h * z);
+    if (sk.aura) drawAura(c, meta.pivot.x, meta.pivot.y, 1, performance.now() / 1000, z);
   }
 
   /** Les flèches passent d'une carte à l'autre. */

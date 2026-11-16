@@ -323,8 +323,10 @@ body.mobile .talk { padding-left: 6px; }
 .shop__name { margin: 0; --pxf: big; color: #f3e3c3; --pxw: 146; text-align: center; }
 .shop__stage { padding: 2px; background: #170f0a; border: 1px solid #3a2a1e; }
 .shop__preview { display: block; width: 114px; height: 72px; image-rendering: pixelated; }
-.shop__desc { margin: 0; color: #bfae90; --pxw: 144; text-align: center; }
-.shop__blurb { margin: 0; color: #8d7d64; --pxw: 144; text-align: center; }
+/* écran bas (téléphone) : le nom sur une ligne, l'aperçu à l'échelle 1 : le bouton d'achat reste visible */
+.short .shop__detail { gap: 1px; padding: 2px 3px; }
+.short .shop__name { --pxf: small; }
+.short .shop__preview, .shop__preview--small { width: 57px; height: 36px; }
 .shop__act { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
 .shop__ask { margin: 0; width: 100%; color: #f3e3c3; --pxw: 144; text-align: center; }
 .shop .shop__buy, .shop .shop__yes { background: #8e6a44; border-color: #c49a5e; color: #fff7e6; }
@@ -356,8 +358,12 @@ body.mobile .talk { padding-left: 6px; }
 body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touch-action: none;
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image) */
+/* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image), derrière le bouton « Réglages » */
 .lab { position: absolute; z-index: 6; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }   /* au-dessus de l'intro (3), du menu (4) et des cartes de chapitre (5) */
+.lab__panel { display: grid; gap: 2px; justify-items: end; }
+.lab__panel[hidden] { display: none; }
+.lab .lab__toggle { pointer-events: auto; padding: 1px 5px 2px; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
+.lab .lab__toggle[aria-expanded="true"] { border-color: #8e6a44; color: #fff7e6; }
 .skinlab, .lab__row { pointer-events: auto; display: flex; align-items: center; gap: 2px; padding: 2px;
   background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
 .lab button { display: grid; justify-items: center; gap: 0; color: #d8cdb4;
