@@ -5,10 +5,9 @@
 //
 //   Aventure  : deux emplacements ; « Continuer l'aventure », « Nouvelle aventure »
 //               (un emplacement libre), « Effacer » (confirmé) ;
-//   Arène     : « Créer une arène » (on arrive en hôte dans le salon) ou « Rejoindre » ;
+//   Arène     : « Nouvelle arène » (Accueillir : on arrive en hôte dans le salon) ou « Rejoindre » ;
 //   Rejoindre : le code de quatre signes, une case par signe ;
 //   Mon ninja : le profil (pseudo, aventure affichée et sa progression ; l'arène, plus tard).
-import { loadImage } from '../engine/sprites.js';
 import { cleanCode } from '../engine/net.js';
 import { cleanName } from './profile.js';
 
@@ -39,8 +38,6 @@ export class Menu {
     this.timers = [];
     for (const b of this.main.querySelectorAll('[data-menu]')) b.addEventListener('click', () => this.open(b.dataset.menu));
     addEventListener('keydown', (e) => this.key(e), true);
-    this.thumbs = {};
-    for (const k of ['creer', 'rejoindre']) loadImage(`./menus/vignette_${k}.png`).then((im) => { this.thumbs[k] = im; }).catch(() => {});
   }
 
   get current() { return this.stack[this.stack.length - 1] ?? null; }
@@ -98,19 +95,58 @@ export class Menu {
   }
 
   // ---- éléments communs ---------------------------------------------------------------------
-  frame(title, sub, help) {
+  /** Un écran : son titre, son contenu, « ← Retour » en bas (sobre : aucune ligne d'aide). */
+  frame(title) {
     const s = el('section', 'm-screen');
     s.append(el('div', 'm-veil'));
     const hd = el('header', 'm-hd');
     hd.append(el('h2', null, title));
-    if (sub) hd.append(el('p', 'm-sub', sub));
     const body = el('div', 'm-body');
     const ft = el('footer', 'm-ft');
-    ft.append(button('← Retour', 'm-link', () => this.back()), el('p', null, help ?? ''));
+    ft.append(button('← Retour', 'm-link', () => this.back()));
     s.append(hd, body, ft);
     s.body = body;
-    s.help = ft.lastChild;
     return s;
+  }
+
+  /** Le cadre utile du ninja au repos (toutes ses images), pour le montrer en grand sans vide autour. */
+  bounds(skinId) {
+    this.boxes ??= {};
+    if (this.boxes[skinId]) return this.boxes[skinId];
+    const sk = this.skins[skinId] ?? this.skins.encre, frames = this.meta.animations.idle.frames;
+    const c = document.createElement('canvas'), f0 = frames[0];
+    c.width = f0.w; c.height = f0.h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    let x0 = f0.w, y0 = f0.h, x1 = 0, y1 = 0;
+    for (const f of frames) {
+      g.clearRect(0, 0, c.width, c.height);
+      g.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+      const d = g.getImageData(0, 0, f.w, f.h).data;
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+        if (d[(y * f.w + x) * 4 + 3] < 8) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    return (this.boxes[skinId] = x1 >= x0 ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : { x: 0, y: 0, w: f0.w, h: f0.h });
+  }
+
+  /** Le ninja en grand (Mon ninja) : sa silhouette seule, agrandie d'un nombre entier de fois. */
+  portrait(skinId, maxW, maxH) {
+    const b = this.bounds(skinId), k = Math.max(1, Math.min(Math.floor(maxW / b.w), Math.floor(maxH / b.h)));
+    const cv = el('canvas', 'm-ninja');
+    cv.width = b.w * k; cv.height = b.h * k;
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const sk = this.skins[skinId] ?? this.skins.encre, anim = this.meta.animations.idle;
+    let i = 0;
+    const paint = () => {
+      const f = anim.frames[i++ % anim.frames.length];
+      g.clearRect(0, 0, cv.width, cv.height);
+      g.drawImage(sk.sheet, f.x + b.x, f.y + b.y, b.w, b.h, 0, 0, b.w * k, b.h * k);
+    };
+    paint();
+    this.timers.push(setInterval(paint, 180));
+    return cv;
   }
 
   /** Le ninja (image de repos, animée) dans un canevas, au skin donné. */
@@ -155,20 +191,19 @@ export class Menu {
 
   // ---- Aventure : deux emplacements -----------------------------------------------------------
   build_aventure() {
-    const s = this.frame('Aventure', 'Deux aventures au plus', 'Entrée : choisir');
+    const s = this.frame('Aventure');
     const cards = el('div', 'm-cards');
     const big = !document.querySelector('.ui.short');
     for (const { slot, save } of this.saves()) {
       const card = el('div', `m-card${save ? '' : ' m-empty'}${save && slot === this.profile.shown ? ' m-on' : ''}`);
       const top = el('div', 'm-row');
       top.append(el('p', 'm-lbl', `Aventure ${slot}`));
-      if (save && slot === this.profile.shown) top.append(el('p', 'm-warm', 'sur ton profil'));
       card.append(top);
       if (save) {
         const info = this.chapterOf(save);
         card.append(this.ninja(save.skin ?? 'encre', big ? 2 : 1));
         card.append(el('p', 'm-ink', info.chapter), el('p', 'm-muted', info.zone),
-          el('p', 'm-muted', `${save.ryo ?? 0} ryō · ${(save.skins ?? ['encre']).length} skins${info.boss ? ' · corbeau vaincu' : ''}`));
+          el('p', 'm-muted', `${save.ryo ?? 0} ryō`));
         const row = el('div', 'm-row m-push');
         const go = button("Continuer l'aventure", null, () => this.continueAdventure(slot));
         go.dataset.continue = '';
@@ -181,9 +216,7 @@ export class Menu {
         const nb = button('Nouvelle aventure', null, () => this.newAdventure(slot));
         if (!this.saves().some((x) => x.save)) nb.dataset.first = '';
         nb.dataset.new = '';
-        mid.append(el('p', 'm-dim', 'Emplacement libre'), nb);
-        mid.append(el('p', 'm-muted', this.saves().some((x) => x.save) ? 'Tout reprend de zéro. Ton autre aventure est gardée.' : "Le début de l'aventure, au Potager."));
-        mid.lastChild.style.setProperty('--pxw', '170');
+        mid.append(nb);
         card.append(mid, el('div', 'm-push'));
       }
       cards.append(card);
@@ -194,7 +227,7 @@ export class Menu {
 
   /** Effacer une aventure : une confirmation. */
   build_effacer({ slot } = {}) {
-    const s = this.frame('Effacer', `Aventure ${slot}`, '');
+    const s = this.frame('Effacer');
     const box = el('div', 'm-center');
     box.style.cssText = 'gap:8px;padding-top:24px';
     box.append(el('p', 'm-big', `Effacer l'aventure ${slot} ?`), el('p', 'm-muted', 'Sa progression, ses ryō et ses skins seront perdus.'));
@@ -212,32 +245,27 @@ export class Menu {
 
   // ---- Arène : créer ou rejoindre --------------------------------------------------------------
   build_arene() {
-    const s = this.frame('Arène', 'La rizière du gong', `Ton pseudo : ${this.profile.name}`);
-    const cards = el('div', 'm-cards');
-    const make = (thumb, title, text, label, cls, onClick, attr) => {
+    const s = this.frame('Arène');
+    const cards = el('div', 'm-cards m-compact');
+    const make = (title, label, cls, onClick, attr) => {
       const c = el('div', 'm-card');
-      const t = el('div', 'm-thumb');
-      const im = this.thumbs[thumb];
-      if (im) t.style.backgroundImage = `url(${im.src})`;
       const b = button(label, cls, onClick);
       b.dataset[attr] = '';
-      const row = el('div', 'm-row m-push');
-      row.append(b);
-      c.append(t, el('p', 'm-big', title), el('p', 'm-muted', text), row);
-      c.querySelectorAll('.m-muted').forEach((p) => p.style.setProperty('--pxw', '170'));
+      c.append(el('p', 'm-big', title), b);
       return [c, b];
     };
-    const [c1, b1] = make('creer', 'Créer une arène', "Tu es l'hôte : tu reçois un code à donner à tes amis et tu choisis le mode.", 'Créer', 'm-gold-btn', () => this.createArena(), 'create');
+    const [c1, b1] = make('Nouvelle arène', 'Accueillir', 'm-gold-btn', () => this.createArena(), 'create');
     b1.dataset.first = '';
-    const [c2] = make('rejoindre', 'Rejoindre une arène', "Tape le code de quatre signes que l'hôte t'a donné.", 'Rejoindre', null, () => this.open('rejoindre'), 'joinScreen');
+    const [c2] = make('Rejoindre une arène', 'Rejoindre', null, () => this.open('rejoindre'), 'joinScreen');
     cards.append(c1, c2);
+    s.body.classList.add('m-mid');
     s.body.append(cards);
     return s;
   }
 
   // ---- Rejoindre une arène : le code ----------------------------------------------------------
   build_rejoindre({ code = '', message = '' } = {}) {
-    const s = this.frame('Rejoindre une arène', `Ton pseudo : ${this.profile.name}`, 'Entrée : rejoindre');
+    const s = this.frame('Rejoindre une arène');
     const box = el('div', 'm-center');
     box.style.gap = '6px';
     box.append(el('p', 'm-lbl', "Code de l'arène"));
@@ -269,7 +297,8 @@ export class Menu {
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); join(); } else if (e.key !== 'Escape') e.stopPropagation(); });
     const go = button('Rejoindre', 'm-gold-btn', join);
     go.dataset.join = '';
-    box.append(boxes, el('p', 'm-muted', 'Quatre signes : lettres et chiffres'), go, msg);
+    box.append(boxes, go, msg);
+    s.body.classList.add('m-mid');
     s.body.append(box);
     input.dataset.first = '';
     paint();
@@ -278,26 +307,25 @@ export class Menu {
 
   // ---- Mon ninja : le profil -----------------------------------------------------------------
   build_ninja() {
-    const s = this.frame('Mon ninja', 'Ton profil', 'Le pseudo sert en arène');
+    const s = this.frame('Mon ninja');
     const grid = el('div', 'm-cards');
-    grid.style.gridTemplateColumns = '150px minmax(0, 1fr)';
+    grid.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(0, 1fr)';
     const saves = this.saves();
     const shown = saves.find((x) => x.slot === this.profile.shown && x.save) ?? saves.find((x) => x.save) ?? null;
-    const left = el('div', 'm-card');
+    // à gauche : le ninja, en grand (toute la moitié gauche), et son pseudo dessous, discret
+    const left = el('div', 'm-hero');
     const skin = shown?.save.skin ?? 'encre';
-    left.append(this.ninja(skin, document.querySelector('.ui.short') ? 1 : 2));
-    const sn = el('p', 'm-muted', this.skins[skin]?.name ?? 'Encre');
-    sn.style.alignSelf = 'center';
-    left.append(sn, el('p', 'm-lbl', 'Pseudo'));
+    const short = !!document.querySelector('.ui.short');
+    left.append(this.portrait(skin, short ? 180 : 190, short ? 120 : 150));
     const f = this.field(this.profile.name, { clean: cleanName, onInput: (v) => { const n = v.trim(); if (n) { this.profile.name = n; this.saveProfile(this.profile); } } });
+    f.classList.add('m-name');
     f.input.dataset.pseudo = '';
     f.input.dataset.first = '';
-    left.append(f, el('p', 'm-dim', "C'est ton nom en arène."));
+    left.append(f);
     const right = el('div');
     right.style.cssText = 'display:grid;align-content:start;gap:3px';
     const head = el('div', 'm-row');
-    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
-    head.append(el('p', 'm-lbl', 'Aventure affichée'));
+    head.style.cssText = 'display:flex;justify-content:flex-start;align-items:center;margin-bottom:2px';
     const arrows = el('div', 'm-arrows');
     const others = saves.filter((x) => x.save);
     const flip = (d) => {
@@ -324,16 +352,10 @@ export class Menu {
       row('Chapitre', info.chapterShort);
       row('Zone', info.zoneShort);
       row('Ryō', String(shown.save.ryo ?? 0));
-      row('Skins', `${(shown.save.skins ?? ['encre']).length} sur ${Object.keys(this.skins).length}`);
-      row('Corbeau du Potager', info.boss ? 'vaincu' : 'pas encore');
     } else {
-      stats.append(el('p', 'm-dim', "Pas encore d'aventure : Aventure, puis Nouvelle aventure."));
+      stats.append(el('p', 'm-dim', "Pas encore d'aventure"));
     }
-    right.append(stats, el('p', 'm-lbl', 'Arène'));
-    right.lastChild.style.marginTop = '6px';
-    const later = el('p', 'm-dim', 'Bientôt : combats, victoires, éliminations, titres.');
-    later.style.setProperty('--pxw', '220');
-    right.append(later);
+    right.append(stats);
     grid.append(left, right);
     s.body.append(grid);
     return s;

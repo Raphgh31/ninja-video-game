@@ -1,40 +1,104 @@
 # Message pour ouvrir une nouvelle conversation
 
-Copier-coller le texte ci-dessous comme premier message d'une nouvelle session Claude Code sur le dépôt `raphgh31/ninja-video-game`, **branche `main`** (la série précédente, jusqu'à la PR du nouveau menu, y est fusionnée et en ligne).
+Copier-coller le texte ci-dessous comme premier message d'une nouvelle session Claude Code sur le dépôt `raphgh31/ninja-video-game`, **branche `main`**.
+
+**Trois messages spécialisés** existent, pour une conversation consacrée à un seul sujet :
+- `docs/messages/MESSAGE_SKINS.md` : la création des skins du ninja ;
+- `docs/messages/MESSAGE_ARENES.md` : la création des arènes, le mode combat à plusieurs ;
+- `docs/messages/MESSAGE_CHAPITRES.md` : la création des chapitres de l'aventure.
+
+Celui-ci sert à tout le reste : menus, interface, réglages, sons, corrections.
 
 ---
 
-Bonjour ! On reprend mon jeu **The Ninja Adventure** (ex « The Ninja Game » ; le ninja n'a pas de nom pour le joueur, il s'appelle KAGE seulement dans le code), un jeu de plateforme 2D rapide en pixel art (Vite + JavaScript, Canvas 2D, tout le décor est peint en code). Réponds toujours en français.
+Bonjour ! On reprend mon jeu.
 
-**Où on en est** (tout est dans `main` et en ligne, 15 novembre 2026) :
-- **menu de l'intro** : Aventure (deux aventures en parallèle : continuer, nouvelle, effacer) · Arène (créer ou rejoindre avec un code de 4 signes) · Mon ninja (pseudo, aventure affichée) ;
-- **arène du Potager** (« la rizière du gong ») et **jeu à plusieurs** : salon plein écran (code, 4 places, mode), modes **Souffle unique**, **Trois lames**, **Dix lames** ; grue et rocher ficelé, gong et vagues, échafaudages, foin, caisses, cœurs ;
-- **corbeau du Potager** corrigé (on ne le fait tomber que depuis les plateformes de bois ; intouchable en se relevant) ; poussière d'or derrière les shurikens du skin Lumière d'or.
+**Le jeu** : *The Ninja Adventure* (ex « The Ninja Game »), un jeu de plateforme 2D rapide en pixel art, dans un Japon peint (rizières, forêts, montagnes). Le ninja **n'a pas de nom pour le joueur** : il s'appelle KAGE seulement dans le code et les fichiers, jamais à l'écran. Réponds toujours en **français**.
 
-Le chapitre 1 (le Potager) est terminé ; le chapitre 2 (la Forêt, 12 zones) a été beaucoup retouché :
-- **introduction** au lancement (titre à l'encre, lune, KAGE en coup de pied sauté, musique) ; **coup de pied sauté** en jeu ; **saltos** et **coup du salto** ;
-- l'**eau et les grands vides sont mortels** dans tout le jeu ;
-- **détours** de la Forêt (cabane du guetteur, arbre aux cavités, arche de racines, belvédère) ;
-- **zone 9, la statue** : un bloc de granit ficelé ferme le tunnel ; on monte sur la tête de la statue, on attrape la liane de la grande branche, on tire la corde de la poulie (nouvelle animation `rope_pull`) jusqu'à la coincer dans le rameau en Y ; le bloc reste levé, on passe en glissade ;
-- **zone 10, les lianes** : courtes, souples, balancier lent et naturel ; un saut au bon moment propulse plus haut et plus loin ; arbres tous différents, feuillus ;
-- **zone 11, la descente** : on gravit par paliers un grand amas de rochers, il s'effondre derrière KAGE ; un éboulis dense le poursuit sur de vraies pentes (souches, troncs, rochers, une arche de pierre à passer en glissade) et s'arrête en tas au pied de la pente ;
-- **boutique du marchand plein écran** (cartes des skins, aperçu animé, achat confirmé) ; **skins** : Encre, **le voyageur** et **le paysan des rizières** (100 ryō chacun), fidèles à mes planches.
+**Ce qui existe** (tout est dans `main` et en ligne, 16 novembre 2026) :
+- **le menu de l'intro** : Aventure · Arène · Mon ninja. Il est sobre : aucune consigne ni sous-titre en petit gris.
+  - Aventure : deux aventures en parallèle (continuer, nouvelle, effacer).
+  - Arène : Nouvelle arène (« Accueillir ») ou Rejoindre avec un code de 4 signes.
+  - Mon ninja : le ninja en grand, son pseudo, l'aventure affichée.
+- **l'aventure** :
+  - le chapitre 1, **le Potager** : 9 zones, terminé, avec le boss **KARASU-KASHI**, le corbeau ;
+  - le chapitre 2, **la Forêt** : 12 zones, première version complète et retouchée, sans ennemis pour l'instant ;
+  - un marchand et sa boutique de skins, des ryō (la monnaie), des lanternes de reprise, une sauvegarde.
+- **l'arène du Potager**, « la rizière du gong », pour jouer jusqu'à quatre en ligne :
+  - un salon plein écran ;
+  - trois modes : **Souffle unique**, **Trois lames**, **Dix lames** ;
+  - une grue et son rocher ficelé, un gong et des vagues, des échafaudages, des cœurs.
+- **le ninja** :
+  - 28 animations : course, sprint, dash, glissade, saut mural, saltos, sabre, shurikens, coups de pied, lianes, corde… ;
+  - 4 skins : Encre, le voyageur, le paysan, Lumière d'or ; 7 autres en brouillon.
 
-Je vais te donner mes retours après avoir joué ; applique exactement ce que je demande, montre-moi le résultat (captures zoomées ou GIF), et **ne fusionne rien avant que je le demande**. Travaille sur une nouvelle branche. **Économise la consommation** : lis seulement ce qui est utile, vérifie par lots.
+**Technique** :
+- Vite et JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. Image interne 448×252, mise à l'échelle entière (pixels nets).
+- Tout le décor est **peint en code** : `src/game/potager/`, `src/game/foret/`.
+- Les sprites sont **générés** par `tools/kage_forge/` (`npm run sprites`) : ne jamais éditer les PNG à la main.
+- Interface en police pixel (`src/engine/pixelfont.js`, `pixelui.js`).
+- Sur téléphone : plein écran, même échelle que sur ordinateur, et le jeu pivote en portrait.
 
-**Lis d'abord, dans l'ordre :**
-1. `CLAUDE.md` : règles du projet et ma façon de travailler ;
-2. `docs/FORET.md` : le chapitre 2, ses retours appliqués (n° 1 à 18), ce qui reste (§ 9) ;
-3. `docs/REPRISE.md`, seulement au besoin ;
-4. `docs/GUIDE_CHAPITRE.md` si on construit ou retouche un chapitre.
+**Dépôt** : `raphgh31/ninja-video-game`, branche `main`. Travaille sur **une nouvelle branche**.
 
-Lance `npm install`, puis `npm run sprites` et `npm test` (92 tests de bout en bout + 32 tests de la Forêt) pour connaître l'état réel.
+**Site** : https://raphgh31.github.io/ninja-video-game/ (mis en ligne à chaque push sur `main`).
 
-**Les artefacts** (`npm run standalone` les fabrique) — **la version test ne se publie que si je le dis** (« publie-le » = vas-y sans redemander ; si je ne dis rien, ne publie pas) ; pour les autres, **demande-moi l'autorisation** :
-- « The Ninja Adventure Test », ma version d'essai (skins sans achat, chapitres et zones en un clic, bouton Arène) : https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (`dist/kage-test.html`, `shared_live: "public"`) — seulement quand je dis de la publier ;
-- « The Ninja Adventure », le jeu pour tout le monde : https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (`dist/kage-standalone.html`, `shared_live: "public"`) — à la mise en ligne ;
-- la carte mentale : https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi (`python3 tools/carte_mentale.py --artefact <fichier>`) — à la mise en ligne.
+**Commandes** :
+```bash
+npm install
+npm run sprites   # sprites (ninja, ennemis, boss) avec contrôles qualité
+npm test          # carte mentale + build + versions autonomes + 93 tests de bout en bout + 32 de la Forêt
+npm run dev       # le jeu en local ; #arene-potager, #foret, #niveau-1, #terrain
+```
+Commence par `npm install`, `npm run sprites` et `npm test` pour connaître l'état réel.
 
-**À faire plus tard (déjà demandé)** : les **huit autres skins** de mes planches, **un par un, fidèles au modèle** (brouillons dans `tools/kage_forge/skins_brouillon/` : ninja blanc 150, écarlate 150, Ombre pourpre 150, Lumière d'or 800, pêcheur 250, Souffle de l'hiver 450, Renard blanc 500, Samouraï déchu 550 ryō ; planche de travail `tools/kage_forge/skin_design.py`) ; les ennemis du chapitre 2.
+**Les artefacts claude.ai** (fabriqués par `npm run standalone`) :
+- **« The Ninja Adventure Test »**, ma version d'essai :
+  - https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (identifiant `cf7a5349-c737-467e-8a85-43de0e34b850`, `dist/kage-test.html`, `shared_live: "public"`) ;
+  - pas d'écran titre, un panneau en haut à droite : skins sans achat, chapitres et zones en un clic, bouton Arène ;
+  - **elle ne se publie que si je dis « publie-le »** (alors sans redemander) ; si je ne dis rien, ne la publie pas.
+- **« The Ninja Adventure »**, le jeu pour tout le monde :
+  - https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (identifiant `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`, `dist/kage-standalone.html`, `shared_live: "public"`) ;
+  - à la mise en ligne seulement.
+- **La carte mentale** :
+  - https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi (identifiant `a200b822-069e-40b3-b26e-0d1f5b7689cf`) ;
+  - fichier produit par `python3 tools/carte_mentale.py --artefact <fichier>`, à la mise en ligne.
 
-**Rappels** : commits en français ; carte mentale mise à jour avec chaque changement du jeu (`npm run carte`) ; les PNG de KAGE sont générés (`tools/kage_forge/`, puis `npm run sprites`) ; vérifie toi-même (captures zoomées, ordinateur, téléphone en paysage et en portrait) ; tests de faisabilité verts (`tests/foret.cjs`) ; à la fin, un résumé clair et simple avec les captures.
+**Mes règles** :
+- applique **exactement** ce que je demande ;
+- montre le résultat : captures zoomées ou GIF (`tools/capture.cjs`), regardées par toi d'abord ;
+- vérifie sur ordinateur et sur téléphone, en paysage (~844×390) et en portrait (~390×844) ;
+- **planche de design avant tout nouveau personnage, ennemi ou skin** ;
+- rendu « jeu indé soigné », jamais générique : de la profondeur, du volume, rien qui flotte, une lumière cohérente ;
+- interface discrète et sobre ;
+- commits et documentation en français ;
+- **la carte mentale** (`docs/carte-mentale/index.html`) se met à jour dans le même commit que chaque changement du jeu (`npm run carte` vérifie) ;
+- `npm run sprites` puis `npm test` verts avant de pousser ;
+- **ne fusionne rien et ne mets rien en ligne avant que je le demande** (à la fin d'une série) ;
+- **économise la consommation** : lis seulement ce qui est utile, vérifie par lots ;
+- à la fin, un résumé clair et simple, avec les captures.
+
+**Lis d'abord, dans l'ordre** :
+1. `CLAUDE.md` : les règles du projet (toutes) ;
+2. `docs/REPRISE.md` : l'état complet, les réglages, la carte des fichiers, l'historique et la suite ;
+3. selon le sujet :
+   - `docs/SKINS.md` (skins) ;
+   - `docs/ARENES.md` (arènes) ;
+   - `docs/GUIDE_CHAPITRE.md` et `docs/FORET.md` (chapitres) ;
+   - `docs/MONDE.md` (plan du monde).
+
+**Les fichiers à connaître** :
+- `src/main.js` : boucle, échelle, caméra, écran titre, arène et salon ;
+- `src/game/menu.js` : menu de l'intro ;
+- `src/game/intro.js` : l'introduction ;
+- `src/game/save.js` et `profile.js` : deux aventures et le profil ;
+- `src/game/player.js` : le ninja ;
+- `src/game/shop.js` : la boutique ;
+- `src/game/arena/` : l'arène ;
+- `src/game/multi.js` et `src/engine/net.js` : jeu à plusieurs ;
+- `src/game/chapters/` : les cartes ;
+- `src/game/potager/` et `src/game/foret/` : les décors peints ;
+- `tools/kage_forge/` : la forge des sprites ;
+- `tests/` : les tests.
+
+Dis-moi quand tu as lu et compris, en quelques lignes, puis attends ma première demande.

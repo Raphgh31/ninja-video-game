@@ -2,11 +2,19 @@
 
 Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, ennemi, niveau, outils) avec les décisions prises et leurs raisons. Il sert à reprendre le projet dans une nouvelle discussion sans rien perdre.
 
-> **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et coller le message d'introduction `docs/MESSAGE_NOUVELLE_CONVERSATION.md`. Pour construire un nouveau chapitre, lire aussi **`docs/GUIDE_CHAPITRE.md`** (méthode, leçons du chapitre 1, architecture, liste de contrôle).
+> **Pour reprendre** : ouvrir une nouvelle session Claude Code sur ce dépôt (branche `main`) et coller un message d'introduction :
+> - **`docs/MESSAGE_NOUVELLE_CONVERSATION.md`** (général) ;
+> - ou un des trois messages spécialisés de **`docs/messages/`** : `MESSAGE_SKINS.md`, `MESSAGE_ARENES.md`, `MESSAGE_CHAPITRES.md`.
 >
-> Tout est dans `main` : la série « Potager » (PR #19), la série **« Fin du chapitre 1 »** (PR #23 : pose de repos, skins et cabine des skins, coffre du grenier, KAGE/TATE/WARA +20 %, les 13 demandes pour terminer le Potager — § 6 quinquies), puis la série **« Retouches du chapitre 1 »** (PR #24 : pilotis, serre, serres du corbeau, porte du temple en perspective avec la forêt du chapitre 2 à l'intérieur, grue et son escalier, sons et musique du corbeau, porte qui s'ouvre sous les yeux du joueur, KAGE qui disparaît derrière — § 6 sexies). Dernière mise à jour : 10 novembre 2026.
+> Guides par sujet : **`docs/GUIDE_CHAPITRE.md`** (chapitres), **`docs/ARENES.md`** (arènes), **`docs/SKINS.md`** (skins), `docs/FORET.md` (chapitre 2), `docs/MONDE.md` (plan du monde).
 >
-> **Chapitre 2, la Forêt** : première version complète **fusionnée dans `main`** (PR #25, 11 novembre 2026). **Série en cours** (12 novembre 2026, branche `claude/message-nouvelle-conversation-docs-t945e2`, **PR #26 en brouillon, non fusionnée**) : saltos avant et arrière de KAGE, coup du salto (4 dégâts), quatre détours dans la Forêt (cabane du guetteur, arbre aux cavités, arche de racines, belvédère). Tout est dans **`docs/FORET.md`** (retours n° 1 à 10, § 9 reste à faire) et au § 4 ci-dessous (saltos). **Prochaine étape** : les retours de l'utilisateur sur cette série, puis la fusion quand il la demande. Restent aussi : le mécanisme de la statue sur le haut de sa tête, les skins suivants (§ 9), la planche du marchand.
+> **Dernière mise à jour : 16 novembre 2026.** Tout est dans `main` et en ligne, jusqu'à la PR #31. Le jeu s'appelle désormais **« The Ninja Adventure »**, et le ninja n'a pas de nom pour le joueur (KAGE seulement dans le code). Les séries de novembre sont décrites au **§ 6 octies** :
+> - la poussière d'or (Lumière d'or) et le correctif du corbeau ;
+> - l'arène du Potager et le jeu à plusieurs ;
+> - le nouveau menu : Aventure · Arène · Mon ninja, deux aventures, profil ;
+> - le salon et les trois modes ;
+> - les menus sobres ;
+> - l'image rapprochée de l'arène sur téléphone.
 
 ---
 
@@ -15,19 +23,30 @@ Ce fichier résume tout le travail fait jusqu'ici (personnage, mécaniques, enne
 - **Dépôt** : `raphgh31/ninja-video-game`. KAGE, TATE, WARA, le niveau 1 et le **chapitre 1 (le Potager, jouable et entièrement peint)** sont dans `main`. Le plan du monde est dans `docs/MONDE.md` (carte : `tools/monde_carte.py`).
 - **Site du jeu (public)** : <https://raphgh31.github.io/ninja-video-game/>, mis en ligne par GitHub Actions (`.github/workflows/deploy.yml`) à chaque push sur `main`.
 - **Direction du jeu** : l'utilisateur a choisi un **monde unique** très long, avec sauvegarde, zones et chapitres de plus en plus exigeants et des améliorations de KAGE (plutôt que des niveaux séparés), parce que c'est ce qui fera l'originalité du jeu. Chapitres prévus : **potager** → champ des bambous (rizières) → forêt des grands arbres → village des basses montagnes → hautes montagnes → temple de pierre → dojo final. Monnaie : les **ryō**. Toutes les mécaniques sont actives dès le début (rien à débloquer) ; les attributs (vie, attaque…) progresseront par l'**expérience** et des paliers ; retour en arrière libre, avec des points de téléportation (cabanes de marchand). Plan détaillé : **`docs/MONDE.md`**.
-- **Deux artefacts claude.ai** (novembre 2026, demande de l'utilisateur) : **« The Ninja Game »** (<https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>, identifiant `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`) = le jeu pour tout le monde, republié avec `dist/kage-standalone.html` ; **« The Ninja Game Test »** (<https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys>, identifiant `cf7a5349-c737-467e-8a85-43de0e34b850`, privé ; l'ancienne cabine des skins) = la version d'essai de l'utilisateur, republiée avec `dist/kage-test.html` (`window.__KAGE_TEST`) : pas d'écran titre, panneau en haut à droite avec les skins sans achat, les chapitres en un clic et le saut de zone en zone. Republier les deux à chaque étape.
-- **Contenu actuel** : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (26 animations, dont les saltos avant et arrière et le coup du salto, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, la musique du Potager, des effets visuels et 75 tests automatiques. Le chapitre se termine par le mini-boss **KARASU-KASHI** (zone 9). **Chapitre 1 terminé en novembre 2026** (§ 6 quinquies) : plus long, énigme de la grue, serre à sortir par la charpente, bosquets de bambou, plateformes sur pilotis, boss refondu. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
+- **Deux artefacts claude.ai** (novembre 2026, demande de l'utilisateur), renommés avec le jeu le 15 novembre 2026, tous deux partagés par lien (`shared_live: "public"`) :
+  - **« The Ninja Adventure »** (<https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm>, identifiant `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`) : le jeu pour tout le monde, republié avec `dist/kage-standalone.html` **à la mise en ligne** ;
+  - **« The Ninja Adventure Test »** (<https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys>, identifiant `cf7a5349-c737-467e-8a85-43de0e34b850` ; l'ancienne cabine des skins) : la version d'essai de l'utilisateur, avec `dist/kage-test.html` (`window.__KAGE_TEST`). Pas d'écran titre ; un panneau en haut à droite avec les skins sans achat, les chapitres et l'arène en un clic, et le saut de zone en zone. **Règle de l'utilisateur : elle ne se publie que quand il dit « publie-le »** (alors sans redemander).
+  - Carte mentale : <https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi> (identifiant `a200b822-069e-40b3-b26e-0d1f5b7689cf`).
+- **Contenu actuel** (16 novembre 2026) :
+  - le menu de l'intro (Aventure · Arène · Mon ninja) ;
+  - deux aventures en parallèle ;
+  - le chapitre 2, **la Forêt**, première version complète et retouchée (`docs/FORET.md`) ;
+  - l'**arène du Potager** et le jeu à plusieurs en ligne (`docs/ARENES.md`) ;
+  - 4 skins (`docs/SKINS.md`) ;
+  - 93 tests de bout en bout et 32 tests de la Forêt.
+
+  Historique de ce paragraphe : le **chapitre 1, le Potager** (ouvert par défaut, voir § 6 bis), le personnage KAGE complet (26 animations, dont les saltos avant et arrière et le coup du salto, dont le coup de pied et la marche à bout de souffle), les ennemis TATE et WARA, un mini **Niveau 1** qui demande toutes les mécaniques, un terrain d'essai, une version mobile en plein écran (même cadrage que sur ordinateur ; en portrait le jeu pivote pour se jouer en tournant le téléphone vers la gauche), des sons synthétisés, la musique du Potager, des effets visuels et 75 tests automatiques. Le chapitre se termine par le mini-boss **KARASU-KASHI** (zone 9). **Chapitre 1 terminé en novembre 2026** (§ 6 quinquies) : plus long, énigme de la grue, serre à sortir par la charpente, bosquets de bambou, plateformes sur pilotis, boss refondu. Le Potager a été **entièrement repeint** (§ 6 quater) : cadrage 448×252, caméra posée à paliers, grande chaîne de montagnes, décors riches et vivants.
 - **Langue de travail** : français, dans les réponses comme dans le code (commentaires, documentation, messages de commit).
 
 ## 2. Commandes
 
 ```bash
 npm install
-npm run dev          # jeu en local (http://localhost:5173) : le Potager ; #niveau-1 = ancien niveau 1, #terrain = terrain d'essai
+npm run dev          # jeu en local (http://localhost:5173) : l'intro et le menu ; #foret = la Forêt, #arene-potager = l'arène, #niveau-1 = ancien niveau 1, #terrain = terrain d'essai
 npm run sprites      # régénère tous les sprites (KAGE + TATE + WARA + KARASU) avec contrôles qualité
 npm run build        # version de production dans dist/
 npm run standalone   # dist/kage-standalone.html : le jeu en un seul fichier ; dist/kage-test.html : version de test (skins sans achat, chapitres et zones en un clic)
-npm test             # carte mentale + build + version autonome + 80 tests de bout en bout + 31 tests de la Forêt, dans Chromium
+npm test             # carte mentale + build + version autonome + 93 tests de bout en bout + 32 tests de la Forêt, dans Chromium
 ```
 
 Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run sprites` puis `npm test` sans échec, et vérifier dans un navigateur (ordinateur, tactile paysage ~844×390 et portrait ~390×844).
@@ -50,7 +69,14 @@ Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run 
 | `src/game/maps.js` | cartes ASCII (terrain d'essai, niveau 1), légende en tête ; branche les chapitres |
 | `src/game/chapters/potager.js` | **chapitre 1** : carte construite zone par zone (petit constructeur `Builder`), décors, aides, zones |
 | `src/game/potager/` | **décor peint du Potager** : `backdrop.js` (ciel, nuages, oiseaux, cinq plans de paysage en parallaxe, premier plan sombre), `tiles.js` (tuiles selon la zone : terre, murets de pierre sèche, pierre taillée, racines, poutres, étagère, branche, bambou, bosquet ; berges et eau des canaux), `props.js` (une cinquantaine de décors + décors automatiques), `world.js` (terrain peint par tranches de 512 px, à la demande), `live.js` (roue à eau, cascade, koïs, kappa, pluie, lumière de la grange, marchand, papillons, pétales…), `palette.js`, `paint.js` (bruit, tramage, pinceaux), `index.js` (point d'entrée) |
-| `src/game/save.js` | sauvegarde automatique (`localStorage`, clé `kage.save.v1`), dont les skins possédés et porté |
+| `src/game/save.js` | sauvegarde automatique (`localStorage`), **deux emplacements** : `kage.save.v1` (aventure 1) et `kage.save.v1.b` (aventure 2), emplacement courant `ninja.aventure` ; skins possédés et porté |
+| `src/game/profile.js` | profil du joueur (`ninja.profil`) : pseudo (arène) et aventure affichée |
+| `src/game/menu.js` | **menu de l'intro** : Aventure (deux emplacements), Arène (Nouvelle arène, Rejoindre, écran du code), Mon ninja (le ninja en grand, pseudo, aventure affichée) |
+| `src/game/intro.js` | introduction au lancement (titre, lune, ninja en coup de pied sauté, musique) ; `menuMode` : décor des écrans du menu |
+| `src/game/chapters/foret.js`, `src/game/foret/` | **chapitre 2, la Forêt** (carte, mécaniques `FOREST`, décor peint) : voir `docs/FORET.md` |
+| `src/game/chapters/arene_potager.js`, `src/game/arena/` | **arène du Potager** : carte, mécanismes (`arena.js`, `ARENA`), dessin (`art.js`), salon (`lobby.js`) : voir `docs/ARENES.md` |
+| `src/game/multi.js`, `src/engine/net.js` | **jeu à plusieurs** : modes (`MODES`), états, coups, points, pièges partagés ; réseau PeerJS ou local |
+| `src/game/aura.js` | éclat du skin Lumière d'or |
 | `src/game/shop.js` | boutique du marchand : rayon Apparences (skins à acheter et à porter), répliques ; rayons Ressources et Objets vides |
 | `src/engine/input.js` | clavier |
 | `src/engine/touch.js` | commandes tactiles dessinées dans le canvas (constantes `STICK`) |
@@ -66,7 +92,7 @@ Avant de pousser : carte mentale mise à jour (`docs/carte-mentale/`), `npm run 
 | `tools/kage_forge/enemies/grow20.py` | agrandissement de 20 % de TATE et WARA à l'export |
 | `tools/standalone.mjs` | fabrique la version en un seul fichier HTML |
 | `tools/capture.cjs` | captures d'écran du jeu (KAGE posé à une colonne donnée) ou de la colline de la zone 2 à sa résolution réelle, pour montrer une retouche |
-| `tests/e2e.cjs` | 80 tests de bout en bout (Playwright, dont les saltos et le coup du salto au clavier et au joystick) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
+| `tests/e2e.cjs` | 93 tests de bout en bout (dont le menu, l'arène, sa caméra sur téléphone et un combat à deux en transport local) ; `tests/foret.cjs` + `tests/foret_pilotes.js` : 32 tests de faisabilité de la Forêt. Historique : 80 tests de bout en bout (Playwright, dont les saltos et le coup du salto au clavier et au joystick) : terrain d'essai (`#terrain`), tactile, niveau 1 (`#niveau-1`), Potager (sans ancre) |
 | `assets/characters/kage/`, `tate/`, `wara/`, `karasu/` | sprites **générés** (ne jamais éditer à la main) |
 | `docs/kage/README.md`, `docs/enemies/README.md` | documentation détaillée du personnage et des ennemis, planches et GIF |
 | `docs/carte-mentale/` | **carte mentale de tout le jeu**, à mettre à jour à chaque modification du jeu (règle de l'utilisateur ; `npm run carte` le vérifie, en ligne sur …/ninja-video-game/carte-mentale/) (page interactive : branches, une boîte par élément, détails et chemins de fichiers) ; contenu dans la liste `BRANCHES` de `index.html`, images par `tools/carte_mentale.py` ; page claude.ai privée : <https://claude.ai/artifact/M1H94uhbSYCRyFAp1Scvzi> |
@@ -259,6 +285,54 @@ Trois enregistrements d'écran (vidéos) fournis par l'utilisateur, avec leur so
 
 **Détours** (PR #26) : cabane du guetteur (zone 1), arbre aux cavités (zone 2), arche de racines (zone 3), belvédère du cèdre (zone 12) — `docs/FORET.md`, retours n° 10. Plan, réglages, état et reste à faire : **`docs/FORET.md`**. En bref : une carte continue de 12 zones (974 × 72 cases, `src/game/chapters/foret.js`, `#foret`), mécaniques dans `src/game/foret/mechanics.js` (pont qui s'effondre, bois vermoulu, troncs flottants, lianes balancier et lianes de la statue, statue aux yeux à rallumer, éboulis), peinture dans `src/game/foret/` (`ForetArt`, branché par `level.js` pour le thème `foret`), musique de l'utilisateur, ambiance stéréo, passage depuis la porte du temple (fondu et carte de chapitre ; la sauvegarde suit KAGE), 22 tests (`tests/foret.cjs`). Pas d'ennemis pour l'instant (demande de l'utilisateur). Aperçu : `docs/foret/apercu_zones.png`.
 
+## 6 octies. Arène, jeu à plusieurs, nouveau menu (15 et 16 novembre 2026, PR #27 à #31)
+
+Demandes de l'utilisateur, dans l'ordre.
+
+**Corrections et ajouts**
+- **Poussière d'or** derrière les shurikens du skin Lumière d'or (`goldDust`, `src/game/shuriken.js`).
+- **Correctif du corbeau** : depuis le sol (au tas de pierres), un saut + sabre le maintenait au sol à l'infini.
+  - Désormais, depuis le sol, il **pare** (`KARASU.parryHop`). On ne le fait tomber qu'en sautant d'une plateforme de bois.
+  - Relevé, il remonte presque à la verticale et reste **intouchable 1,3 s** (`KARASU.regain`).
+
+**Deux modes de jeu** : l'aventure (les chapitres) et le **combat en arène**, une arène par chapitre.
+
+**L'arène du Potager**, « la rizière du gong » : tout est dans **`docs/ARENES.md`**.
+- Elle fait deux fois l'image, avec un canal et sa passerelle, une grue et son **rocher ficelé** (onde de choc), et un **gong** qui lâche une vague.
+- Les **échafaudages** ne s'effondrent que sous le rocher ; il y a aussi du foin, des caisses, des **cœurs** (pas d'onigiri), une chaumière et trois arbres.
+- On **ramasse ses shurikens** (plus de paquets).
+- La plateforme du gong a été élargie vers la gauche, sur une jambe de force ; la galerie de planches a été refusée. Plus de mur invisible, plus de caisses en l'air.
+
+**Jeu à plusieurs** (PeerJS) :
+- codes de quatre signes, quatre joueurs ; l'hôte relaie ;
+- un mort donne un point à l'autre joueur ;
+- pièges partagés.
+
+**Le nom et le menu**
+- Le jeu s'appelle **« The Ninja Adventure »** ; le ninja n'a pas de nom pour le joueur. Le titre de l'intro tient sur une ligne : nouveau corps de police `heading` (×3), et D aux coins carrés pour qu'il ne se lise pas comme un O.
+- **Menu de l'intro : Aventure · Arène · Mon ninja** (`src/game/menu.js`). Écrans pleins sur les montagnes au clair de lune, sans le ninja, la lune décalée (`intro.menuMode`).
+  - **Aventure** : deux emplacements (`save.js`). « Continuer l'aventure » reprend dans le bon chapitre ; « Nouvelle aventure » garde l'autre ; « Effacer » demande confirmation.
+  - **Arène** : « Nouvelle arène » (bouton « Accueillir » : « créer » laissait croire qu'on composait son arène) et « Rejoindre une arène » (quatre cases pour le code).
+  - **Mon ninja** (`profile.js`) : le ninja en grand sur toute la moitié gauche, son pseudo discret dessous ; l'aventure affichée (flèches) avec chapitre, zone et ryō. Le nombre de skins et le corbeau ont été retirés, car l'utilisateur ne s'en soucie pas.
+- **Menus sobres** : aucune consigne, aucun sous-titre ni aucune ligne d'aide en petit gris. Le voile est un peu plus léger, pour mieux voir les montagnes.
+
+**Le salon de l'arène** (`lobby.js`) : plein écran.
+- Le code en grand, les quatre places (portrait au skin, pseudo, « hôte »).
+- Les **modes** : noms seuls, et la règle du mode choisi dessous. Trois modes, noms choisis par l'utilisateur :
+  - **Souffle unique** : une vie ;
+  - **Trois lames** : premier à 3 éliminations ;
+  - **Dix lames** : premier à 10.
+- L'hôte lance ; à la fin, « Victoire de … », puis retour au salon.
+
+**Sur téléphone, en combat** (`setCloseUp`, `ARENA_CAM` dans `main.js`)
+- L'utilisateur trouvait le jeu « beaucoup trop petit ». À l'échelle de l'aventure, la mesure ne montrait pourtant aucune différence. À sa demande, l'image est quand même **un cran plus proche** (844×390 : 362×168 au lieu de 422×195). Le salon reste à l'échelle des menus.
+- La caméra n'a que **deux hauteurs** :
+  - en bas : au sol et sur les premières plateformes ;
+  - en haut : une montée légère (environ 3,5 cases) dès que le ninja se pose à 4,5 cases ou plus ; retour en bas à 3,5 cases ou moins ;
+  - le passage se fait d'un seul mouvement de 0,6 s.
+
+**Messages de reprise** : un général (`docs/MESSAGE_NOUVELLE_CONVERSATION.md`) et trois spécialisés (`docs/messages/`), avec deux nouveaux guides, `docs/ARENES.md` et `docs/SKINS.md`.
+
 ## 6 ter. Historique des grandes étapes (fusionnées dans `main`, sauf la dernière)
 
 1. **PR #1** : KAGE (forge des sprites, 18 animations d'origine), TATE, niveau 1, terrain d'essai, tactile.
@@ -273,7 +347,11 @@ Trois enregistrements d'écran (vidéos) fournis par l'utilisateur, avec leur so
 10. **Série « Fin du chapitre 1 »** (PR #23, branche `claude/pose-repos-bras`, novembre 2026) : pose de repos, skins (vagabond, cabine des skins), coffre du grenier, KAGE/TATE/WARA +20 %, puis les 13 demandes pour terminer le Potager (§ 6 quinquies).
 11. **Série « Retouches du chapitre 1 »** (PR #24, branche `claude/retouches-chapitre-1`, novembre 2026) : pilotis, toit de la serre, serres du corbeau, pierres, porte du temple refaite, escalier de foin ; puis KAGE qui entre dans la porte, le dojo du lointain, la grue sans rocher, les passages à glissade, les échelles, les ryō du toit de la serre (§ 6 sexies).
 12. **Chapitre 2, la Forêt** (PR #25, branche `claude/message-nouvelle-conversation-docs-t945e2`, 11 novembre 2026) : 12 zones jouables, peintes, sonorisées ; retours n° 1 à 9 (pont suspendu, eaux, caverne aux perles, galeries, coffres, branche qui rompt, statue refaite).
-13. **Saltos et détours** (PR #26, même branche, 12 novembre 2026, **en brouillon, non fusionnée**) : saltos avant et arrière, coup du salto, quatre détours dans la Forêt (`docs/FORET.md`, retours n° 10).
+13. **Saltos et détours** (PR #26, même branche, 12 novembre 2026, fusionnée) : saltos avant et arrière, coup du salto, quatre détours dans la Forêt (`docs/FORET.md`, retours n° 10).
+14. **Retouches de la Forêt, statue, lianes, descente, skins** (13 et 14 novembre 2026) : voir `docs/FORET.md` (retours n° 11 à 18) et `docs/SKINS.md`.
+15. **Lumière d'or, correctif du corbeau, arène du Potager et jeu à plusieurs** (PR #27, 15 novembre 2026).
+16. **Arène v2** (PR #28) : deux fois l'image, rocher ficelé, gong et vague, même échelle sur téléphone ; **plateforme du gong** (PR #29).
+17. **The Ninja Adventure** : nouveau menu, salon et trois modes (PR #30) ; **menus sobres, Mon ninja en grand, modes sans description, arène rapprochée sur téléphone, messages de reprise** (PR #31, 16 novembre 2026). Détail au § 6 octies.
 
 ## 7. Effets et sons
 
@@ -326,7 +404,14 @@ Trois enregistrements d'écran (vidéos) fournis par l'utilisateur, avec leur so
 - **Shuriken en vol plus lisible** (demande de l'utilisateur) : dessin agrandi de 7×7 à 9×9 px (étoile à quatre lames effilées, trou au centre, puis la même en X), rotation ralentie (`SHURIKEN.spinStep` 0,12 → 0,16 s par image). L'icône du compteur et les shurikens plantés gardent leur petite taille (`hud` dans `kage.json`). Cellules du projectile : 12×12.
 - **Verger (zone 4) : plus de voûte de branches en hauteur** (`orchard_canopy` supprimé) : peinte à une hauteur fixe au-dessus de l'image, elle apparaissait en l'air sur les écrans plus hauts (tablette). Remplacée par davantage d'arbres plantés au sol, de tailles variées (`s` de 0,7 à 1,4).
 - **KARASU-KASHI, le corbeau du potager — intégré** (mini-boss du chapitre 1, d'après le cahier des charges détaillé de l'utilisateur ; planches validées, puis chapeau retouché à sa demande : paille moins dorée, reconnaissable comme celle des WARA, et **beaucoup plus grand**, « un peu trop grand », pour lui donner du caractère). Fiche complète, fichiers et réglages : `docs/enemies/README.md` ; GIF `docs/enemies/karasu_combat.gif`. Arène : **zone 9, « Le champ du corbeau »** (après le marchand), lanterne à l'entrée ; la **grande porte du temple** (vermillon, toit de tuiles à quatre pans, deux battants, corde sacrée, talisman) remplace l'ancienne sortie et ne s'ouvre qu'à sa défaite (tuile `D` sous la porte). Barre de vie du boss : fine, en haut au centre, nom en petites capitales (`.boss` dans `index.html` / `style.css`). Nouveaux sons (`caw`, `squawk`, `flap`, `glare`, `diveWhistle`, `crash`, `acorn`, `turnipLand`, `boom`, `karasuDefeat`, `paperTear`, `gateCreak`) et effets (`fx.drift` : plumes et papier qui planent ; palettes `feather`, `dirt`, `paper`, `fire`). À régler en jouant : PV (24), durées (`KARASU` dans `src/game/karasu.js`).
-- **Prochaine étape** : **les retours de l'utilisateur sur la série de la PR #26** (saltos, coup du salto, détours de la Forêt), puis la fusion et la mise en ligne quand il la demande ; ensuite le **mécanisme de la statue** (monter sur le haut de sa tête pour ouvrir la porte de pierre, demande de l'utilisateur ; en attendant, un déclencheur invisible devant ses yeux l'ouvre) et la suite de `docs/FORET.md`, § 9. Commande du salto sur téléphone : un essai « coup de joystick gardé au bout » a été refusé par l'utilisateur (« l'ancienne touche était mieux ») ; on garde le deuxième appui sur saut. Ensuite, ou en parallèle : jouer et régler le boss, les skins suivants, la **planche de design du marchand** (direction choisie par l'utilisateur : le **sage voyageur** — vieil homme droit, chapeau conique très large, kimono rapiécé de tissus de toutes les couleurs, barbe longue, bâton de marche, sac en bandoulière), puis celle du **petit nuisible** qui vole les légumes. Ensuite : sons d'ambiance et musique par zone (oiseaux, eau, moulin, pluie, grange feutrée, clochettes), retouches du décor selon les retours de l'utilisateur.
+- **Prochaine étape** (16 novembre 2026) : l'utilisateur ouvre trois conversations spécialisées (`docs/messages/`) :
+  - les **skins** : les sept brouillons, un par un, fidèles à ses modèles (`docs/SKINS.md`) ;
+  - les **arènes** : l'arène de la Forêt, le choix de l'arène dans le salon, des adversaires pilotés par l'ordinateur (`docs/ARENES.md`) ;
+  - les **chapitres** : les ennemis, le boss et le marchand de la Forêt, puis le chapitre 3 (`docs/GUIDE_CHAPITRE.md`, `docs/FORET.md` § 9).
+
+  Le mécanisme de la statue est fait (la corde, zone 9).
+
+  Ancien paragraphe : Commande du salto sur téléphone : un essai « coup de joystick gardé au bout » a été refusé par l'utilisateur (« l'ancienne touche était mieux ») ; on garde le deuxième appui sur saut. Ensuite, ou en parallèle : jouer et régler le boss, les skins suivants, la **planche de design du marchand** (direction choisie par l'utilisateur : le **sage voyageur** — vieil homme droit, chapeau conique très large, kimono rapiécé de tissus de toutes les couleurs, barbe longue, bâton de marche, sac en bandoulière), puis celle du **petit nuisible** qui vole les légumes. Ensuite : sons d'ambiance et musique par zone (oiseaux, eau, moulin, pluie, grange feutrée, clochettes), retouches du décor selon les retours de l'utilisateur.
 - Questions encore ouvertes du plan du monde (`docs/MONDE.md`, § 10) : durée visée, histoire des talismans, détail des paliers d'expérience.
 - Régler WARA en jouant (vitesse des bonds, durée du signal, du tournis).
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).

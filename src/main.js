@@ -77,6 +77,9 @@ if (MOBILE) {
 const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
 let touchView = { w: 320, h: 180, scale: 1 };
+// arène, pendant un combat, sur téléphone : l'image d'un cran plus proche (demande de l'utilisateur :
+// on voit le jeu de plus près ; la caméra a alors deux hauteurs, voir arenaCamY)
+let closeUp = false, camReady = false;
 function fit() {
   if (MOBILE) {
     const W = window.innerWidth, H = window.innerHeight;     // pixels CSS
@@ -88,6 +91,7 @@ function fit() {
     // téléphones allongés montraient plus loin, KAGE y paraissait petit ; demande de l'utilisateur)
     let dev = Math.max(1, Math.round((LH * dpr) / MOBILE_VIEW_H), Math.round((LW * dpr) / DESK_W));
     while (dev > 1 && (LW * dpr) / dev < 420) dev--;           // jamais trop étroit
+    if (closeUp && (LW * dpr) / (dev + 1) >= 320) dev++;       // arène : un cran plus près
     bgK = Math.min(6, dev);
     SCALE = dev / dpr;                                         // pixels CSS par pixel de jeu
     VIEW_W = Math.ceil((LW * dpr) / dev);
@@ -634,6 +638,7 @@ function startRoom(cfg) {
     }));
   };
   run.paused = true;                       // le salon d'abord : le combat attend que l'hôte le lance
+  setCloseUp(false);                       // (le salon à l'échelle des menus)
   net.onStatus = (st, detail) => {
     if (st === 'connexion') lobby?.setStatus(cfg.mode === 'host' ? "Ouverture de l'arène…" : `Connexion à l'arène ${cfg.code}…`);
     else if (st === 'ouverte') lobby?.setStatus('');
@@ -659,6 +664,7 @@ function startRoom(cfg) {
       else if (n === 'mode') lobby?.setMode(d.mode);
       else if (n === 'start') {
         lobby?.hide();
+        setCloseUp(true);
         hud.hidden = false;
         setText(codeEl, `${MODES[d.mode].name} · ${net.code}`);
         showList(); say('Le combat commence !');
@@ -673,6 +679,7 @@ function startRoom(cfg) {
         setTimeout(() => {
           run.paused = true;
           hud.hidden = true;
+          setCloseUp(false);
           lobby?.result(d.name, lines);
           setTimeout(() => { if (lobby) { lobby.show(); } }, 4000);
         }, 900);
@@ -683,7 +690,14 @@ function startRoom(cfg) {
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
-if (level.arena) { const cfg = roomConfig(); if (cfg) startRoom(cfg); }
+/** Arène : image rapprochée (combat) ou à l'échelle des menus (salon). */
+function setCloseUp(on) {
+  if (closeUp === on) return;
+  closeUp = on;
+  fit();
+  if (camReady) snapCamera();
+}
+if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
 
 // son : débloqué au premier geste ; bouton et touche M pour le couper
 const muteBtn = document.querySelector('.mute');
@@ -1096,25 +1110,50 @@ function groundBelow(x, y) {
 }
 
 /**
- * Arène : en hauteur, le sol à 85 % de l'image ; quand KAGE monte sur l'étage du haut
- * (et sur un écran plus bas, téléphone allongé), la caméra le suit doucement, sans
- * jamais monter au-dessus de son saut ni descendre sous le sol.
+ * Arène : en hauteur, le sol à 85 % de l'image. Sur ordinateur, l'image montre tout : elle
+ * suit à peine KAGE quand il saute de l'étage du haut. Sur un écran plus bas (téléphone,
+ * combat rapproché), deux hauteurs seulement, comme les paliers de l'aventure : en bas (au sol
+ * et sur les premières plateformes), et en haut — une montée légère, ~3,5 cases sur un téléphone
+ * allongé —, dès que KAGE se pose à 4,5 cases ou plus ;
+ * on passe de l'une à l'autre d'un seul mouvement fluide (0,6 s, lent-rapide-lent), et il
+ * faut redescendre à 3,5 cases ou moins pour revenir en bas.
  */
-let arenaY = null;
+let arenaY = null, arenaHigh = false, arenaMove = null;
+const ARENA_CAM = { up: 4.5 * 16, down: 3.5 * 16, top: 9 * 16, head: 30, margin: 0.15, time: 0.6 };
 function arenaCamY(dt = 1) {
   const a = level.arena.def, low = Math.round(a.ground + VIEW_H * 0.15 - VIEW_H);
-  const high = Math.min(low, Math.round(a.ground - 15 * 16));         // le plus haut : un saut depuis l'étage du haut reste dans l'image
-  let want = low;
-  if (high < low) want = Math.max(high, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
-  arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);
+  if (VIEW_H >= 236) {                                     // ordinateur : presque fixe
+    const top = Math.min(low, Math.round(a.ground - 15 * 16));
+    let want = low;
+    if (top < low) want = Math.max(top, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
+    arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);
+    return clampCamY(Math.round(arenaY));
+  }
+  // en haut : une montée légère, juste ce qu'il faut pour que KAGE, debout sur l'étage le plus
+  // haut (9 cases), ait la tête dans l'image avec un peu de marge (15 % de l'image au-dessus)
+  const high = Math.min(low, Math.round(a.ground - ARENA_CAM.top - ARENA_CAM.head - VIEW_H * ARENA_CAM.margin));
+  const feet = a.ground - player.y, alive = player.state !== 'death' && player.state !== 'respawn';
+  if (alive && player.onGround) {
+    if (feet >= ARENA_CAM.up) arenaHigh = true;
+    else if (feet <= ARENA_CAM.down) arenaHigh = false;
+  }
+  const want = arenaHigh ? high : low;
+  if (arenaY == null) { arenaY = want; arenaMove = null; }
+  if (!arenaMove || arenaMove.to !== want) arenaMove = { from: arenaY, to: want, t: arenaY === want ? 1 : 0 };
+  arenaMove.t = Math.min(1, arenaMove.t + dt / ARENA_CAM.time);
+  const k = arenaMove.t * arenaMove.t * (3 - 2 * arenaMove.t);
+  arenaY = arenaMove.from + (arenaMove.to - arenaMove.from) * k;
   return clampCamY(Math.round(arenaY));
 }
 function arenaCamera() {
   camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
-  arenaY = null;
+  arenaY = null; arenaMove = null;
+  arenaHigh = level.arena.def.ground - player.y >= ARENA_CAM.up;
   camera.y = arenaCamY();
   camVX = 0;
 }
+
+camReady = true;                         // (setCloseUp peut maintenant recadrer)
 
 /** Caméra posée d'un coup sur KAGE (écran titre, reprise d'une partie). */
 function snapCamera() {

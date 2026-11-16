@@ -1491,6 +1491,26 @@ async function main() {
     expect(r.kinds === 'heart' && r.hp === 3 && r.thrown === 2 && r.back === 3 && r.after === 3 && r.left === 0, JSON.stringify(r));
   });
 
+  await test('arène sur téléphone : image un cran plus proche, deux hauteurs de caméra (une montée légère, d\'un seul mouvement)', async () => {
+    const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+    const mp = await mctx.newPage();
+    try {
+      await mp.goto(PAGE + '#arene-potager'); await mp.waitForFunction(() => window.__kage && window.__kage.level.arena); await mp.waitForTimeout(400);
+      const put = (c, r) => mp.evaluate(([c, r]) => { const pl = window.__kage.player; pl.x = c * 16 + 8; pl.y = r * 16; pl.vx = 0; pl.vy = 0; }, [c, r]);
+      const cy = () => mp.evaluate(() => window.__kage.camera.y);
+      const v = await mp.evaluate(() => window.__kage.view());
+      const low = await cy();
+      await put(18, 15); await mp.waitForTimeout(800); const lowPlat = await cy();       // premières plateformes : en bas
+      await put(21, 12); await mp.waitForTimeout(200); const mid = await cy();            // l'étage du milieu : la montée commence
+      await mp.waitForTimeout(800); const high = await cy();
+      await put(58, 9); await mp.waitForTimeout(800); const top = await cy();             // l'étage du haut : même hauteur
+      const head = 9 * 16 - 30 - top;                                                       // la tête de KAGE, debout tout en haut, dans l'image
+      await put(40, 18); await mp.waitForTimeout(800); const back = await cy();
+      expect(v.h < 195 && lowPlat === low && mid < low && mid > high && top === high && low - high <= 4 * 16 && head >= 10 && back === low,
+        `image ${v.w}×${v.h}, en bas ${low} (plateforme ${lowPlat}), montée ${mid} → ${high} (haut ${top}, tête à ${head} px du bord), retour ${back}`);
+    } finally { await mctx.close(); }
+  });
+
   // ---- jouer à plusieurs : une arène à deux (transport local, deux onglets servis en http) ----
   await test('à plusieurs : salon (code, places, mode choisi par l\'hôte), combat lancé, coup de sabre, gong partagé, Trois lames puis Souffle unique', async () => {
     const http = require('node:http'), fs = require('node:fs');
@@ -1518,6 +1538,8 @@ async function main() {
       // l'hôte choisit Trois lames : l'invité le voit
       await A.click('[data-mode="trois"]');
       await B.waitForFunction(() => document.querySelector('.m-mode.m-on')?.dataset.mode === 'trois', null, { timeout: 3000 });
+      // les modes : leurs noms seuls ; la règle du mode choisi, une seule fois, dessous
+      const rule = await B.evaluate(() => [document.querySelectorAll('[data-salon] .m-mode p').length, document.querySelector('[data-mode-rule]').textContent]);
       await A.click('[data-launch]');
       await B.waitForFunction(() => !window.__kage.run.paused && document.querySelector('[data-salon]').hidden, null, { timeout: 3000 });
       const hud = await B.evaluate(() => document.querySelector('.salle').textContent.replace(/\s+/g, ' ').trim());
@@ -1550,8 +1572,8 @@ async function main() {
       await B.evaluate(() => window.__kage.player.die());
       await B.waitForFunction(() => window.__kage.multi.out && /Victoire de Raph/.test(document.querySelector('[data-salon]').textContent), null, { timeout: 4000 });
       const sudden = await B.evaluate(() => window.__kage.multi.match.over);
-      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && /Tu es invité/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
-        && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
+      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
+        && rule[0] === 3 && /premier à 3/.test(rule[1]) && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
         `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}`);
     } finally { await ctx.close(); srv.close(); }
   });
@@ -1583,9 +1605,11 @@ async function main() {
     const msg = await pm.evaluate(() => document.querySelector('[data-multi-msg]').textContent);
     await pm.click('[data-code]'); await pm.keyboard.type('3q');
     await pm.click('[data-join]');
-    await pm.waitForFunction(() => window.__kage && window.__kage.level.arena && window.__kage.multi, null, { timeout: 15000 });
-    const cfg = await pm.evaluate(() => [JSON.parse(sessionStorage.getItem('kage-salle')).code, window.__kage.multi.net.code]);
-    const visible = await pm.evaluate(() => document.body.innerText);
+    // lu d'un coup, dans la page, dès l'arrivée dans l'arène (sans service des arènes joignable ici,
+    // le jeu ramène vite au menu Rejoindre : il ne faut pas lire la page pendant ce retour)
+    const seen = await (await pm.waitForFunction(() => window.__kage?.level?.arena && window.__kage.multi
+      && [JSON.parse(sessionStorage.getItem('kage-salle')).code, window.__kage.multi.net.code, document.body.innerText], null, { timeout: 15000 })).jsonValue();
+    const cfg = seen.slice(0, 2), visible = seen[2];
     await pm.close();
     expect(main === 'aventure,arene,ninja' && cards.join() === '1,1' && two.join() === '2,77' && prof === 'Kenji' && /quatre signes/.test(msg) && cfg.join() === '7F3Q,7F3Q' && !/KAGE/i.test(visible),
       `menu ${main}, cartes ${cards}, emplacement ${two}, pseudo ${prof}, message « ${msg} », arène ${cfg}`);

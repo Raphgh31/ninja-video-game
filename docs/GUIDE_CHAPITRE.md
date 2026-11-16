@@ -1,6 +1,8 @@
 # Construire un nouveau chapitre — guide pour Claude
 
-Ce guide est écrit pour la session qui construira le **chapitre 2** (une forêt dense et mystérieuse), puis les suivants. Il réunit trois choses : **la méthode de travail** que l'utilisateur attend, **l'architecture** à suivre pour brancher un chapitre, et **les leçons du chapitre 1** : tout ce que l'utilisateur a fait corriger pendant des semaines de retouches. Le but : livrer une première version si soignée qu'il reste le moins de retouches possible.
+Ce guide a été écrit pour la session qui a construit le **chapitre 2**, la Forêt (faite : voir `docs/FORET.md`, et ses retours n° 1 à 18, qui complètent les leçons ci-dessous). Il sert pour les ennemis et le boss de la Forêt, puis pour le chapitre 3 et les suivants. Message d'introduction d'une conversation consacrée aux chapitres : `docs/messages/MESSAGE_CHAPITRES.md`.
+
+> Depuis novembre 2026, le jeu s'appelle **« The Ninja Adventure »** : le ninja n'a pas de nom pour le joueur (KAGE seulement dans le code). Le menu de l'intro (Aventure · Arène · Mon ninja) gère deux aventures (`save.js`) ; « Continuer l'aventure » reprend dans le chapitre de la sauvegarde. **Une arène par chapitre** est prévue : voir `docs/ARENES.md`. Il réunit trois choses : **la méthode de travail** que l'utilisateur attend, **l'architecture** à suivre pour brancher un chapitre, et **les leçons du chapitre 1** : tout ce que l'utilisateur a fait corriger pendant des semaines de retouches. Le but : livrer une première version si soignée qu'il reste le moins de retouches possible.
 
 À lire avec `CLAUDE.md` (règles du projet), `docs/REPRISE.md` (état complet, valeurs de réglage, carte des fichiers) et `docs/MONDE.md` (plan du monde).
 

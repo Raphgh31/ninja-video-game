@@ -1,11 +1,13 @@
 // Mode combat — l'arène du Potager : « La rizière du gong ».
-// Une fois et demie la largeur de l'image : on en voit les deux tiers, la caméra
-// suit KAGE en largeur (jamais en hauteur). Trois étages (le sol, les échafaudages, les
-// perches de séchage du riz), fermés de chaque côté par un bosquet de bambous
-// serrés (sauts muraux). Au centre, le canal d'irrigation (mortel) et sa
-// passerelle ; à gauche, la grue de bambou et ses sacs de riz ; à droite, le
-// gong qui ouvre les vannes : une vague balaie la rizière basse vers le canal.
+// Deux fois la largeur de l'image (on en voit la moitié) : la caméra suit KAGE en
+// largeur ; en hauteur, presque fixe sur ordinateur, deux hauteurs sur téléphone
+// (arenaCamY dans main.js). Trois étages (le sol, les potagers sur pilotis, les
+// échafaudages et les perches de séchage du riz), fermés de chaque côté par un
+// bosquet de bambous serrés (sauts muraux). Au centre, le canal d'irrigation
+// (mortel) et sa passerelle ; à gauche, la grue de bambou et son rocher ficelé ;
+// à droite, le gong qui ouvre les vannes : une vague balaie la rizière vers le canal.
 // Les mécanismes vivent dans src/game/arena/ (Arena) ; ici, la carte et les repères.
+// Guide pour construire une autre arène : docs/ARENES.md.
 
 import { Builder } from './builder.js';
 
