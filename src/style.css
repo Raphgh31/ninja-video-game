@@ -227,6 +227,11 @@ body.mobile .talk { padding-left: 6px; }
 .m-card .m-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .m-card .m-push { margin-top: auto; }
 .m-card canvas.m-ninja { align-self: center; image-rendering: pixelated; }
+/* Mon ninja : le ninja en grand sur toute la moitié gauche, son pseudo dessous, discret */
+.m-hero { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 0; }
+.m-hero canvas.m-ninja { image-rendering: pixelated; }
+.ui .m-hero .m-name { width: 96px; height: 14px; justify-content: center; padding-left: 0; border-color: #4a3a2a; background: transparent; }
+.short .m-hero { gap: 5px; }
 .m-field { position: relative; display: flex; align-items: center; height: 17px; padding-left: 5px; border: 1px solid #6b5236; background: rgba(18, 13, 10, .9); color: #f3e3c3; cursor: text; }
 .m-field:focus-within { border-color: #e8b93c; }
 .m-field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
@@ -245,13 +250,13 @@ body.mobile .talk { padding-left: 6px; }
 .m-codebig { --pxf: title; --pxs: 3; color: #f3e3c3; }
 .short .m-codebig { --pxf: big; --pxs: 2; }
 .m-modes { display: grid; gap: 2px; }
-.ui .m-screen .m-mode { display: grid; justify-items: start; gap: 0; padding: 1px 6px 2px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); text-align: left; cursor: pointer; color: inherit; }
+.ui .m-screen .m-mode { display: grid; justify-items: start; gap: 0; padding: 1px 6px 2px; min-height: 13px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); text-align: left; cursor: pointer; color: inherit; }
 .ui .m-screen button.m-mode:hover, .ui .m-screen button.m-mode:focus { background: rgba(58, 42, 18, .5); border-color: #8e6a44; color: inherit; }
 .m-mode .m-n { color: #8e939c; text-transform: uppercase; --pxs: 1; }
-.m-mode .m-d { color: #a9aea8; }
 .ui .m-screen .m-mode.m-on { border-color: #e8b93c; background: rgba(58, 42, 18, .75); }
+.ui.short .m-screen .m-mode { min-height: 0; padding: 0 6px 1px; }
+.ui.short .m-modes { gap: 2px; }
 .m-mode.m-on .m-n { color: #e8b93c; }
-.short .m-mode .m-d { display: none; }
 .m-slots { display: grid; gap: 3px; }
 .m-slot { position: relative; display: flex; align-items: center; gap: 6px; height: 24px; padding-left: 30px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); }
 .short .m-slot { height: 20px; }
@@ -261,10 +266,6 @@ body.mobile .talk { padding-left: 6px; }
 .short .m-slot canvas.m-face { top: -2px; }
 .m-slot .m-tag { margin-left: auto; margin-right: 6px; }
 .title-screen.menu-open .title-screen__actions, .title-screen.menu-open .title-screen__name, .title-screen.menu-open .title-screen__chapter { visibility: hidden; }
-.m-short-only { display: none; }
-.short .m-short-only { display: block; }
-.short .m-long-only { display: none; }
-.short .m-screen .m-mode { padding: 0 6px 1px; }
 /* pendant le combat : le cadre de la salle, en haut au milieu, discret */
 .salle {
   position: absolute; z-index: 3; top: 3px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 1px;

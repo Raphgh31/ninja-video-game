@@ -109,6 +109,46 @@ export class Menu {
     return s;
   }
 
+  /** Le cadre utile du ninja au repos (toutes ses images), pour le montrer en grand sans vide autour. */
+  bounds(skinId) {
+    this.boxes ??= {};
+    if (this.boxes[skinId]) return this.boxes[skinId];
+    const sk = this.skins[skinId] ?? this.skins.encre, frames = this.meta.animations.idle.frames;
+    const c = document.createElement('canvas'), f0 = frames[0];
+    c.width = f0.w; c.height = f0.h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    let x0 = f0.w, y0 = f0.h, x1 = 0, y1 = 0;
+    for (const f of frames) {
+      g.clearRect(0, 0, c.width, c.height);
+      g.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+      const d = g.getImageData(0, 0, f.w, f.h).data;
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+        if (d[(y * f.w + x) * 4 + 3] < 8) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    return (this.boxes[skinId] = x1 >= x0 ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : { x: 0, y: 0, w: f0.w, h: f0.h });
+  }
+
+  /** Le ninja en grand (Mon ninja) : sa silhouette seule, agrandie d'un nombre entier de fois. */
+  portrait(skinId, maxW, maxH) {
+    const b = this.bounds(skinId), k = Math.max(1, Math.min(Math.floor(maxW / b.w), Math.floor(maxH / b.h)));
+    const cv = el('canvas', 'm-ninja');
+    cv.width = b.w * k; cv.height = b.h * k;
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const sk = this.skins[skinId] ?? this.skins.encre, anim = this.meta.animations.idle;
+    let i = 0;
+    const paint = () => {
+      const f = anim.frames[i++ % anim.frames.length];
+      g.clearRect(0, 0, cv.width, cv.height);
+      g.drawImage(sk.sheet, f.x + b.x, f.y + b.y, b.w, b.h, 0, 0, b.w * k, b.h * k);
+    };
+    paint();
+    this.timers.push(setInterval(paint, 180));
+    return cv;
+  }
+
   /** Le ninja (image de repos, animée) dans un canevas, au skin donné. */
   ninja(skinId, k = 1, crop = false) {
     const cv = el('canvas', 'm-ninja');
@@ -163,7 +203,7 @@ export class Menu {
         const info = this.chapterOf(save);
         card.append(this.ninja(save.skin ?? 'encre', big ? 2 : 1));
         card.append(el('p', 'm-ink', info.chapter), el('p', 'm-muted', info.zone),
-          el('p', 'm-muted', `${save.ryo ?? 0} ryō · ${(save.skins ?? ['encre']).length} skins`));
+          el('p', 'm-muted', `${save.ryo ?? 0} ryō`));
         const row = el('div', 'm-row m-push');
         const go = button("Continuer l'aventure", null, () => this.continueAdventure(slot));
         go.dataset.continue = '';
@@ -269,22 +309,23 @@ export class Menu {
   build_ninja() {
     const s = this.frame('Mon ninja');
     const grid = el('div', 'm-cards');
-    grid.style.gridTemplateColumns = '150px minmax(0, 1fr)';
+    grid.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(0, 1fr)';
     const saves = this.saves();
     const shown = saves.find((x) => x.slot === this.profile.shown && x.save) ?? saves.find((x) => x.save) ?? null;
-    const left = el('div', 'm-card');
-    left.style.cssText = 'align-self:start;gap:6px;padding-bottom:8px';
+    // à gauche : le ninja, en grand (toute la moitié gauche), et son pseudo dessous, discret
+    const left = el('div', 'm-hero');
     const skin = shown?.save.skin ?? 'encre';
-    left.append(this.ninja(skin, document.querySelector('.ui.short') ? 1 : 2));
+    const short = !!document.querySelector('.ui.short');
+    left.append(this.portrait(skin, short ? 180 : 190, short ? 120 : 150));
     const f = this.field(this.profile.name, { clean: cleanName, onInput: (v) => { const n = v.trim(); if (n) { this.profile.name = n; this.saveProfile(this.profile); } } });
+    f.classList.add('m-name');
     f.input.dataset.pseudo = '';
     f.input.dataset.first = '';
     left.append(f);
     const right = el('div');
     right.style.cssText = 'display:grid;align-content:start;gap:3px';
     const head = el('div', 'm-row');
-    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
-    head.append(el('p', 'm-lbl', 'Aventure affichée'));
+    head.style.cssText = 'display:flex;justify-content:flex-start;align-items:center;margin-bottom:2px';
     const arrows = el('div', 'm-arrows');
     const others = saves.filter((x) => x.save);
     const flip = (d) => {
@@ -311,7 +352,6 @@ export class Menu {
       row('Chapitre', info.chapterShort);
       row('Zone', info.zoneShort);
       row('Ryō', String(shown.save.ryo ?? 0));
-      row('Skins', `${(shown.save.skins ?? ['encre']).length} sur ${Object.keys(this.skins).length}`);
     } else {
       stats.append(el('p', 'm-dim', "Pas encore d'aventure"));
     }

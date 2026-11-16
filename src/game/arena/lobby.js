@@ -89,13 +89,15 @@ export class Lobby {
       const b = el(host ? 'button' : 'div', `m-mode${id === this.mode ? ' m-on' : ''}`);
       if (host) { b.type = 'button'; b.addEventListener('click', () => { this.mode = id; net.send({ t: 'mode', mode: id }); this.render(); }); b.dataset.focusKey = `mode-${id}`; }
       b.dataset.mode = id;
-      b.append(el('p', 'm-n', m.name), el('p', 'm-d', m.text));
+      b.append(el('p', 'm-n', m.name));
       modes.append(b);
     }
     left.append(modes);
-    const sel = MODES[this.mode];
-    const shortDesc = el('p', 'm-muted m-short-only', sel.text);
-    left.append(shortDesc);
+    // la règle du mode choisi, seulement elle, sous les trois noms
+    const rule = el('p', 'm-muted', MODES[this.mode].text);
+    rule.dataset.modeRule = '';
+    rule.style.setProperty('--pxw', '196');
+    left.append(rule);
     // à droite : les quatre places
     const right = el('div');
     right.style.cssText = 'display:grid;align-content:start;gap:3px';
