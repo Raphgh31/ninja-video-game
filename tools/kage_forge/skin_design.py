@@ -41,9 +41,11 @@ def main():
     board.paste(r, (30, 70))
     d.text((30, 496), "Modèle", fill=(110, 100, 90), font=F(16))
     g = dress(render(ANIMS["idle"]["frames"][0]), sk["accessories"])
-    big = img(g, sk["colors"]).crop((0, 4, 34, 32)).resize((34 * 15, 28 * 15), Image.NEAREST)
+    top = min(4, min(y for y in range(CH) if (g[y] != ".").any()))    # (un chapeau ou des cornes plus hauts)
+    z = min(15, 420 // (32 - top))
+    big = img(g, sk["colors"]).crop((0, top, 34, 32)).resize((34 * z, (32 - top) * z), Image.NEAREST)
     board.paste(big, (520, 70), big)
-    d.text((520, 496), "Le skin (pose de repos, ×15)", fill=(110, 100, 90), font=F(16))
+    d.text((520, 496), f"Le skin (pose de repos, ×{z})", fill=(110, 100, 90), font=F(16))
     # ×1 et ×3, sur un fond de forêt sombre et sur un fond clair
     for i, (bg, z) in enumerate((((40, 52, 44), 1), ((40, 52, 44), 3), ((214, 205, 186), 3))):
         im = img(g, sk["colors"]).resize((CW * z, CH * z), Image.NEAREST)

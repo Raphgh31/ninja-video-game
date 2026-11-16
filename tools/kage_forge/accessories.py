@@ -115,26 +115,6 @@ def cord(g):
 # r p P Q paille (chapeaux), O trait sombre (fentes des yeux d'un masque…)
 # ---------------------------------------------------------------------------
 STAMPS = {
-    # kabuto du samouraï déchu : bombe laquée, visière qui avance, liseré d'or au front, couvre-nuque
-    # (shikoro) qui descend sur la nuque, kuwagata : deux cornes d'or en V au-dessus du front
-    "kabuto": dict(dx=-1, dy=-7, text="""
-..J.........J..
-..J.........J..
-...J.......J...
-....J.....J....
-.....jJ.Jj.....
-......jJj......
-.....bbBjBBi...
-...bbBBBBBBBBi.
-..bBBBBBBBBBBi.
-..bBBBiBBBBBBBi
-.bBBBBBBBBBBBBi
-bbjJJJJJJJJJJJJ
-bBBBb..........
-bBBBBb.........
-.bBBBb.........
-..bbb..........
-"""),
     # masque de renard (kitsune) : visage blanc, oreilles pointues dedans rouges, marques rouges au front
     # et aux joues, fentes des yeux, museau qui avance, nez rouge
     "kitsune": dict(dx=5, dy=-3, face=True, text="""
@@ -706,7 +686,310 @@ def hipcloth(g):
     return g, True
 
 
+# ---------------------------------------------------------------------------
+# Samouraï déchu (planche de Raph, n° 19 / « 10 ») : kabuto laqué aux cornes d'or en croissant et cimier
+# rouge, bande rouge au front ; grande épaulière (sode) laquée bordée d'or ; cape rouge déchirée ; cuirasse
+# bordeaux au col d'or, ceinture à plaques d'or ; tassette avant laquée bordée d'or en U, tassette arrière
+# bordeaux au bord clouté d'or ; hakama sombre, chaussures à bande rouille. (La tache claire à la hanche, sur
+# le modèle, est la main arrière.)
+# Lettres : h H I laque (comme la capuche) · t T U bordeaux · j J or · b B i cimier · r p P Q cape
+# f F G la bande et ses pans
+# ---------------------------------------------------------------------------
+HOOD = set("hHI")
+
+# le kabuto, depuis la tête (colonne, rangée relatives à hx, hy) : la bombe gagne une rangée, les deux
+# cornes d'or (kuwagata) montent en croissant de part et d'autre du cimier, au-dessus du visage ; un petit
+# bouton laqué à l'arrière du sommet
+KABUTO = """
+.....c......c.
+....jJ......Jj
+....jJ......Jj
+.....jJhHI.Jj.
+...hHjJHHHIJj.
+..hhHHjJHIJjI.
+..hhHHHjJJj...
+........iB....
+.......bBBb...
+"""
+KABUTO_DY = -5
+
+
+# les deux pans de la bande rouge, qui flottent vers l'arrière depuis le nœud : le haut, large, monte un peu
+# puis retombe en crochet ; le bas, plus fin, descend en biais (rangée relative à hy : colonne de départ, motif)
+SAMURAI_TAILS = {
+    1: (-5, "GGG"),
+    2: (-8, "GGGFFFG"),
+    3: (-9, "GFFfffFF"),
+    4: (-10, "fFf..FFf"),
+    5: (-5, "FFf"),
+    6: (-7, "FFf"),
+    7: (-8, "f"),
+}
+
+
+def _reoutline(g):
+    """Le contour : les traits devenus orphelins s'effacent, chaque bord de forme en reçoit un."""
+    solid = lambda c: c not in ".O"
+    for y in range(CH):
+        for x in range(CW):
+            if g[y, x] == "O" and not any(0 <= y + dy < CH and 0 <= x + dx < CW and solid(g[y + dy, x + dx])
+                                          for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1))):
+                g[y, x] = "."
+    for y in range(CH):
+        for x in range(CW):
+            if g[y, x] == "." and any(0 <= y + dy < CH and 0 <= x + dx < CW and solid(g[y + dy, x + dx])
+                                      and g[y + dy, x + dx] not in "xXzqsSu"
+                                      for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                g[y, x] = "O"
+
+
+def kabuto(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    # les pans du bandeau de KAGE (derrière la tête, ou dressés au-dessus) sont rangés, le nœud reste :
+    # ceux de la bande rouge les remplacent. Une pose sans pans (salto : la forge trace les siens à la
+    # traîne du nœud, flip.py) garde ceux du salto.
+    tails = [(y, x) for y in range(CH) for x in range(CW)
+             if g[y, x] in "fFG" and (x < hx + 2 or y < hy)]
+    for y, x in tails:
+        g[y, x] = "."
+    _reoutline(g)
+    mask = np.zeros(g.shape, bool)
+    for dy, (x0, row) in (SAMURAI_TAILS.items() if tails else ()):
+        for i, c in enumerate(row):
+            x, y = hx + x0 + i, hy + dy
+            if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    for j, row in enumerate(_rows(KABUTO)):
+        for i, c in enumerate(row):
+            x, y = hx + i, hy + KABUTO_DY + j
+            if c == "." or not (0 <= x < CW and 0 <= y < CH):
+                continue
+            # le casque ne passe jamais devant un bras, une main ou la lame (bras levés vers la liane)
+            if g[y, x] in BG or g[y, x] in HOOD:
+                g[y, x] = c
+                mask[y, x] = True
+    # la bande rouge du front, des plis plus sombres
+    y = hy + 4
+    for x in range(hx, hx + 12):
+        if 0 <= x < CW and g[y, x] == "G":
+            u = x - hx
+            g[y, x] = "F" if u % 3 == 1 else "G"
+    _outline(g, mask)
+    return g, True
+
+
+def _belt(g):
+    """(rangée, début, fin) de la ceinture, ou None."""
+    for y in range(CH):
+        row = "".join(g[y])
+        x = row.find("lL")
+        if x < 0:
+            x = row.find("Ll")
+        if x < 0:
+            x = row.find("lJ")
+        if x >= 0:
+            e = x
+            while e < CW and g[y, e] in "lLJ":
+                e += 1
+            return y, x, e
+    return None
+
+
+def hakama(g):
+    """Le hakama : les jambes deviennent laque sombre (comme le casque). Tout ce qui est sous la ceinture, et
+    la jambe levée d'un coup de pied (suivie depuis le pied)."""
+    b = _belt(g)
+    if b is None:
+        return g, False
+    by = b[0]
+    g = g.copy()
+    leg = np.zeros(g.shape, bool)
+    stack = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "dD"]
+    seen = set(stack)
+    while stack:
+        y, x = stack.pop()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < CH and 0 <= nx < CW and ny >= by - 6 and (ny, nx) not in seen and g[ny, nx] in "tTU":
+                seen.add((ny, nx))
+                leg[ny, nx] = True
+                stack.append((ny, nx))
+    for y in range(CH):
+        for x in range(CW):
+            if g[y, x] in "tTU" and (y > by or leg[y, x]):
+                g[y, x] = {"t": "h", "T": "H", "U": "H"}[g[y, x]]
+    return g, True
+
+
+def rag(g):
+    """La cape rouge déchirée : du dessous de l'épaulière jusqu'aux mollets, derrière le corps ; elle s'évase
+    vers l'arrière, plis sombres, accrocs plus clairs, le bas en lambeaux (trois pointes inégales)."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    # elle s'arrête au-dessus des pieds, quelle que soit la pose (en boule, pendant un salto, le corps finit
+    # plus haut)
+    feet = [y for y in range(CH) if any(c in "tTUdDhHI" for c in g[y])]
+    ys, ye = hy + 10, min(hy + 18, (max(feet) if feet else CH) - 3)
+    widths = [2, 3, 3, 4, 4, 5, 5, 6, 6]
+    TIPS = (1, 0, 2, 1, 0, 3, 2)                  # longueur des lambeaux sous le bas, selon la distance au dos
+    TAILS = set("fFGkK")
+    prev = None
+    for y in range(ys, ye + 4):
+        if not 0 <= y < CH:
+            continue
+        xl = _back_edge(g, min(y, ye), hx, TORSO)
+        if xl is None:
+            xl = prev
+        if xl is None:
+            continue
+        prev = xl
+        k = y - ys
+        w = min(widths[min(k, len(widths) - 1)], xl - 1)     # (jamais coupée par le bord de l'image)
+        for x in range(xl - w, xl):
+            if not 0 <= x < CW or not (g[y, x] in BG or g[y, x] in TAILS):
+                continue
+            u = xl - 1 - x                            # distance derrière le dos
+            last = ye - ys + 1
+            if k >= last:
+                if k - last + 1 > TIPS[u % len(TIPS)]:
+                    continue
+            c = "P"
+            if u % 3 == 1 and k >= 2:
+                c = "p"                               # un pli
+            if u == w - 1:
+                c = "p"                               # le bord, à l'ombre
+            if k >= last:
+                c = "r" if k - last + 1 == TIPS[u % len(TIPS)] else "p"
+            if _h(u, k, 7) < 0.12 and c == "P":
+                c = "Q"                               # un accroc plus clair
+            g[y, x] = c
+            mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def kusazuri(g):
+    """Les tassettes : à l'avant, un panneau laqué bordé d'or en U devant la cuisse ; à l'arrière, un panneau
+    bordeaux qui tombe de la hanche, son bord bas clouté d'or."""
+    b = _belt(g)
+    pos = find_head(g)
+    if b is None or pos is None:
+        return g, False
+    by, bx, be = b
+    hx, hy = pos
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    LEG = set("tTUhHIO")
+    # à l'arrière : une plaque qui pend derrière la hanche (sur le fond seulement), le bas clouté d'or
+    rows = ((2, "UT"), (3, "TTt"), (3, "TTt"), (3, "jJj"))
+    for k, (w, cols) in enumerate(rows):
+        y = by + 1 + k
+        if not 0 <= y < CH:
+            continue
+        xl = _back_edge(g, y, hx, set("tTUlLdDhHI"))
+        if xl is None:
+            continue
+        for i, c in enumerate(cols):
+            x = xl - w + i
+            if 0 <= x < CW and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    mask[:] = False
+    # à l'avant : un panneau laqué bordé d'or en U, sous l'avant de la ceinture
+    x0 = be - 3
+    for j, row in enumerate(("JHJ", "JHJ", "jJj")):
+        for i, c in enumerate(row):
+            x, y = x0 + i, by + 1 + j
+            if 0 <= x < CW and 0 <= y < CH and (g[y, x] in LEG or g[y, x] in BG):
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def sode(g):
+    """La grande épaulière, sur l'épaule arrière : une plaque laquée qui descend vers l'arrière, le haut
+    bordeaux, une marque d'or au milieu, le bord bas d'or."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    xl = _back_edge(g, hy + 11, hx, TORSO)
+    if xl is None:
+        return g, False
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    shape = ((10, -2, "tTUU"), (11, -4, "tTHJHH"), (12, -6, "tHHHHHHH"), (13, -6, "jJJJJJJ"))
+    for dy, x0, cols in shape:
+        y = hy + dy
+        for k, c in enumerate(cols):
+            x = xl + x0 + k
+            if 0 <= x < CW and 0 <= y < CH and g[y, x] not in "WwgNnEeMhHI":
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def samurai_trim(g):
+    """La cuirasse : le col d'or en V sous le menton, la ceinture à plaques d'or, la bande rouille des
+    chaussures."""
+    pos = find_head(g)
+    b = _belt(g)
+    if pos is None or b is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    # le col (la place de l'écharpe sous le menton)
+    for y in range(hy + 8, hy + 12):
+        xs = [x for x in range(max(0, hx + 1), min(CW, hx + 13)) if g[y, x] in "fFG"]
+        if not xs:
+            continue
+        for x in xs:
+            g[y, x] = "T"
+        if y == hy + 9 and len(xs) > 4:
+            g[y, xs[-2]] = "J"                      # le V du col : deux fils d'or qui se rejoignent
+            g[y, xs[-4]] = "J"
+        elif y == hy + 10 and len(xs) > 3:
+            g[y, xs[-3]] = "J"
+    # la ceinture à plaques d'or
+    by, bx, be = b
+    for x in range(bx, be):
+        if (x - bx) % 2 == 1:
+            g[by, x] = "J"
+    # la bande rouille sur le dessus des chaussures
+    for x in range(CW):
+        for y in range(by + 1, CH):
+            if g[y, x] in "dD":
+                if g[y - 1, x] not in "dD" and y + 1 < CH and g[y + 1, x] in "dD":
+                    g[y, x] = "U"
+                break
+    return g, True
+
+
 def accessory(name):
+    if name == "kabuto":
+        return kabuto
+    if name == "hakama":
+        return hakama
+    if name == "rag":
+        return rag
+    if name == "kusazuri":
+        return kusazuri
+    if name == "sode":
+        return sode
+    if name == "samurai_trim":
+        return samurai_trim
     if name == "cord":
         return cord
     if name in STAMPS:
