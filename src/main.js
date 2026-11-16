@@ -1197,7 +1197,7 @@ function draw() {
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
   arenaArt?.drawFront(ctx, cam, level.time);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail);
+  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(ctx, cam);
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage

@@ -104,6 +104,11 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
     // (un skin peut teinter ses projectiles autrement que sa lame : projectileColors)
     const projSkin = skin.projectileColors ? { ...skin, colors: { ...skin.colors, ...skin.projectileColors } } : skin;
     for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, projSkin);
+    // un skin peut lancer autre chose que des shurikens (le pêcheur : des micro-poissons, champ « projectile ») :
+    // même planche, mêmes cases ; « faces » : ils regardent dans le sens du vol
+    const kind = skin.projectile && projectiles[skin.projectile] ? skin.projectile : 'shuriken';
+    projectiles.shuriken = projectiles[kind];
+    const projectileFaces = !!meta.projectiles?.[kind]?.faces;
     const sheet = applySkin(indexImage, meta, skin);
     // accessoires du skin (chapeau, cordelette…) : calque d'index à part, même
     // disposition que la planche, fondu une fois pour toutes par-dessus
@@ -119,7 +124,7 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
     }
     // les traînées (skins qui en ont) : la lame et l'arc du coup d'épée seuls ; la silhouette entière (dash)
     const trail = skin.trail ? { blade: maskSheet(indexImage, meta, ['W', 'w', 'z', 'q', 'X'], skin.trail), body: maskSheet(indexImage, meta, null, skin.trail) } : null;
-    skins[id] = { ...skin, sheet, projectiles, trail };
+    skins[id] = { ...skin, sheet, projectiles, trail, projectileFaces };
   }
   return { meta, skins };
 }

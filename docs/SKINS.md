@@ -15,6 +15,7 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `encre` | Encre | origine | — | — | le skin d'origine, toujours possédé |
 | `paysan` | Paysan des rizières | commun | 100 | `notails`, `pants`, `dots`, `farmer`, `sash`, `kasa` | kimono vert, tonnelet et panier sur le dos, bambou |
 | `samourai` | Samouraï déchu | rare | 450 | `arm_in`, `hakama`, `kusazuri`, `rag`, `sode`, `samurai_trim`, `kabuto` | kabuto aux cornes d'or en croissant et cimier rouge, pans au vent, épaulière carrée resserrée sur l'épaule, cape en lambeaux (plaquée au repos, au vent en course), tassettes bordées d'or ; bras arrière rapproché du corps ; `barLift: 4` (barre de vie au-dessus des cornes) |
+| `pecheur` | Le pêcheur | épique | 500 | `round_net`, `ribbon`, `rope`, `specks`, `wraps`, `mask_mark`, `rod`, `back_rod`, `kasa_peche` | sugegasa tressé de bleu, pan bleu, une canne fine rangée dans le dos (un fil pend de sa pointe ; elle quitte le dos quand il frappe), filet rond sur le dos qui lévite avec la vitesse (course, sprint), corde tressée, éclats dorés ; **canne à pêche** en bambou à la place du sabre (ligne et flotteur, arc du coup en ligne d'eau) ; **micro-poissons** en guise de shurikens (`projectile: "fish"`, gouttes d'eau : `projectileDust: "water"`) |
 | `or` | Lumière d'or | légendaire | 600 | `flametails`, `halo`, `hipcloth`, `mantlet`, `sash`, `apron` | `aura: 'gold'` (éclat : `src/game/aura.js`), shurikens dorés (`projectileColors`), traînées d'or (`trail`), poussière d'or derrière les shurikens (`goldDust`, `src/game/shuriken.js`) |
 
 **Brouillons** (`tools/kage_forge/skins_brouillon/`, hors du jeu) : un premier jet trop rapide, à **refaire un par un, fidèles au modèle** (le Samouraï déchu est fait, 16 novembre 2026) :
@@ -24,7 +25,6 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `blanc.json` | Le ninja blanc | 150 | commun |
 | `ecarlate.json` | Le ninja écarlate | 150 | commun |
 | `pourpre.json` | Ombre pourpre | 150 | peu commun |
-| `pecheur.json` | Le pêcheur | 250 | peu commun |
 | `hiver.json` | Souffle de l'hiver | 450 | épique |
 | `renard.json` | Renard blanc | 500 | rare |
 
@@ -66,7 +66,9 @@ Champs facultatifs :
 - `aura` : un éclat dessiné autour du ninja (`src/game/aura.js`) ;
 - `projectileColors` : la couleur des shurikens ;
 - `trail` : la couleur des traînées du sabre et du dash ;
-- `barLift` : de combien de pixels remonter la barre de vie du ninja, pour un couvre-chef haut (les cornes du samouraï : 4).
+- `barLift` : de combien de pixels remonter la barre de vie du ninja, pour un couvre-chef haut (les cornes du samouraï : 4) ;
+- `projectile` : une autre planche de projectiles que les shurikens (`fish` : les micro-poissons du pêcheur, `FISH` dans `art.py`, mêmes cases que `SHURIKEN`, exportées par `build.py` en `kage_fish_index.png`) ; une planche qui a `faces` dans `kage.json` regarde dans le sens du vol et se plante la tête la première ;
+- `projectileDust` : `water` (des gouttes qui se détachent et retombent derrière le projectile ; Lumière d'or a sa poussière d'or par `trail`).
 
 **3. Les accessoires** (`tools/kage_forge/accessories.py`)
 - Ils ne sont pas dessinés dans les poses. La forge **retrouve la tête** dans chaque image (`find_head` : la tête de profil a toujours la même forme) et le **dos** pose par pose, puis y pose l'accessoire avec son propre contour.

@@ -1073,7 +1073,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,paysan,samourai,or'
+    expect(look[0] && look[1] === 'encre,paysan,samourai,pecheur,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1174,7 +1174,7 @@ async function main() {
     const closed2 = await shown();
     await lp.close();
     expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
-      && r0.join() === 'true,false,encre,4' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      && r0.join() === 'true,false,encre,5' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -1207,6 +1207,18 @@ async function main() {
     const ids = Object.keys(r);
     expect(ids.includes('samourai') && ids.every((id) => r[id][0] > 0 && r[id][1] === 0) && r.samourai[2] >= 8,
       Object.entries(r).map(([id, v]) => `${id} : ${v[0]} marqués, ${v[1]} restés, or ${v[2]}`).join(' · '));
+  });
+
+  await test('pêcheur : ses shurikens sont des micro-poissons (leur planche, tournés dans le sens du vol, des gouttes d\'eau) ; les autres skins lancent des shurikens', async () => {
+    const r = await page.evaluate(() => {
+      const k = window.__kage, sk = k.skins;
+      const px = (cv, f) => cv.getContext('2d').getImageData(f.x, f.y, f.w, f.h).data.join();
+      const f = { x: 0, y: 0, w: 12, h: 12 };
+      return [!!sk.pecheur, sk.pecheur?.projectileFaces, sk.pecheur?.projectileDust, sk.encre.projectileFaces,
+        px(sk.pecheur.projectiles.shuriken, f) !== px(sk.encre.projectiles.shuriken, f),
+        sk.pecheur.projectiles.shuriken === sk.pecheur.projectiles.fish];
+    });
+    expect(r.join() === 'true,true,water,false,true,true', r.join());
   });
 
   await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {

@@ -523,17 +523,17 @@ STAMPS["kasa"] = dict(dx=-4, dy=-2, text=kasa(small=True))
 
 
 def kasa_peche():
-    """Le sugegasa du pêcheur : le grand (comme sur le modèle, deux fois la largeur de la tête), une bande de
+    """Le sugegasa du pêcheur : celui du paysan (19 px : le grand, à 23, était trop large, Raph), une bande de
     tressage gris-bleu (j) qui descend du sommet sur la pente gauche, et un bouton sombre au sommet."""
-    rows = [list(r) for r in _rows(KASA)]
-    rows[0][10:13] = list("rjr")
-    for y, xs in ((2, (9,)), (3, (7, 8)), (4, (5, 6)), (5, (3, 4)), (6, (1, 2))):
+    rows = [list(r) for r in _rows(KASA_S)]
+    rows[0][8:11] = list("rjr")
+    for y, xs in ((2, (7,)), (3, (5, 6)), (4, (3, 4)), (5, (1, 2))):
         for x in xs:
             rows[y][x] = "j"
     return "\n".join("".join(r) for r in rows)
 
 
-STAMPS["kasa_peche"] = dict(dx=-6, dy=-3, text=kasa_peche())
+STAMPS["kasa_peche"] = dict(dx=-4, dy=-2, text=kasa_peche())
 
 
 PACKS = {
@@ -1093,17 +1093,15 @@ def samurai_trim(g):
 # Lettres : b B i filet (cadre, fond, mailles) · j bande du chapeau · J éclats et marque · c C corde
 # ---------------------------------------------------------------------------
 ROUND_NET = """
-...bbbb...
-.bbiBiBbb.
-.biBiBiBb.
-bBiBiBiBib
-biBiBiBiBb
-bBiBiBiBib
-biBiBiBiBb
-bBiBiBiBib
-.biBiBiBb.
-.bbiBiBbb.
-...bbbb...
+..bbbbb..
+.bbiBiBb.
+bBiBiBiBb
+biBiBiBib
+bBiBiBiBb
+biBiBiBib
+bBiBiBiBb
+.bbiBiBb.
+..bbbbb..
 """
 # le même, plus petit, pour les saltos (en boule, le corps est agrandi : le grand filet y faisait une tache)
 ROUND_NET_SMALL = """
@@ -1134,16 +1132,36 @@ def round_net(g):
     # un salto (la forge trace ses pans après : la pose n'en a pas) : le petit filet
     flip = not any(g[y, x] in "fFG" for y in range(CH) for x in range(max(0, hx + 2)))
     rows = _rows(ROUND_NET_SMALL if flip else ROUND_NET)
+    # la vitesse le soulève (demande de Raph) : en course il lévite un peu derrière lui ; en sprint et en dash
+    # (le buste plonge : la ceinture remonte vers la tête), il monte plus haut, part en arrière et penche, le bas
+    # emporté par le vent ; en chute, il remonte un peu
+    wind = "calm" if flip else _wind(g, hx, hy)
+    b = _belt(g)
+    fast = wind == "back" and b is not None and b[0] - hy <= 14
+    lift, back, lean = (4, 3, 1) if fast else {"calm": (0, 0, 0), "up": (2, 0, 0), "back": (2, 1, 0)}[wind]
     g = g.copy()
     mask = np.zeros(g.shape, bool)
-    x0, y0 = (xl - len(rows[0]) + 2, hy + 10) if flip else (xl - len(rows[0]) + 3, hy + 9)
+    x0, y0 = (xl - len(rows[0]) + 2, hy + 10) if flip else (xl - len(rows[0]) + 3 - back, hy + 9 - lift)
     for j, row in enumerate(rows):
         for i, c in enumerate(row):
-            x, y = x0 + i, y0 + j
+            x, y = x0 + i - (j * lean) // 3, y0 + j
             if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
                 g[y, x] = c
                 mask[y, x] = True
     _outline(g, mask)
+    # en sprint, trois traits de vitesse derrière le filet (la couleur des traits du dash : z)
+    if fast:
+        for j, ln in ((2, 3), (5, 4), (8, 2)):
+            y = y0 + j
+            if not 0 <= y < CH:
+                continue
+            left = next((x for x in range(CW) if g[y, x] == "O" and x + 1 < CW and mask[y, x + 1]), None)
+            if left is None:
+                continue
+            for k in range(1, 1 + ln):
+                x = left - k
+                if 0 <= x < CW and g[y, x] == ".":
+                    g[y, x] = "z"
     return g, True
 
 
@@ -1164,6 +1182,102 @@ def rope(g):
     mid = (bx + be) // 2
     if g[by, mid] in "lL":
         g[by, mid] = "c"
+    return g, True
+
+
+def rod(g):
+    """La canne à pêche du pêcheur, à la place du sabre (demande de Raph) : la lame devient un bambou (W clair,
+    w sombre) à nœuds, la poignée du liège (g) ; le scion la prolonge, plus fin, et porte la ligne (s) et son
+    flotteur rouge et blanc (S, u). Un shuriken tenu en main (lancer) devient un petit poisson (x X q : les
+    couleurs d'eau du skin)."""
+    ys, xs = np.where(np.isin(g, ["W", "w"]))
+    if not len(ys):
+        return g, False
+    g = g.copy()
+    gy, gx = np.where(g == "g")
+    if len(ys) <= 8:
+        # un shuriken dans la main : un poisson de 5 × 3, la queue vers l'arrière
+        cy, cx = int(round(ys.mean())), int(round(xs.mean()))
+        for y, x in zip(ys, xs):
+            g[y, x] = "."
+        for y, x in zip(gy, gx):
+            if abs(y - cy) <= 2 and abs(x - cx) <= 2:
+                g[y, x] = "."
+        mask = np.zeros(g.shape, bool)
+        for j, row in enumerate(("X.XX.", "XXqqx", "X.qq.")):
+            for i, c in enumerate(row):
+                x, y = cx - 2 + i, cy - 1 + j
+                if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] not in "NnAa":
+                    g[y, x] = c
+                    mask[y, x] = True
+        _outline(g, mask)
+        return g, True
+    # la poignée : le pixel de liège le plus proche de la lame ; la pointe : le pixel de lame le plus loin
+    if len(gy):
+        k = int(np.argmin([(y - ys.mean()) ** 2 + (x - xs.mean()) ** 2 for y, x in zip(gy, gx)]))
+        hy0, hx0 = gy[k], gx[k]
+    else:
+        hy0, hx0 = ys[0], xs[0]
+    d2 = (ys - hy0) ** 2 + (xs - hx0) ** 2
+    ty, tx = ys[int(np.argmax(d2))], xs[int(np.argmax(d2))]
+    L = max(1.0, float(np.sqrt(d2.max())))
+    dy, dx = (ty - hy0) / L, (tx - hx0) / L
+    # des nœuds de bambou, tous les trois pixels
+    for y, x in zip(ys, xs):
+        t = (y - hy0) * dy + (x - hx0) * dx
+        if g[y, x] == "W" and int(round(t)) % 3 == 0 and t > 1:
+            g[y, x] = "w"
+    # le scion : il prolonge la canne, d'un pixel de large, et s'affine
+    end = (ty, tx)
+    for k in range(1, 6):
+        y, x = int(round(ty + dy * k)), int(round(tx + dx * k))
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+            g[y, x] = "w" if k < 4 else "W"
+            end = (y, x)
+        else:
+            break
+    # la ligne, qui pend de la pointe, et le flotteur
+    ey, ex = end
+    for k in range(1, 4):
+        y = ey + k
+        if 0 <= y < CH and g[y, ex] in BG:
+            g[y, ex] = "s"
+    for k, c in ((4, "S"), (5, "u")):
+        y = ey + k
+        if 0 <= y < CH and g[y, ex] in BG:
+            g[y, ex] = c
+    return g, True
+
+
+def back_rod(g):
+    """La canne à pêche rangée dans le dos (demande de Raph) : fine (un pixel, plus mince qu'en main), elle part
+    du bas du dos, monte en biais derrière l'épaule et la tête, et dépasse au-dessus du chapeau ; un petit fil
+    pend de sa pointe. Elle passe derrière le corps (sur le fond seulement). Quand il a la canne en main (coup)
+    ou en boule (salto), elle n'est pas dans son dos."""
+    pos = find_head(g)
+    if pos is None or np.isin(g, ["W", "w"]).any():
+        return g, False
+    hx, hy = pos
+    if not any(g[y, x] in "fFG" for y in range(CH) for x in range(max(0, hx + 2))) and _belt(g) is None:
+        return g, False
+    xs = _back_edge(g, hy + 13, hx, TORSO) or _back_edge(g, hy + 12, hx, TORSO)
+    if xs is None:
+        return g, False
+    g = g.copy()
+    tip = None
+    for k in range(0, 19):
+        x, y = xs + 1 - k // 2, hy + 15 - k
+        if not (0 <= x < CW and 0 <= y < CH):
+            break
+        if g[y, x] in BG:
+            g[y, x] = "w" if k % 4 == 0 else "W"      # un nœud de bambou tous les quatre pixels
+        tip = (y, x)
+    if tip:
+        ty, tx = tip
+        for k in range(1, 5):                          # le fil qui pend de la pointe
+            y, x = ty + k, tx - 1
+            if 0 <= y < CH and 0 <= x < CW and g[y, x] == ".":
+                g[y, x] = "s"
     return g, True
 
 
@@ -1216,6 +1330,10 @@ def accessory(name):
         return specks
     if name == "rope":
         return rope
+    if name == "rod":
+        return rod
+    if name == "back_rod":
+        return back_rod
     if name == "wraps":
         return wraps
     if name == "mask_mark":

@@ -19,8 +19,8 @@ export class Shurikens {
     this.meta = meta.projectiles.shuriken;
     this.flying = [];
     this.stuck = [];
-    this.dust = [];        // poussière d'or (skin à traînée) : grains qui scintillent derrière le shuriken
-    this.goldDust = false; // allumée par drawFlying quand le skin a une traînée
+    this.dust = [];        // poussière d'or (skin à traînée) ou gouttes d'eau (pêcheur) derrière le projectile
+    this.dustKind = null;  // 'gold' ou 'water' : choisi par drawFlying selon le skin
     this.stock = SHURIKEN.stock;
     this.emptyBlink = 0;
     this.enemies = [];     // ennemis touchables (méthode takeHit)   // clignotement du compteur quand on essaie de lancer sans stock
@@ -127,8 +127,9 @@ export class Shurikens {
           // entrée par le dessus : planté dans le sol, avec une des deux
           // inclinaisons tirée au hasard (la rotation à l'impact varie)
           const variants = this.meta.ground;
-          const kind = variants[Math.floor(Math.random() * variants.length)];
-          this.plant({ kind, x: Math.round(s.x), y: ty * TILE, dir: 1 });
+          // (un poisson se plante la tête la première, la queue vers l'arrière : selon le sens du lancer)
+          if (this.faces) this.plant({ kind: variants[0], x: Math.round(s.x), y: ty * TILE, dir: s.dir });
+          else this.plant({ kind: variants[Math.floor(Math.random() * variants.length)], x: Math.round(s.x), y: ty * TILE, dir: 1 });
         }
         s.dead = true;
       } else if (s.x < -32 || s.x > lv.width + 32 || s.y > lv.height + 32) {
@@ -146,16 +147,22 @@ export class Shurikens {
       d.x += d.vx * dt;
       d.y += d.vy * dt;
       d.vx *= 1 - 6 * dt;
-      d.vy += 14 * dt;          // retombe à peine
+      d.vy += (d.water ? 260 : 14) * dt;   // l'or retombe à peine ; une goutte tombe
     }
     this.dust = this.dust.filter((d) => d.age < d.life);
-    if (!this.goldDust) return;
+    if (!this.dustKind) return;
+    const water = this.dustKind === 'water';
     for (const s of this.flying) {
       if (s.deflected || Math.abs(s.vx) < 40) continue;
       s.dustT = (s.dustT ?? 0) - dt;
       if (s.dustT > 0) continue;
-      s.dustT = 0.014 + Math.random() * 0.016;
-      this.dust.push({
+      s.dustT = water ? 0.01 + Math.random() * 0.012 : 0.014 + Math.random() * 0.016;
+      this.dust.push(water ? {
+        // une micro-gouttelette qui se détache du poisson (derrière sa queue) et retombe
+        x: s.x - s.dir * (3 + Math.random() * 4), y: s.y + (Math.random() * 4 - 1.5),
+        vx: s.vx * 0.3 + (Math.random() * 14 - 7), vy: -6 - Math.random() * 26,
+        age: 0, life: 0.18 + Math.random() * 0.22, water: true, ph: 0,
+      } : {
         x: s.x - s.dir * (3 + Math.random() * 3), y: s.y + (Math.random() * 5 - 2.5),
         vx: s.vx * 0.4 + (Math.random() * 12 - 6), vy: Math.random() * 16 - 10,
         age: 0, life: 0.16 + Math.random() * 0.2, star: Math.random() < 0.18, ph: Math.random() * 6,
@@ -172,6 +179,12 @@ export class Shurikens {
       const tw = 0.7 + 0.3 * Math.sin(d.ph + d.age * 38);
       ctx.globalAlpha = Math.max(0, (1 - k * k) * tw);
       const x = Math.round(d.x - cam.x), y = Math.round(d.y - cam.y);
+      if (d.water) {
+        ctx.globalAlpha = Math.max(0, 1 - k * k);
+        ctx.fillStyle = k < 0.35 ? '#eef8ff' : k < 0.7 ? '#a9d6ec' : '#5f9cc0';
+        ctx.fillRect(x, y, 1, 1);
+        continue;
+      }
       ctx.fillStyle = k < 0.4 ? '#fff8d8' : k < 0.75 ? '#ffe07a' : '#f2b440';
       ctx.fillRect(x, y, 1, 1);
       if (d.star && k < 0.55 && tw > 0.8) {   // petite étoile en croix au plus fort de l'éclat
@@ -204,21 +217,24 @@ export class Shurikens {
     for (const s of this.stuck) this.blit(ctx, sheet, s.kind, s.x, s.y, s.dir, cam);
   }
 
-  /** trail : un skin à traînée (Lumière d'or) laisse derrière chaque shuriken trois reflets qui pâlissent. */
-  drawFlying(ctx, sheet, cam, trail = false) {
-    this.goldDust = trail;
+  /** trail : un skin à traînée (Lumière d'or) laisse derrière chaque shuriken trois reflets qui pâlissent ;
+   *  faces : le projectile regarde dans le sens du vol (les poissons du pêcheur) ; dust : 'water' (gouttes). */
+  drawFlying(ctx, sheet, cam, trail = false, { faces = false, dust = null } = {}) {
+    this.dustKind = dust ?? (trail ? 'gold' : null);
+    this.faces = faces;
     for (const s of this.flying) {
+      const dir = faces ? (s.vx < 0 ? -1 : 1) : 1;
       const k = this.meta.spin[Math.floor(s.t / SHURIKEN.spinStep) % this.meta.spin.length];
       if (trail && Math.abs(s.vx) > 40) {
         ctx.save();
         for (let i = 3; i >= 1; i--) {
           ctx.globalAlpha = 0.32 - i * 0.08;
           const kk = this.meta.spin[Math.floor((s.t - i * 0.02) / SHURIKEN.spinStep + 64) % this.meta.spin.length];
-          this.blit(ctx, sheet, kk, s.x - s.vx * 0.016 * i, s.y - s.vy * 0.016 * i, 1, cam);
+          this.blit(ctx, sheet, kk, s.x - s.vx * 0.016 * i, s.y - s.vy * 0.016 * i, dir, cam);
         }
         ctx.restore();
       }
-      this.blit(ctx, sheet, k, s.x, s.y, 1, cam);
+      this.blit(ctx, sheet, k, s.x, s.y, dir, cam);
     }
     this.drawDust(ctx, cam);
   }

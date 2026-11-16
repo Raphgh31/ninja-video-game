@@ -1,9 +1,9 @@
 {
   "id": "pecheur",
   "name": "Le pêcheur",
-  "rarity": "peu commun",
-  "price": 250,
-  "description": "Sugegasa tressé, tenue bleu nuit semée d'or, corde en bandoulière, filet rond sur le dos.",
+  "rarity": "épique",
+  "price": 500,
+  "description": "Sugegasa tressé, filet rond sur le dos, canne à pêche en bambou, des micro-poissons en guise de shurikens.",
   "blurb": "Patient comme l'eau qui dort.",
   "accessories": [
     "round_net",
@@ -12,6 +12,8 @@
     "specks",
     "wraps",
     "mask_mark",
+    "rod",
+    "back_rod",
     "kasa_peche"
   ],
   "colors": {
@@ -38,13 +40,13 @@
     "G": "#4a5c90",
     "k": "#141a30",
     "K": "#22294a",
-    "x": "#15171f",
-    "X": "#4b5264",
-    "z": "#5b6377",
-    "q": "#c9ced8",
-    "W": "#d9dee6",
-    "w": "#8a92a2",
-    "g": "#3a2a20",
+    "x": "#1f3d52",
+    "X": "#8fc3da",
+    "z": "#5f9cbd",
+    "q": "#e8f5fa",
+    "W": "#d9c27a",
+    "w": "#9c7a3c",
+    "g": "#6a4428",
     "r": "#5a4a3c",
     "p": "#a8875f",
     "P": "#cdb084",
@@ -56,8 +58,17 @@
     "i": "#f1e7d6",
     "j": "#5b6687",
     "J": "#c9a063",
-    "s": "#e3b65a",
-    "S": "#f7dc8a",
-    "u": "#fff6d0"
+    "s": "#d8dee2",
+    "S": "#d8453a",
+    "u": "#f4f1ea"
+  },
+  "projectile": "fish",
+  "projectileDust": "water",
+  "projectileColors": {
+    "O": "#0b1620",
+    "w": "#3f7896",
+    "W": "#dfeaf0",
+    "g": "#0b0d12",
+    "X": "#2c5670"
   }
 }
