@@ -697,6 +697,8 @@ function setCloseUp(on) {
   fit();
   if (camReady) snapCamera();
 }
+// en arène, le ninja porte le skin de l'aventure en cours (dans la version de test, c'est la barre des skins)
+if (level.arena && !SKIN_LAB) { const s = loadSave(); if (s?.skin && (s.skins ?? []).includes(s.skin)) wearSkin(s.skin); }
 if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
 
 // son : débloqué au premier geste ; bouton et touche M pour le couper
@@ -1203,7 +1205,7 @@ function draw() {
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn' && !behindGate()) {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31);
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
@@ -1720,7 +1722,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

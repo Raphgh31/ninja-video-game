@@ -3,9 +3,10 @@
   "name": "Samouraï déchu",
   "rarity": "rare",
   "price": 550,
-  "description": "Kabuto laqué aux cornes d'or et cimier rouge, grande épaulière bordée d'or, cuirasse bordeaux, cape rouge déchirée et tassettes bordées d'or.",
+  "description": "Kabuto aux cornes d'or, épaulière bordée d'or, cape en lambeaux.",
   "blurb": "Il a perdu son seigneur, pas son honneur.",
-  "accessories": ["hakama", "kusazuri", "rag", "sode", "samurai_trim", "kabuto"],
+  "barLift": 4,
+  "accessories": ["arm_in", "hakama", "kusazuri", "rag", "sode", "samurai_trim", "kabuto"],
   "colors": {
     "O": "#0d0709",
     "h": "#1f151c", "H": "#33242c", "I": "#54404a",

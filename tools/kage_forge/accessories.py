@@ -784,20 +784,63 @@ def kabuto(g):
 
 
 def _belt(g):
-    """(rangée, début, fin) de la ceinture, ou None."""
+    """(rangée, début, fin) de la ceinture (la plus haute suite d'au moins deux pixels de ceinture, ses
+    plaques d'or comprises), ou None."""
     for y in range(CH):
-        row = "".join(g[y])
-        x = row.find("lL")
-        if x < 0:
-            x = row.find("Ll")
-        if x < 0:
-            x = row.find("lJ")
-        if x >= 0:
-            e = x
-            while e < CW and g[y, e] in "lLJ":
-                e += 1
-            return y, x, e
+        x = 0
+        while x < CW:
+            if g[y, x] in "lLJ":
+                e = x
+                while e < CW and g[y, e] in "lLJ":
+                    e += 1
+                if e - x >= 2 and any(g[y, k] in "lL" for k in range(x, e)):
+                    return y, x, e
+                x = e
+            else:
+                x += 1
     return None
+
+
+def arm_in(g):
+    """Le bras arrière (avant-bras et main), quand il pend derrière le dos, rapproché d'un pixel du corps : sous
+    la grande épaulière, il paraissait trop en arrière (demande de Raph)."""
+    TRUNK = set("tTUlL")
+    edge = {}
+    for y in range(CH):
+        xs = [x for x in range(CW) if g[y, x] in TRUNK]
+        if xs:
+            edge[y] = xs[0]
+    ARM = set("aANn")
+    seen = np.zeros(g.shape, bool)
+    moved = False
+    g = g.copy()
+    for y0 in range(CH):
+        for x0 in range(CW):
+            if seen[y0, x0] or g[y0, x0] not in ARM:
+                continue
+            comp, stack = [], [(y0, x0)]
+            seen[y0, x0] = True
+            while stack:
+                y, x = stack.pop()
+                comp.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < CH and 0 <= nx < CW and not seen[ny, nx] and g[ny, nx] in ARM:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+            # seulement un bras tout entier derrière le dos (le visage, la main avant ne bougent pas)
+            if not all(y in edge and x < edge[y] for y, x in comp):
+                continue
+            vals = {(y, x): g[y, x] for y, x in comp}
+            for y, x in comp:
+                g[y, x] = "."
+            for (y, x), c in vals.items():
+                if x + 1 < CW:
+                    g[y, x + 1] = c
+            moved = True
+    if moved:
+        _reoutline(g)
+    return g, moved
 
 
 def hakama(g):
@@ -838,9 +881,9 @@ def rag(g):
     # elle s'arrête au-dessus des pieds, quelle que soit la pose (en boule, pendant un salto, le corps finit
     # plus haut)
     feet = [y for y in range(CH) if any(c in "tTUdDhHI" for c in g[y])]
-    ys, ye = hy + 10, min(hy + 18, (max(feet) if feet else CH) - 3)
-    widths = [2, 3, 3, 4, 4, 5, 5, 6, 6]
-    TIPS = (1, 0, 2, 1, 0, 3, 2)                  # longueur des lambeaux sous le bas, selon la distance au dos
+    ys, ye = hy + 10, min(hy + 18, (max(feet) if feet else CH) - 4)
+    widths = [2, 3, 3, 3, 4, 4, 5, 5, 5]
+    TIPS = (1, 0, 2, 1, 0, 2)                     # longueur des lambeaux sous le bas, selon la distance au dos
     TAILS = set("fFGkK")
     prev = None
     for y in range(ys, ye + 4):
@@ -918,8 +961,8 @@ def kusazuri(g):
 
 
 def sode(g):
-    """La grande épaulière, sur l'épaule arrière : une plaque laquée qui descend vers l'arrière, le haut
-    bordeaux, une marque d'or au milieu, le bord bas d'or."""
+    """La grande épaulière, sur l'épaule arrière : une plaque laquée carrée (le haut à plat : elle donne au
+    ninja des épaules plus carrées, demande de Raph), le haut bordeaux, une marque d'or, le bord bas d'or."""
     pos = find_head(g)
     if pos is None:
         return g, False
@@ -929,7 +972,7 @@ def sode(g):
         return g, False
     g = g.copy()
     mask = np.zeros(g.shape, bool)
-    shape = ((10, -2, "tTUU"), (11, -4, "tTHJHH"), (12, -6, "tHHHHHHH"), (13, -6, "jJJJJJJ"))
+    shape = ((10, -4, "tTTTUU"), (11, -4, "tTHJHH"), (12, -4, "tHHHHH"), (13, -4, "jJJJJ"))
     for dy, x0, cols in shape:
         y = hy + dy
         for k, c in enumerate(cols):
@@ -942,8 +985,8 @@ def sode(g):
 
 
 def samurai_trim(g):
-    """La cuirasse : le col d'or en V sous le menton, la ceinture à plaques d'or, la bande rouille des
-    chaussures."""
+    """La cuirasse : le col d'or en V sous le menton, l'épaule avant un peu plus large, la ceinture à plaques
+    d'or, la bande rouille des chaussures."""
     pos = find_head(g)
     b = _belt(g)
     if pos is None or b is None:
@@ -962,6 +1005,15 @@ def samurai_trim(g):
             g[y, xs[-4]] = "J"
         elif y == hy + 10 and len(xs) > 3:
             g[y, xs[-3]] = "J"
+    # l'épaule avant, un pixel plus large en haut (épaules plus carrées, demande de Raph) : seulement sur le
+    # contour, jamais sur la main
+    y = hy + 11
+    xs = [x for x in range(CW) if g[y, x] in "tTU"]
+    if xs:
+        xf = xs[-1]
+        if xf + 2 < CW and g[y, xf + 1] == "O" and g[y, xf + 2] in ".O" and y + 1 < CH:
+            g[y, xf + 1] = "U"
+            g[y, xf + 2] = "O"
     # la ceinture à plaques d'or
     by, bx, be = b
     for x in range(bx, be):
@@ -982,6 +1034,8 @@ def accessory(name):
         return kabuto
     if name == "hakama":
         return hakama
+    if name == "arm_in":
+        return arm_in
     if name == "rag":
         return rag
     if name == "kusazuri":

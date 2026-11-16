@@ -57,11 +57,18 @@ def to_rgba(grid, colors, only=None):
     return Image.fromarray(a, "RGBA")
 
 
+# calque d'accessoires : un pixel de la pose qu'un accessoire retire (les pans du bandeau rangés, un bras
+# rapproché du corps…) porte cette marque ; le jeu l'efface avant de poser l'accessoire (sprites.js)
+ERASE = "~"
+ERASE_INDEX = 255
+
+
 def to_index(grid):
     a = np.zeros(grid.shape + (4,), np.uint8)
     for i, s in enumerate(SLOT_ORDER):
         m = grid == s
         a[m] = (i + 1, 0, 0, 255)
+    a[grid == ERASE] = (ERASE_INDEX, 0, 0, 255)
     return Image.fromarray(a, "RGBA")
 
 
@@ -156,6 +163,7 @@ def main():
                 bg = rendered[k][c]
                 ov = np.full(bg.shape, ".", dtype="<U1")
                 ov[dg != bg] = dg[dg != bg]
+                ov[(dg == ".") & (bg != ".")] = ERASE
                 im.paste(to_index(ov), (c * sx, r * sy))
         im.save(OUT / f)
         acc_sheets[sid] = f

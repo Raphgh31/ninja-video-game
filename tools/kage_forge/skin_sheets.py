@@ -36,7 +36,11 @@ def main(ids):
         sheet = recolor(idx, meta["slots"], sk["colors"])
         acc = meta.get("accessorySheets", {}).get(sid)
         if acc:
-            sheet.alpha_composite(recolor(Image.open(K / acc), meta["slots"], sk["colors"]))
+            ai = Image.open(K / acc)
+            a, s_ = np.array(ai.convert("RGBA")), np.array(sheet)
+            s_[(a[..., 3] > 0) & (a[..., 0] == 255), 3] = 0          # ce que l'accessoire retire (ERASE_INDEX)
+            sheet = Image.fromarray(s_, "RGBA")
+            sheet.alpha_composite(recolor(ai, meta["slots"], sk["colors"]))
         z = 2
         board = Image.new("RGB", (sheet.width * z + 40, sheet.height * z + 60), (243, 236, 224))
         board.paste(sheet.resize((sheet.width * z, sheet.height * z), Image.NEAREST), (20, 50), sheet.resize((sheet.width * z, sheet.height * z), Image.NEAREST))

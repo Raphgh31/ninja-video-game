@@ -1075,7 +1075,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,voyageur,paysan,or'
+    expect(look[0] && look[1] === 'encre,voyageur,paysan,samourai,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1149,8 +1149,52 @@ async function main() {
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
     await lp.close();
-    expect(r0.join() === 'true,false,encre,4' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+    expect(r0.join() === 'true,false,encre,5' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
+  });
+
+  await test('skins : ce qu\'un accessoire retire de la pose (pans du bandeau rangés, bras rapproché) est bien effacé en jeu ; le samouraï déchu porte ses cornes d\'or', async () => {
+    const r = await page.evaluate(async () => {
+      const k = window.__kage;
+      const out = {};
+      for (const [id, sk] of Object.entries(k.skins)) {
+        const f = window.__KAGE_EMBED?.[`./characters/kage/kage_acc_${id}_index.png`];
+        if (!f) continue;
+        const img = new Image(); img.src = f; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const cx = c.getContext('2d'); cx.drawImage(img, 0, 0);
+        const acc = cx.getImageData(0, 0, img.width, img.height).data;
+        const sheet = sk.sheet.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+        let marked = 0, left = 0, gold = 0;
+        for (let i = 0; i < acc.length; i += 4) {
+          if (acc[i + 3] && acc[i] === 255) { marked++; if (sheet[i + 3]) left++; }
+        }
+        // les cornes : l'or du skin (J) dans la première image du repos, au-dessus de la tête
+        if (id === 'samourai') {
+          const J = sk.colors.J.slice(1), rgb = [0, 2, 4].map((o) => parseInt(J.slice(o, o + 2), 16));
+          const d = sk.sheet.getContext('2d').getImageData(0, 0, 57, 12).data;
+          for (let i = 0; i < d.length; i += 4) if (d[i + 3] && d[i] === rgb[0] && d[i + 1] === rgb[1] && d[i + 2] === rgb[2]) gold++;
+        }
+        out[id] = [marked, left, gold];
+      }
+      return out;
+    });
+    const ids = Object.keys(r);
+    expect(ids.includes('samourai') && ids.every((id) => r[id][0] > 0 && r[id][1] === 0) && r.samourai[2] >= 8,
+      Object.entries(r).map(([id, v]) => `${id} : ${v[0]} marqués, ${v[1]} restés, or ${v[2]}`).join(' · '));
+  });
+
+  await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
+    const pa = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await pa.goto(PAGE); await pa.waitForFunction(() => window.__kage); await pa.evaluate(() => localStorage.clear());
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await NEW(pa); await pa.waitForTimeout(300);
+      await pa.evaluate(() => { const k = 'kage.save.v' + '1', s = JSON.parse(localStorage.getItem(k)); s.skins = ['encre', 'samourai']; s.skin = 'samourai'; localStorage.setItem(k, JSON.stringify(s)); });
+      await pa.goto(PAGE + '#arene-potager'); await pa.waitForFunction(() => window.__kage && window.__kage.level.arena, null, { timeout: 15000 });
+      const worn = await pa.evaluate(() => window.__kage.skin);
+      expect(worn === 'samourai', `porté en arène : ${worn}`);
+    } finally { await pa.close(); }
   });
 
   await test('version de test : tous les skins se portent sans achat', async () => {
