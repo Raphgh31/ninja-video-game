@@ -103,7 +103,10 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
     const projectiles = {};
     // (un skin peut teinter ses projectiles autrement que sa lame : projectileColors)
     const projSkin = skin.projectileColors ? { ...skin, colors: { ...skin.colors, ...skin.projectileColors } } : skin;
-    for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, projSkin);
+    for (const [name, img] of Object.entries(projIndex)) {
+      projectiles[name] = applySkin(img, meta, projSkin);
+      projectiles[name].projMeta = meta.projectiles[name];   // (ses cases : les poissons sont plus grands)
+    }
     // un skin peut lancer autre chose que des shurikens (le pêcheur : des micro-poissons, champ « projectile ») :
     // même planche, mêmes cases ; « faces » : ils regardent dans le sens du vol
     const kind = skin.projectile && projectiles[skin.projectile] ? skin.projectile : 'shuriken';

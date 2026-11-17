@@ -67,7 +67,7 @@ Champs facultatifs :
 - `projectileColors` : la couleur des shurikens ;
 - `trail` : la couleur des traînées du sabre et du dash ;
 - `barLift` : de combien de pixels remonter la barre de vie du ninja, pour un couvre-chef haut (les cornes du samouraï : 4) ;
-- `projectile` : une autre planche de projectiles que les shurikens (`fish` : les micro-poissons du pêcheur, `FISH` dans `art.py`, mêmes cases que `SHURIKEN`, exportées par `build.py` en `kage_fish_index.png`) ; une planche qui a `faces` dans `kage.json` regarde dans le sens du vol et se plante la tête la première ;
+- `projectile` : une autre planche de projectiles que les shurikens (`fish` : les micro-poissons du pêcheur, `FISH` dans `art.py`, mêmes noms de cases que `SHURIKEN` mais en 16 × 16 — agrandis ×1,4 —, exportées par `build.py` en `kage_fish_index.png` ; chaque planche porte ses propres cases, `projMeta`, et l'écart des icônes du compteur, `hudStep`) ; une planche qui a `faces` dans `kage.json` regarde dans le sens du vol et se plante la tête la première ;
 - `projectileDust` : `water` (des gouttes qui se détachent et retombent derrière le projectile ; Lumière d'or a sa poussière d'or par `trail`).
 
 **3. Les accessoires** (`tools/kage_forge/accessories.py`)

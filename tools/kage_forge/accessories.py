@@ -813,6 +813,11 @@ def _belt(g):
                 x = e
             else:
                 x += 1
+    # la ceinture presque cachée par le bras (deux images de la course) : un seul pixel visible
+    for y in range(CH):
+        for x in range(CW):
+            if g[y, x] in "lL":
+                return y, x, x + 1
     return None
 
 
@@ -1323,7 +1328,185 @@ def mask_mark(g):
     return g, True
 
 
+# ---------------------------------------------------------------------------
+# L'Apprenti Tengu (planche de Raph, n° 13) : masque blanc de renard sur l'avant du visage (oreilles dedans
+# rouges, marques rouges, fentes des yeux, museau à la truffe rouge), capuche sombre derrière et sa petite
+# mèche nouée, deux rubans (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au
+# devant rouge, cordelette blanche en diagonale ; pantalon rouge au pan blanc ; une queue de renard rouge
+# bordée de blanc, qui suit le vent de la pose (comme la cape du samouraï).
+# Lettres : B b i blanc du masque · j J rouge des marques · O fentes · f F G rouges (rubans, devant, pantalon)
+# r p P Q queue (sombre, ombre, rouge, blanc)
+# ---------------------------------------------------------------------------
+FOX_MASK = """
+B....B....
+BJ...BJ...
+BJB..BJB..
+BJJBBBJJB.
+bBBBBBBBB.
+bBJBBBJBi.
+bBBBBBBBB.
+bOOBBBOOB.
+bBBJBBBBBB
+bBBBBBBBJB
+bBBBBBBBBj
+bbBBBBBbb.
+bbbbbbb...
+"""
+FOX_MASK_DX, FOX_MASK_DY = 5, -5
+
+# les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
+FOX_TIES = {
+    2: (-6, "BBi"),
+    3: (-9, "FBBBBBi"),
+    4: (-10, "FFb..BBb"),
+    5: (-7, "FFG"),
+    6: (-8, "FFf"),
+    7: (-9, "Ff"),
+}
+
+
+def fox_mask(g):
+    """Le masque de renard, la petite mèche nouée au sommet de la capuche, et les deux rubans."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    tails = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "fFG" and (x < hx + 2 or y < hy)]
+    for y, x in tails:
+        g[y, x] = "."
+    _reoutline(g)
+    mask = np.zeros(g.shape, bool)
+    for dy, (x0, row) in (FOX_TIES.items() if tails else ()):
+        for i, c in enumerate(row):
+            x, y = hx + x0 + i, hy + dy
+            if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    # la mèche nouée, à l'arrière du sommet
+    for dx, dy, c in ((3, -1, "h"), (2, -2, "H"), (3, -2, "h")):
+        x, y = hx + dx, hy + dy
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+            g[y, x] = c
+            mask[y, x] = True
+    for j, row in enumerate(_rows(FOX_MASK)):
+        for i, c in enumerate(row):
+            x, y = hx + FOX_MASK_DX + i, hy + FOX_MASK_DY + j
+            if c == "." or not (0 <= x < CW and 0 <= y < CH):
+                continue
+            # (le masque couvre le visage et la capuche devant, jamais une main, un bras levé ou la lame)
+            if g[y, x] in BG or g[y, x] in "hHINnEeMG":
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def haori(g):
+    """La veste blanche (la tenue) au devant rouge : sur la poitrine, les trois pixels de devant, et la manche
+    avant, passent au rouge ; sous la ceinture, le pantalon est rouge, un pan blanc devant les cuisses."""
+    b = _belt(g)
+    pos = find_head(g)
+    if b is None or pos is None:
+        return g, False
+    by, bx, be = b
+    hx, hy = pos
+    g = g.copy()
+    RED = {"t": "f", "T": "F", "U": "G"}
+    # le col blanc de la veste (la place de l'écharpe, sous le masque)
+    for y in range(hy + 8, hy + 12):
+        for x in range(max(0, hx + 2), min(CW, hx + 13)):
+            if g[y, x] in "fFG":
+                g[y, x] = {"f": "t", "F": "T", "G": "U"}[g[y, x]]
+    for y in range(hy + 9, by):
+        xs = [x for x in range(CW) if g[y, x] in "tTU"]
+        if not xs:
+            continue
+        front = xs[-1]
+        for x in xs:
+            if x >= front - 1:
+                g[y, x] = RED[g[y, x]]
+    # la manche arrière blanche, son poignet rouge (le bas de l'avant-bras)
+    arm = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "aA"]
+    if arm:
+        low = max(y for y, _ in arm)
+        for y, x in arm:
+            if y < low:
+                g[y, x] = "T" if g[y, x] == "A" else "t"
+    for y in range(by + 1, CH):
+        for x in range(CW):
+            if g[y, x] in "tTU":
+                g[y, x] = RED[g[y, x]]
+    # le pan blanc, sous l'avant de la ceinture
+    for j, row in enumerate(("TU", "TU", "tT")):
+        for i, c in enumerate(row):
+            x, y = be - 3 + i, by + 1 + j
+            if 0 <= x < CW and 0 <= y < CH and g[y, x] in "fFG":
+                g[y, x] = c
+    return g, True
+
+
+# la queue de renard, dessinée à la main pour chaque vent (calée à droite contre le bas du dos, première
+# rangée relative à la ceinture) : elle pend et balaie le sol au repos, file derrière lui en course, se soulève
+# en chute
+FOX_TAIL = {
+    "calm": (0, [
+        ".....pPP",
+        "...pPPPP",
+        ".pPPPPPQ",
+        "pPPPPPQQ",
+        "rPPPQQQ.",
+        ".rQQQ...",
+    ]),
+    "back": (-1, [
+        "......pP",
+        "..ppPPPP",
+        "rPPPPPPQ",
+        ".rQQQQQ.",
+    ]),
+    "up": (-4, [
+        "rP......",
+        ".PPp....",
+        "..PPPp..",
+        "...QPPPp",
+        ".....QQP",
+    ]),
+}
+
+
+def fox_tail(g):
+    pos = find_head(g)
+    b = _belt(g)
+    if pos is None or b is None:
+        return g, False
+    hx, hy = pos
+    by = b[0]
+    # le bord arrière des hanches (le plus en arrière sur quelques rangées : la ceinture peut être cachée)
+    edges = [e for e in (_back_edge(g, by + d, hx, set("tTUlLdDfFG")) for d in (-1, 0, 1, 2)) if e is not None]
+    if not edges:
+        return g, False
+    xs = min(edges)
+    wind = _wind(g, hx, hy)
+    dy0, rows = FOX_TAIL[wind]
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    for j, row in enumerate(rows):
+        for i, c in enumerate(row):
+            x, y = xs - len(row) + 1 + i, by + dy0 + j
+            if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
 def accessory(name):
+    if name == "fox_mask":
+        return fox_mask
+    if name == "haori":
+        return haori
+    if name == "fox_tail":
+        return fox_tail
     if name == "round_net":
         return round_net
     if name == "specks":

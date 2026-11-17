@@ -203,11 +203,12 @@ export class Shurikens {
 
   /** Compteur en haut à gauche de l'écran (coordonnées écran, coin haut-gauche en x, y). */
   drawHud(ctx, sheet, x = 4, y = 4) {
-    const f = this.meta.frames[this.meta.hud ?? this.meta.spin[0]];   // petite icône (7×7)
+    const m = sheet.projMeta ?? this.meta;
+    const f = m.frames[m.hud ?? m.spin[0]];   // petite icône
     const blinkOn = this.emptyBlink > 0 && Math.floor(this.emptyBlink * 12) % 2 === 0;
     for (let i = 0; i < SHURIKEN.stock; i++) {
       ctx.globalAlpha = i < this.stock ? 1 : blinkOn ? 0.75 : 0.25;
-      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, x + i * 11, y, f.w, f.h);
+      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, x + i * (m.hudStep ?? 11), y, f.w, f.h);   // (les poissons du pêcheur, plus grands : hudStep)
     }
     ctx.globalAlpha = 1;
   }
@@ -242,7 +243,7 @@ export class Shurikens {
   // Dessine l'image `kind` de façon que son ancre tombe sur (x, y) : le pixel
   // juste avant la surface (mur / sol). dir < 0 : image retournée (mur à gauche).
   blit(ctx, sheet, kind, x, y, dir, cam) {
-    const f = this.meta.frames[kind];
+    const f = (sheet.projMeta ?? this.meta).frames[kind];   // (les cases de la planche dessinée : poissons ou shurikens)
     const sx = Math.round(x - cam.x), sy = Math.round(y - cam.y);
     const oy = kind.startsWith('stuck_ground') ? 1 : 0;
     if (dir < 0) {

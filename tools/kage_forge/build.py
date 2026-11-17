@@ -206,7 +206,7 @@ def main():
     # coupée ; mêmes cases et mêmes noms : un skin choisit sa planche avec son champ « projectile »)
     SC = 12
 
-    def projectile_sheet(defs, base):
+    def projectile_sheet(defs, base, SC=SC):
         proj = {}
         cells = []
         for name, (text, anchor) in defs.items():
@@ -234,7 +234,7 @@ def main():
         return proj
 
     proj = projectile_sheet(SHURIKEN, "kage_shuriken")
-    fish = projectile_sheet(FISH, "kage_fish")
+    fish = projectile_sheet(FISH, "kage_fish", SC=16)
     assert list(fish) == list(proj), "les poissons doivent avoir les mêmes cases que les shurikens"
 
     # métadonnées
@@ -291,6 +291,7 @@ def main():
                 "hud": "spin0",
                 "ground": ["stuck_ground", "stuck_ground_b"],
                 "faces": True,
+                "hudStep": 13,
                 "note": "micro-poissons du pêcheur (champ « projectile » du skin) : ils regardent vers la droite, "
                         "le jeu les retourne vers la gauche",
             },

@@ -524,45 +524,56 @@ W......
 # frétille (la queue monte, puis descend) ; spin0 et spin1 : le petit poisson du compteur ; planté dans un mur
 # le nez le premier, planté dans le sol la tête en bas, la queue en l'air.
 # Lettres : w dos bleu · W ventre argenté · g œil · X queue et nageoires (couleurs : projectileColors du skin)
+# (agrandis ×1,4 à la demande de Raph : cellules de 16 × 16 au lieu de 12)
 FISH = {
     "fly0": ("""
-....ww...
-X.wwwwww.
-.XWWWWWgW
-X.WWWWWW.
-....W.W..
-""", (5, 3)),
+.....ww......
+X..wwwwwww...
+XXwwwwwwwgww.
+.XWWWWWWWWWWW
+XXWWWWWWWWWW.
+X..WWWWWWW...
+.....W.W.....
+""", (7, 4)),
     "fly1": ("""
-X...ww...
-.Xwwwwww.
-.XWWWWWgW
-X.WWWWWW.
-....W.W..
-""", (5, 3)),
+X....ww......
+XX.wwwwwww...
+.XXwwwwwwgww.
+..XWWWWWWWWWW
+.XWWWWWWWWWW.
+...WWWWWWW...
+.....W.W.....
+""", (7, 4)),
     "spin0": ("""
-X.wwww.
-.XWWWgW
-X.WWWW.
-""", (4, 2)),
+X..wwwww..
+XXwwwwwgww
+XXWWWWWWWW
+X..WWWWW..
+""", (5, 3)),
     "spin1": ("""
-.Xwwww.
-.XWWWgW
-X.WWWW.
-""", (4, 2)),
+.X.wwwww..
+.XwwwwwgwW
+XXWWWWWWWW
+X..WWWWW..
+""", (5, 3)),
     "stuck_wall": ("""
-X.wwww.
-.XWWWgW
-X.WWWW.
-""", (7, 2)),
+X..wwwww..
+XXwwwwwgww
+XXWWWWWWWW
+X..WWWWW..
+""", (10, 3)),
     "stuck_ground": ("""
-X.X....
-.XX....
-..wWW..
-..wWWW.
-...wWgW
-....WWW
-.....W.
-""", (6, 7)),
+X.X.......
+.XX.......
+..XX......
+...wwW....
+...wWWW...
+....wWWgW.
+.....wWWW.
+......wWWW
+.......wW.
+........W.
+""", (9, 10)),
 }
 
 # ---------------------------------------------------------------------------
