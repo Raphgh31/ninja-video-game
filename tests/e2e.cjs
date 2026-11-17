@@ -405,12 +405,10 @@ async function main() {
     expect(w.x < 490 && seen.has('air'), `x ${w.x}, états ${[...seen].join(', ')}`);
   });
 
-  await test('touche M : coupe le son', async () => {
-    const before = await page.locator('.mute').getAttribute('aria-pressed');
+  await test('son : toujours actif, ni bouton ni touche pour le couper (le joueur passe son téléphone en silencieux)', async () => {
     await k.press('KeyM'); await wait(60);
-    const after = await page.locator('.mute').getAttribute('aria-pressed');
-    await k.press('KeyM');
-    expect(before === 'false' && after === 'true', `${before} -> ${after}`);
+    const r = await page.evaluate(() => [document.querySelectorAll('.mute, [data-mute]').length, [...document.querySelectorAll('.keys dd')].some((d) => /son/i.test(d.textContent))]);
+    expect(r[0] === 0 && r[1] === false, `boutons ${r[0]}, aide « son » ${r[1]}`);
   });
 
   // ---- tactile ---------------------------------------------------------------
@@ -1075,12 +1073,28 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,voyageur,paysan,or'
+    expect(look[0] && look[1] === 'encre,paysan,tengu,samourai,pecheur,or'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
       `écran ${look.join(' ')} · détail ${shown.join()} · pauvre ${poor.join()} · question ${ask.join()} · acheté ${bought.join()} · retour ${back.join()} · sauvegarde ${saved.skin} ${saved.skins} ${saved.ryo}`);
     await pg.evaluate((r) => { window.__kage.save.ryo = r; window.__kage.save.skin = 'encre'; window.__kage.save.skins = ['encre']; }, before);
+  });
+
+  await test('boutique : sans description, le bouton d\'achat de chaque skin se voit tout de suite (sans défiler)', async () => {
+    const mx = await pg.evaluate(() => Math.floor(window.__kage.level.merchant.x / 16));
+    await pat(mx - 1); await pw(200);
+    await PK.press('ArrowUp'); await pw(200);
+    const ids = await pg.evaluate(() => [...document.querySelectorAll('.shop__card')].map((c) => c.dataset.skin));
+    const seen = [];
+    for (const id of ids) {
+      await pg.click(`[data-skin="${id}"]`); await pw(80);
+      seen.push(await pg.evaluate((id) => { const d = document.querySelector('.shop__detail'), a = d.querySelector('[data-action]');
+        const r = d.getBoundingClientRect(), ra = a.getBoundingClientRect();
+        return `${id}:${ra.bottom <= r.bottom + 0.5 && !d.querySelector('.shop__desc') ? 'ok' : `caché (${Math.round(ra.bottom - r.bottom)} px, « ${d.textContent.replace(/\s+/g, ' ')} »)`}`; }, id));
+    }
+    await PK.press('Escape'); await pw(200);
+    expect(ids.length >= 4 && seen.every((v) => v.endsWith(':ok')), seen.join(' '));
   });
 
   await test('introduction : un geste la lance, l\'encre, la lune, KAGE figé au centre de la lune ; une touche la passe, le menu lance la partie et l\'intro s\'efface', async () => {
@@ -1134,10 +1148,15 @@ async function main() {
       `début ${a} · passée ${b} · lancée ${c} · retirée ${d}`);
   });
 
-  await test('version de test : pas d\'écran titre ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
+  await test('version de test : pas d\'écran titre ; un bouton ouvre et ferme tout le panneau ; le panneau change le skin (clic, touches), saute de zone en zone et liste les chapitres', async () => {
     const lp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await lp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await lp.waitForFunction(() => window.__kage);
     await lp.evaluate(() => localStorage.clear()); await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(400);
+    // fermé au premier lancement : seul le bouton se voit ; il ouvre tout le panneau
+    const shown = () => lp.evaluate(() => [document.querySelector('.lab__panel').hidden, !!document.querySelector('.skinlab').offsetParent, !!document.querySelector('[data-lab-toggle]').offsetParent]);
+    const closed0 = await shown();
+    await lp.click('[data-lab-toggle]'); await lp.waitForTimeout(100);
+    const opened = await shown();
     const r0 = await lp.evaluate(() => [document.querySelector('.title-screen').hidden, window.__kage.run.paused, window.__kage.skin, document.querySelectorAll('.skinlab button').length]);
     await lp.keyboard.press('2'); await lp.waitForTimeout(100);
     const r2 = await lp.evaluate(() => window.__kage.skin);
@@ -1148,9 +1167,71 @@ async function main() {
     await lp.click('[data-zone="next"]'); await lp.waitForTimeout(400);
     const z = await lp.evaluate(() => { const k = window.__kage, zo = k.level.zoneAt(k.player.x); return [zo.id, document.querySelector('[data-zones] span').textContent, k.player.onGround || k.player.state === 'respawn' || k.player.state === 'idle']; });
     const chapters = await lp.evaluate(() => [...document.querySelectorAll('[data-lab-chapter]')].map((b) => `${b.dataset.labChapter}:${b.getAttribute('aria-pressed')}`));
+    // de nouveau le bouton : tout se referme ; il le reste après un rechargement
+    await lp.click('[data-lab-toggle]'); await lp.waitForTimeout(100);
+    const closed1 = await shown();
+    await lp.reload(); await lp.waitForFunction(() => window.__kage); await lp.waitForTimeout(300);
+    const closed2 = await shown();
     await lp.close();
-    expect(r0.join() === 'true,false,encre,4' && r2 === 'voyageur' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
-      `ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
+    expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
+      && r0.join() === 'true,false,encre,6' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
+  });
+
+  await test('skins : ce qu\'un accessoire retire de la pose (pans du bandeau rangés, bras rapproché) est bien effacé en jeu ; le samouraï déchu porte ses cornes d\'or', async () => {
+    const r = await page.evaluate(async () => {
+      const k = window.__kage;
+      const out = {};
+      for (const [id, sk] of Object.entries(k.skins)) {
+        const f = window.__KAGE_EMBED?.[`./characters/kage/kage_acc_${id}_index.png`];
+        if (!f) continue;
+        const img = new Image(); img.src = f; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const cx = c.getContext('2d'); cx.drawImage(img, 0, 0);
+        const acc = cx.getImageData(0, 0, img.width, img.height).data;
+        const sheet = sk.sheet.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+        let marked = 0, left = 0, gold = 0;
+        for (let i = 0; i < acc.length; i += 4) {
+          if (acc[i + 3] && acc[i] === 255) { marked++; if (sheet[i + 3]) left++; }
+        }
+        // les cornes : l'or du skin (J) dans la première image du repos, au-dessus de la tête
+        if (id === 'samourai') {
+          const J = sk.colors.J.slice(1), rgb = [0, 2, 4].map((o) => parseInt(J.slice(o, o + 2), 16));
+          const d = sk.sheet.getContext('2d').getImageData(0, 0, 57, 12).data;
+          for (let i = 0; i < d.length; i += 4) if (d[i + 3] && d[i] === rgb[0] && d[i + 1] === rgb[1] && d[i + 2] === rgb[2]) gold++;
+        }
+        out[id] = [marked, left, gold];
+      }
+      return out;
+    });
+    const ids = Object.keys(r);
+    expect(ids.includes('samourai') && ids.every((id) => r[id][0] > 0 && r[id][1] === 0) && r.samourai[2] >= 8,
+      Object.entries(r).map(([id, v]) => `${id} : ${v[0]} marqués, ${v[1]} restés, or ${v[2]}`).join(' · '));
+  });
+
+  await test('pêcheur : ses shurikens sont des micro-poissons (leur planche, tournés dans le sens du vol, des gouttes d\'eau) ; les autres skins lancent des shurikens', async () => {
+    const r = await page.evaluate(() => {
+      const k = window.__kage, sk = k.skins;
+      const px = (cv, f) => cv.getContext('2d').getImageData(f.x, f.y, f.w, f.h).data.join();
+      const f = { x: 0, y: 0, w: 12, h: 12 };
+      return [!!sk.pecheur, sk.pecheur?.projectileFaces, sk.pecheur?.projectileDust, sk.encre.projectileFaces,
+        px(sk.pecheur.projectiles.shuriken, f) !== px(sk.encre.projectiles.shuriken, f),
+        sk.pecheur.projectiles.shuriken === sk.pecheur.projectiles.fish];
+    });
+    expect(r.join() === 'true,true,water,false,true,true', r.join());
+  });
+
+  await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
+    const pa = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await pa.goto(PAGE); await pa.waitForFunction(() => window.__kage); await pa.evaluate(() => localStorage.clear());
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await NEW(pa); await pa.waitForTimeout(300);
+      await pa.evaluate(() => { const k = 'kage.save.v' + '1', s = JSON.parse(localStorage.getItem(k)); s.skins = ['encre', 'samourai']; s.skin = 'samourai'; localStorage.setItem(k, JSON.stringify(s)); });
+      await pa.goto(PAGE + '#arene-potager'); await pa.waitForFunction(() => window.__kage && window.__kage.level.arena, null, { timeout: 15000 });
+      const worn = await pa.evaluate(() => window.__kage.skin);
+      expect(worn === 'samourai', `porté en arène : ${worn}`);
+    } finally { await pa.close(); }
   });
 
   await test('version de test : tous les skins se portent sans achat', async () => {
@@ -1164,7 +1245,7 @@ async function main() {
     });
     await tp.waitForTimeout(300);
     await tp.keyboard.press('ArrowUp'); await tp.waitForTimeout(200);
-    await tp.click('[data-skin="paysan"]'); await tp.waitForTimeout(100);
+    await tp.click('.shop__card[data-skin="paysan"]'); await tp.waitForTimeout(100);
     const label = await tp.evaluate(() => document.querySelector('[data-action]')?.textContent);
     await tp.click('[data-action]'); await tp.waitForTimeout(100);
     const r = await tp.evaluate(() => [window.__kage.skin, window.__kage.save.ryo]);

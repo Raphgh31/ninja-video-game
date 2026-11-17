@@ -3,8 +3,10 @@ import { drawAura } from './aura.js';
 // Boutique du marchand ambulant — plein écran (refaite en novembre 2026, demande de Raph).
 // Rayon « Apparences » : tous les skins de KAGE (assets/characters/kage/skins/*.json, champ `price` en
 // ryō), en vente dès le chapitre 1. Une grille de cartes (vignette, cadre à la couleur de la rareté, prix) ;
-// un clic ouvre le skin en grand à droite (il s'anime : repos, course, saut, sabre…), avec sa rareté, sa
-// description, son prix, et l'achat, à confirmer. Encre est toujours possédé.
+// un clic ouvre le skin en grand à droite (il s'anime : repos, course, saut, sabre…), avec sa rareté, son
+// prix, et l'achat, à confirmer (sans description : le bouton d'achat se voit tout de suite, demande de Raph,
+// 16 novembre 2026). Encre est toujours possédé. Menus sobres : le marchand ne parle pas, aucune ligne d'aide ;
+// en bas, seulement « Reprendre la route ».
 // Version de test (window.__KAGE_TEST) : tous les skins se portent sans achat.
 // Les rayons Ressources et Objets sont encore vides.
 
@@ -13,14 +15,6 @@ export const SHOP_CATEGORIES = [
   { id: 'ressources', name: 'Ressources', items: [] },
   { id: 'objets', name: 'Objets', items: [] },
 ];
-
-export const MERCHANT_LINES = {
-  first: "Un long voyage t'attend, jeune ninja. Repasse me voir lorsque tu en auras besoin !",
-  again: 'Te revoilà ! Regarde donc ce que la route m\'a apporté.',
-  bought: 'Il te va comme un gant. Bonne route, jeune ninja !',
-  poor: "Reviens quand ta bourse sera plus lourde.",
-  look: (name) => `${name} ? Un bon choix. Regarde-le de près.`,
-};
 
 /** Les raretés : nom affiché et couleur du cadre. */
 export const RARITIES = {
@@ -49,9 +43,7 @@ export class Shop {
     this.tabs = this.root.querySelector('[data-tabs]');
     this.list = this.root.querySelector('[data-items]');
     this.detail = this.root.querySelector('[data-detail]');
-    this.line = this.root.querySelector('[data-line]');
     this.purse = this.root.querySelector('[data-purse]');
-    this.hint = this.root.querySelector('[data-hint]');
     for (const c of SHOP_CATEGORIES) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -66,7 +58,6 @@ export class Shop {
 
   open({ firstVisit, save }) {
     this.save = save;
-    this.line.textContent = firstVisit ? MERCHANT_LINES.first : MERCHANT_LINES.again;
     this.updatePurse();
     this.root.hidden = false;
     this.isOpen = true;
@@ -99,11 +90,10 @@ export class Shop {
       this.showSkins();
       return;
     }
-    this.hint.textContent = '';
     if (!cat.items.length) {
       const p = document.createElement('p');
       p.className = 'shop__empty';
-      p.textContent = 'Rien sur cet étal pour le moment. Le marchand reviendra avec de nouvelles marchandises.';
+      p.textContent = 'Rien pour l\'instant.';
       this.list.append(p);
     }
   }
@@ -147,19 +137,17 @@ export class Shop {
       card.addEventListener('click', () => this.select(id));
       this.list.append(card);
     }
-    this.hint.textContent = this.wardrobe.test ? 'Version de test : tous les skins se portent sans achat.' : '';
     this.showDetail();
   }
 
   select(id) {
-    if (id !== this.selected) this.line.textContent = MERCHANT_LINES.look(this.wardrobe.skins[id].name);
     this.selected = id;
     this.confirming = false;
     for (const b of this.list.querySelectorAll('.shop__card')) b.setAttribute('aria-pressed', String(b.dataset.skin === id));
     this.showDetail();
   }
 
-  /** Le skin choisi, en grand : rareté, nom, aperçu animé, description, prix, et l'achat (à confirmer). */
+  /** Le skin choisi, en grand : rareté, nom, aperçu animé, prix, et l'achat (à confirmer). */
   showDetail() {
     const id = this.selected, sk = this.wardrobe.skins[id];
     if (!sk) return;
@@ -172,12 +160,13 @@ export class Shop {
     const stage = el('div', 'shop__stage');
     this.preview = document.createElement('canvas');
     this.preview.className = 'shop__preview';
-    this.preview.width = 114; this.preview.height = 72;
+    // (sur un écran bas, un téléphone : l'aperçu à l'échelle 1 — aussi grand que le ninja en jeu — pour que le
+    // bouton d'achat tienne dans le panneau)
+    this.pz = this.root.closest('.short') ? 1 : 2;
+    this.preview.width = 57 * this.pz; this.preview.height = 36 * this.pz;
     stage.append(this.preview);
     this.showT0 = performance.now();
     this.detail.append(el('p', 'shop__rar', rar.name), el('h3', 'shop__name', sk.name), stage);
-    // (pendant la confirmation, la question prend la place de la description)
-    if (!this.confirming) this.detail.append(el('p', 'shop__desc', sk.description ?? sk.blurb ?? ''));
     const act = el('div', 'shop__act');
     act.dataset.act = '';
     if (this.confirming) {
@@ -200,7 +189,7 @@ export class Shop {
         b.textContent = `Acheter · ${sk.price} ryō`;
         if (save.ryo < sk.price) b.classList.add('shop__poor');
         b.addEventListener('click', () => {
-          if (save.ryo < sk.price) { this.line.textContent = MERCHANT_LINES.poor; return; }
+          if (save.ryo < sk.price) return;   // (le bouton grisé suffit : pas de réplique)
           this.confirming = true;
           this.showDetail();
           this.detail.querySelector('[data-confirm]')?.focus();
@@ -209,16 +198,24 @@ export class Shop {
       act.append(b);
     }
     this.detail.append(act);
+    // le bouton doit toujours se voir sans défiler : s'il passe sous le bord (un nom long sur deux lignes, une
+    // image peu haute), l'aperçu passe à l'échelle 1 (mesuré une fois le texte en pixels posé)
+    requestAnimationFrame(() => this.fitDetail());
+  }
+
+  fitDetail() {
+    const d = this.detail, a = d?.querySelector('.shop__act'), cv = this.preview;
+    if (!a || !cv?.isConnected || this.pz === 1) return;
+    if (a.getBoundingClientRect().bottom > d.getBoundingClientRect().bottom + 0.5) {
+      this.pz = 1;
+      cv.width = 57; cv.height = 36;
+      cv.classList.add('shop__preview--small');
+    }
   }
 
   buy(id) {
     this.confirming = false;
-    if (this.wardrobe.buy(id)) {
-      this.line.textContent = MERCHANT_LINES.bought;
-      this.updatePurse();
-    } else {
-      this.line.textContent = MERCHANT_LINES.poor;
-    }
+    if (this.wardrobe.buy(id)) this.updatePurse();
     this.showSkins();
     this.focusSkin(id);
   }
@@ -254,10 +251,11 @@ export class Shop {
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, cv.width, cv.height);
     // une ombre portée sous ses pieds
+    const z = this.pz ?? 2;
     c.fillStyle = 'rgba(0,0,0,.35)';
-    c.fillRect(20, 68, 40, 2);
-    c.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * 2, f.h * 2);
-    if (sk.aura) drawAura(c, meta.pivot.x, meta.pivot.y, 1, performance.now() / 1000, 2);
+    c.fillRect(10 * z, 34 * z, 20 * z, z);
+    c.drawImage(sk.sheet, f.x, f.y, f.w, f.h, 0, 0, f.w * z, f.h * z);
+    if (sk.aura) drawAura(c, meta.pivot.x, meta.pivot.y, 1, performance.now() / 1000, z);
   }
 
   /** Les flèches passent d'une carte à l'autre. */

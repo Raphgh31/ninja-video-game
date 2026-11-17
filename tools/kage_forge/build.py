@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
-from art import ANIMS, SHURIKEN, VIEWS  # noqa: E402
+from art import ANIMS, FISH, SHURIKEN, VIEWS  # noqa: E402
 from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 from accessories import dress, find_head  # noqa: E402
@@ -57,11 +57,18 @@ def to_rgba(grid, colors, only=None):
     return Image.fromarray(a, "RGBA")
 
 
+# calque d'accessoires : un pixel de la pose qu'un accessoire retire (les pans du bandeau rangés, un bras
+# rapproché du corps…) porte cette marque ; le jeu l'efface avant de poser l'accessoire (sprites.js)
+ERASE = "~"
+ERASE_INDEX = 255
+
+
 def to_index(grid):
     a = np.zeros(grid.shape + (4,), np.uint8)
     for i, s in enumerate(SLOT_ORDER):
         m = grid == s
         a[m] = (i + 1, 0, 0, 255)
+    a[grid == ERASE] = (ERASE_INDEX, 0, 0, 255)
     return Image.fromarray(a, "RGBA")
 
 
@@ -156,6 +163,7 @@ def main():
                 bg = rendered[k][c]
                 ov = np.full(bg.shape, ".", dtype="<U1")
                 ov[dg != bg] = dg[dg != bg]
+                ov[(dg == ".") & (bg != ".")] = ERASE
                 im.paste(to_index(ov), (c * sx, r * sy))
         im.save(OUT / f)
         acc_sheets[sid] = f
@@ -194,32 +202,40 @@ def main():
         istrip.paste(to_rgba(g, ref), (i * sx, 0))
     istrip.save(OUT / "kage_intro_kick.png")
 
-    # projectile : shuriken (cellules 12x12, contour auto, partie enfoncée coupée)
+    # projectiles : le shuriken, et les micro-poissons du pêcheur (cellules 12x12, contour auto, partie enfoncée
+    # coupée ; mêmes cases et mêmes noms : un skin choisit sa planche avec son champ « projectile »)
     SC = 12
-    proj = {}
-    cells = []
-    for name, (text, anchor) in SHURIKEN.items():
-        g = np.full((SC, SC), ".", dtype="<U1")
-        art = parse(text)
-        g[1:1 + art.shape[0], 1:1 + art.shape[1]] = art
-        g = add_outline(g)
-        ax, ay = anchor
-        if name == "stuck_wall":
-            g[:, ax + 1:] = "."          # ce qui dépasse dans le mur n'est pas visible
-        if name == "stuck_ground":
-            g[ay + 1:, :] = "."          # idem dans le sol
-        cells.append((name, g, (ax, ay)))
-        if name == "stuck_ground":
-            # même image en miroir : demi-lame vers l'arrière, lame entière vers l'avant
-            cells.append(("stuck_ground_b", np.fliplr(g), (SC - 1 - ax, ay)))
-    sh_rgba = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
-    sh_idx = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
-    for i, (name, g, (ax, ay)) in enumerate(cells):
-        sh_rgba.paste(to_rgba(g, ref), (i * SC, 0))
-        sh_idx.paste(to_index(g), (i * SC, 0))
-        proj[name] = {"x": i * SC, "y": 0, "w": SC, "h": SC, "anchor": {"x": ax, "y": ay}}
-    sh_rgba.save(OUT / "kage_shuriken.png")
-    sh_idx.save(OUT / "kage_shuriken_index.png")
+
+    def projectile_sheet(defs, base, SC=SC):
+        proj = {}
+        cells = []
+        for name, (text, anchor) in defs.items():
+            g = np.full((SC, SC), ".", dtype="<U1")
+            art = parse(text)
+            g[1:1 + art.shape[0], 1:1 + art.shape[1]] = art
+            g = add_outline(g)
+            ax, ay = anchor
+            if name == "stuck_wall":
+                g[:, ax + 1:] = "."          # ce qui dépasse dans le mur n'est pas visible
+            if name == "stuck_ground":
+                g[ay + 1:, :] = "."          # idem dans le sol
+            cells.append((name, g, (ax, ay)))
+            if name == "stuck_ground":
+                # même image en miroir : demi-lame vers l'arrière, lame entière vers l'avant
+                cells.append(("stuck_ground_b", np.fliplr(g), (SC - 1 - ax, ay)))
+        rgba = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
+        idx = Image.new("RGBA", (SC * len(cells), SC), (0, 0, 0, 0))
+        for i, (name, g, (ax, ay)) in enumerate(cells):
+            rgba.paste(to_rgba(g, ref), (i * SC, 0))
+            idx.paste(to_index(g), (i * SC, 0))
+            proj[name] = {"x": i * SC, "y": 0, "w": SC, "h": SC, "anchor": {"x": ax, "y": ay}}
+        rgba.save(OUT / f"{base}.png")
+        idx.save(OUT / f"{base}_index.png")
+        return proj
+
+    proj = projectile_sheet(SHURIKEN, "kage_shuriken")
+    fish = projectile_sheet(FISH, "kage_fish", SC=16)
+    assert list(fish) == list(proj), "les poissons doivent avoir les mêmes cases que les shurikens"
 
     # métadonnées
     meta = {
@@ -266,7 +282,19 @@ def main():
                 "hud": "spin0",
                 "ground": ["stuck_ground", "stuck_ground_b"],
                 "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface",
-            }
+            },
+            "fish": {
+                "image": "kage_fish.png",
+                "indexImage": "kage_fish_index.png",
+                "frames": fish,
+                "spin": ["fly0", "fly1"],
+                "hud": "spin0",
+                "ground": ["stuck_ground", "stuck_ground_b"],
+                "faces": True,
+                "hudStep": 13,
+                "note": "micro-poissons du pêcheur (champ « projectile » du skin) : ils regardent vers la droite, "
+                        "le jeu les retourne vers la gauche",
+            },
         },
     }
     for r, k in enumerate(order):

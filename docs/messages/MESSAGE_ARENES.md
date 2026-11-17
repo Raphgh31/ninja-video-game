@@ -8,7 +8,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation est consacrée uniquement 
 
 **Le jeu** : *The Ninja Adventure* (ex « The Ninja Game »), un jeu de plateforme 2D rapide en pixel art, dans un Japon peint (rizières, forêts, montagnes). Le ninja **n'a pas de nom pour le joueur** : il s'appelle KAGE seulement dans le code et les fichiers, jamais à l'écran. Réponds toujours en **français**.
 
-**Ce qui existe** (tout est dans `main` et en ligne, 16 novembre 2026) :
+**Ce qui existe** (tout est dans `main` et en ligne, 17 novembre 2026) :
 - **le menu de l'intro** : Aventure · Arène · Mon ninja. Il est sobre : aucune consigne ni sous-titre en petit gris.
   - Aventure : deux aventures en parallèle (continuer, nouvelle, effacer).
   - Arène : Nouvelle arène (« Accueillir ») ou Rejoindre avec un code de 4 signes.
@@ -23,7 +23,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation est consacrée uniquement 
   - une grue et son rocher ficelé, un gong et des vagues, des échafaudages, des cœurs.
 - **le ninja** :
   - 28 animations : course, sprint, dash, glissade, saut mural, saltos, sabre, shurikens, coups de pied, lianes, corde… ;
-  - 4 skins : Encre, le voyageur, le paysan, Lumière d'or ; 7 autres en brouillon.
+  - 6 skins : Encre, le paysan, l'apprenti tengu, le Samouraï déchu, le pêcheur (canne à pêche et micro-poissons), Lumière d'or ; 5 autres en brouillon.
 
 **Technique** :
 - Vite et JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. Image interne 448×252, mise à l'échelle entière (pixels nets).
@@ -40,7 +40,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation est consacrée uniquement 
 ```bash
 npm install
 npm run sprites   # sprites (ninja, ennemis, boss) avec contrôles qualité
-npm test          # carte mentale + build + versions autonomes + 93 tests de bout en bout + 32 de la Forêt
+npm test          # carte mentale + build + versions autonomes + 97 tests de bout en bout + 32 de la Forêt
 npm run dev       # le jeu en local ; #arene-potager, #foret, #niveau-1, #terrain
 ```
 Commence par `npm install`, `npm run sprites` et `npm test` pour connaître l'état réel.
@@ -48,7 +48,7 @@ Commence par `npm install`, `npm run sprites` et `npm test` pour connaître l'é
 **Les artefacts claude.ai** (fabriqués par `npm run standalone`) :
 - **« The Ninja Adventure Test »**, ma version d'essai :
   - https://claude.ai/artifact/ScyWi7qXjftmdLs6Qxo7Ys (identifiant `cf7a5349-c737-467e-8a85-43de0e34b850`, `dist/kage-test.html`, `shared_live: "public"`) ;
-  - pas d'écran titre, un panneau en haut à droite : skins sans achat, chapitres et zones en un clic, bouton Arène ;
+  - pas d'écran titre, un bouton « Réglages » en haut à droite ouvre et ferme le panneau : skins sans achat, chapitres et zones en un clic, bouton Arène ;
   - **elle ne se publie que si je dis « publie-le »** (alors sans redemander) ; si je ne dis rien, ne la publie pas.
 - **« The Ninja Adventure »**, le jeu pour tout le monde :
   - https://claude.ai/artifact/Cjj8EJCrABmuHzWypJC2cm (identifiant `5f0bb94d-1fa1-48d5-b9b9-f829586682e6`, `dist/kage-standalone.html`, `shared_live: "public"`) ;
@@ -63,7 +63,8 @@ Commence par `npm install`, `npm run sprites` et `npm test` pour connaître l'é
 - vérifie sur ordinateur et sur téléphone, en paysage (~844×390) et en portrait (~390×844) ;
 - **planche de design avant tout nouveau personnage, ennemi ou skin** ;
 - rendu « jeu indé soigné », jamais générique : de la profondeur, du volume, rien qui flotte, une lumière cohérente ;
-- interface discrète et sobre ;
+- interface discrète et sobre ; **menus apaisants** : aucune phrase d'aide, le marchand ne parle pas, le jeu laisse le joueur s'aventurer ;
+- **le son est toujours actif** (ni bouton « Son » ni touche M : le joueur passe son téléphone en silencieux) ;
 - commits et documentation en français ;
 - **la carte mentale** (`docs/carte-mentale/index.html`) se met à jour dans le même commit que chaque changement du jeu (`npm run carte` vérifie) ;
 - `npm run sprites` puis `npm test` verts avant de pousser ;

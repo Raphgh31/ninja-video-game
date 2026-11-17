@@ -9,10 +9,10 @@ let ac = null;
 let master = null;
 let noiseBuf = null;
 const SFX_VOLUME = 0.2223; // volume général des bruitages (0,35 à l'origine, puis −2, −3 et −4 dB, puis +5 dB à la demande de l'utilisateur)
-let muted = false;
-let out = null;
-let musicBus = null;   // la musique a son propre circuit (même bouton « Son »)   // destination des sons de l'appel en cours (master, ou un gain selon la distance)
-try { muted = localStorage.getItem('kage-muted') === '1'; } catch { /* stockage indisponible */ }
+// le son est toujours actif : ni bouton ni touche pour le couper (demande de Raph, 16 novembre 2026 : le joueur
+// passe son téléphone en silencieux s'il le veut)
+let out = null;        // destination des sons de l'appel en cours (master, ou un gain selon la distance)
+let musicBus = null;   // la musique a son propre circuit
 
 function ensure() {
   if (ac) return ac.state === 'running';
@@ -20,10 +20,10 @@ function ensure() {
   if (!AC) return false;
   ac = new AC();
   master = ac.createGain();
-  master.gain.value = muted ? 0 : SFX_VOLUME;
+  master.gain.value = SFX_VOLUME;
   master.connect(ac.destination);
   musicBus = ac.createGain();
-  musicBus.gain.value = muted ? 0 : 1;
+  musicBus.gain.value = 1;
   musicBus.connect(ac.destination);
   // onglet caché ou téléphone verrouillé : tout se tait, et reprend au retour
   document.addEventListener('visibilitychange', () => {
@@ -41,15 +41,6 @@ export function unlockAudio() {
   ensure();
   if (ac && ac.state !== 'running') ac.resume().catch(() => {});
   if (ac) for (const f of Object.keys(sampleBytes)) decodeSample(f);   // les échantillons sont prêts avant leur premier usage
-}
-
-export function isMuted() { return muted; }
-
-export function setMuted(m) {
-  muted = m;
-  try { localStorage.setItem('kage-muted', m ? '1' : '0'); } catch { /* stockage indisponible */ }
-  if (master) master.gain.setTargetAtTime(m ? 0 : SFX_VOLUME, ac.currentTime, 0.02);
-  if (musicBus) musicBus.gain.setTargetAtTime(m ? 0 : 1, ac.currentTime, 0.05);
 }
 
 /**
@@ -540,7 +531,7 @@ const AMB_EVENTS = {
 };
 /** À appeler à chaque image dans la Forêt (dt en s) ; mix = null pour tout éteindre. */
 export function ambience(dt, mix) {
-  if (!ac || ac.state !== 'running' || muted) return;
+  if (!ac || ac.state !== 'running') return;
   if (!amb) { if (!mix) return; ambBuild(); }
   amb.t += dt; amb.tick += dt;
   const m = mix ?? {};
@@ -571,7 +562,7 @@ export function ambience(dt, mix) {
  * gain < 1 : son atténué (un ennemi loin de l'écran), 0 : rien.
  */
 export function play(name, opts, gain = 1) {
-  if (muted || gain <= 0.01 || !ensure() || !SOUNDS[name]) return;
+  if (gain <= 0.01 || !ensure() || !SOUNDS[name]) return;
   if (gain < 0.99) {
     out = ac.createGain();
     out.gain.value = gain;

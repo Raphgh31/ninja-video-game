@@ -1683,12 +1683,16 @@
     "encre",
     "or",
     "paysan",
-    "voyageur"
+    "pecheur",
+    "samourai",
+    "tengu"
   ],
   "accessorySheets": {
     "or": "kage_acc_or_index.png",
     "paysan": "kage_acc_paysan_index.png",
-    "voyageur": "kage_acc_voyageur_index.png"
+    "pecheur": "kage_acc_pecheur_index.png",
+    "samourai": "kage_acc_samourai_index.png",
+    "tengu": "kage_acc_tengu_index.png"
   },
   "projectiles": {
     "shuriken": {
@@ -1776,6 +1780,94 @@
         "stuck_ground_b"
       ],
       "note": "stuck_wall : mur à droite (retourner pour un mur à gauche) ; ancre = point sur la surface"
+    },
+    "fish": {
+      "image": "kage_fish.png",
+      "indexImage": "kage_fish_index.png",
+      "frames": {
+        "fly0": {
+          "x": 0,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 7,
+            "y": 4
+          }
+        },
+        "fly1": {
+          "x": 16,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 7,
+            "y": 4
+          }
+        },
+        "spin0": {
+          "x": 32,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 5,
+            "y": 3
+          }
+        },
+        "spin1": {
+          "x": 48,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 5,
+            "y": 3
+          }
+        },
+        "stuck_wall": {
+          "x": 64,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 10,
+            "y": 3
+          }
+        },
+        "stuck_ground": {
+          "x": 80,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 9,
+            "y": 10
+          }
+        },
+        "stuck_ground_b": {
+          "x": 96,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 6,
+            "y": 10
+          }
+        }
+      },
+      "spin": [
+        "fly0",
+        "fly1"
+      ],
+      "hud": "spin0",
+      "ground": [
+        "stuck_ground",
+        "stuck_ground_b"
+      ],
+      "faces": true,
+      "hudStep": 13,
+      "note": "micro-poissons du pêcheur (champ « projectile » du skin) : ils regardent vers la droite, le jeu les retourne vers la gauche"
     }
   }
 }

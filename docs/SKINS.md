@@ -6,30 +6,30 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 
 ---
 
-## 1. Où on en est (16 novembre 2026)
+## 1. Où on en est (17 novembre 2026 : Samouraï déchu, pêcheur et apprenti tengu faits)
 
 **Skins dans le jeu** (`assets/characters/kage/skins/`) :
 
 | id | Nom | Rareté | Prix | Accessoires | Particularités |
 |---|---|---|---|---|---|
 | `encre` | Encre | origine | — | — | le skin d'origine, toujours possédé |
-| `voyageur` | Le voyageur | commun | 100 | `ribbon`, `mino`, `sash`, `apron`, `kasa_leaf` | sugegasa tressé, manteau de feuilles et de paille, cordon doré |
 | `paysan` | Paysan des rizières | commun | 100 | `notails`, `pants`, `dots`, `farmer`, `sash`, `kasa` | kimono vert, tonnelet et panier sur le dos, bambou |
+| `tengu` | L'apprenti tengu | peu commun | 350 | `fox_tail`, `haori`, `rope`, `fox_mask` | masque blanc à œil unique, collé contre le visage, et spirale rouge qui finit dans le bord du masque, rubans blanc et rouge au vent ; veste blanche au devant rouge, cordelette en damier, pantalon blanc à bande rouge, boucle dorée ; long pan du manteau rouge bordé de blanc, qui fait cape (`fox_tail`) : il part du milieu du dos, large contre le dos, reste près du dos en course et se ramasse pendant les saltos ; rubans courts |
+| `samourai` | Samouraï déchu | rare | 450 | `arm_in`, `hakama`, `kusazuri`, `rag`, `sode`, `samurai_trim`, `kabuto` | kabuto aux cornes d'or en croissant et cimier rouge, pans au vent, épaulière carrée resserrée sur l'épaule, cape en lambeaux (plaquée au repos, au vent en course), tassettes bordées d'or ; bras arrière rapproché du corps ; `barLift: 4` (barre de vie au-dessus des cornes) |
+| `pecheur` | Le pêcheur | épique | 500 | `round_net`, `ribbon`, `rope`, `specks`, `wraps`, `mask_mark`, `rod`, `back_rod`, `kasa_peche` | sugegasa tressé de bleu, pan bleu, une canne fine rangée dans le dos (un fil pend de sa pointe ; elle quitte le dos quand il frappe), filet rond sur le dos qui lévite avec la vitesse (course, sprint), corde tressée, éclats dorés ; **canne à pêche** en bambou à la place du sabre (ligne et flotteur, arc du coup en ligne d'eau) ; **micro-poissons** en guise de shurikens (`projectile: "fish"`, gouttes d'eau : `projectileDust: "water"`) |
 | `or` | Lumière d'or | légendaire | 600 | `flametails`, `halo`, `hipcloth`, `mantlet`, `sash`, `apron` | `aura: 'gold'` (éclat : `src/game/aura.js`), shurikens dorés (`projectileColors`), traînées d'or (`trail`), poussière d'or derrière les shurikens (`goldDust`, `src/game/shuriken.js`) |
 
-**Brouillons** (`tools/kage_forge/skins_brouillon/`, hors du jeu) : un premier jet trop rapide, à **refaire un par un, fidèles au modèle** :
+**Brouillons** (`tools/kage_forge/skins_brouillon/`, hors du jeu) : un premier jet trop rapide, à **refaire un par un, fidèles au modèle** (le Samouraï déchu, le pêcheur et l'apprenti tengu sont faits, 16 et 17 novembre 2026) :
 
 | Fichier | Nom | Prix prévu | Rareté |
 |---|---|---|---|
 | `blanc.json` | Le ninja blanc | 150 | commun |
 | `ecarlate.json` | Le ninja écarlate | 150 | commun |
 | `pourpre.json` | Ombre pourpre | 150 | peu commun |
-| `pecheur.json` | Le pêcheur | 250 | peu commun |
 | `hiver.json` | Souffle de l'hiver | 450 | épique |
 | `renard.json` | Renard blanc | 500 | rare |
-| `samourai.json` | Samouraï déchu | 550 | rare |
 
-Le **vagabond** (premier skin) a été **retiré**.
+Le **vagabond** (premier skin) a été **retiré**, puis le **voyageur** (16 novembre 2026, demande de Raph ; ses planches restent dans `docs/kage/skins/`, ses accessoires `mino`, `ribbon`, `kasa_leaf` dans la forge). Un joueur qui portait un skin retiré repasse en Encre (`startChapter`, `main.js`).
 
 Les **modèles** sont des planches dessinées par Raph : il les envoie en image dans la conversation. Il faut les lui redemander si on ne les a pas.
 
@@ -43,6 +43,11 @@ Les **modèles** sont des planches dessinées par Raph : il les envoie en image 
 - Rendu « jeu indé soigné » : pixels nets, contour d'un pixel, lumière à gauche, rien de flou ni de générique.
 
 ---
+
+**Leçons des derniers skins** (17 novembre 2026) :
+- **lisibilité avant détail** : à notre échelle (un masque fait 9 pixels de large), un visage détaillé ne se lit pas ; le masque de renard de l'apprenti tengu a été abandonné après plusieurs essais pour une **spirale rouge** sur un masque lisse à œil unique. Quand une piste coince, dessiner plusieurs idées sur le ninja et les montrer côte à côte (`docs/kage/skins/tengu_masques.png`) ;
+- **capes et manteaux** : partir du milieu du dos, pas de la ceinture (sinon ils semblent sortir des jambes) ; rester près du dos en course (sinon on croit voir une queue) ; prévoir un gabarit ramassé pour les saltos ;
+- **les accessoires plaqués** sur la tête (masque, casque) se collent au visage : un pixel trop en avant suffit à les faire paraître décalés.
 
 ## 3. Comment un skin est fait
 
@@ -58,7 +63,7 @@ Les **modèles** sont des planches dessinées par Raph : il les envoie en image 
 | `id`, `name` | identifiant et nom affiché |
 | `rarity` | `commun`, `peu commun`, `rare`, `épique` ou `légendaire` (couleurs : `RARITIES` dans `src/game/shop.js`) |
 | `price` | prix en ryō |
-| `description` | ce qu'il porte (boutique) |
+| `description` | ce qu'il porte (n'est plus affichée en boutique depuis le 16 novembre 2026 : le bouton d'achat doit se voir sans défiler) |
 | `blurb` | une phrase d'ambiance |
 | `accessories` | la liste des accessoires |
 | `colors` | **tous** les slots |
@@ -66,16 +71,21 @@ Les **modèles** sont des planches dessinées par Raph : il les envoie en image 
 Champs facultatifs :
 - `aura` : un éclat dessiné autour du ninja (`src/game/aura.js`) ;
 - `projectileColors` : la couleur des shurikens ;
-- `trail` : la couleur des traînées du sabre et du dash.
+- `trail` : la couleur des traînées du sabre et du dash ;
+- `barLift` : de combien de pixels remonter la barre de vie du ninja, pour un couvre-chef haut (les cornes du samouraï : 4) ;
+- `projectile` : une autre planche de projectiles que les shurikens (`fish` : les micro-poissons du pêcheur, `FISH` dans `art.py`, mêmes noms de cases que `SHURIKEN` mais en 16 × 16 — agrandis ×1,4 —, exportées par `build.py` en `kage_fish_index.png` ; chaque planche porte ses propres cases, `projMeta`, et l'écart des icônes du compteur, `hudStep`) ; une planche qui a `faces` dans `kage.json` regarde dans le sens du vol et se plante la tête la première ;
+- `projectileDust` : `water` (des gouttes qui se détachent et retombent derrière le projectile ; Lumière d'or a sa poussière d'or par `trail`).
 
 **3. Les accessoires** (`tools/kage_forge/accessories.py`)
 - Ils ne sont pas dessinés dans les poses. La forge **retrouve la tête** dans chaque image (`find_head` : la tête de profil a toujours la même forme) et le **dos** pose par pose, puis y pose l'accessoire avec son propre contour.
 - Ce qui existe déjà :
-  - **chapeaux** en tampons ASCII : `sugegasa`, `kasa`, `kasa_leaf`, `kabuto`, `kitsune`, `cowl`… ;
+  - **chapeaux** en tampons ASCII : `sugegasa`, `kasa`, `kasa_leaf`, `kitsune`, `cowl`… ; le `kabuto` du samouraï (bombe, cornes en croissant, cimier, et ses deux pans au vent qui remplacent ceux du bandeau ; dans les saltos, la forge garde les pans tracés à la traîne du nœud) ;
   - **capes et paquetages** qui suivent le dos : `cape(kind)`, `mino`, `pack` (`sack`, `net`), `farmer` ;
   - `ribbon` (pans du bandeau flottants), `notails` ;
   - `sash`, `apron`, `hipcloth`, `mantlet`, `pants`, `dots` ;
-  - `halo`, `flametails`, `fur`, `cord`.
+  - `halo`, `flametails`, `fur`, `cord` ;
+  - samouraï : `sode` (épaulière), `rag` (cape en lambeaux : un gabarit dessiné à la main pour chaque vent, `CAPE` ; le vent est lu sur les pans du bandeau de la pose, `_wind` : plaquée au repos, au vent en course, soulevée en chute), `kusazuri` (tassettes), `hakama` (les jambes, jusqu'à la jambe levée d'un coup de pied), `samurai_trim` (col, ceinture, épaule avant, chaussures), `arm_in` (le bras arrière rapproché d'un pixel du corps quand il pend derrière le dos).
+- Un accessoire peut aussi **retirer** des pixels de la pose (les pans du bandeau rangés, un bras déplacé) : la forge marque ces pixels sur le calque (`ERASE`, index 255, `build.py`) et le jeu les efface avant de poser l'accessoire (`eraseMask`, `src/engine/sprites.js` ; de même `skin_sheets.py`). Avant le 16 novembre 2026, ce qu'un accessoire retirait restait visible en jeu.
 - Les accessoires peignent dans les slots `gear` (`b B i`) et `gear2` (`j J`), plus ceux du chapeau (`r p P Q`) et de la cordelette (`c C`).
 - Ils passent derrière la lame et les mains.
 
@@ -87,13 +97,13 @@ Champs facultatifs :
 - **Agrandissement** : les poses sont dessinées en cellule 48×32, puis agrandies de 20 % à l'export (`scale.py`, cellule 57×36). Un accessoire se dessine à l'échelle des poses.
 
 **5. Dans le jeu**
-- Boutique plein écran du marchand (`src/game/shop.js`), rayon Apparences : cartes triées par prix, cadre à la couleur de la rareté, aperçu animé (repos, course, saut, sabre, sprint, coup de pied, shuriken), achat confirmé.
+- Boutique plein écran du marchand (`src/game/shop.js`), rayon Apparences : cartes triées par prix, cadre à la couleur de la rareté, aperçu animé (repos, course, saut, sabre, sprint, coup de pied, shuriken), sans description (le bouton d'achat se voit tout de suite), achat confirmé.
 - Sauvegarde : `skins` (possédés) et `skin` (porté).
 - Le skin porté s'affiche aussi :
   - dans le menu (carte « Aventure », écran « Mon ninja » où le ninja est en grand) ;
-  - dans le salon de l'arène (portrait) ;
+  - en arène : le ninja porte le skin de l'aventure en cours, et son portrait dans le salon (corrigé le 16 novembre 2026 : il y restait en Encre) ;
   - chez les autres joueurs en arène (message `me`).
-- **Version de test** (« The Ninja Adventure Test », `dist/kage-test.html`) : tous les skins se portent sans achat (panneau en haut à droite, clic ou touches 1, 2…).
+- **Version de test** (« The Ninja Adventure Test », `dist/kage-test.html`) : tous les skins se portent sans achat (panneau en haut à droite, derrière le bouton « Réglages » ; clic ou touches 1, 2…).
 - **Version autonome** : `tools/standalone.mjs` embarque d'elle-même tous les skins listés dans `kage.json`.
 
 ---
@@ -149,7 +159,7 @@ Tout reste **décoratif** : rien ne change au jeu.
 | `tools/kage_forge/skin_sheets.py` | planches d'animation complètes (`docs/kage/skins/`) |
 | `tools/kage_forge/skin_board.py` | ancienne planche de design (encore utilisable) |
 | `tools/kage_forge/skins_brouillon/` | brouillons hors du jeu |
-| `src/engine/sprites.js` | chargement et recoloration (palette, accessoires, projectiles, traînées) |
+| `src/engine/sprites.js` | chargement et recoloration (palette, accessoires et pixels qu'ils effacent, projectiles, traînées) |
 | `src/game/shop.js` | boutique (`RARITIES`) |
 | `src/game/aura.js` | éclat de Lumière d'or |
 | `src/game/shuriken.js` | shurikens (couleurs, poussière d'or) |

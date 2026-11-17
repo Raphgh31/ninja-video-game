@@ -519,6 +519,63 @@ W......
 """, (5, 4)),
 }
 
+# Projectile du pêcheur : des micro-poissons (mêmes cellules et mêmes noms que les shurikens, pour que le jeu
+# les place pareil ; ils regardent vers la droite et le jeu les retourne vers la gauche). En vol, le poisson
+# frétille (la queue monte, puis descend) ; spin0 et spin1 : le petit poisson du compteur ; planté dans un mur
+# le nez le premier, planté dans le sol la tête en bas, la queue en l'air.
+# Lettres : w dos bleu · W ventre argenté · g œil · X queue et nageoires (couleurs : projectileColors du skin)
+# (agrandis ×1,4 à la demande de Raph : cellules de 16 × 16 au lieu de 12)
+FISH = {
+    "fly0": ("""
+.....ww......
+X..wwwwwww...
+XXwwwwwwwgww.
+.XWWWWWWWWWWW
+XXWWWWWWWWWW.
+X..WWWWWWW...
+.....W.W.....
+""", (7, 4)),
+    "fly1": ("""
+X....ww......
+XX.wwwwwww...
+.XXwwwwwwgww.
+..XWWWWWWWWWW
+.XWWWWWWWWWW.
+...WWWWWWW...
+.....W.W.....
+""", (7, 4)),
+    "spin0": ("""
+X..wwwww..
+XXwwwwwgww
+XXWWWWWWWW
+X..WWWWW..
+""", (5, 3)),
+    "spin1": ("""
+.X.wwwww..
+.XwwwwwgwW
+XXWWWWWWWW
+X..WWWWW..
+""", (5, 3)),
+    "stuck_wall": ("""
+X..wwwww..
+XXwwwwwgww
+XXWWWWWWWW
+X..WWWWW..
+""", (10, 3)),
+    "stuck_ground": ("""
+X.X.......
+.XX.......
+..XX......
+...wwW....
+...wWWW...
+....wWWgW.
+.....wWWW.
+......wWWW
+.......wW.
+........W.
+""", (9, 10)),
+}
+
 # ---------------------------------------------------------------------------
 # SPRINT — course « ninja » : buste plongé, corps plus bas, bras tendus vers
 # l'arrière, grandes foulées, foulard tendu à l'horizontale

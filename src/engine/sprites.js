@@ -40,11 +40,28 @@ export function applySkin(indexImage, meta, skin) {
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] === 0) continue;
     const c = lut[px[i]];
-    if (!c) continue;
+    if (!c) { px[i + 3] = 0; continue; }      // (la marque « effacer » d'un calque d'accessoires : ERASE_INDEX)
     px[i] = c[0];
     px[i + 1] = c[1];
     px[i + 2] = c[2];
   }
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+}
+
+/** Index de la marque « effacer » d'un calque d'accessoires (tools/kage_forge/build.py, ERASE_INDEX). */
+const ERASE_INDEX = 255;
+
+/** Les pixels qu'un calque d'accessoires retire de la pose (pans du bandeau rangés, bras rapproché…), en plein. */
+function eraseMask(indexImage) {
+  const { width: w, height: h } = indexImage;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(indexImage, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h), px = data.data;
+  for (let i = 0; i < px.length; i += 4) px[i + 3] = px[i + 3] && px[i] === ERASE_INDEX ? 255 : 0;
   ctx.putImageData(data, 0, 0);
   return canvas;
 }
@@ -86,15 +103,31 @@ export async function loadCharacter(baseUrl, metaFile, skinIds) {
     const projectiles = {};
     // (un skin peut teinter ses projectiles autrement que sa lame : projectileColors)
     const projSkin = skin.projectileColors ? { ...skin, colors: { ...skin.colors, ...skin.projectileColors } } : skin;
-    for (const [name, img] of Object.entries(projIndex)) projectiles[name] = applySkin(img, meta, projSkin);
+    for (const [name, img] of Object.entries(projIndex)) {
+      projectiles[name] = applySkin(img, meta, projSkin);
+      projectiles[name].projMeta = meta.projectiles[name];   // (ses cases : les poissons sont plus grands)
+    }
+    // un skin peut lancer autre chose que des shurikens (le pêcheur : des micro-poissons, champ « projectile ») :
+    // même planche, mêmes cases ; « faces » : ils regardent dans le sens du vol
+    const kind = skin.projectile && projectiles[skin.projectile] ? skin.projectile : 'shuriken';
+    projectiles.shuriken = projectiles[kind];
+    const projectileFaces = !!meta.projectiles?.[kind]?.faces;
     const sheet = applySkin(indexImage, meta, skin);
     // accessoires du skin (chapeau, cordelette…) : calque d'index à part, même
     // disposition que la planche, fondu une fois pour toutes par-dessus
+    // (d'abord effacer ce que l'accessoire retire de la pose, puis le poser)
     const acc = meta.accessorySheets?.[id];
-    if (acc) sheet.getContext('2d').drawImage(applySkin(await loadImage(`${baseUrl}/${acc}`), meta, skin), 0, 0);
+    if (acc) {
+      const accIndex = await loadImage(`${baseUrl}/${acc}`);
+      const ctx = sheet.getContext('2d');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.drawImage(eraseMask(accIndex), 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(applySkin(accIndex, meta, skin), 0, 0);
+    }
     // les traînées (skins qui en ont) : la lame et l'arc du coup d'épée seuls ; la silhouette entière (dash)
     const trail = skin.trail ? { blade: maskSheet(indexImage, meta, ['W', 'w', 'z', 'q', 'X'], skin.trail), body: maskSheet(indexImage, meta, null, skin.trail) } : null;
-    skins[id] = { ...skin, sheet, projectiles, trail };
+    skins[id] = { ...skin, sheet, projectiles, trail, projectileFaces };
   }
   return { meta, skins };
 }

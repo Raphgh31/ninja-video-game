@@ -1,0 +1,30 @@
+{
+  "id": "samourai",
+  "name": "Samouraï déchu",
+  "rarity": "rare",
+  "price": 450,
+  "description": "Kabuto aux cornes d'or, épaulière bordée d'or, cape en lambeaux.",
+  "blurb": "Il a perdu son seigneur, pas son honneur.",
+  "barLift": 4,
+  "accessories": ["arm_in", "hakama", "kusazuri", "rag", "sode", "samurai_trim", "kabuto"],
+  "colors": {
+    "O": "#0d0709",
+    "h": "#1f151c", "H": "#33242c", "I": "#54404a",
+    "M": "#2a1d25",
+    "E": "#2a0f0c", "e": "#f2ede6",
+    "N": "#e6b88a", "n": "#ad6e4e",
+    "t": "#2e131a", "T": "#55222a", "U": "#7c3138",
+    "a": "#2a1720", "A": "#44242d",
+    "l": "#2a1118", "L": "#47202a",
+    "d": "#170f14", "D": "#2a1d25",
+    "f": "#3b1519", "F": "#5e1f24", "G": "#82302d",
+    "k": "#3b1519", "K": "#5e1f24",
+    "x": "#15171f", "X": "#4b5264", "z": "#5b6377", "q": "#c9ced8",
+    "W": "#e2e6ec", "w": "#8a92a2", "g": "#2b1a20",
+    "r": "#2a0c10", "p": "#4c161b", "P": "#6e1f23", "Q": "#94412f",
+    "c": "#f8e29a", "C": "#7a5124",
+    "b": "#8a2f1c", "B": "#cc542a", "i": "#f08a3a",
+    "j": "#b8893f", "J": "#e2b75e",
+    "s": "#c27f92", "S": "#f3c4cc", "u": "#f4d77a"
+  }
+}

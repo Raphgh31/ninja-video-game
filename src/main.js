@@ -11,7 +11,7 @@ import { Karasu, KARASU } from './game/karasu.js';
 import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
-import { ambience, audioOutput, isMuted, musicOutput, play as sfx, setMuted, unlockAudio } from './engine/sfx.js';
+import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './engine/sfx.js';
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
@@ -70,10 +70,6 @@ const stage = canvas.parentElement;
 const uiLayer = document.querySelector('.ui');
 /** Change un texte seulement s'il a changé (chaque changement redessine son canvas). */
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
-if (MOBILE) {
-  // le bouton du son tourne avec le jeu, à l'échelle de ses pixels
-  uiLayer.append(document.querySelector('.mute'));
-}
 const MOBILE_VIEW_H = 252;   // hauteur de jeu visée sur téléphone (comme sur ordinateur)
 const TOUCH_VIEW_H = 180;    // hauteur du calque des commandes tactiles
 let touchView = { w: 320, h: 180, scale: 1 };
@@ -697,16 +693,12 @@ function setCloseUp(on) {
   fit();
   if (camReady) snapCamera();
 }
+// en arène, le ninja porte le skin de l'aventure en cours (dans la version de test, c'est la barre des skins)
+if (level.arena && !SKIN_LAB) { const s = loadSave(); if (s?.skin && (s.skins ?? []).includes(s.skin)) wearSkin(s.skin); }
 if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
 
-// son : débloqué au premier geste ; bouton et touche M pour le couper
-const muteBtn = document.querySelector('.mute');
-function refreshMute() {
-  muteBtn.textContent = isMuted() ? 'Son coupé' : 'Son';
-  muteBtn.setAttribute('aria-pressed', String(isMuted()));
-}
-muteBtn.addEventListener('click', () => { setMuted(!isMuted()); refreshMute(); muteBtn.blur(); });
-refreshMute();
+// son : débloqué au premier geste, toujours actif (aucun bouton ni touche pour le couper : le joueur passe son
+// téléphone en silencieux s'il le veut)
 // musique du chapitre : chargée tout de suite, jouée au premier geste du joueur
 const music = new Music();
 music.load(level.music);
@@ -756,6 +748,10 @@ function setupSkinLab() {
   document.title = 'The Ninja Adventure — Test';
   const lab = document.createElement('div');
   lab.className = 'lab';
+  // tout le panneau (skins, chapitres, zones…) s'ouvre et se ferme d'un seul bouton ; fermé, on ne voit que
+  // ce bouton (demande de Raph : que le panneau n'empiète pas sur l'image)
+  const panel = document.createElement('div');
+  panel.className = 'lab__panel';
   const stop = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const button = (label, title, onClick) => {
     const b = document.createElement('button');
@@ -796,7 +792,7 @@ function setupSkinLab() {
     const n = Number(e.key);
     if (n >= 1 && n <= ids.length) pick(ids[n - 1]);
   });
-  lab.append(bar);
+  panel.append(bar);
   // --- chapitres : un clic recharge la page sur le chapitre choisi ---
   const chapters = Object.entries(LEVELS).filter(([, l]) => l.chapter != null).sort((a, b) => a[1].chapter - b[1].chapter);
   const row = document.createElement('div');
@@ -829,18 +825,18 @@ function setupSkinLab() {
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
-  lab.append(row);
+  panel.append(row);
   // témoin du son (pour comprendre, sur l'appareil de l'utilisateur, pourquoi une musique ne sort pas)
   const sound = document.createElement('div');
   sound.className = 'lab__row lab__sound';
   const soundText = document.createElement('span');
   sound.append(soundText);
-  lab.append(sound);
+  panel.append(sound);
   const SOUND = { running: 'en marche', suspended: 'suspendu', interrupted: 'interrompu', closed: 'fermé' };
   setInterval(() => {
     const ac = audioOutput()?.ac;
     const it = !intro || intro.closing ? 'finie' : intro.gated ? 'en attente' : intro.voice ? 'musique' : intro.waking ? 'démarrage…' : 'sans musique';
-    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'}${isMuted() ? ' (coupé)' : ''} · Intro : ${it}`);
+    setText(soundText, `Son : ${ac ? SOUND[ac.state] ?? ac.state : 'aucun'} · Intro : ${it}`);
   }, 500);
   // --- zones : ← Zone 03 → pose KAGE à la lanterne de la zone ---
   if (level.zones.length && !level.arena) {
@@ -855,8 +851,18 @@ function setupSkinLab() {
     const next = button('→', 'Zone suivante', () => gotoZone(cur() + 1));
     next.dataset.zone = 'next';
     zr.append(prev, labZone, next);
-    lab.append(zr);
+    panel.append(zr);
   }
+  const toggle = button('Réglages', 'Ouvrir ou fermer le panneau de test', () => setOpen(panel.hidden));
+  toggle.className = 'lab__toggle';
+  toggle.dataset.labToggle = '';
+  function setOpen(open) {
+    panel.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    labSet('open', open ? '1' : '0');
+  }
+  setOpen(labGet('open') === '1');      // fermé au premier lancement, puis comme on l'a laissé
+  lab.append(toggle, panel);
   uiLayer.append(lab);
   pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
 }
@@ -886,7 +892,6 @@ function gotoZone(i) {
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
-  if (input.wasPressed('mute')) { setMuted(!isMuted()); refreshMute(); input.pressed.delete('mute'); }
   // écran titre ou boutique ouverte : le monde attend
   if (run.paused) {
     if (shop.isOpen && input.wasPressed('escape')) shop.close();
@@ -1192,7 +1197,7 @@ function draw() {
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
   arenaArt?.drawFront(ctx, cam, level.time);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail);
+  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(ctx, cam);
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
@@ -1203,7 +1208,7 @@ function draw() {
     t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn' && !behindGate()) {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31);
+    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
   player.energy.draw(ctx, 13, 13, { always: true });
@@ -1402,7 +1407,9 @@ function startChapter(resume) {
   save.skins ??= ['encre'];   // sauvegarde d'avant les skins
   save.chests ??= [];        // sauvegarde d'avant les coffres
   save.cranes ??= [];        // grues dont la corde a été coupée
-  save.skin = save.skins.includes(save.skin) || TEST_BUILD ? save.skin ?? 'encre' : 'encre';
+  save.skins = save.skins.filter((id) => skins[id]);   // (un skin retiré du jeu, comme le voyageur, s'efface)
+  if (!save.skins.includes('encre')) save.skins.unshift('encre');
+  save.skin = (save.skins.includes(save.skin) || TEST_BUILD) && skins[save.skin] ? save.skin : 'encre';
   if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);
   run.time = save.time;
@@ -1448,9 +1455,8 @@ async function playIntro() {
   // la musique finit : le menu s'efface avec l'image, puis l'intro recommence (le menu revient à son heure)
   it.onFade = () => { title.classList.add('waiting'); document.activeElement?.blur?.(); };
   it.start();
-  // sans son (coupé), ou son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
-  if (isMuted()) it.begin(false);
-  else if (musicOutput()?.ac.state === 'running') it.begin(true);
+  // son déjà débloqué : l'intro commence tout de suite ; sinon elle attend un geste
+  if (musicOutput()?.ac.state === 'running') it.begin(true);
 }
 /** Place l'intro et le menu sur l'image de jeu (à chaque changement de taille). */
 function placeIntro() {
@@ -1468,13 +1474,13 @@ function introGesture(e) {
   if (!intro || intro.closing || e.target?.closest?.('.lab')) return;
   if (e.type !== 'keydown' && !stage.contains(e.target)) return;   // (souris et doigt : sur l'image du jeu seulement)
   if (intro.gated) {
-    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(!isMuted()); intro.begunAt = performance.now(); }
+    if (e.type !== 'pointerdown') { unlockAudio(); intro.begin(true); intro.begunAt = performance.now(); }
     return;
   }
   // (le geste qui vient de lancer l'intro ne la passe pas : une touche tenue, ou le clic qui suit le doigt levé)
   const fresh = performance.now() - (intro.begunAt ?? 0) < 400;
   if ((e.type === 'keydown' || e.type === 'pointerdown') && !fresh && !intro.menuShown) intro.skip();
-  if (!intro.clock && !isMuted()) { unlockAudio(); intro.wake(); }
+  if (!intro.clock) { unlockAudio(); intro.wake(); }
 }
 for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click']) addEventListener(t, introGesture, { capture: true, passive: true });
 /** La partie commence : l'intro s'efface sur le jeu. */
@@ -1716,11 +1722,11 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 fit();
-pixelUI([...document.querySelectorAll('.bar'), uiLayer, document.querySelector('.mute')]);
+pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
