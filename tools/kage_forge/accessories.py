@@ -1354,13 +1354,13 @@ FOX_MASK_DX, FOX_MASK_DY = 5, -1
 
 # les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
 FOX_TIES = {
+    # (raccourcis de trois pixels le 17 novembre 2026, demande de Raph)
     1: (-4, "bBi"),
-    2: (-8, "bBBBBi"),
-    3: (-11, "JbBBBBb"),
-    4: (-11, "J.GFFFb"),
-    5: (-9, "GFFf"),
-    6: (-10, "GFf"),
-    7: (-10, "Ff"),
+    2: (-6, "bBBi"),
+    3: (-8, "JbBBb"),
+    4: (-8, "JGFFb"),
+    5: (-7, "GFf"),
+    6: (-7, "Ff"),
 }
 
 
@@ -1465,29 +1465,44 @@ def haori(g):
 # de renard ») : dessiné à la main pour chaque vent (calé à droite contre le bas du dos, première rangée
 # relative à la ceinture) ; il pend au repos, file derrière lui en course, se soulève en chute
 FOX_TAIL = {
-    # (la forme validée, son bout raccourci d'un pixel et sa dernière rangée retirée le 17 novembre 2026 :
-    # il traînait un peu trop, Raph)
-    "calm": (0, [
-        ".....pPP.",
-        "...pPPPPP",
-        ".pPPpPPPQ",
-        "pPPpPPPQQ",
-        "QPPPPQQQ.",
-        "QQiQQ....",
+    # le pan part du milieu du dos (et non plus de la ceinture : on croyait qu'il sortait des jambes), large
+    # contre le dos, et s'arrête au-dessus des pieds ; en course, il reste près du dos et tombe au lieu de
+    # traîner à l'horizontale (on y devinait une queue) — demandes de Raph, 17 novembre 2026
+    "calm": (-5, [
+        "......pPPP",
+        ".....pPPPP",
+        "....pPPPPP",
+        "...pPPpPPP",
+        "..pPPpPPPP",
+        ".pPPpPPPPP",
+        "pPPpPPPPQQ",
+        "pPPPPPQQQ.",
+        "QPPPQQQ...",
+        "QQiQQ.....",
     ]),
-    "back": (-1, [
+    "back": (-5, [
         ".....pPPP",
-        ".ppPPpPPP",
-        "QPPPPPPPQ",
-        "QiQQQQQ..",
+        "....pPPPP",
+        "...pPPPPP",
+        "..pPpPPPP",
+        ".pPPpPPPP",
+        "pPPpPPPQQ",
+        "QPPPPQQ..",
+        "QiQQ.....",
     ]),
-    "up": (-4, [
-        "Q.......",
-        "iPp.....",
-        "QPPPp...",
-        ".pPPPPp.",
-        "...QPPPP",
-        "....QQQP",
+    "up": (-6, [
+        "QQ.......",
+        "QiPp.....",
+        ".QPPPp...",
+        "..pPPPPpP",
+        "...QPPPPP",
+        "....QQQPP",
+    ]),    # en boule, pendant un salto : plus ramassé (sinon une grande aile rouge alourdissait la boule)
+    "flip": (-3, [
+        "....pPP",
+        "..pPPPP",
+        ".pPPPPQ",
+        "QPPQQ..",
     ]),
 }
 
@@ -1505,6 +1520,9 @@ def fox_tail(g):
         return g, False
     xs = min(edges)
     wind = _wind(g, hx, hy)
+    # un salto : la forge trace ses pans après, la pose n'en a pas (comme pour le filet du pêcheur)
+    if not any(g[y, x] in "fFG" for y in range(CH) for x in range(max(0, hx + 2))):
+        wind = "flip"
     dy0, rows = FOX_TAIL[wind]
     g = g.copy()
     mask = np.zeros(g.shape, bool)
