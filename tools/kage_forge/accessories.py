@@ -1331,7 +1331,7 @@ def mask_mark(g):
 # ---------------------------------------------------------------------------
 # L'Apprenti Tengu (planche de Raph, n° 13) : un masque blanc lisse à œil unique, une spirale rouge qui part de
 # l'œil, s'enroule vers l'extérieur et finit dans le bord bas du masque (choix de Raph, après l'abandon du masque de renard : on n'y devinait pas
-# assez le renard à notre échelle de pixels) ; capuche sombre derrière et sa petite mèche nouée, deux rubans
+# assez le renard à notre échelle de pixels) ; capuche sombre derrière, deux rubans
 # (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au devant rouge, cordelette en
 # damier ; pantalon blanc à bande rouge ; le long pan du manteau, rouge bordé de blanc, qui fait cape et suit
 # le vent de la pose (comme la cape du samouraï).
@@ -1350,7 +1350,7 @@ bJBBJJBBi
 .bbJBBBb.
 ..bbJbb..
 """
-FOX_MASK_DX, FOX_MASK_DY = 5, -1
+FOX_MASK_DX, FOX_MASK_DY = 4, -1
 
 # les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
 FOX_TIES = {
@@ -1365,8 +1365,7 @@ FOX_TIES = {
 
 
 def fox_mask(g):
-    """Le masque à œil unique et sa spirale (FOX_MASK), la petite mèche nouée au sommet de la capuche, et les
-    deux rubans."""
+    """Le masque à œil unique et sa spirale (FOX_MASK), collé contre le visage, et les deux rubans."""
     pos = find_head(g)
     if pos is None:
         return g, False
@@ -1383,12 +1382,7 @@ def fox_mask(g):
             if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
                 g[y, x] = c
                 mask[y, x] = True
-    # la mèche nouée, à l'arrière du sommet
-    for dx, dy, c in ((3, -1, "h"), (2, -2, "H"), (3, -2, "h")):
-        x, y = hx + dx, hy + dy
-        if 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
-            g[y, x] = c
-            mask[y, x] = True
+    # (plus de mèche nouée au sommet : la petite crête noire ressortait derrière le masque, Raph)
     for j, row in enumerate(_rows(FOX_MASK)):
         for i, c in enumerate(row):
             x, y = hx + FOX_MASK_DX + i, hy + FOX_MASK_DY + j
