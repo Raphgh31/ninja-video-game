@@ -1507,6 +1507,11 @@ FOX_TAIL = {
 }
 
 
+# tout le bloc du manteau rapproché du dos (il dépasse d'autant moins derrière lui ; demande de Raph, 17 novembre
+# 2026) : la forme ne change pas, ce qui passe derrière le corps est caché
+FOX_TAIL_IN = 2
+
+
 def fox_tail(g):
     pos = find_head(g)
     b = _belt(g)
@@ -1528,7 +1533,7 @@ def fox_tail(g):
     mask = np.zeros(g.shape, bool)
     for j, row in enumerate(rows):
         for i, c in enumerate(row):
-            x, y = xs - len(row) + 1 + i, by + dy0 + j
+            x, y = xs - len(row) + 1 + i + FOX_TAIL_IN, by + dy0 + j
             if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
                 g[y, x] = c
                 mask[y, x] = True
