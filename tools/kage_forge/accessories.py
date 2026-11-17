@@ -1333,10 +1333,10 @@ def mask_mark(g):
 # l'œil, s'enroule vers l'extérieur et finit dans le bord bas du masque (choix de Raph, après l'abandon du masque de renard : on n'y devinait pas
 # assez le renard à notre échelle de pixels) ; capuche sombre derrière et sa petite mèche nouée, deux rubans
 # (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au devant rouge, cordelette en
-# damier ; pantalon blanc à bande rouge ; une queue de renard rouge à pointe blanche, qui suit le vent de la
-# pose (comme la cape du samouraï).
+# damier ; pantalon blanc à bande rouge ; le long pan du manteau, rouge bordé de blanc, qui fait cape et suit
+# le vent de la pose (comme la cape du samouraï).
 # Lettres : B b i blanc du masque · J la spirale rouge · O l'œil · f F G rouges (rubans, devant, pantalon)
-# r p P Q queue (sombre, ombre, rouge, blanc)
+# r p P Q pan du manteau (sombre, ombre, rouge, blanc)
 # ---------------------------------------------------------------------------
 FOX_MASK = """
 ..bBBBi..
@@ -1461,30 +1461,33 @@ def haori(g):
     return g, True
 
 
-# la queue de renard, dessinée à la main pour chaque vent (calée à droite contre le bas du dos, première
-# rangée relative à la ceinture) : elle pend et balaie le sol au repos, file derrière lui en course, se soulève
-# en chute
+# le long pan du manteau, rouge bordé de blanc, qui fait cape derrière lui (on l'appelait d'abord « queue
+# de renard ») : dessiné à la main pour chaque vent (calé à droite contre le bas du dos, première rangée
+# relative à la ceinture) ; il pend au repos, file derrière lui en course, se soulève en chute
 FOX_TAIL = {
-    # (raccourcie le 17 novembre 2026, demande de Raph : elle traînait trop)
+    # (la forme validée, son bout raccourci d'un pixel et sa dernière rangée retirée le 17 novembre 2026 :
+    # il traînait un peu trop, Raph)
     "calm": (0, [
-        "....pPP.",
-        "..pPPPPP",
-        ".pPpPPPQ",
-        "QpPPPQQ.",
-        "QiQQ....",
+        ".....pPP.",
+        "...pPPPPP",
+        ".pPPpPPPQ",
+        "pPPpPPPQQ",
+        "QPPPPQQQ.",
+        "QQiQQ....",
     ]),
     "back": (-1, [
-        "....pPPP",
-        "..pPpPPP",
-        "QpPPPPPQ",
-        "QiQQQQ..",
+        ".....pPPP",
+        ".ppPPpPPP",
+        "QPPPPPPPQ",
+        "QiQQQQQ..",
     ]),
-    "up": (-3, [
-        "QQ......",
-        "QiPp....",
-        ".QPPPp..",
+    "up": (-4, [
+        "Q.......",
+        "iPp.....",
+        "QPPPp...",
+        ".pPPPPp.",
         "...QPPPP",
-        ".....QQP",
+        "....QQQP",
     ]),
 }
 
