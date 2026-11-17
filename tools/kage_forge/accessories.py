@@ -1342,14 +1342,14 @@ B....B....
 BJ...BJ...
 BJB..BJB..
 BJJBBBJJB.
-bBBBBBBBB.
-bBJBBBJBi.
+bBBJBBJBB.
+bBJJBJJBi.
 bBBBBBBBB.
 bOOBBBOOB.
-bBBJBBBBBB
-bBBBBBBBJB
+bBJBBBBJBB
+bBJJBBBBJB
 bBBBBBBBBj
-bbBBBBBbb.
+bbBBBBBJb.
 bbbbbbb...
 """
 FOX_MASK_DX, FOX_MASK_DY = 5, -5
@@ -1403,8 +1403,9 @@ def fox_mask(g):
 
 
 def haori(g):
-    """La veste blanche (la tenue) au devant rouge : sur la poitrine, les trois pixels de devant, et la manche
-    avant, passent au rouge ; sous la ceinture, le pantalon est rouge, un pan blanc devant les cuisses."""
+    """La tenue de l'apprenti tengu, d'après le modèle : la veste blanche au col blanc, la poitrine rouge (les
+    trois pixels de devant), la manche arrière blanche au poignet rouge ; le pantalon blanc, une bande rouge sur
+    le devant de chaque jambe, les tibias sombres au-dessus des chaussures."""
     b = _belt(g)
     pos = find_head(g)
     if b is None or pos is None:
@@ -1424,7 +1425,7 @@ def haori(g):
             continue
         front = xs[-1]
         for x in xs:
-            if x >= front - 1:
+            if x >= front - 2:
                 g[y, x] = RED[g[y, x]]
     # la manche arrière blanche, son poignet rouge (le bas de l'avant-bras)
     arm = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "aA"]
@@ -1433,16 +1434,26 @@ def haori(g):
         for y, x in arm:
             if y < low:
                 g[y, x] = "T" if g[y, x] == "A" else "t"
+    # les jambes : les tibias sombres (les deux rangées au-dessus de la chaussure), une bande rouge devant
+    for x in range(CW):
+        for y in range(by + 1, CH):
+            if g[y, x] in "dD":
+                for k in (1, 2):
+                    if y - k > by + 1 and g[y - k, x] in "tTU":
+                        g[y - k, x] = "h" if g[y - k, x] == "t" else "H"
+                break
     for y in range(by + 1, CH):
-        for x in range(CW):
+        x = 0
+        while x < CW:
             if g[y, x] in "tTU":
-                g[y, x] = RED[g[y, x]]
-    # le pan blanc, sous l'avant de la ceinture
-    for j, row in enumerate(("TU", "TU", "tT")):
-        for i, c in enumerate(row):
-            x, y = be - 3 + i, by + 1 + j
-            if 0 <= x < CW and 0 <= y < CH and g[y, x] in "fFG":
-                g[y, x] = c
+                e = x
+                while e < CW and g[y, e] in "tTU":
+                    e += 1
+                if e - x >= 2:
+                    g[y, e - 1] = RED[g[y, e - 1]]          # le devant de la jambe
+                x = e
+            else:
+                x += 1
     return g, True
 
 
