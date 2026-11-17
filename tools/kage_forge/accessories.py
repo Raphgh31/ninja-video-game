@@ -1338,30 +1338,30 @@ def mask_mark(g):
 # r p P Q queue (sombre, ombre, rouge, blanc)
 # ---------------------------------------------------------------------------
 FOX_MASK = """
-B....B....
-BJ...BJ...
-BJB..BJB..
-BJJBBBJJB.
-bBBJBBJBB.
-bBJJBJJBi.
-bBBBBBBBB.
-bOOBBBOOB.
-bBJBBBBJBB
-bBJJBBBBJB
-bBBBBBBBBj
-bbBBBBBJb.
-bbbbbbb...
+...B...B.....
+..BJB.BJB....
+.bBJJBBJJB...
+bBBBBBBBBBi..
+bBJJJiBBBBBi.
+bBBBBJJBBBiBi
+bBBBOOBBBBBBB
+bBBBBOOOBBBBO
+bBBBBBBBJJJJ.
+bbBBBBBBBb...
+.bbBBBBbb....
+..bbbbb......
 """
-FOX_MASK_DX, FOX_MASK_DY = 5, -5
+FOX_MASK_DX, FOX_MASK_DY = 5, -4
 
 # les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
 FOX_TIES = {
-    2: (-6, "BBi"),
-    3: (-9, "FBBBBBi"),
-    4: (-10, "FFb..BBb"),
-    5: (-7, "FFG"),
-    6: (-8, "FFf"),
-    7: (-9, "Ff"),
+    1: (-4, "bBi"),
+    2: (-8, "bBBBBi"),
+    3: (-11, "JbBBBBb"),
+    4: (-11, "J.GFFFb"),
+    5: (-9, "GFFf"),
+    6: (-10, "GFf"),
+    7: (-10, "Ff"),
 }
 
 
@@ -1427,6 +1427,10 @@ def haori(g):
         for x in xs:
             if x >= front - 2:
                 g[y, x] = RED[g[y, x]]
+    # la boucle dorée, au milieu de la ceinture
+    mid = (bx + be) // 2
+    if g[by, mid] in "lL":
+        g[by, mid] = "S"
     # la manche arrière blanche, son poignet rouge (le bas de l'avant-bras)
     arm = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "aA"]
     if arm:
@@ -1462,25 +1466,27 @@ def haori(g):
 # en chute
 FOX_TAIL = {
     "calm": (0, [
-        ".....pPP",
-        "...pPPPP",
-        ".pPPPPPQ",
-        "pPPPPPQQ",
-        "rPPPQQQ.",
-        ".rQQQ...",
+        "......pPP.",
+        "....pPPPPP",
+        "..pPPpPPPQ",
+        ".pPPpPPPQQ",
+        "QpPPPPQQQ.",
+        "QQQiQQ....",
+        ".QiQ......",
     ]),
     "back": (-1, [
-        "......pP",
-        "..ppPPPP",
-        "rPPPPPPQ",
-        ".rQQQQQ.",
+        "......pPPP",
+        "..ppPPpPPP",
+        "QpPPPPPPPQ",
+        "QQiQQQQQ..",
     ]),
     "up": (-4, [
-        "rP......",
-        ".PPp....",
-        "..PPPp..",
-        "...QPPPp",
-        ".....QQP",
+        "QQ.......",
+        "QiPp.....",
+        ".QPPPp...",
+        "..pPPPPp.",
+        "....QPPPP",
+        ".....QQQP",
     ]),
 }
 
