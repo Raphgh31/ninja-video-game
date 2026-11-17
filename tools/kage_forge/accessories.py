@@ -1341,19 +1341,19 @@ FOX_MASK = """
 B....B....
 BB...BB...
 BJB..BJB..
-BJJBBBJJB.
-bBBBBBBBi.
-bJJBBJJBi.
-bBJBBBJBB.
-bBBBBBBBB.
-bBBOOOBBB.
-bBBBBOOBBB
-bJBBBBBBBO
-bbJBBBBJJ.
-.bbBBBBb..
-..bbbbb...
+bJJBBBJJB.
+bBBBiiBBBi
+bJBBBJJBBi
+bBJBBBBJBB
+bOBBBBBOOB
+bBOOBOOBBB
+bbBBBBBiBB
+bbJBBBBOBB
+.bbBBBJJb.
+..bbBBBbb.
+...bbbbb..
 """
-FOX_MASK_DX, FOX_MASK_DY = 5, -4
+FOX_MASK_DX, FOX_MASK_DY = 4, -4
 
 # les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
 FOX_TIES = {
