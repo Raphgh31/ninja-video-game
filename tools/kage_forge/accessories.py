@@ -1329,8 +1329,8 @@ def mask_mark(g):
 
 
 # ---------------------------------------------------------------------------
-# L'Apprenti Tengu (planche de Raph, n° 13) : masque blanc de renard sur l'avant du visage (oreilles dedans
-# rouges, marques rouges, fentes des yeux, museau à la truffe rouge), capuche sombre derrière et sa petite
+# L'Apprenti Tengu (planche de Raph, n° 13) : masque blanc de renard sur l'avant de la tête, au volume du modèle
+# (grandes oreilles droites rouges dedans, flammes rouges au front, œil en trait oblique, joue, truffe noire, bouche), capuche sombre derrière et sa petite
 # mèche nouée, deux rubans (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au
 # devant rouge, cordelette blanche en diagonale ; pantalon rouge au pan blanc ; une queue de renard rouge
 # bordée de blanc, qui suit le vent de la pose (comme la cape du samouraï).
@@ -1338,18 +1338,20 @@ def mask_mark(g):
 # r p P Q queue (sombre, ombre, rouge, blanc)
 # ---------------------------------------------------------------------------
 FOX_MASK = """
-...B...B.....
-..BJB.BJB....
-.bBJJBBJJB...
-bBBBBBBBBBi..
-bBJJJiBBBBBi.
-bBBBBJJBBBiBi
-bBBBOOBBBBBBB
-bBBBBOOOBBBBO
-bBBBBBBBJJJJ.
-bbBBBBBBBb...
-.bbBBBBbb....
-..bbbbb......
+B....B....
+BB...BB...
+BJB..BJB..
+BJJBBBJJB.
+bBBBBBBBi.
+bJJBBJJBi.
+bBJBBBJBB.
+bBBBBBBBB.
+bBBOOOBBB.
+bBBBBOOBBB
+bJBBBBBBBO
+bbJBBBBJJ.
+.bbBBBBb..
+..bbbbb...
 """
 FOX_MASK_DX, FOX_MASK_DY = 5, -4
 
