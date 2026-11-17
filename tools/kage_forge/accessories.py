@@ -1329,29 +1329,28 @@ def mask_mark(g):
 
 
 # ---------------------------------------------------------------------------
-# L'Apprenti Tengu (planche de Raph, n° 13) : masque blanc de renard sur l'avant de la tête, au volume du modèle
-# (grandes oreilles droites rouges dedans, flammes rouges au front, œil en trait oblique, joue, truffe noire, bouche), capuche sombre derrière et sa petite
-# mèche nouée, deux rubans (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au
-# devant rouge, cordelette blanche en diagonale ; pantalon rouge au pan blanc ; une queue de renard rouge
-# bordée de blanc, qui suit le vent de la pose (comme la cape du samouraï).
-# Lettres : B b i blanc du masque · j J rouge des marques · O fentes · f F G rouges (rubans, devant, pantalon)
+# L'Apprenti Tengu (planche de Raph, n° 13) : un masque blanc lisse à œil unique, une spirale rouge qui part de
+# l'œil, s'enroule vers l'extérieur et finit dans le bord bas du masque (choix de Raph, après l'abandon du masque de renard : on n'y devinait pas
+# assez le renard à notre échelle de pixels) ; capuche sombre derrière et sa petite mèche nouée, deux rubans
+# (blanc bordé de rouge, et rouge) qui flottent derrière la tête ; veste blanche au devant rouge, cordelette en
+# damier ; pantalon blanc à bande rouge ; une queue de renard rouge à pointe blanche, qui suit le vent de la
+# pose (comme la cape du samouraï).
+# Lettres : B b i blanc du masque · J la spirale rouge · O l'œil · f F G rouges (rubans, devant, pantalon)
 # r p P Q queue (sombre, ombre, rouge, blanc)
 # ---------------------------------------------------------------------------
 FOX_MASK = """
-B.....B...
-BJ...BJB..
-BJB.BBJB..
-bJBBBBBB..
-bBBJBBJi..
-bBBBJBBi..
-bJOBBJBB..
-bBBOOBBBi.
-bBBBBBBBBO
-bBJBBBJJ..
-.bJBbBBB..
-..bbbbbb..
+..bBBBi..
+.bBJJJJi.
+bBJBBBBJi
+bJBBJJBJB
+bJBJBOBJB
+bJBJBBJBB
+bJBBJJBBi
+.bJBBBBB.
+.bbJBBBb.
+..bbJbb..
 """
-FOX_MASK_DX, FOX_MASK_DY = 5, -4
+FOX_MASK_DX, FOX_MASK_DY = 5, -1
 
 # les deux rubans du masque, qui flottent derrière la tête (rangée relative à hy : colonne, motif)
 FOX_TIES = {
@@ -1366,7 +1365,8 @@ FOX_TIES = {
 
 
 def fox_mask(g):
-    """Le masque de renard, la petite mèche nouée au sommet de la capuche, et les deux rubans."""
+    """Le masque à œil unique et sa spirale (FOX_MASK), la petite mèche nouée au sommet de la capuche, et les
+    deux rubans."""
     pos = find_head(g)
     if pos is None:
         return g, False
