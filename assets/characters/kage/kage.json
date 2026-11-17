@@ -1684,13 +1684,15 @@
     "or",
     "paysan",
     "pecheur",
-    "samourai"
+    "samourai",
+    "tengu"
   ],
   "accessorySheets": {
     "or": "kage_acc_or_index.png",
     "paysan": "kage_acc_paysan_index.png",
     "pecheur": "kage_acc_pecheur_index.png",
-    "samourai": "kage_acc_samourai_index.png"
+    "samourai": "kage_acc_samourai_index.png",
+    "tengu": "kage_acc_tengu_index.png"
   },
   "projectiles": {
     "shuriken": {

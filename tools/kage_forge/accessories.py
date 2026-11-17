@@ -1465,28 +1465,26 @@ def haori(g):
 # rangée relative à la ceinture) : elle pend et balaie le sol au repos, file derrière lui en course, se soulève
 # en chute
 FOX_TAIL = {
+    # (raccourcie le 17 novembre 2026, demande de Raph : elle traînait trop)
     "calm": (0, [
-        "......pPP.",
-        "....pPPPPP",
-        "..pPPpPPPQ",
-        ".pPPpPPPQQ",
-        "QpPPPPQQQ.",
-        "QQQiQQ....",
-        ".QiQ......",
+        "....pPP.",
+        "..pPPPPP",
+        ".pPpPPPQ",
+        "QpPPPQQ.",
+        "QiQQ....",
     ]),
     "back": (-1, [
-        "......pPPP",
-        "..ppPPpPPP",
-        "QpPPPPPPPQ",
-        "QQiQQQQQ..",
+        "....pPPP",
+        "..pPpPPP",
+        "QpPPPPPQ",
+        "QiQQQQ..",
     ]),
-    "up": (-4, [
-        "QQ.......",
-        "QiPp.....",
-        ".QPPPp...",
-        "..pPPPPp.",
-        "....QPPPP",
-        ".....QQQP",
+    "up": (-3, [
+        "QQ......",
+        "QiPp....",
+        ".QPPPp..",
+        "...QPPPP",
+        ".....QQP",
     ]),
 }
 
