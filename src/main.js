@@ -15,7 +15,7 @@ import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
-import { Shop } from './game/shop.js';
+import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
@@ -251,7 +251,7 @@ const shop = new Shop(document.querySelector('.shop'), {
   skins, meta, test: TEST_BUILD,
   buy(id) {
     const sk = skins[id];
-    if (!save || save.skins.includes(id) || save.ryo < sk.price) return false;
+    if (!save || sk.reward || save.skins.includes(id) || save.ryo < sk.price) return false;   // (une récompense ne s'achète pas)
     save.ryo -= sk.price;
     save.skins.push(id);
     sfx('coin');
@@ -455,7 +455,7 @@ function onKarasuEvent(n, d) {
       fx.shake(3, 0.4);
       fx.drift(d.x, d.y - 30, 16, { speed: 90, up: 60, life: 1.6 });
       bossUi.outro = 1.3;          // puis le talisman se déchire et la porte s'ouvre
-      if (save) { save.bossDefeated = true; persist(); }
+      if (save) { save.bossDefeated = true; earnRewards(save); persist(); }
       break;
     default:
   }
@@ -768,7 +768,7 @@ function setupSkinLab() {
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Skins');
   const f = meta.animations.idle.frames[0];
-  const ids = Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0) || skins[a].name.localeCompare(skins[b].name));
+  const ids = skinOrder(skins);
   const buttons = ids.map((id, i) => {
     const b = button('', `${skins[id].name} (touche ${i + 1})`, () => pick(id));
     b.dataset.skin = id;
@@ -1400,6 +1400,12 @@ function savedCheckpoint(s) {
 }
 
 /** Écran titre : continuer la partie enregistrée, ou en commencer une nouvelle. */
+/** Les skins de récompense (champ `reward` : « karasu » = le trophée du corbeau, gagné en battant KARASU-KASHI ;
+ *  au-delà du Potager, il l'a forcément été) : ils rejoignent la garde-robe, sans achat. */
+function earnRewards(sv) {
+  const won = { karasu: !!sv.bossDefeated || sv.chapter !== 'potager' };
+  for (const [id, sk] of Object.entries(skins)) if (sk.reward && won[sk.reward] && !sv.skins.includes(id)) sv.skins.push(id);
+}
 function startChapter(resume) {
   const s = resume ? loadSave() : null;
   if (!resume) clearSave();
@@ -1409,6 +1415,7 @@ function startChapter(resume) {
   save.cranes ??= [];        // grues dont la corde a été coupée
   save.skins = save.skins.filter((id) => skins[id]);   // (un skin retiré du jeu, comme le voyageur, s'efface)
   if (!save.skins.includes('encre')) save.skins.unshift('encre');
+  earnRewards(save);
   save.skin = (save.skins.includes(save.skin) || TEST_BUILD) && skins[save.skin] ? save.skin : 'encre';
   if (!SKIN_LAB) wearSkin(save.skin);   // dans la cabine, c'est la barre des skins qui décide
   level.applySave(save);

@@ -1603,7 +1603,141 @@ def emeralds(g):
     return g, done
 
 
+
+# ---------------------------------------------------------------------------
+# Le trophée du corbeau (18 novembre 2026, récompense de la victoire sur KARASU-KASHI, sans planche de modèle) :
+# le ninja porte les dépouilles du corbeau : une collerette de ses plumes sur les épaules (noir-bleu, reflets
+# sarcelle), une longue plume plantée dans le nœud du bandeau, et les bandes rouges et blanches de ses pattes
+# serrées aux chevilles.
+# Lettres : b B i plumes (ombre, noir-bleu, reflet sarcelle) · c C bandes (blanc, rouge)
+# ---------------------------------------------------------------------------
+# la plume du bandeau, plantée dans le nœud : (gabarit, colonne et rangée de son pied par rapport à la tête).
+# Le pied (dernier caractère de la dernière rangée) se pose sur le nœud ; la plume monte vers l'arrière, raide
+# (une plume de rémige : elle plie à peine) ; en course, le vent la couche un peu plus.
+CROW_FEATHER = {
+    "calm": ((-2, 2), [
+        "i....",
+        "iB...",
+        ".iB..",
+        ".iBb.",
+        "..iBb",
+        "..iBb",
+        "...Bb",
+        "...cb",
+        "....c",
+    ]),
+    "back": ((-2, 2), [
+        "ii.......",
+        ".iiBB....",
+        "..bBBBb..",
+        "....bbBbc",
+        ".......cc",
+    ]),
+    "up": ((-2, 2), [
+        "i....",
+        "iB...",
+        ".iB..",
+        ".iBb.",
+        "..iBb",
+        "..iBb",
+        "...Bb",
+        "...cb",
+        "....c",
+    ]),
+}
+
+
+def crow_feather(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    (fx, fy), rows = CROW_FEATHER[_wind(g, hx, hy)]
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    w, h = len(rows[0]), len(rows)
+    for j, row in enumerate(rows):
+        for i, c in enumerate(row):
+            x, y = hx + fx - (w - 1) + i, hy + fy - (h - 1) + j
+            if c != "." and 0 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
+def crow_collar(g):
+    """La collerette de plumes : l'écharpe du cou devient un rang de plumes (écailles noir-bleu et sarcelle),
+    dont les pointes retombent d'un pixel sur la poitrine ; sur l'épaule arrière, les plumes débordent du dos
+    en pointes (plus ébouriffées dans le vent de la course)."""
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    done = False
+    rows = [y for y in range(hy + 7, min(CH, hy + 12)) if any(g[y, x] in "fFG" for x in range(max(0, hx - 1), min(CW, hx + 11)))]
+    if not rows:
+        return g, False
+    for y in rows:
+        for x in range(max(0, hx - 1), min(CW, hx + 11)):
+            if g[y, x] in "fFG":
+                k = (x + (y - rows[0])) % 3
+                g[y, x] = ("iiB"[k] if y == rows[0] else "BBb"[k])
+                done = True
+    # l'agrafe d'or (l'œil du corbeau) qui ferme la collerette, à l'avant du premier rang
+    front = [x for x in range(max(0, hx - 1), min(CW, hx + 11)) if g[rows[0], x] in "bBi"]
+    if front:
+        g[rows[0], max(front) - 1] = "J"
+    # les pointes, sous le dernier rang : un pixel sur deux
+    y = rows[-1] + 1
+    if y < CH:
+        for x in range(max(0, hx - 1), min(CW, hx + 11)):
+            if g[y - 1, x] in "bBi" and g[y, x] in "tTU" and x % 2 == 0:
+                g[y, x] = "b"
+    # sur l'épaule arrière, les plumes qui débordent du dos
+    xl = _back_edge(g, hy + 11, hx, TORSO)
+    if xl is not None:
+        mask = np.zeros(g.shape, bool)
+        wind = _wind(g, hx, hy)
+        shape = (((8, -1, "iB"), (9, -3, "iiBB"), (10, -4, "iBBbB"), (11, -4, "BbBbb"), (12, -4, "b.Bb"),
+                  (13, -4, "b..b"))
+                 if wind != "back" else
+                 ((8, -2, "iiB"), (9, -5, "biiBB"), (10, -6, "b.bBBb"), (11, -4, "b.b")))
+        for dy, x0, cols in shape:
+            yy = hy + dy
+            for k, c in enumerate(cols):
+                x = xl + x0 + k
+                if c != "." and 0 <= x < CW and 0 <= yy < CH and (g[yy, x] in BG or g[yy, x] in "fFGkK" or g[yy, x] in TORSO):
+                    g[yy, x] = c
+                    mask[yy, x] = True
+        _outline(g, mask)
+    return g, done
+
+
+def crow_wraps(g):
+    """Les bandes rouges et blanches des pattes du corbeau, serrées au bas des jambes, juste au-dessus des
+    chaussures : rouge, blanc, rouge."""
+    g = g.copy()
+    done = False
+    for x in range(CW):
+        for y in range(3, CH):
+            if g[y, x] in "dD" and g[y - 1, x] in "tTU":
+                for k, c in enumerate("CcC"):
+                    if g[y - 1 - k, x] in "tTU":
+                        g[y - 1 - k, x] = c
+                        done = True
+                break
+    return g, done
+
+
 def accessory(name):
+    if name == "crow_feather":
+        return crow_feather
+    if name == "crow_collar":
+        return crow_collar
+    if name == "crow_wraps":
+        return crow_wraps
     if name == "moon_mark":
         return moon_mark
     if name == "night_sky":

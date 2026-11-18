@@ -1680,6 +1680,7 @@
     "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"
   },
   "skins": [
+    "corbeau",
     "emeraude",
     "encre",
     "nocturne",
@@ -1690,6 +1691,7 @@
     "tengu"
   ],
   "accessorySheets": {
+    "corbeau": "kage_acc_corbeau_index.png",
     "emeraude": "kage_acc_emeraude_index.png",
     "nocturne": "kage_acc_nocturne_index.png",
     "or": "kage_acc_or_index.png",
@@ -1872,6 +1874,94 @@
       "faces": true,
       "hudStep": 13,
       "note": "micro-poissons du pêcheur (champ « projectile » du skin) : ils regardent vers la droite, le jeu les retourne vers la gauche"
+    },
+    "feather": {
+      "image": "kage_feather.png",
+      "indexImage": "kage_feather_index.png",
+      "frames": {
+        "fly0": {
+          "x": 0,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 8,
+            "y": 2
+          }
+        },
+        "fly1": {
+          "x": 16,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 8,
+            "y": 2
+          }
+        },
+        "spin0": {
+          "x": 32,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
+        },
+        "spin1": {
+          "x": 48,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 4,
+            "y": 4
+          }
+        },
+        "stuck_wall": {
+          "x": 64,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 9,
+            "y": 2
+          }
+        },
+        "stuck_ground": {
+          "x": 80,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 6,
+            "y": 8
+          }
+        },
+        "stuck_ground_b": {
+          "x": 96,
+          "y": 0,
+          "w": 16,
+          "h": 16,
+          "anchor": {
+            "x": 9,
+            "y": 8
+          }
+        }
+      },
+      "spin": [
+        "fly0",
+        "fly1"
+      ],
+      "hud": "spin0",
+      "ground": [
+        "stuck_ground",
+        "stuck_ground_b"
+      ],
+      "faces": true,
+      "hudStep": 9,
+      "note": "plumes du trophée du corbeau (champ « projectile » du skin) : la pointe vers la droite, le jeu les retourne vers la gauche"
     }
   }
 }
