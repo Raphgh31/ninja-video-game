@@ -28,7 +28,8 @@ export class Menu {
   /**
    * title : la section .title-screen. deps : { meta, skins, profile, saveProfile(p), saves(),
    * chapterOf(save) → { chapter, zone }, continueAdventure(slot), newAdventure(slot),
-   * eraseAdventure(slot), createArena(), joinArena(code), setBackdrop(on), message }
+   * eraseAdventure(slot), createArena(id), joinArena(code), setBackdrop(on), message,
+   * arenas : [{ id, name }] (les arènes, une par chapitre) }
    */
   constructor(title, deps) {
     Object.assign(this, deps);
@@ -254,8 +255,22 @@ export class Menu {
       c.append(el('p', 'm-big', title), b);
       return [c, b];
     };
-    const [c1, b1] = make('Nouvelle arène', 'Accueillir', 'm-gold-btn', () => this.createArena(), 'create');
+    // l'arène du combat (une par chapitre) : on la choisit avant d'accueillir ; les invités la suivent
+    const list = this.arenas ?? [];
+    let pick = Math.max(0, list.findIndex((a) => a.id === this.arenaPick));
+    const [c1, b1] = make('Nouvelle arène', 'Accueillir', 'm-gold-btn', () => this.createArena(list[pick]?.id), 'create');
     b1.dataset.first = '';
+    if (list.length > 1) {
+      const row = el('div', 'm-row');
+      const name = el('p', 'm-ink', list[pick].name);
+      name.dataset.arenaName = '';
+      const turn = (d) => { pick = (pick + d + list.length) % list.length; this.arenaPick = list[pick].id; name.textContent = list[pick].name; };
+      const prev = button('←', 'm-link', () => turn(-1)), next = button('→', 'm-link', () => turn(1));
+      prev.setAttribute('aria-label', 'Arène précédente'); next.setAttribute('aria-label', 'Arène suivante');
+      next.dataset.arenaNext = '';
+      row.append(prev, name, next);
+      c1.insertBefore(row, b1);
+    }
     const [c2] = make('Rejoindre une arène', 'Rejoindre', null, () => this.open('rejoindre'), 'joinScreen');
     cards.append(c1, c2);
     s.body.classList.add('m-mid');

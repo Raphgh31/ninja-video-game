@@ -717,12 +717,14 @@ export class ForetLive {
     // reflet : on recopie, retournée, la bande d'image juste au-dessus de la surface
     if (!w.sub && (w.mirror || !w.flow)) {
       const rh = Math.min(H, 40);
-      for (let k = 0; k < rh; k++) {
+      // (seulement la part de l'eau qui est dans l'image : une eau qui sort à gauche ne déborde pas sur la rive)
+      const rx0 = Math.max(0, x0), rw = Math.min(x0 + W, vw) - rx0;
+      for (let k = 0; k < rh && rw > 0; k++) {
         const sy = y0 - 1 - k, dy = y0 + k;
         if (sy < 0 || dy >= vh || dy < 0) continue;
         const wob = R(Math.sin(time * 2.2 + k * 0.7) * (k > 3 ? 1 : 0));
         ctx.globalAlpha = (w.mirror ? 0.55 : 0.3) * (1 - k / (rh + 4));
-        ctx.drawImage(ctx.canvas, Math.max(0, x0), sy, Math.min(W, vw - Math.max(0, x0)), 1, Math.max(0, x0) + wob, dy, Math.min(W, vw - Math.max(0, x0)), 1);
+        ctx.drawImage(ctx.canvas, rx0, sy, rw, 1, rx0 + wob, dy, rw, 1);
       }
       ctx.globalAlpha = 1;
     }
