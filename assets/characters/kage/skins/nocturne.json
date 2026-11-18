@@ -1,0 +1,29 @@
+{
+  "id": "nocturne",
+  "name": "Le ninja nocturne",
+  "rarity": "commun",
+  "price": 120,
+  "description": "Tenue bleu nuit semée d'étoiles, un croissant de lune sur le front.",
+  "blurb": "Il ne sort qu'à la nuit tombée.",
+  "accessories": ["night_sky", "moon_mark"],
+  "colors": {
+    "O": "#05060f",
+    "h": "#0b1230", "H": "#16204a", "I": "#2a3a72",
+    "M": "#0c1430",
+    "E": "#0b0c18", "e": "#f2ede6",
+    "N": "#d6a47c", "n": "#a97a58",
+    "t": "#0e1638", "T": "#1a2756", "U": "#2d3f7c",
+    "a": "#101a40", "A": "#24346a",
+    "l": "#0a1028", "L": "#1a2550",
+    "d": "#070b1c", "D": "#141d3e",
+    "f": "#1c2a5c", "F": "#2f4590", "G": "#5272c4",
+    "k": "#1c2a5c", "K": "#2f4590",
+    "x": "#0f1838", "X": "#3a5aa8", "z": "#6f8fd8", "q": "#dfe8ff",
+    "W": "#dfe6f5", "w": "#8a98b8", "g": "#1a2550",
+    "r": "#3e2c1a", "p": "#8d6a38", "P": "#b88f4f", "Q": "#dcbc7c",
+    "c": "#c9a246", "C": "#8e6d2a",
+    "b": "#2a2e39", "B": "#454c5d", "i": "#6b7387",
+    "j": "#8e6d2a", "J": "#c9a246",
+    "s": "#8fa6e6", "S": "#efe3b0", "u": "#fffbe6"
+  }
+}

@@ -44,7 +44,7 @@ def main(ids):
         z = 2
         board = Image.new("RGB", (sheet.width * z + 40, sheet.height * z + 60), (243, 236, 224))
         board.paste(sheet.resize((sheet.width * z, sheet.height * z), Image.NEAREST), (20, 50), sheet.resize((sheet.width * z, sheet.height * z), Image.NEAREST))
-        ImageDraw.Draw(board).text((20, 14), f"{sk['name']} — {sk.get('rarity', '')} — {sk.get('price', 0)} ryō — toutes les animations", fill=(40, 36, 32), font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22))
+        ImageDraw.Draw(board).text((20, 14), f"{sk['name']} — {sk.get('rarity', '')} — {'récompense' if sk.get('reward') else str(sk.get('price', 0)) + ' ryō'} — toutes les animations", fill=(40, 36, 32), font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22))
         board.save(OUT / f"planche_{sid}.png")
         print("planche", sid)
 

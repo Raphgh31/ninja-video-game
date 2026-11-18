@@ -4,18 +4,18 @@ Le **mode Arène** de *The Ninja Adventure* : des duels (jusqu'à quatre ninjas)
 
 ---
 
-## 1. Où on en est (16 novembre 2026)
+## 1. Où on en est (18 novembre 2026)
 
-- **Une arène existe : « la rizière du gong »**, l'arène du Potager (chapitre 1). On y joue :
-  - depuis le menu de l'intro, **Arène → Nouvelle arène (Accueillir)** : on arrive dans le salon, en hôte, avec un code de quatre signes ;
-  - ou **Arène → Rejoindre une arène** : on tape le code de l'hôte ;
-  - seul, pour l'essayer : adresse `#arene-potager`, ou bouton « Arène » du panneau de la version de test.
+- **Deux arènes existent** : « la rizière du gong », l'arène du Potager (chapitre 1), et **« la clairière de la statue »**, l'arène de la Forêt (chapitre 2, § 7). On y joue :
+  - depuis le menu de l'intro, **Arène → Nouvelle arène** : on choisit l'arène (flèches ← →), puis **Accueillir** : on arrive dans le salon, en hôte, avec un code de quatre signes ;
+  - ou **Arène → Rejoindre une arène** : on tape le code de l'hôte ; l'invité arrive d'abord dans la rizière, apprend l'arène de l'hôte (message `arena`) et la rejoint aussitôt, avec le même code ;
+  - seul, pour l'essayer : adresses `#arene-potager` et `#arene-foret`, ou boutons « Arène Potager » et « Arène Forêt » du panneau de la version de test.
 - **Le salon** (plein écran) : le code en grand, le mode du combat, les quatre places. L'hôte choisit le mode et lance le combat.
 - **Les trois modes**, noms choisis par l'utilisateur :
   - **Souffle unique** : une vie, le dernier debout gagne ;
   - **Trois lames** : le premier à 3 éliminations ;
   - **Dix lames** : le premier à 10.
-- **Pas encore fait** (idées de l'utilisateur) : des adversaires pilotés par l'ordinateur, une arène par chapitre (la Forêt est la suivante), les statistiques d'arène dans « Mon ninja » (combats, victoires, titres), le choix de l'arène dans le salon, un relais réseau pour les connexions qui refusent le pair-à-pair.
+- **Pas encore fait** (idées de l'utilisateur) : des adversaires pilotés par l'ordinateur, l'arène des chapitres suivants, les statistiques d'arène dans « Mon ninja » (combats, victoires, titres), changer d'arène depuis le salon (aujourd'hui : au menu, avant d'accueillir), un relais réseau pour les connexions qui refusent le pair-à-pair.
 - **Jamais essayé ici en vrai réseau** : le service PeerJS n'est pas joignable depuis l'environnement de développement. Seul le transport local (deux onglets) est testé. L'utilisateur l'a essayé en ligne avec un ami.
 
 ---
@@ -25,17 +25,20 @@ Le **mode Arène** de *The Ninja Adventure* : des duels (jusqu'à quatre ninjas)
 | Fichier | Rôle |
 |---|---|
 | `src/game/chapters/arene_potager.js` | **la carte** de l'arène (constructeur `Builder`, comme un chapitre) et sa définition `arena` (repères des pièges, points de départ, bonus) ; exporte `ARENE_POTAGER` |
+| `src/game/chapters/arene_foret.js` | la carte de l'arène de la Forêt (`ARENE_FORET`) : sa définition `arena` (bassin, cœurs, points de départ, `camGround`) et sa définition `forest` (lianes, tronc flottant, planches vermoulues : les mécanismes du chapitre 2) |
+| `src/game/arena/art_foret.js` | le dessin propre à l'arène de la Forêt (`ForetArenaArt`, hérite d'`ArenaArt`) : le temple et la statue au loin (glissés entre les plans du fond par `backdrop.vista`), la surface du bassin qui suit le niveau, la source, les bulles, les cœurs |
 | `src/game/maps.js` | branche l'arène dans `LEVELS` (`'arene-potager': ARENE_POTAGER`) |
-| `src/game/arena/arena.js` | **les mécanismes** (`Arena`, constantes `ARENA`) : grue et rocher, gong, vannes et vagues, échafaudages, foin, caisses, bonus ; tout agit sur une **liste de combattants** (pour de futurs adversaires) |
+| `src/game/arena/arena.js` | **les mécanismes** (`Arena`, constantes `ARENA`) : grue et rocher, gong, vannes et vagues, échafaudages, foin, caisses, bonus, **bassin de la Forêt** (`ARENA.basin`, `updateBasin`) ; chaque arène n'a que les pièges qu'elle déclare ; tout agit sur une **liste de combattants** (pour de futurs adversaires) |
 | `src/game/arena/art.js` | **le dessin** (`ArenaArt`) : canal, pontons, perches de séchage, étal, grue, rocher ficelé, ondes de choc, gong, vannes, vagues, caisses, cœurs |
-| `src/game/arena/lobby.js` | **le salon** plein écran (`Lobby`) : code, modes, quatre places, résultat |
+| `src/game/arena/lobby.js` | **le salon** plein écran (`Lobby`) : nom de l'arène, code, modes, quatre places, résultat |
 | `src/game/multi.js` | **le jeu à plusieurs** (`Multi`, `MODES`, `SLOT_COLORS`) : états à 20 Hz, autres ninjas, coups, points, début et fin d'un combat, pièges partagés |
 | `src/engine/net.js` | **le réseau** (`Net`) : PeerJS (WebRTC) ou transport `local` (BroadcastChannel) ; codes (`randomCode`, `cleanCode`) |
-| `src/game/menu.js` | menu Arène (Nouvelle arène / Rejoindre) et écran du code |
+| `src/game/menu.js` | menu Arène (Nouvelle arène et le choix de l'arène / Rejoindre) et écran du code |
 | `src/main.js` | `startRoom` (salon et combat), `setCloseUp` (image rapprochée sur téléphone), `arenaCamY` (caméra), `clampCamX`, événements de l'arène (sons, effets) |
 | `src/game/level.js` | `level.arena` (créée d'après `def.arena`), échafaudages (`def.arena.scaffolds`), `cutRope` et `hitGongs` délégués à l'arène |
 | `src/game/potager/props.js` | `autoDecor` : pas de poteaux automatiques sous les rangées listées dans `ownSupports` |
-| `tests/e2e.cjs` | tests de l'arène (caméra, grue, gong, foin, échafaudages, caisses, cœurs, shurikens, plateforme du gong, téléphone, combat à deux, menu) |
+| `tests/e2e.cjs` | tests des arènes : Potager (caméra, grue, gong, foin, échafaudages, caisses, cœurs, shurikens, plateforme du gong, téléphone, combat à deux, menu) ; Forêt (bassin, accès à chaque étage par un vrai saut, lianes, glissade sous le tronc couché, passerelle vermoulue, combat à deux : l'invité suit l'arène, le bassin et les planches partagés) |
+| `tools/vues.mjs` | captures d'une carte (`node tools/vues.mjs arene-foret sortie 26 35,19`, variables `VW`, `VH`, `MOBILE`, `T` = instant du cycle du bassin) |
 
 ---
 
@@ -105,8 +108,9 @@ La définition `arena` (dans `arene_potager.js`) donne :
   - une mort donne un point à l'autre joueur ; à plus de deux, à celui qui a touché en dernier ;
   - en Souffle unique, le mort est **éliminé** (il regarde la fin) ;
   - **l'hôte annonce la fin** (`checkEnd`, message `end`) : « Victoire de … », les points, puis retour au salon.
-- **Pièges partagés** : les méthodes de l'arène sont enveloppées (`hookArena`) et diffusées (`gong`, `cut`, `kick`, `col`). Les bonus sont décidés par l'hôte (`pk`, `take`).
-- **Messages** : `s` (état), `hit`, `ko`, `me` (skin), `mode`, `start`, `out`, `end`, `throw`, `gong`, `cut`, `kick`, `col`, `pk`, `take`.
+- **Pièges partagés** : les méthodes de l'arène sont enveloppées (`hookArena`) et diffusées (`gong`, `cut`, `kick`, `col`, et `crum` pour les planches vermoulues de la Forêt : `Forest.startCrumble`). Le bassin de la Forêt n'envoie rien : il suit l'horloge de l'arène, remise à zéro au départ du combat chez tous (`Arena.reset`, qui remet aussi le tronc flottant et les planches à leur place). Les bonus sont décidés par l'hôte (`pk`, `take`).
+- **L'arène de l'hôte** : à chaque changement de la liste des joueurs, l'hôte envoie `arena` (l'identifiant de son niveau) ; un invité qui n'est pas dans la même arène la rejoint (même code, rechargement).
+- **Messages** : `s` (état), `hit`, `ko`, `me` (skin), `arena`, `mode`, `start`, `out`, `end`, `throw`, `gong`, `cut`, `kick`, `col`, `crum`, `pk`, `take`.
 
 ### Le salon et le lancement (`lobby.js`, `startRoom`)
 
@@ -138,7 +142,7 @@ L'utilisateur veut **une arène par chapitre**, dans le style du chapitre (la Fo
    - l'entrée dans `LEVELS` (`maps.js`), avec un champ `arena` ;
    - le thème du décor (`theme`), la musique ;
    - le bouton du panneau de test, qui apparaît de lui-même pour tout niveau qui a `arena` ;
-   - **le menu** : aujourd'hui « Accueillir » ouvre `#arene-potager` (`go()` dans `main.js`). Avec plusieurs arènes, il faudra choisir l'arène dans le salon : l'hôte la choisit, le message part avec `start`.
+   - **le menu** : toute entrée de `LEVELS` qui a un champ `arena` apparaît d'elle-même dans le choix de « Nouvelle arène » (son nom, sans « Arène — ») ; « Accueillir » l'ouvre (`go()` dans `main.js`), les invités la suivent (message `arena`).
 4. **Les mécanismes** :
    - réutiliser `Arena` quand c'est possible (grue, vagues, échafaudages, caisses, foin, cœurs) ;
    - un piège propre au chapitre s'ajoute dans `arena.js` (ou un fichier voisin) et agit sur la liste `fighters` ;
@@ -165,3 +169,50 @@ L'utilisateur veut **une arène par chapitre**, dans le style du chapitre (la Fo
 - **Échafaudages** : ils ne tombent que sous le rocher (pas à la réception d'un saut).
 - **Atteindre chaque plateforme** sans acrobatie impossible : la plateforme du gong a été élargie vers la gauche, avec une jambe de force à l'extérieur.
 - **Points simples** : un mort, un point pour l'autre.
+
+---
+
+## 7. L'arène de la Forêt : « la clairière de la statue » (18 novembre 2026)
+
+Demande de l'utilisateur : une arène dans la direction artistique du chapitre 2 ; des **mécanismes légers** qui rendent le combat plus stratégique **sans en être le centre** ; des **supports qui font varier les niveaux, comme les troncs coupés** du décor de la Forêt ; en fond, **les plus beaux arbres, les montagnes, le temple et la statue** (la statue doit apparaître, sans mécanisme) ; de la cohérence (des variations du niveau de l'eau, des choses logiques), des **variations de densité**, un très bon rendu, rien de trop lourd. Fichiers : `src/game/chapters/arene_foret.js` (carte), `src/game/arena/arena.js` (bassin), `src/game/arena/art_foret.js` (dessin), `src/game/foret/` (tout le reste : terrain, souches, arbres, lianes, tronc flottant, planches, eau).
+
+### Le plan (l'histoire du lieu)
+
+Une clairière de la lisière, au **matin doré** (la lumière la plus lumineuse du chapitre). Au centre, **l'ancien bassin d'un sanctuaire**, bordé de pierres taillées, que la source remplit et vide lentement ; à gauche, **la vieille forêt** restée sauvage, dense ; à droite, **la coupe des bûcherons**, ouverte : des souches de toutes les hauteurs, des bûches, une passerelle de fortune — et l'arbre sacré, qu'ils ont épargné. Au loin, le temple d'où l'on vient et la statue oubliée, colossale, qui veille sur le bassin.
+
+### Les éléments (de gauche à droite)
+
+| Colonnes | Élément | Rôle |
+|---|---|---|
+| 4-5, 64-65 | deux grands fûts moussus (`|`) | les bords : sauts muraux, on n'en sort pas ; plafond invisible à 15 cases |
+| 6 | fourré devant le fût, champignons | densité |
+| 8-9 | souche moyenne (2 cases) | premier palier |
+| 12-17 | **tronc couché sur deux rochers** (`fallen_log`), dessus à 3 cases | on monte dessus ; dessous, un passage d'une case : glissade (et les shurikens y passent) |
+| 19 | souche basse, fourré | |
+| 23 | **le vieux chêne** (`canopy_trunk`) : branche basse 17-25 (5 cases), grande branche 21-31 (8 cases) | étages du milieu et du haut |
+| 25 | petit sanctuaire de pierre (`hokora`), fourré | |
+| 27 et 42 | bords du bassin en pierre taillée (`=`) | |
+| 28-41 | **le bassin** : deux rochers (30-31, 38-39, `rock_pillar`), chenal du tronc flottant (32-37) | le cœur stratégique (ci-dessous) |
+| 23 → 46, rangée 7 | **la voûte** (`vine_arch`) : deux branches hautes qui se rejoignent ; deux lianes (x 32,5 et 37,5) | relier les grandes branches par-dessus le bassin |
+| 43-44 | **le rocher de la source** (2 cases) | marche ; d'où coule le filet d'eau qui annonce la crue |
+| 46 | **le grand cèdre** : branche basse 44-51, grande branche 38-48 | |
+| 48-50 | pile de bûches (2 cases) | palier |
+| 53-54, 59-60 | **deux hautes souches** (4 cases) ; entre elles, **passerelle de planches vermoulues** (deux planches, `crumbles`) | elle cède sous le pied (0,7 s), se refait (2,6 s) : on n'y reste pas |
+| 55-57 | tronçons coupés, **l'arbre sacré** (corde de paille, papiers) | décor |
+| 62 | souche basse | |
+
+Arbres du décor (derrière) : bouleaux (7, 27, 51, 61), jeunes pins (15, 57). Fond (`backdrop.vista`) : le temple sur sa butte (glissé avant la nappe de brume, défilement 0,07, voilé à 40 %), la statue (avant la brume basse, défilement 0,24, voilée à 20 %, le menton dans la brume), la grande chaîne du chapitre.
+
+### Le bassin qui respire (`ARENA.basin`)
+
+- **Cycle de 34 s**, le même chez tous les joueurs (horloge de l'arène, remise à zéro au lancement) : eau basse 15 s → l'eau monte (3,2 s : la source gronde et grossit, des bulles crèvent la surface) → elle affleure le dessus des rochers (2,2 s : on y tient encore) → elle les noie (2,4 s) → eau haute 9 s → elle redescend (4,5 s).
+- **Eau basse** : on traverse à pied, de rocher en tronc et de tronc en rocher (pas japonais). **Eau haute** : les rochers sont mortels ; on passe par le **tronc flottant** (il dérive, s'enfonce sous le poids : il faut un saut et un dash pour rejoindre la rive) ou **par le haut** (des grandes branches, on se lance sur les lianes de la voûte). Le bas des lianes est hors de portée d'un saut depuis le sol : on ne les attrape jamais en voulant sauter sur un rocher.
+- Les cases d'eau (`~`) suivent la surface : une rangée est mortelle dès que la surface dépasse son haut de 4 px. Le tronc flottant monte et descend avec l'eau (`l.y0`). La surface peinte par `live.js` suit le niveau (`syncWater`).
+
+### Réglages et leçons
+
+- **La caméra** : le sol à 80 % de l'image (`camGround`, au lieu de 85 %) pour voir le bassin, ses rochers et un peu de profondeur.
+- **Rien ne flotte** : chaque branche sort d'un tronc (le chêne, le cèdre) ; la voûte relie les deux grands arbres ; la passerelle repose sur les deux hautes souches ; le tronc couché sur deux rochers.
+- **Chaque étage par un vrai saut** (tests) : sol → souche → tronc couché → branche basse → grande branche ; à droite, rocher de la source → branche basse → grande branche ; pile de bûches → haute souche → bout de la branche basse.
+- Les tests pilotent les sauts par les commandes du jeu (`input.press`) : au clavier simulé, deux essais trop rapprochés font un double appui, donc un dash.
+- Le reflet de l'eau (`live.js`) ne copiait pas que la part visible quand l'eau sortait à gauche de l'image : il débordait sur la rive. Corrigé pour tout le jeu.

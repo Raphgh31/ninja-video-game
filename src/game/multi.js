@@ -3,8 +3,9 @@
 // seconde ; les autres sont dessinés à l'endroit reçu (lissé), avec leur skin et
 // leur nom au-dessus de la tête. Un coup est décidé par l'écran de celui qui le
 // porte (sabre, coup de pied, shuriken) : il prévient sa cible, qui encaisse.
-// Les pièges de l'arène (gong, corde de la grue, caisses, échafaudages) sont
-// partagés ; les bonus, c'est l'hôte qui les décide.
+// Les pièges de l'arène (gong, corde de la grue, caisses, échafaudages, planches
+// vermoulues de la Forêt) sont partagés ; le bassin de la Forêt suit l'horloge du
+// combat (remise à zéro au départ, chez tous) ; les bonus, c'est l'hôte qui les décide.
 import { renderText } from '../engine/pixelfont.js';
 import { Shurikens } from './shuriken.js';
 import { HEALTH } from './combat.js';
@@ -21,7 +22,7 @@ export const MODES = {
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 export class Multi {
-  /** deps : { net, player, shurikens, level, meta, skins, skinId() , onEvent(n, d) } */
+  /** deps : { net, player, shurikens, level, levelId, meta, skins, skinId() , onEvent(n, d) } */
   constructor(deps) {
     Object.assign(this, deps);
     this.remotes = new Map();
@@ -59,6 +60,12 @@ export class Multi {
     wrap('cutRope', (r) => { if (r) net.send({ t: 'cut' }); });
     wrap('kickCrates', (n, [box, dir]) => { if (n) net.send({ t: 'kick', box, dir }); });
     wrap('collapse', (r, [s, x]) => net.send({ t: 'col', i: this.level.scaffolds.indexOf(s), x }));
+    // les planches vermoulues de la Forêt : celle qui cède sous un joueur cède chez tous
+    const f = this.level.forest;
+    if (f) {
+      const orig = f.startCrumble.bind(f);
+      f.startCrumble = (c) => { const was = c.state; orig(c); if (!this.applying && was === 'idle' && c.state === 'shake') net.send({ t: 'crum', i: f.crumbles.indexOf(c) }); };
+    }
     // bonus et caisses du ciel : décidés par l'hôte seulement
     const ev = a.onEvent;
     a.onEvent = (n, d) => {
@@ -83,6 +90,7 @@ export class Multi {
     }
     if (!this.scores.has(this.net.id)) this.scores.set(this.net.id, 0);
     this.net.send({ t: 'me', sk: this.skinId() });   // que les nouveaux voient notre skin (dans le salon)
+    if (this.net.host && this.levelId) this.net.send({ t: 'arena', id: this.levelId });   // l'arène de l'hôte : les invités la suivent
     if (this.net.host && this.match && !this.match.over) this.checkEnd();
     // notre place connue : on apparaît à son point de départ (une fois)
     const me = this.me;
@@ -137,6 +145,7 @@ export class Multi {
       }
       case 'me': if (r && this.skins[m.sk]) { r.skin = m.sk; this.onEvent?.('roster', { roster: this.net.roster }); } break;
       case 'mode': this.onEvent?.('mode', { mode: m.mode }); break;
+      case 'arena': if (m.id && this.levelId && m.id !== this.levelId) this.onEvent?.('arena', { id: m.id }); break;
       case 'start': this.startMatch(m.mode); break;
       case 'out': if (this.match) { this.match.out.add(from); if (this.net.host) this.checkEnd(); } break;
       case 'end': this.endMatch(m.winner, m.scores); break;
@@ -151,6 +160,7 @@ export class Multi {
       case 'kick': this.apply(() => a.kickCrates(m.box, m.dir, null)); break;
       case 'col': this.apply(() => { const s = this.level.scaffolds[m.i]; if (s) a.collapse(s, m.x); }); break;
       case 'pk': this.apply(() => { if (!a.pickups.some((p) => p.spot === m.spot)) { a.pickups.push({ kind: m.kind, x: m.x, y: m.y, spot: m.spot, t: 0 }); a.onEvent?.('pickupAppear', { kind: m.kind, x: m.x, y: m.y - 10, spot: m.spot }); } }); break;
+      case 'crum': this.apply(() => { const c = this.level.forest?.crumbles[m.i]; if (c) this.level.forest.startCrumble(c); }); break;
       case 'take': a.pickups = a.pickups.filter((p) => p.spot !== m.spot); break;
       default:
     }

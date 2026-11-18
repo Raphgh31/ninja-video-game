@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
-from art import ANIMS, FISH, SHURIKEN, VIEWS  # noqa: E402
+from art import ANIMS, FEATHER, FISH, SHURIKEN, VIEWS  # noqa: E402
 from core import CH, CW, add_outline, parse, render  # noqa: E402
 from palette import NO_OUTLINE, PARTS, SLOT_ORDER, SLOTS  # noqa: E402
 from accessories import dress, find_head  # noqa: E402
@@ -236,6 +236,8 @@ def main():
     proj = projectile_sheet(SHURIKEN, "kage_shuriken")
     fish = projectile_sheet(FISH, "kage_fish", SC=16)
     assert list(fish) == list(proj), "les poissons doivent avoir les mêmes cases que les shurikens"
+    feather = projectile_sheet(FEATHER, "kage_feather", SC=16)
+    assert list(feather) == list(proj), "les plumes doivent avoir les mêmes cases que les shurikens"
 
     # métadonnées
     meta = {
@@ -293,6 +295,18 @@ def main():
                 "faces": True,
                 "hudStep": 13,
                 "note": "micro-poissons du pêcheur (champ « projectile » du skin) : ils regardent vers la droite, "
+                        "le jeu les retourne vers la gauche",
+            },
+            "feather": {
+                "image": "kage_feather.png",
+                "indexImage": "kage_feather_index.png",
+                "frames": feather,
+                "spin": ["fly0", "fly1"],
+                "hud": "spin0",
+                "ground": ["stuck_ground", "stuck_ground_b"],
+                "faces": True,
+                "hudStep": 9,
+                "note": "plumes du trophée du corbeau (champ « projectile » du skin) : la pointe vers la droite, "
                         "le jeu les retourne vers la gauche",
             },
         },

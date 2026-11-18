@@ -26,6 +26,16 @@ export const RARITIES = {
   'légendaire': { name: 'Légendaire', color: '#f0c25a' },
 };
 
+/** L'ordre des skins (boutique, panneau de test) : du moins cher au plus cher, puis les récompenses (champ
+ *  `reward`, sans prix : le trophée du corbeau). */
+export function skinOrder(skins) {
+  const key = (id) => (skins[id].reward ? Infinity : skins[id].price ?? 0);
+  return Object.keys(skins).sort((a, b) => key(a) - key(b) || skins[a].name.localeCompare(skins[b].name));
+}
+
+/** Ce qu'il faut faire pour gagner une récompense (bouton de la boutique). */
+const REWARDS = { karasu: 'Battre le corbeau' };
+
 // l'aperçu du skin choisi : il enchaîne ces animations
 const SHOWCASE = [['idle', 1800], ['run', 1600], ['jump', 900], ['attack', 1000], ['sprint', 1400], ['kick', 900], ['throw', 900]];
 
@@ -98,10 +108,9 @@ export class Shop {
     }
   }
 
-  /** Les skins, du moins cher au plus cher. */
+  /** Les skins, du moins cher au plus cher, les récompenses à la fin. */
   ids() {
-    const { skins } = this.wardrobe;
-    return Object.keys(skins).sort((a, b) => (skins[a].price ?? 0) - (skins[b].price ?? 0) || skins[a].name.localeCompare(skins[b].name));
+    return skinOrder(this.wardrobe.skins);
   }
 
   owned(id) {
@@ -132,6 +141,7 @@ export class Shop {
       tag.className = 'shop__tag';
       if (this.save.skin === id) { tag.textContent = 'Porté'; tag.classList.add('shop__tag--worn'); }
       else if (this.owned(id)) { tag.textContent = 'Acquis'; tag.classList.add('shop__tag--own'); }
+      else if (sk.reward) { tag.textContent = 'Trophée'; tag.classList.add('shop__tag--poor'); }
       else { tag.textContent = `${sk.price} ryō`; if (this.save.ryo < sk.price) tag.classList.add('shop__tag--poor'); }
       card.append(cv, tag);
       card.addEventListener('click', () => this.select(id));
@@ -185,6 +195,11 @@ export class Shop {
       else if (owned) {
         b.textContent = 'Porter';
         b.addEventListener('click', () => { this.wardrobe.wear(id); this.showSkins(); this.focusSkin(id); });
+      } else if (sk.reward) {
+        // une récompense ne s'achète pas : le bouton dit seulement comment la gagner
+        b.textContent = REWARDS[sk.reward] ?? 'Récompense';
+        b.disabled = true;
+        b.classList.add('shop__poor');
       } else {
         b.textContent = `Acheter · ${sk.price} ryō`;
         if (save.ryo < sk.price) b.classList.add('shop__poor');

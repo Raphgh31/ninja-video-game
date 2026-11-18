@@ -1,0 +1,29 @@
+{
+  "id": "emeraude",
+  "name": "Le ninja émeraude",
+  "rarity": "commun",
+  "price": 120,
+  "description": "Tenue vert-bleu, bandeau d'or, émeraudes sur la ceinture et le front.",
+  "blurb": "On dit que ses pierres ont été taillées dans la mousse d'un vieux temple.",
+  "accessories": ["emeralds"],
+  "colors": {
+    "O": "#050b09",
+    "h": "#0c2420", "H": "#153a33", "I": "#24574b",
+    "M": "#0b1f1b",
+    "E": "#0b0c10", "e": "#f2ede6",
+    "N": "#d6a47c", "n": "#a97a58",
+    "t": "#0f3a2c", "T": "#1a5a43", "U": "#2b7d5e",
+    "a": "#0d2d24", "A": "#1f4f3f",
+    "l": "#0a1a17", "L": "#1b302b",
+    "d": "#091612", "D": "#183028",
+    "f": "#8a6a1e", "F": "#c9a03a", "G": "#f0d27a",
+    "k": "#8a6a1e", "K": "#c9a03a",
+    "x": "#0d2a20", "X": "#2c8f62", "z": "#4fd69a", "q": "#d8ffef",
+    "W": "#dfe6ee", "w": "#8a97a0", "g": "#2a3a33",
+    "r": "#3e2c1a", "p": "#8d6a38", "P": "#b88f4f", "Q": "#dcbc7c",
+    "c": "#f0d27a", "C": "#a8822a",
+    "b": "#0b5e3e", "B": "#1fbf7a", "i": "#c8ffe6",
+    "j": "#8e6d2a", "J": "#c9a246",
+    "s": "#e3b65a", "S": "#f7dc8a", "u": "#fff6d0"
+  }
+}

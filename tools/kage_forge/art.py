@@ -576,6 +576,58 @@ X.X.......
 """, (9, 10)),
 }
 
+# Projectile du trophée du corbeau : des plumes de corbeau lancées comme des fléchettes (mêmes cases que les
+# shurikens ; la pointe vers la droite, le jeu les retourne vers la gauche). En vol, les barbes frémissent ;
+# spin0 et spin1 : la petite plume du compteur ; plantée dans un mur la pointe la première, plantée dans le
+# sol en biais, le tuyau en l'air.
+# Lettres : w barbes noir-bleu · W barbes claires · g tige au reflet sarcelle · X tuyau (couleurs :
+# projectileColors du skin)
+FEATHER = {
+    "fly0": ("""
+....wWwWwWww..
+XXggggggggggW.
+..wwwwwwwwww..
+""", (8, 2)),
+    "fly1": ("""
+...wwWwWwWww..
+XXggggggggggW.
+...wwwwwwwww..
+""", (8, 2)),
+    "spin0": ("""
+......W
+....wgW
+...wgw.
+..wgW..
+.wgw...
+.gw....
+X......
+""", (4, 4)),
+    "spin1": ("""
+......W
+....Wgw
+...wgw.
+..Wgw..
+.wgw...
+.gw....
+X......
+""", (4, 4)),
+    "stuck_wall": ("""
+...wWwWww
+XXggggggg
+..wwwwwww
+""", (9, 2)),
+    "stuck_ground": ("""
+X.......
+.Xw.....
+.wgW....
+.Wwgw...
+..wWgw..
+...wWgW.
+....wWg.
+......g.
+""", (6, 8)),
+}
+
 # ---------------------------------------------------------------------------
 # SPRINT — course « ninja » : buste plongé, corps plus bas, bras tendus vers
 # l'arrière, grandes foulées, foulard tendu à l'horizontale

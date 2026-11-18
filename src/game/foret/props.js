@@ -221,6 +221,18 @@ export class ForetProps {
         }
         case 'sacred_tree': add('behind', X - 110, Y - 190, 236, 194, (pix) => sacredTree(pix, X + 8, Y + 1, p.seed ?? p.x)); break;
         case 'hokora': add('behind', X - 16, Y - 34, 48, 36, (pix) => hokora(pix, X + 8, Y + 1)); break;
+        // la voûte des lianes (arène de la Forêt) : deux branches hautes des grands arbres se rejoignent
+        // au-dessus du bassin et s'entrecroisent ; les lianes y sont nouées
+        case 'vine_arch': {
+          const xl = p.x * TILE + 8 + 10, xr = p.x1 * TILE + 8 - 11, Y0 = Y - 10;
+          add('behind', xl - 20, Y0 - 24, xr - xl + 40, 52, (pix) => {
+            limb(pix, xl, p.meet1 * TILE, Y, 1, p.x * 7 + 1, true);
+            limb(pix, p.meet0 * TILE, xr, Y + 4, -1, p.x1 * 7 + 3, true);
+          });
+          break;
+        }
+        // un fourré (arène de la Forêt) : fougères et buissons serrés, derrière KAGE, ou devant (front)
+        case 'thicket': add(p.front ? 'front' : 'over', X - 14, Y - 34, p.w * TILE + 28, 38, (pix) => thicket(pix, X, Y + 2, p.w * TILE, p.x * 13 + (p.front ? 7 : 1), p.front)); break;
         case 'tree_crown': {
           // la couronne d'un grand tronc jouable (détours) : des masses de feuillage autour du fût,
           // derrière lui et ses branches ; quelques grappes et lianes devant (sans jamais cacher KAGE)
@@ -1013,6 +1025,19 @@ function sacredTree(pix, cx, base, seed) {
       pix.set(x, ry + 5 + y, '#f6f4ea'); pix.set(x + 1, ry + 5 + y, y % 3 === 2 ? '#c9c6b8' : '#ffffff');
     }
   }
+}
+
+/** Un fourré : un ou deux buissons ronds, des fougères devant, quelques brins d'herbe (en avant-plan : plus sombre). */
+function thicket(pix, X, base, W, seed, front) {
+  const leaf = front ? [C.INK, C.LEAF[0], C.LEAF[1], C.LEAF[2], C.LEAF[3], C.LEAF[3], C.LEAF[4]] : C.LEAF;
+  const fern = front ? [C.INK, C.FERN[0], C.FERN[1], C.FERN[2], C.FERN[2], C.FERN[3]] : C.FERN;
+  const n = Math.max(1, Math.round(W / 22));
+  for (let i = 0; i < n; i++) {
+    const cx = X + Math.round(((i + 0.5) / n) * W + (ih(i, 1, seed) - 0.5) * 8);
+    L.bush(pix, cx, base, 11 + Math.floor(ih(i, 2, seed) * 7), 13 + Math.floor(ih(i, 3, seed) * 9), leaf, seed + i);
+  }
+  for (let x = X - 6; x < X + W + 6; x += 7) L.fern(pix, x + Math.floor(ih(x, 4, seed) * 4), base, 7 + Math.floor(ih(x, 5, seed) * 6), fern, seed + x);
+  for (let x = X - 8; x < X + W + 8; x += 3) if (ih(x, 6, seed) < 0.5) L.grassTuft(pix, x, base - 1, 3 + Math.floor(ih(x, 7, seed) * 5), fern, x);
 }
 
 /** Petit sanctuaire de pierre (hokora) : un socle, une niche de bois sombre, un toit de pierre moussu. */

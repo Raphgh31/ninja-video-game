@@ -410,6 +410,12 @@ export class ForetBackdrop {
     return at(i);
   }
 
+  /** Ligne du sol, à l'écran, d'un plan qui suit la caméra en hauteur d'une fraction fy. */
+  groundAt(fy, cam, viewH) {
+    const ref = viewH * GROUND_AT, gy = this.refRow(cam.x + 240) * TILE - cam.y;
+    return this.q(ref + (gy - ref) * fy);
+  }
+
   /** Base d'un plan à l'écran : il suit la caméra en hauteur d'une fraction fy. */
   planeY(pl, cam, viewH) {
     const ref = viewH * GROUND_AT, gy = this.refRow(cam.x + 240) * TILE - cam.y;
@@ -475,6 +481,8 @@ export class ForetBackdrop {
       ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
     }
     for (const pl of PLANES) {
+      // un décor lointain glissé entre deux plans (l'arène : le temple, la statue) : avant le plan pl
+      this.vista?.(ctx, pl.id, cam, viewW, viewH, time);
       if (pl.id === 'near' && s.sunGlow) {
         // le soleil baigne la forêt lointaine : un halo clair, léger, derrière les plans proches
         ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.16;

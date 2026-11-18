@@ -147,16 +147,24 @@ export class Shurikens {
       d.x += d.vx * dt;
       d.y += d.vy * dt;
       d.vx *= 1 - 6 * dt;
-      d.vy += (d.water ? 260 : 14) * dt;   // l'or retombe à peine ; une goutte tombe
+      d.vy += (d.water ? 260 : d.down ? 30 : 14) * dt;   // l'or retombe à peine ; une goutte tombe ; un brin de duvet flotte
+      if (d.down) d.vy = Math.min(d.vy, 22);
     }
     this.dust = this.dust.filter((d) => d.age < d.life);
     if (!this.dustKind) return;
-    const water = this.dustKind === 'water';
+    const water = this.dustKind === 'water', down = this.dustKind === 'down';
     for (const s of this.flying) {
       if (s.deflected || Math.abs(s.vx) < 40) continue;
       s.dustT = (s.dustT ?? 0) - dt;
       if (s.dustT > 0) continue;
-      s.dustT = water ? 0.01 + Math.random() * 0.012 : 0.014 + Math.random() * 0.016;
+      s.dustT = water ? 0.01 + Math.random() * 0.012 : down ? 0.05 + Math.random() * 0.05 : 0.014 + Math.random() * 0.016;
+      if (down) {
+        // un brin de duvet noir arraché à la plume (le trophée du corbeau), qui flotte et retombe en se balançant
+        this.dust.push({ x: s.x - s.dir * (6 + Math.random() * 3), y: s.y + (Math.random() * 3 - 1.5),
+          vx: s.vx * 0.15 + (Math.random() * 10 - 5), vy: -4 - Math.random() * 8,
+          age: 0, life: 0.45 + Math.random() * 0.35, down: true, ph: Math.random() * 6 });
+        continue;
+      }
       this.dust.push(water ? {
         // une micro-gouttelette qui se détache du poisson (derrière sa queue) et retombe
         x: s.x - s.dir * (3 + Math.random() * 4), y: s.y + (Math.random() * 4 - 1.5),
@@ -179,6 +187,14 @@ export class Shurikens {
       const tw = 0.7 + 0.3 * Math.sin(d.ph + d.age * 38);
       ctx.globalAlpha = Math.max(0, (1 - k * k) * tw);
       const x = Math.round(d.x - cam.x), y = Math.round(d.y - cam.y);
+      if (d.down) {
+        ctx.globalAlpha = Math.max(0, 1 - k * k);
+        const sway = Math.round(Math.sin(d.ph + d.age * 9));
+        ctx.fillStyle = k < 0.5 ? '#26364c' : '#121722';
+        ctx.fillRect(x + sway, y, 2, 1);
+        if (k < 0.3) { ctx.fillStyle = '#4f9fae'; ctx.fillRect(x + sway, y, 1, 1); }
+        continue;
+      }
       if (d.water) {
         ctx.globalAlpha = Math.max(0, 1 - k * k);
         ctx.fillStyle = k < 0.35 ? '#eef8ff' : k < 0.7 ? '#a9d6ec' : '#5f9cc0';

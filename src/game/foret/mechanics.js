@@ -212,7 +212,7 @@ export class Forest {
     for (const c of this.crumbles) {
       c.dx = 0; c.dy = 0;
       if (c.state === 'idle') {
-        if (c.load) { c.state = 'shake'; c.t = 0; this.emit('crumbleCreak', { x: c.x + c.w / 2, y: c.y }); }
+        if (c.load) this.startCrumble(c);
       } else if (c.state === 'shake') {
         c.t += dt;
         if (c.t >= C.hold) { c.state = 'fall'; c.t = 0; c.active = false; c.vy = 20; this.emit('crumbleFall', { x: c.x + c.w / 2, y: c.y, w: c.w }); }
@@ -224,6 +224,13 @@ export class Forest {
         if (c.t >= 0.35) c.state = 'idle';
       }
     }
+  }
+
+  /** Une planche vermoulue commence à céder (dans l'arène, l'événement est partagé : multi.js). */
+  startCrumble(c) {
+    if (c.state !== 'idle') return;
+    c.state = 'shake'; c.t = 0;
+    this.emit('crumbleCreak', { x: c.x + c.w / 2, y: c.y });
   }
 
   // --- zone 7 : la branche qui rompt -------------------------------------------------------

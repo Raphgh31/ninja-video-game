@@ -1073,7 +1073,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,paysan,tengu,samourai,pecheur,or'
+    expect(look[0] && look[1] === 'encre,paysan,emeraude,nocturne,tengu,samourai,pecheur,or,corbeau'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1174,7 +1174,7 @@ async function main() {
     const closed2 = await shown();
     await lp.close();
     expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
-      && r0.join() === 'true,false,encre,6' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      && r0.join() === 'true,false,encre,9' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -1205,7 +1205,9 @@ async function main() {
       return out;
     });
     const ids = Object.keys(r);
-    expect(ids.includes('samourai') && ids.every((id) => r[id][0] > 0 && r[id][1] === 0) && r.samourai[2] >= 8,
+    // (les skins dont un accessoire retire des pixels de la pose ; l'émeraude, elle, ne fait que recolorer)
+    const erasing = ['paysan', 'samourai', 'tengu', 'corbeau'];
+    expect(ids.includes('samourai') && erasing.every((id) => r[id]?.[0] > 0) && ids.every((id) => r[id][1] === 0) && r.samourai[2] >= 8,
       Object.entries(r).map(([id, v]) => `${id} : ${v[0]} marqués, ${v[1]} restés, or ${v[2]}`).join(' · '));
   });
 
@@ -1219,6 +1221,50 @@ async function main() {
         sk.pecheur.projectiles.shuriken === sk.pecheur.projectiles.fish];
     });
     expect(r.join() === 'true,true,water,false,true,true', r.join());
+  });
+
+  await test('trophée du corbeau : ses shurikens sont des plumes (leur planche, tournées dans le sens du vol, du duvet)', async () => {
+    const r = await page.evaluate(() => {
+      const sk = window.__kage.skins.corbeau;
+      return [!!sk, sk?.reward, sk?.projectileFaces, sk?.projectileDust, sk?.projectiles.shuriken === sk?.projectiles.feather, sk?.barLift];
+    });
+    expect(r.join() === 'true,karasu,true,down,true,4', r.join());
+  });
+
+  await test('trophée du corbeau : une récompense — verrouillé à la boutique tant que le corbeau vit, acquis et portable une fois battu', async () => {
+    const pa = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await pa.goto(PAGE); await pa.waitForFunction(() => window.__kage); await pa.evaluate(() => localStorage.clear());
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await NEW(pa); await pa.waitForTimeout(300);
+      const shop = async () => {
+        await pa.evaluate(() => {
+          const g = window.__kage, pl = g.player, l = g.level, tx = Math.floor(l.merchant.x / 16) - 1;
+          let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;
+          pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle');
+        });
+        await pa.waitForTimeout(300);
+        await pa.keyboard.press('ArrowUp'); await pa.waitForTimeout(200);
+        await pa.click('.shop__card[data-skin="corbeau"]'); await pa.waitForTimeout(100);
+        return pa.evaluate(() => [document.querySelector('[data-skin="corbeau"] .shop__tag').textContent, document.querySelector('[data-action]').textContent,
+          document.querySelector('[data-action]').disabled, [...document.querySelectorAll('.shop__card')].pop().dataset.skin]);
+      };
+      const before = await shop();
+      // impossible de l'acheter, même riche
+      const bought = await pa.evaluate(() => { window.__kage.save.ryo = 9999; return window.__kage.save.skins.join(); });
+      await pa.keyboard.press('Escape'); await pa.waitForTimeout(200);
+      // le corbeau battu (sauvegarde), puis l'aventure reprise
+      await pa.evaluate(() => { const k = 'kage.save.v' + '1', v = JSON.parse(localStorage.getItem(k)); v.bossDefeated = true; localStorage.setItem(k, JSON.stringify(v)); });
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await CONT(pa); await pa.waitForTimeout(500);
+      const skins = await pa.evaluate(() => window.__kage.save.skins.join());
+      const after = await shop();
+      await pa.click('[data-action]'); await pa.waitForTimeout(100);
+      const worn = await pa.evaluate(() => window.__kage.save.skin);
+      expect(before.join() === 'Trophée,Battre le corbeau,true,corbeau' && bought === 'encre' && skins.split(',').includes('corbeau')
+        && after[0] === 'Acquis' && after[1] === 'Porter' && !after[2] && worn === 'corbeau',
+        `avant ${before.join()} · ${bought} · skins ${skins} · après ${after.join()} · porté ${worn}`);
+    } finally { await pa.close(); }
   });
 
   await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
@@ -1592,6 +1638,101 @@ async function main() {
     } finally { await mctx.close(); }
   });
 
+  // ---- mode combat : l'arène de la Forêt (la clairière de la statue) ----
+  const af = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  af.setDefaultTimeout(8000);
+  af.on('pageerror', (e) => errors.push('[arène forêt] ' + e.message));
+  if (!process.env.SEUL || 'arène'.includes(process.env.SEUL) || process.env.SEUL.includes('arène')) {
+    await af.goto(PAGE + '#arene-foret'); await af.waitForFunction(() => window.__kage && window.__kage.level.arena); await af.waitForTimeout(300);
+  }
+  const FK = af.keyboard;
+  // KAGE posé en (colonne, ligne du sol), à l'arrêt ; le temps n'avance que par step()
+  const FAT = (tx, ty, extra = {}) => af.evaluate(([tx, ty, extra]) => {
+    const g = window.__kage, pl = g.player;
+    pl.x = tx * 16 + 8; pl.y = ty * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 9; pl.hp = 5; pl.energy.value = 1;
+    Object.assign(pl, extra); g.step(4);
+  }, [tx, ty, extra]);
+  /** Un vrai saut (commandes du jeu) : KAGE court (dir), saute en passant jumpX (px), garde la direction ; rangée d'arrivée. */
+  const fjump = async (tx, ty, dir, jumpX) => {
+    await FAT(tx, ty, { facing: dir });
+    return af.evaluate(([x, d]) => {
+      const g = window.__kage, inp = g.input, k = d > 0 ? 'right' : 'left', pl = g.player;
+      inp.lastTap = { left: -9, right: -9 };                 // (pas de double appui : ce serait un dash)
+      inp.press(k);
+      for (let i = 0; i < 400 && (pl.x - x) * d < 0; i++) g.step(1);
+      inp.press('jump');
+      for (let i = 0; i < 50; i++) g.step(1);
+      inp.release('jump');
+      for (let i = 0; i < 120 && !(pl.onGround && pl.vy >= 0); i++) g.step(1);
+      inp.release(k);
+      g.step(20);
+      return [Math.round(pl.y / 16), Math.floor(pl.x / 16), pl.state];
+    }, [jumpX, dir]);
+  };
+
+  await test('arène de la Forêt : le bassin — eau basse, on tient sur les rochers ; l\'eau monte, les noie (on y meurt) puis redescend ; le tronc flottant suit le niveau', async () => {
+    const r = await af.evaluate(() => {
+      const g = window.__kage, a = g.level.arena, pl = g.player, out = {};
+      const stand = (t) => { a.time = t; a.updateBasin(0, []); pl.x = 30 * 16 + 14; pl.y = 19 * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 0; for (let i = 0; i < 60; i++) g.step(1); return pl.state; };
+      out.low = stand(2); out.logLow = Math.round(g.level.forest.logs[0].y0); out.phaseLow = a.basin.phase;
+      out.mid = stand(15 + 3.2 + 0.6);                                   // l'eau affleure : on tient encore
+      out.high = stand(15 + 3.2 + 2.2 + 2.4 + 2); out.logHigh = Math.round(g.level.forest.logs[0].y0); out.phaseHigh = a.basin.phase;
+      for (let i = 0; i < 400 && ['death', 'respawn'].includes(pl.state); i++) g.step(1);
+      out.back = stand(15 + 3.2 + 2.2 + 2.4 + 9 + 4.5 + 1);              // redescendue
+      for (let i = 0; i < 400 && ['death', 'respawn'].includes(pl.state); i++) g.step(1);
+      return out;
+    });
+    expect(r.low !== 'death' && r.mid !== 'death' && r.high === 'death' && r.back !== 'death' && r.phaseLow === 'low' && r.phaseHigh === 'high' && r.logLow - r.logHigh >= 18,
+      JSON.stringify(r));
+  });
+
+  await test('arène de la Forêt : chaque étage s\'atteint par un vrai saut (souches, tronc couché, branches basses et hautes, pile de bûches, hautes souches, bout de la branche basse)', async () => {
+    await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 2; a.updateBasin(0, []); window.__kage.step(2); });
+    const r = {
+      stump: await fjump(6, 18, 1, 7 * 16 + 4),            // sol → souche moyenne (2 cases)
+      log: await fjump(8, 16, 1, 9 * 16 + 12),             // souche → tronc couché (3 cases)
+      low: await fjump(15, 15, 1, 16 * 16 + 8),            // tronc couché → branche basse (5 cases)
+      high: await fjump(19, 13, 1, 20 * 16 + 8),           // branche basse → grande branche (8 cases)
+      lowR: await fjump(43, 16, 1, 44 * 16 + 4),           // rocher de la source → branche basse de droite
+      highR: await fjump(51, 13, -1, 49 * 16 + 4),         // branche basse → grande branche de droite
+      tall: await fjump(49, 16, 1, 50 * 16 + 8),           // pile de bûches → haute souche (4 cases)
+      tip: await fjump(53, 14, -1, 52 * 16 + 12),          // haute souche → bout de la branche basse
+    };
+    const ok = r.stump[0] === 16 && r.log[0] === 15 && r.low[0] === 13 && r.high[0] === 10 && r.lowR[0] === 13 && r.highR[0] === 10 && r.tall[0] === 14 && r.tip[0] === 13;
+    expect(ok, JSON.stringify(r));
+  });
+
+  await test('arène de la Forêt : eau haute, du bout de la grande branche on se lance sur la liane de la voûte ; d\'un saut du bord vers le rocher, on ne l\'attrape pas ; en glissade on passe sous le tronc couché', async () => {
+    await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 15 + 3.2 + 2.2 + 2.4 + 2; a.updateBasin(0, []); window.__kage.step(2); });
+    await FAT(31, 10, { facing: 1, x: 31 * 16 + 9 });
+    await FK.down('ArrowRight');
+    await FK.down('Space'); await af.evaluate(() => window.__kage.step(10)); await FK.up('Space');
+    const vine = await af.evaluate(() => { const g = window.__kage; let seen = false; for (let i = 0; i < 120; i++) { g.step(1); if (g.player.state === 'vine') { seen = true; break; } } return seen; });
+    await FK.up('ArrowRight'); await af.evaluate(() => window.__kage.step(60));
+    // depuis le sol, en sautant vers le premier rocher (eau basse), on n'attrape pas de liane
+    await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 2; a.updateBasin(0, []); window.__kage.step(2); });
+    const hop = await fjump(26, 18, 1, 27 * 16 + 8);
+    // en glissade : il passe dessous
+    await FAT(10, 18, { facing: 1 });
+    await FK.down('ArrowRight'); await af.evaluate(() => window.__kage.step(12));
+    await FK.press('ArrowDown');
+    const slid = await af.evaluate(() => { const g = window.__kage; for (let i = 0; i < 240; i++) g.step(1); return Math.round(g.player.x); });
+    await FK.up('ArrowRight'); await af.evaluate(() => window.__kage.step(20));
+    expect(vine && hop[0] === 19 && hop[2] !== 'vine' && slid > 18 * 16, `liane ${vine}, saut vers le rocher ${hop}, en glissade ${slid}`);
+  });
+
+  await test('arène de la Forêt : la passerelle vermoulue cède sous le pied, puis se refait', async () => {
+    const r = await af.evaluate(() => {
+      const g = window.__kage, f = g.level.forest, pl = g.player, c = f.crumbles[0];
+      pl.x = c.x + c.w / 2; pl.y = c.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 9;
+      for (let i = 0; i < 150; i++) g.step(1);
+      const fell = c.state, below = Math.round(pl.y / 16);
+      for (let i = 0; i < 480; i++) g.step(1);
+      return [fell, below, c.state, c.active];
+    });
+    expect(r[0] === 'fall' && r[1] === 18 && r[2] === 'idle' && r[3], JSON.stringify(r));
+  });
+
   // ---- jouer à plusieurs : une arène à deux (transport local, deux onglets servis en http) ----
   await test('à plusieurs : salon (code, places, mode choisi par l\'hôte), combat lancé, coup de sabre, gong partagé, Trois lames puis Souffle unique', async () => {
     const http = require('node:http'), fs = require('node:fs');
@@ -1656,6 +1797,35 @@ async function main() {
       expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
         && rule[0] === 3 && /premier à 3/.test(rule[1]) && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
         `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}`);
+    } finally { await ctx.close(); srv.close(); }
+  });
+
+  await test('à plusieurs, dans la Forêt : l\'invité suit l\'arène de l\'hôte ; le bassin part du même instant chez tous ; la planche vermoulue cède chez les deux', async () => {
+    const http = require('node:http'), fs = require('node:fs');
+    const dist = path.resolve(__dirname, '../dist');
+    const srv = http.createServer((q, r) => fs.readFile(path.join(dist, q.url.split('?')[0].split('#')[0]), (e, d) => { r.writeHead(e ? 404 : 200, { 'content-type': 'text/html' }); r.end(d); }));
+    await new Promise((ok) => srv.listen(0, ok));
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const open = async (cfg, id) => {
+        const p = await ctx.newPage(); p.on('pageerror', (e) => errors.push('[arène forêt] ' + e.message));
+        await p.addInitScript((c) => { if (!sessionStorage.getItem('kage-salle')) sessionStorage.setItem('kage-salle', JSON.stringify(c)); }, cfg);
+        await p.goto(`http://localhost:${srv.address().port}/kage-standalone.html?net=local#${id}`);
+        await p.waitForFunction(() => window.__kage && window.__kage.multi);
+        return p;
+      };
+      const A = await open({ mode: 'host', code: 'F0R3', name: 'Raph', arena: 'arene-foret' }, 'arene-foret');
+      const B = await open({ mode: 'join', code: 'F0R3', name: 'Kenji' }, 'arene-potager');
+      // l'invité arrive dans la rizière, apprend l'arène de l'hôte et la rejoint (même code)
+      await B.waitForFunction(() => window.__kage?.level?.theme === 'foret' && window.__kage.multi?.net.status === 'connecté', null, { timeout: 15000 });
+      await A.waitForFunction(() => window.__kage.multi.net.roster.length === 2, null, { timeout: 8000 });
+      await A.click('[data-launch]');
+      await B.waitForFunction(() => !window.__kage.run.paused, null, { timeout: 3000 });
+      const t = await Promise.all([A, B].map((P) => P.evaluate(() => window.__kage.level.arena.time)));
+      // Raph se pose sur la planche : elle cède aussi chez Kenji
+      await A.evaluate(() => { const c = window.__kage.level.forest.crumbles[1], pl = window.__kage.player; pl.x = c.x + c.w / 2; pl.y = c.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); });
+      await B.waitForFunction(() => window.__kage.level.forest.crumbles[1].state !== 'idle', null, { timeout: 3000 });
+      expect(Math.abs(t[0] - t[1]) < 1.5, `horloges du bassin ${t.map((x) => x.toFixed(2))}`);
     } finally { await ctx.close(); srv.close(); }
   });
 
