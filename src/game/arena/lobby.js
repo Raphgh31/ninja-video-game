@@ -19,7 +19,7 @@ const button = (text, cls, onClick) => {
 };
 
 export class Lobby {
-  /** root : le calque de l'interface (.ui). deps : { net, multi, meta, skins, onLaunch(modeId), onQuit() } */
+  /** root : le calque de l'interface (.ui). deps : { net, multi, meta, skins, arenaName, onLaunch(modeId), onQuit() } */
   constructor(root, deps) {
     Object.assign(this, deps);
     this.root = root;
@@ -63,7 +63,7 @@ export class Lobby {
     const s = this.el;
     s.replaceChildren(el('div', 'm-veil'));
     const hd = el('header', 'm-hd');
-    hd.append(el('h2', null, 'Arène'));
+    hd.append(el('h2', null, this.arenaName ?? 'Arène'));                  // le nom de l'arène choisie par l'hôte
     const body = el('div', 'm-body');
     const grid = el('div', 'm-salon');
     // à gauche : le code, puis les modes

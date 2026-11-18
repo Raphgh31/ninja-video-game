@@ -20,6 +20,7 @@ import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { ArenaArt } from './game/arena/art.js';
+import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
 import { Multi, SLOT_COLORS, MODES } from './game/multi.js';
 import { Lobby } from './game/arena/lobby.js';
@@ -566,7 +567,7 @@ level.onEvent = (n, d) => {
 };
 
 // ---- mode combat : l'arène (grue, gong et vagues, foin, caisses, bonus) ---------
-const arenaArt = level.arena && level.art ? new ArenaArt(level) : null;
+const arenaArt = level.arena && level.art ? (level.theme === 'foret' ? new ForetArenaArt(level) : new ArenaArt(level)) : null;
 if (level.arena) {
   level.arena.onEvent = (n, d) => {
     switch (n) {
@@ -584,6 +585,10 @@ if (level.arena) {
       case 'crateKick': sfx('kickHit'); fx.dust(d.x - d.dir * 6, d.y + 6, 4, { dir: -d.dir, spread: 20, up: 6 }); break;
       case 'crateBreak': sfxAt('crate', d); fx.dust(d.x, d.y + 6, 6, { spread: 30, up: 16 }); fx.sparks(d.x, d.y, 5, { palette: 'straw', speed: 80 }); break;
       case 'crateSplash': sfxAt('logDip', d); fx.sparks(d.x, d.y, 10, { palette: 'water', speed: 80 }); break;
+      // le bassin de la Forêt : la source gronde quand l'eau monte, puis noie les rochers ; elle redescend
+      case 'basinRise': sfxAt('waterRush', d, {}, 0.55); fx.sparks(d.x, d.y, 6, { palette: 'water', speed: 40 }); break;
+      case 'basinFlood': sfxAt('waterRush', d, {}, 0.8); fx.shake(0.5, 0.4); fx.sparks(d.x, d.y, 10, { palette: 'water', speed: 60 }); break;
+      case 'basinFall': sfxAt('logDip', d); break;
       case 'pickupAppear': sfxAt('pickup', d, undefined, 0.5); break;
       case 'pickup':
         if (d.kind === 'heart') { d.fighter.hp = Math.min(HEALTH.max, d.fighter.hp + 1); sfx('heart'); fx.sparks(d.x, d.y, 8, { palette: 'heart', speed: 50 }); }
@@ -654,9 +659,17 @@ function startRoom(cfg) {
     }
   };
   multi = new Multi({
-    net, player, shurikens, level, meta, skins, skinId: () => look.id,
+    net, player, shurikens, level, levelId: LEVEL_ID, meta, skins, skinId: () => look.id,
     onEvent(n, d) {
       if (n === 'roster') { showList(); lobby?.render(); }
+      else if (n === 'arena') {
+        // l'hôte a ouvert une autre arène : on la rejoint (même code)
+        net.onStatus = () => {};
+        net.close();
+        try { sessionStorage.setItem('kage-salle', JSON.stringify({ ...cfg, arena: d.id })); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+        if (TEST_BUILD) labSet('chapter', d.id);
+        location.hash = `#${d.id}`;
+      }
       else if (n === 'mode') lobby?.setMode(d.mode);
       else if (n === 'start') {
         lobby?.hide();
@@ -682,7 +695,7 @@ function startRoom(cfg) {
       } else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
     },
   });
-  lobby = new Lobby(uiLayer, { net, multi, meta, skins, onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
+  lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
@@ -713,7 +726,9 @@ for (const t of tates) t.bar = new HealthBar(TATE.hp);
 for (const w of waras) w.bar = new HealthBar(WARA.hp);
 if (boss) boss.bar = new HealthBar(KARASU.hp);
 player.onRespawn = () => {
-  level.forest?.reset(level.spawn);
+  // (dans l'arène, les planches et le tronc sont partagés : on ne remet en place que la liane qu'il tenait)
+  if (level.arena) level.forest?.vines.forEach((v) => { if (v.rider === player) v.rider = null; });
+  else level.forest?.reset(level.spawn);
   snapCamera();   // retour à la lanterne : coupe franche plutôt qu'un long travelling
   shurikens.reset();
   // les ennemis encore debout reprennent leur poste ; les vaincus le restent
@@ -812,7 +827,7 @@ function setupSkinLab() {
   }
   // mode combat : les arènes (une par chapitre)
   for (const [id, l] of Object.entries(LEVELS).filter(([, v]) => v.arena)) {
-    const b = button('Arène', l.name, () => {
+    const b = button(`Arène ${{ potager: 'Potager', foret: 'Forêt' }[l.theme] ?? ''}`.trim(), l.name, () => {
       labSet('chapter', id);
       sessionStorage.setItem('kage-sans-intro', '1');
       location.hash = `#${id}`;
@@ -1126,7 +1141,8 @@ function groundBelow(x, y) {
 let arenaY = null, arenaHigh = false, arenaMove = null;
 const ARENA_CAM = { up: 4.5 * 16, down: 3.5 * 16, top: 9 * 16, head: 30, margin: 0.15, time: 0.6 };
 function arenaCamY(dt = 1) {
-  const a = level.arena.def, low = Math.round(a.ground + VIEW_H * 0.15 - VIEW_H);
+  // (le sol à 85 % de l'image ; une arène peut le remonter : camGround, la Forêt montre son bassin)
+  const a = level.arena.def, low = Math.round(a.ground + VIEW_H * (1 - (a.camGround ?? 0.85)) - VIEW_H);
   if (VIEW_H >= 236) {                                     // ordinateur : presque fixe
     const top = Math.min(low, Math.round(a.ground - 15 * 16));
     let want = low;
@@ -1553,13 +1569,14 @@ if (CHAPTER) {
       clearSave(slot);
       if (profile.shown === slot) { profile.shown = slot === 1 ? 2 : 1; saveProfile(profile); }
     },
-    createArena() { go({ mode: 'host', code: randomCode() }); },
+    arenas: Object.entries(LEVELS).filter(([, l]) => l.arena).map(([id, l]) => ({ id, name: l.name.replace(/^Arène — /, '') })),
+    createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
     setBackdrop(on) { if (intro) intro.menuMode = on; },
   });
   function go(cfg) {
     try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
-    location.hash = '#arene-potager';
+    location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`;
   }
   title.querySelector('[data-menu="aventure"]').focus();
   const existing = loadSave();

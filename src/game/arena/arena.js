@@ -12,7 +12,10 @@
 //     rebâtit un peu plus tard ;
 //   - les bottes de foin : un tremplin ;
 //   - les caisses : d'un coup de pied, elles filent au ras du sol ;
-//   - les bonus : cœurs (un point de vie) et paquets de shurikens.
+//   - les bonus : cœurs (un point de vie) et paquets de shurikens ;
+//   - le bassin de la Forêt (arène de la Forêt) : son niveau monte et descend
+//     lentement ; eau basse, on traverse sur les rochers ; eau haute, ils sont noyés.
+// Chaque arène n'a que les pièges qu'elle déclare (def.crane, def.gong, def.basin…).
 // Le dessin est dans art.js ; les sons et les effets passent par onEvent (main.js).
 import { TILE } from '../level.js';
 
@@ -26,6 +29,11 @@ export const ARENA = {
   scaffold: { warn: 0.32, rebuild: 7.5 },   // ils ne tombent que sous le choc du rocher, rebâtis ensuite
   crate: { kick: 270, friction: 330, dmg: 1 },
   pickup: { heart: 17, firstHeart: 9, bundle: 10, firstBundle: 5, heal: 1 },
+  // le bassin de la Forêt : un cycle lent (s), qui commence eau basse. Eau basse, les rochers
+  // émergent ; l'eau monte (la source gronde, des bulles) jusqu'à lécher leur dessus, s'arrête un
+  // instant, puis les noie ; elle reste haute, puis redescend. Surfaces (px sous le haut du bord) :
+  // low (rochers à sec), mid (l'eau affleure), high (rochers noyés : mortels)
+  basin: { low: 15, rise: 3.2, mid: 2.2, flood: 2.4, high: 9, fall: 4.5, sLow: 26, sMid: 17, sHigh: 4 },
 };
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -55,6 +63,9 @@ export class Arena {
     this.heartClock = ARENA.pickup.heart - ARENA.pickup.firstHeart;
     this.bundleClock = ARENA.pickup.bundle - ARENA.pickup.firstBundle;
     this.spawnIndex = 0;
+    // le bassin (arène de la Forêt)
+    // (ses cases d'eau ne bougent qu'à la première image : le décor est peint d'après la carte, eau haute)
+    this.basin = def.basin ? { ...def.basin, s: 0, phase: 'low', rate: 0 } : null;
   }
 
   /** Ligne du premier sol sous les colonnes x0..x0+w-1, à partir de la ligne ty. */
@@ -82,7 +93,63 @@ export class Arena {
     this.waves = [];
     for (const s of this.level.scaffolds) if (!s.up) this.rebuild(s, true);
     this.pickups = [];
+    // le bassin repart eau basse, le tronc flottant et les planches à leur place (le même état chez tous)
+    if (this.basin) { this.time = 0; this.updateBasin(0, []); }
+    const f = this.level.forest;
+    if (f) {
+      f.time = 0;
+      f.logs.forEach((l, i) => { const d = f.def.logs[i]; l.x = l.x0 + (l.x1 - l.x0) * (d.start ?? 0); l.dir = d.speed < 0 ? -1 : 1; l.sink = 0; });
+      for (const c of f.crumbles) Object.assign(c, { state: 'idle', t: 0, y: c.y0, vy: 0, active: true });
+      for (const v of f.vines) v.rider = null;
+    }
   }
+
+  // ---- le bassin de la Forêt ------------------------------------------------------
+  /** Surface de l'eau (px, depuis le haut du bord) à l'instant t du cycle, et la phase. */
+  basinAt(t) {
+    const B = ARENA.basin, ease = (k) => k * k * (3 - 2 * k);
+    const steps = [['low', B.low, B.sLow, B.sLow], ['rise', B.rise, B.sLow, B.sMid], ['mid', B.mid, B.sMid, B.sMid],
+      ['flood', B.flood, B.sMid, B.sHigh], ['high', B.high, B.sHigh, B.sHigh], ['fall', B.fall, B.sHigh, B.sLow]];
+    const period = steps.reduce((n, st) => n + st[1], 0);
+    let u = ((t % period) + period) % period;
+    for (const [phase, d, a, b] of steps) {
+      if (u < d) { const k = ease(u / d); return { s: a + (b - a) * k, phase, k: u / d }; }
+      u -= d;
+    }
+    return { s: B.sLow, phase: 'low', k: 0 };
+  }
+
+  updateBasin(dt, fighters) {
+    const b = this.basin, lv = this.level;
+    const top = b.top * TILE;
+    const { s, phase, k } = this.basinAt(this.time);
+    b.rate = dt > 0 ? (s - b.s) / dt : 0;
+    b.k = k;
+    if (phase !== b.phase) {
+      const at = { x: (b.x0 + b.x1) * TILE / 2, y: top + s };
+      if (phase === 'rise') this.onEvent?.('basinRise', at);
+      else if (phase === 'flood') this.onEvent?.('basinFlood', at);
+      else if (phase === 'fall') this.onEvent?.('basinFall', at);
+      b.phase = phase;
+    }
+    b.s = s;
+    b.y = top + s;                      // la surface de l'eau (px, dans le monde)
+    // les cases d'eau suivent la surface : une rangée est de l'eau (mortelle) dès que la surface
+    // dépasse son haut de 4 px (on meurt les pieds à 4 px sous elle, comme partout)
+    const stone = new Set();
+    for (const [x, w] of b.stones) for (let i = 0; i < w; i++) stone.add(x + i);
+    for (let r = b.top; r < b.bed; r++) {
+      const wet = b.y <= r * TILE + 4;
+      for (let x = b.x0; x < b.x1; x++) {
+        if (stone.has(x) && r > b.top) continue;
+        const want = wet ? '~' : '.';
+        if (lv.at(x, r) !== want) lv.setTile(x, r, want);
+      }
+    }
+    // le tronc flottant monte et descend avec l'eau
+    for (const l of lv.forest?.logs ?? []) l.y0 = b.y - Math.round(l.d * 0.62);
+  }
+
 
   // ---- grue ------------------------------------------------------------------
   fillCrane(top) {
@@ -214,6 +281,7 @@ export class Arena {
       g.t += dt;
       if (!g.ready && g.t > W.rearm && !this.waves.length) { g.ready = true; this.onEvent?.('gongReady', { x: g.x, y: g.y - 28 }); }
     }
+    if (!this.def.canal) return;
     const [c0, c1] = this.def.canal, ground = this.def.ground;
     for (const w of this.waves) {
       const was = w.t;
@@ -410,6 +478,7 @@ export class Arena {
     for (const q of this.quakes) q.t += dt;
     this.quakes = this.quakes.filter((q) => q.t < 1.2);
     this.updateCrane(dt, fighters);
+    if (this.basin) this.updateBasin(dt, fighters);
     this.updateWaves(dt, fighters);
     this.landings(dt, fighters);
     this.updateCrates(dt, fighters);
