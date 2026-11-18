@@ -1746,25 +1746,28 @@ CROW_CAPE = {
     # des cuisses ; trois rangs de plumes, chacun ressort d'un pixel et finit par une pointe sombre (le bord
     # dentelé), le reflet violet sur le haut de chaque rang
     "calm": (9, [
-        "..QP",
-        ".QPp",
-        "QPPp",
-        "rQPp",
-        ".QPp",
-        "QPPp",
-        "rQPp",
-        ".QPp",
-        "r.rp",
+        "...QP",
+        "..QPp",
+        ".QPPp",
+        ".rQPp",
+        "..QPp",
+        ".QPPp",
+        ".rQPp",
+        ".QPPp",
+        "QPPpp",
+        "rQPpp",
+        "r.r.p",
     ]),
     # en chute : elle remonte derrière les épaules
     "up": (6, [
-        "r.....",
-        "QP....",
-        "rQPp..",
-        ".rQPp.",
-        "..rQPp",
-        "...QPp",
-        "....Pp",
+        "r......",
+        "QP.....",
+        "rQPp...",
+        ".rQPp..",
+        "..rQPp.",
+        "...QPPp",
+        "....QPp",
+        ".....Pp",
     ]),
     # en boule (salto) : ramassée sur le dos
     "flip": (9, [
@@ -1778,14 +1781,14 @@ CROW_CAPE = {
 # étoffe (elle ne flotte pas à l'horizontale) ; le dessus lisse au reflet violet, le dessous en pointes.
 # (rangées calées à droite sur l'arrière du col ; la première rangée est celle du dessus du col, moins un)
 CROW_CAPE_RUN = [
-    "....QQPp",
-    "..QQPPpp",
-    "QQPPpPpp",
-    "rPPpQPp.",
-    ".r.rPPp.",
-    "....r.r.",
+    "......QQPp",
+    "....QQPPpp",
+    "..QQPPpPpp",
+    "QQPPpQPPp.",
+    "rQPpPPpp..",
+    ".r.rQPp...",
+    "....r.r...",
 ]
-
 
 def _put(g, mask, x, y, c):
     if c != "." and 1 <= x < CW and 0 <= y < CH and g[y, x] in BG:
@@ -1821,7 +1824,7 @@ def crow_cape(g):
     if xs is None:
         return g, False
     feet = [y for y in range(CH) if any(c in "tTUdD" for c in g[y])]
-    bottom = (max(feet) if feet else CH) - 4
+    bottom = (max(feet) if feet else CH) - 3
     dy0, rows = CROW_CAPE[wind]
     for j, row in enumerate(rows):
         y = hy + dy0 + j
