@@ -6,7 +6,7 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 
 ---
 
-## 1. Où on en est (17 novembre 2026 : Samouraï déchu, pêcheur et apprenti tengu faits)
+## 1. Où on en est (18 novembre 2026 : Samouraï déchu, pêcheur, apprenti tengu, puis les skins de base nocturne et émeraude)
 
 **Skins dans le jeu** (`assets/characters/kage/skins/`) :
 
@@ -14,6 +14,8 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 |---|---|---|---|---|---|
 | `encre` | Encre | origine | — | — | le skin d'origine, toujours possédé |
 | `paysan` | Paysan des rizières | commun | 100 | `notails`, `pants`, `dots`, `farmer`, `sash`, `kasa` | kimono vert, tonnelet et panier sur le dos, bambou |
+| `emeraude` | Le ninja émeraude | commun | 120 | `emeralds` | skin de base (sans modèle) : tenue vert-bleu, plus verte que bleue ; bandeau d'or ; une émeraude sertie d'or sur la boucle de la ceinture, une petite au bout de la ceinture, une au milieu du bandeau |
+| `nocturne` | Le ninja nocturne | commun | 120 | `night_sky`, `moon_mark` | skin de base (sans modèle) : tenue bleu nuit semée de quelques étoiles (des points vifs et d'autres pâles, jamais côte à côte) ; croissant de lune pâle sur le front, sur la capuche |
 | `tengu` | L'apprenti tengu | peu commun | 350 | `fox_tail`, `haori`, `rope`, `fox_mask` | masque blanc à œil unique, collé contre le visage, et spirale rouge qui finit dans le bord du masque, rubans blanc et rouge au vent ; veste blanche au devant rouge, cordelette en damier, pantalon blanc à bande rouge, boucle dorée ; long pan du manteau rouge bordé de blanc, qui fait cape (`fox_tail`) : il part du milieu du dos, large contre le dos, reste près du dos en course et se ramasse pendant les saltos ; rubans courts |
 | `samourai` | Samouraï déchu | rare | 450 | `arm_in`, `hakama`, `kusazuri`, `rag`, `sode`, `samurai_trim`, `kabuto` | kabuto aux cornes d'or en croissant et cimier rouge, pans au vent, épaulière carrée resserrée sur l'épaule, cape en lambeaux (plaquée au repos, au vent en course), tassettes bordées d'or ; bras arrière rapproché du corps ; `barLift: 4` (barre de vie au-dessus des cornes) |
 | `pecheur` | Le pêcheur | épique | 500 | `round_net`, `ribbon`, `rope`, `specks`, `wraps`, `mask_mark`, `rod`, `back_rod`, `kasa_peche` | sugegasa tressé de bleu, pan bleu, une canne fine rangée dans le dos (un fil pend de sa pointe ; elle quitte le dos quand il frappe), filet rond sur le dos qui lévite avec la vitesse (course, sprint), corde tressée, éclats dorés ; **canne à pêche** en bambou à la place du sabre (ligne et flotteur, arc du coup en ligne d'eau) ; **micro-poissons** en guise de shurikens (`projectile: "fish"`, gouttes d'eau : `projectileDust: "water"`) |
@@ -28,8 +30,6 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `pourpre.json` | Ombre pourpre | 150 | peu commun |
 | `hiver.json` | Souffle de l'hiver | 450 | épique |
 | `renard.json` | Renard blanc | 500 | rare |
-| `nocturne.json` | Le ninja nocturne (skin de base, sans modèle) | 120 | commun |
-| `emeraude.json` | Le ninja émeraude (skin de base, sans modèle) | 150 | commun |
 
 Le **vagabond** (premier skin) a été **retiré**, puis le **voyageur** (16 novembre 2026, demande de Raph ; ses planches restent dans `docs/kage/skins/`, ses accessoires `mino`, `ribbon`, `kasa_leaf` dans la forge). Un joueur qui portait un skin retiré repasse en Encre (`startChapter`, `main.js`).
 

@@ -1680,7 +1680,9 @@
     "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"
   },
   "skins": [
+    "emeraude",
     "encre",
+    "nocturne",
     "or",
     "paysan",
     "pecheur",
@@ -1688,6 +1690,8 @@
     "tengu"
   ],
   "accessorySheets": {
+    "emeraude": "kage_acc_emeraude_index.png",
+    "nocturne": "kage_acc_nocturne_index.png",
     "or": "kage_acc_or_index.png",
     "paysan": "kage_acc_paysan_index.png",
     "pecheur": "kage_acc_pecheur_index.png",

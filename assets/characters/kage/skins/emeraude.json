@@ -2,7 +2,7 @@
   "id": "emeraude",
   "name": "Le ninja émeraude",
   "rarity": "commun",
-  "price": 150,
+  "price": 120,
   "description": "Tenue vert-bleu, bandeau d'or, émeraudes sur la ceinture et le front.",
   "blurb": "On dit que ses pierres ont été taillées dans la mousse d'un vieux temple.",
   "accessories": ["emeralds"],
