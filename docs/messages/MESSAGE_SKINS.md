@@ -23,7 +23,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation est consacrée uniquement 
   - une grue et son rocher ficelé, un gong et des vagues, des échafaudages, des cœurs.
 - **le ninja** :
   - 28 animations : course, sprint, dash, glissade, saut mural, saltos, sabre, shurikens, coups de pied, lianes, corde… ;
-  - 8 skins : Encre, le paysan, le ninja émeraude et le ninja nocturne (skins de base, 120 ryō), l'apprenti tengu, le Samouraï déchu, le pêcheur (canne à pêche et micro-poissons), Lumière d'or ; 5 autres en brouillon.
+  - 9 skins : Encre, le paysan, le ninja émeraude et le ninja nocturne (skins de base, 120 ryō), l'apprenti tengu, le Samouraï déchu, le pêcheur (canne à pêche et micro-poissons), Lumière d'or, et le trophée du corbeau (récompense de la victoire sur KARASU-KASHI : crâne de corbeau, cape de plumes, plumes lancées) ; 5 autres en brouillon.
 
 **Technique** :
 - Vite et JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. Image interne 448×252, mise à l'échelle entière (pixels nets).

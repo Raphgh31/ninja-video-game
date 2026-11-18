@@ -6,7 +6,7 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 
 ---
 
-## 1. Où on en est (18 novembre 2026 : Samouraï déchu, pêcheur, apprenti tengu, puis les skins de base nocturne et émeraude)
+## 1. Où on en est (18 novembre 2026 : Samouraï déchu, pêcheur, apprenti tengu, skins de base nocturne et émeraude, trophée du corbeau)
 
 **Skins dans le jeu** (`assets/characters/kage/skins/`) :
 
@@ -20,6 +20,7 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `samourai` | Samouraï déchu | rare | 450 | `arm_in`, `hakama`, `kusazuri`, `rag`, `sode`, `samurai_trim`, `kabuto` | kabuto aux cornes d'or en croissant et cimier rouge, pans au vent, épaulière carrée resserrée sur l'épaule, cape en lambeaux (plaquée au repos, au vent en course), tassettes bordées d'or ; bras arrière rapproché du corps ; `barLift: 4` (barre de vie au-dessus des cornes) |
 | `pecheur` | Le pêcheur | épique | 500 | `round_net`, `ribbon`, `rope`, `specks`, `wraps`, `mask_mark`, `rod`, `back_rod`, `kasa_peche` | sugegasa tressé de bleu, pan bleu, une canne fine rangée dans le dos (un fil pend de sa pointe ; elle quitte le dos quand il frappe), filet rond sur le dos qui lévite avec la vitesse (course, sprint), corde tressée, éclats dorés ; **canne à pêche** en bambou à la place du sabre (ligne et flotteur, arc du coup en ligne d'eau) ; **micro-poissons** en guise de shurikens (`projectile: "fish"`, gouttes d'eau : `projectileDust: "water"`) |
 | `or` | Lumière d'or | légendaire | 600 | `flametails`, `halo`, `hipcloth`, `mantlet`, `sash`, `apron` | `aura: 'gold'` (éclat : `src/game/aura.js`), shurikens dorés (`projectileColors`), traînées d'or (`trail`), poussière d'or derrière les shurikens (`goldDust`, `src/game/shuriken.js`) |
+| `corbeau` | Le trophée du corbeau | rare | **récompense** (`reward: "karasu"`, sans prix) | `crow_wraps`, `crow_cape`, `crow_collar`, `crow_feather`, `crow_tails`, `crow_skull` | gagné en battant KARASU-KASHI (`earnRewards`, `main.js` ; à la boutique : étiquette « Trophée », bouton grisé « Battre le corbeau », puis « Acquis ») ; **crâne de corbeau** porté sur la tête (`CROW_SKULL` : boîte crânienne, grande orbite noire, bec, narine, mâchoire) ; collerette noir-bleu à reflets sarcelle fermée d'une agrafe d'or ; **cape de petites plumes** à reflets violets (slots `r p P Q`), plus large en haut qu'en bas, bord dentelé, qui suit le vent (`CROW_CAPE`, `CROW_CAPE_RUN` accrochée à la nuque en course) ; plume plantée dans le nœud ; pans du bandeau raccourcis (`crow_tails`, et `TAIL_SCALE` dans `flip.py` pour les saltos) ; bandes rouges et blanches aux chevilles ; tenue gris cendré ; **plumes lancées** au lieu des shurikens (`projectile: "feather"`, planche `kage_feather`, duvet noir : `projectileDust: "down"`) ; `barLift: 4` |
 
 **Brouillons** (`tools/kage_forge/skins_brouillon/`, hors du jeu) : un premier jet trop rapide, à **refaire un par un, fidèles au modèle** (le Samouraï déchu, le pêcheur et l'apprenti tengu sont faits, 16 et 17 novembre 2026) :
 

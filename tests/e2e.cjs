@@ -1221,6 +1221,50 @@ async function main() {
     expect(r.join() === 'true,true,water,false,true,true', r.join());
   });
 
+  await test('trophée du corbeau : ses shurikens sont des plumes (leur planche, tournées dans le sens du vol, du duvet)', async () => {
+    const r = await page.evaluate(() => {
+      const sk = window.__kage.skins.corbeau;
+      return [!!sk, sk?.reward, sk?.projectileFaces, sk?.projectileDust, sk?.projectiles.shuriken === sk?.projectiles.feather, sk?.barLift];
+    });
+    expect(r.join() === 'true,karasu,true,down,true,4', r.join());
+  });
+
+  await test('trophée du corbeau : une récompense — verrouillé à la boutique tant que le corbeau vit, acquis et portable une fois battu', async () => {
+    const pa = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await pa.goto(PAGE); await pa.waitForFunction(() => window.__kage); await pa.evaluate(() => localStorage.clear());
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await NEW(pa); await pa.waitForTimeout(300);
+      const shop = async () => {
+        await pa.evaluate(() => {
+          const g = window.__kage, pl = g.player, l = g.level, tx = Math.floor(l.merchant.x / 16) - 1;
+          let ty = l.h - 1; while (ty > 0 && l.solid(tx, ty - 1)) ty--;
+          pl.x = tx * 16 + 8; pl.y = ty * 16; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle');
+        });
+        await pa.waitForTimeout(300);
+        await pa.keyboard.press('ArrowUp'); await pa.waitForTimeout(200);
+        await pa.click('.shop__card[data-skin="corbeau"]'); await pa.waitForTimeout(100);
+        return pa.evaluate(() => [document.querySelector('[data-skin="corbeau"] .shop__tag').textContent, document.querySelector('[data-action]').textContent,
+          document.querySelector('[data-action]').disabled, [...document.querySelectorAll('.shop__card')].pop().dataset.skin]);
+      };
+      const before = await shop();
+      // impossible de l'acheter, même riche
+      const bought = await pa.evaluate(() => { window.__kage.save.ryo = 9999; return window.__kage.save.skins.join(); });
+      await pa.keyboard.press('Escape'); await pa.waitForTimeout(200);
+      // le corbeau battu (sauvegarde), puis l'aventure reprise
+      await pa.evaluate(() => { const k = 'kage.save.v' + '1', v = JSON.parse(localStorage.getItem(k)); v.bossDefeated = true; localStorage.setItem(k, JSON.stringify(v)); });
+      await pa.reload(); await pa.waitForFunction(() => window.__kage); await pa.waitForTimeout(200);
+      await CONT(pa); await pa.waitForTimeout(500);
+      const skins = await pa.evaluate(() => window.__kage.save.skins.join());
+      const after = await shop();
+      await pa.click('[data-action]'); await pa.waitForTimeout(100);
+      const worn = await pa.evaluate(() => window.__kage.save.skin);
+      expect(before.join() === 'Trophée,Battre le corbeau,true,corbeau' && bought === 'encre' && skins.split(',').includes('corbeau')
+        && after[0] === 'Acquis' && after[1] === 'Porter' && !after[2] && worn === 'corbeau',
+        `avant ${before.join()} · ${bought} · skins ${skins} · après ${after.join()} · porté ${worn}`);
+    } finally { await pa.close(); }
+  });
+
   await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
     const pa = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     try {
