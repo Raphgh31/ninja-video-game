@@ -1205,7 +1205,9 @@ async function main() {
       return out;
     });
     const ids = Object.keys(r);
-    expect(ids.includes('samourai') && ids.every((id) => r[id][0] > 0 && r[id][1] === 0) && r.samourai[2] >= 8,
+    // (les skins dont un accessoire retire des pixels de la pose ; l'émeraude, elle, ne fait que recolorer)
+    const erasing = ['paysan', 'samourai', 'tengu', 'corbeau'];
+    expect(ids.includes('samourai') && erasing.every((id) => r[id]?.[0] > 0) && ids.every((id) => r[id][1] === 0) && r.samourai[2] >= 8,
       Object.entries(r).map(([id, v]) => `${id} : ${v[0]} marqués, ${v[1]} restés, or ${v[2]}`).join(' · '));
   });
 
