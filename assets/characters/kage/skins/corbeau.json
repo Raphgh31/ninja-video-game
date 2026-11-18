@@ -9,10 +9,12 @@
     "crow_cape",
     "crow_collar",
     "crow_feather",
-    "crow_tails"
+    "crow_tails",
+    "crow_skull"
   ],
   "projectile": "feather",
   "projectileDust": "down",
+  "barLift": 4,
   "colors": {
     "O": "#06070b",
     "h": "#141419",
@@ -53,11 +55,11 @@
     "b": "#0b0d14",
     "B": "#1f2a3d",
     "i": "#2f7584",
-    "j": "#7a3d10",
+    "j": "#a3977c",
     "J": "#e3a12a",
     "s": "#e3a12a",
     "S": "#ffd35e",
-    "u": "#fff3c0"
+    "u": "#fbf7ee"
   },
   "projectileColors": {
     "w": "#121722",

@@ -1745,21 +1745,21 @@ CROW_CAPE = {
     # au repos : calée contre le dos (chaque rangée finit sur le bord arrière de l'épaule), des épaules au haut
     # des cuisses ; trois rangs de plumes, chacun ressort d'un pixel et finit par une pointe sombre (le bord
     # dentelé), le reflet violet sur le haut de chaque rang
-    "calm": (9, [
+    "calm": (10, [
+        "..QQP",
+        ".QPPp",
+        "QPPPp",
+        "rQPPp",
+        "..QPp",
+        ".QPPp",
+        ".rQPp",
         "...QP",
         "..QPp",
-        ".QPPp",
-        ".rQPp",
-        "..QPp",
-        ".QPPp",
-        ".rQPp",
-        ".QPPp",
-        "QPPpp",
-        "rQPpp",
-        "r.r.p",
+        "..rQp",
+        "...rp",
     ]),
     # en chute : elle remonte derrière les épaules
-    "up": (6, [
+    "up": (7, [
         "r......",
         "QP.....",
         "rQPp...",
@@ -1779,15 +1779,15 @@ CROW_CAPE = {
 }
 # en course : accrochée à la nuque (derrière le col), elle traîne derrière lui en biais, plus lourde qu'une
 # étoffe (elle ne flotte pas à l'horizontale) ; le dessus lisse au reflet violet, le dessous en pointes.
-# (rangées calées à droite sur l'arrière du col ; la première rangée est celle du dessus du col, moins un)
+# (rangées calées à droite sur l'arrière du col ; la première rangée est celle du dessus du col) ; plus longue
+# en haut qu'en bas (demande de Raph)
 CROW_CAPE_RUN = [
-    "......QQPp",
-    "....QQPPpp",
-    "..QQPPpPpp",
-    "QQPPpQPPp.",
-    "rQPpPPpp..",
-    ".r.rQPp...",
-    "....r.r...",
+    "..QQQPPPPp",
+    "QQPPPpPPpp",
+    "rQPPpPPpp.",
+    ".rQPpPpp..",
+    "..rQPpp...",
+    "....r.p...",
 ]
 
 def _put(g, mask, x, y, c):
@@ -1817,7 +1817,7 @@ def crow_cape(g):
         ax = min(x for y, x in neck if y == ay)
         for j, row in enumerate(CROW_CAPE_RUN):
             for i, c in enumerate(row):
-                _put(g, mask, ax - len(row) + i, ay - 1 + j, c)
+                _put(g, mask, ax - len(row) + i, ay + j, c)
         _outline(g, mask)
         return g, True
     xs = _back_edge(g, hy + 11, hx, TORSO)
@@ -1836,7 +1836,47 @@ def crow_cape(g):
     return g, True
 
 
+
+# le crâne du corbeau, porté sur la tête comme un trophée (demande de Raph) : de profil, la boîte crânienne
+# arrondie posée sur le haut de la capuche, la grande orbite noire, le long bec droit qui avance au-dessus du
+# front et s'incline à peine à la pointe, la narine osseuse à sa base, la mâchoire fine dessous.
+# Os : u reflet, c os, j ombre ; O orbite.
+# (colonne, rangée de son coin haut gauche, par rapport à la tête)
+CROW_SKULL = """
+...cccc.........
+..cuuccc........
+.cuOOcccc.......
+.cOOOOcjjucccu..
+.cOOOjcjcccccccc
+..cjjjjjjjjjjjj.
+...jj...........
+"""
+CROW_SKULL_AT = (1, -4)
+
+
+def crow_skull(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    for j, row in enumerate(_rows(CROW_SKULL)):
+        for i, c in enumerate(row):
+            x, y = hx + CROW_SKULL_AT[0] + i, hy + CROW_SKULL_AT[1] + j
+            if c == "." or not (0 <= x < CW and 0 <= y < CH):
+                continue
+            # (sur la capuche et le vide ; jamais sur la lame, une main ou un bras levé)
+            if g[y, x] in BG or g[y, x] in "hHI":
+                g[y, x] = c
+                mask[y, x] = True
+    _outline(g, mask)
+    return g, True
+
+
 def accessory(name):
+    if name == "crow_skull":
+        return crow_skull
     if name == "crow_tails":
         return crow_tails
     if name == "crow_cape":
