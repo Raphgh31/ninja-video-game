@@ -184,12 +184,16 @@ def tail(knot, center, theta, omega, v, length, gravity=60.0, start=(0, 0)):
     return path
 
 
-def draw_tails(g, knot, center, theta, omega, v):
-    """Dessine les deux pans derrière le corps (sur le vide seulement)."""
+# un skin peut raccourcir les pans (le trophée du corbeau : accessoire « crow_tails ») : facteur de longueur
+TAIL_SCALE = {"crow_tails": 0.5}
+
+
+def draw_tails(g, knot, center, theta, omega, v, k=1.0):
+    """Dessine les deux pans derrière le corps (sur le vide seulement) ; k : facteur de longueur (skin)."""
     g = g.copy()
     h, w = g.shape
-    for length, colors, start, grav in ((SHORT_TAIL, SHORT_COLORS, (0, 1), 90.0),
-                                         (LONG_TAIL, LONG_COLORS, (0, 0), 50.0)):
+    for length, colors, start, grav in ((round(SHORT_TAIL * k), SHORT_COLORS, (0, 1), 90.0),
+                                         (round(LONG_TAIL * k), LONG_COLORS, (0, 0), 50.0)):
         # le tissu se compte à partir du moment où il sort de derrière le corps
         i = 0
         for (x, y) in tail(knot, center, theta, omega, v, length, grav, start):
@@ -281,36 +285,38 @@ def _center(g):
     return (xs.mean() + 0.5, ys.mean() + 0.5)
 
 
-def _finish(g, knot, center, theta, omega, v):
+def _finish(g, knot, center, theta, omega, v, k=1.0):
     if knot is None:
         return add_outline(clean(g))
-    return add_outline(clean(draw_tails(g, knot, center, theta, omega, v)))
+    return add_outline(clean(draw_tails(g, knot, center, theta, omega, v, k)))
 
 
 def frames(kind, acc=None):
     """Images agrandies (57×36) du salto ; kind = 'front' ou 'back'. acc : accessoires du skin."""
     s = 1 if kind == "front" else -1
     out = []
+    tk = min([TAIL_SCALE[n] for n in (acc or ()) if n in TAIL_SCALE] or [1.0])
+    fin = lambda *a: _finish(*a, tk)   # noqa: E731 (les pans du skin, à sa longueur)
     # 1. impulsion : le corps monte vite, le foulard pend dessous
     p = TAKEOFF_FRONT if kind == "front" else TAKEOFF_BACK
     g = _grow(p, acc)
-    out.append(_finish(g, _knot(g), _center(g), 0, 0, (55 * s, -300)))
+    out.append(fin(g, _knot(g), _center(g), 0, 0, (55 * s, -300)))
     # 2. début du groupé : la rotation s'amorce
     g = bulk(_grow(TUCK_IN, acc), BULK["tuck_in"])
-    out.append(_finish(g, _knot(g), _center(g), 0, 300 * s, (60 * s, -200)))
+    out.append(fin(g, _knot(g), _center(g), 0, 300 * s, (60 * s, -200)))
     # 3. la boule, de 45° en 45° ; elle monte, passe le sommet, redescend
     ball = bulk(_grow(TUCK, acc), BULK["ball"])
     c, k = _center(ball), _knot(ball)
     for i, a in enumerate(range(45, 360, 45)):
         vy = -110 + i * 40                 # (envolée bridée : il monte doucement, flotte, redescend)
         g = rotate(ball, a * s, c)
-        out.append(_finish(g, k, c, a * s, SPIN * s, (60 * s, vy)))      # (tail() tourne le nœud lui-même)
+        out.append(fin(g, k, c, a * s, SPIN * s, (60 * s, vy)))      # (tail() tourne le nœud lui-même)
     # 4. ouverture : la rotation freine, les jambes vont chercher le sol
     g = bulk(_grow(OPEN, acc), BULK["open"])
-    out.append(_finish(g, _knot(g), _center(g), 0, 220 * s, (55 * s, 200)))
+    out.append(fin(g, _knot(g), _center(g), 0, 220 * s, (55 * s, 200)))
     # 5. réception : jambes tendues, le foulard flotte au-dessus
     g = _grow(LANDING, acc)
-    out.append(_finish(g, _knot(g), _center(g), 0, 0, (60 * s, 280)))
+    out.append(fin(g, _knot(g), _center(g), 0, 0, (60 * s, 280)))
     return out
 
 

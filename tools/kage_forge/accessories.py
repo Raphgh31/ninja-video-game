@@ -1616,33 +1616,28 @@ def emeralds(g):
 # (une plume de rémige : elle plie à peine) ; en course, le vent la couche un peu plus.
 CROW_FEATHER = {
     "calm": ((-2, 2), [
-        "i....",
-        "iB...",
-        ".iB..",
-        ".iBb.",
-        "..iBb",
-        "..iBb",
-        "...Bb",
-        "...cb",
-        "....c",
+        "i...",
+        "iB..",
+        ".iBb",
+        ".iBb",
+        "..Bb",
+        "..cb",
+        "...c",
     ]),
     "back": ((-2, 2), [
-        "ii.......",
-        ".iiBB....",
-        "..bBBBb..",
-        "....bbBbc",
-        ".......cc",
+        "ii.....",
+        ".iBBb..",
+        "...bBbc",
+        ".....cc",
     ]),
     "up": ((-2, 2), [
-        "i....",
-        "iB...",
-        ".iB..",
-        ".iBb.",
-        "..iBb",
-        "..iBb",
-        "...Bb",
-        "...cb",
-        "....c",
+        "i...",
+        "iB..",
+        ".iBb",
+        ".iBb",
+        "..Bb",
+        "..cb",
+        "...c",
     ]),
 }
 
@@ -1695,23 +1690,6 @@ def crow_collar(g):
         for x in range(max(0, hx - 1), min(CW, hx + 11)):
             if g[y - 1, x] in "bBi" and g[y, x] in "tTU" and x % 2 == 0:
                 g[y, x] = "b"
-    # sur l'épaule arrière, les plumes qui débordent du dos
-    xl = _back_edge(g, hy + 11, hx, TORSO)
-    if xl is not None:
-        mask = np.zeros(g.shape, bool)
-        wind = _wind(g, hx, hy)
-        shape = (((8, -1, "iB"), (9, -3, "iiBB"), (10, -4, "iBBbB"), (11, -4, "BbBbb"), (12, -4, "b.Bb"),
-                  (13, -4, "b..b"))
-                 if wind != "back" else
-                 ((8, -2, "iiB"), (9, -5, "biiBB"), (10, -6, "b.bBBb"), (11, -4, "b.b")))
-        for dy, x0, cols in shape:
-            yy = hy + dy
-            for k, c in enumerate(cols):
-                x = xl + x0 + k
-                if c != "." and 0 <= x < CW and 0 <= yy < CH and (g[yy, x] in BG or g[yy, x] in "fFGkK" or g[yy, x] in TORSO):
-                    g[yy, x] = c
-                    mask[yy, x] = True
-        _outline(g, mask)
     return g, done
 
 
@@ -1731,7 +1709,135 @@ def crow_wraps(g):
     return g, done
 
 
+
+# les pans du bandeau, raccourcis : ce qui dépasse de CROW_TAIL_LEN pixels du nœud est retiré (dans les saltos,
+# la forge les trace plus courts : flip.py, TAIL_SCALE)
+CROW_TAIL_LEN = 5
+
+
+def crow_tails(g):
+    pos = find_head(g)
+    ks = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "kK"]
+    if pos is None or not ks:
+        return g, False
+    hx, hy = pos
+    kx = min(x for _, x in ks)
+    ky = sum(y for y, _ in ks) / len(ks)
+    g = g.copy()
+    done = False
+    for y in range(CH):
+        for x in range(CW):
+            if g[y, x] in "fFG" and (x < hx + 2 or y < hy) and (x - kx) ** 2 + (y - ky) ** 2 > CROW_TAIL_LEN ** 2:
+                g[y, x] = "."
+                done = True
+    if done:
+        _reoutline(g)
+    return g, done
+
+
+# la cape de petites plumes, dessinée à la main pour chaque vent (comme la cape du samouraï) : trois rangs de
+# plumes en écailles, chacun finit par une pointe sombre (le bord dentelé dit « plumes ») ; courte, des épaules
+# au haut des cuisses. Au repos elle tombe droit contre le dos ; en course, plus lourde qu'une étoffe, elle se
+# soulève à peine et traîne en biais ; en chute, elle remonte ; en boule (salto), elle se ramasse.
+# Chaque rangée est calée à droite contre le dos (le dernier caractère touche le bord arrière de l'épaule) ;
+# (première rangée, relative à la tête). Q reflet violet · P plume · p ombre contre le dos · r pointe sombre
+CROW_CAPE = {
+    # au repos : calée contre le dos (chaque rangée finit sur le bord arrière de l'épaule), des épaules au haut
+    # des cuisses ; trois rangs de plumes, chacun ressort d'un pixel et finit par une pointe sombre (le bord
+    # dentelé), le reflet violet sur le haut de chaque rang
+    "calm": (9, [
+        "..QP",
+        ".QPp",
+        "QPPp",
+        "rQPp",
+        ".QPp",
+        "QPPp",
+        "rQPp",
+        ".QPp",
+        "r.rp",
+    ]),
+    # en chute : elle remonte derrière les épaules
+    "up": (6, [
+        "r.....",
+        "QP....",
+        "rQPp..",
+        ".rQPp.",
+        "..rQPp",
+        "...QPp",
+        "....Pp",
+    ]),
+    # en boule (salto) : ramassée sur le dos
+    "flip": (9, [
+        "..QP",
+        "QPpp",
+        "rQPp",
+        ".r.r",
+    ]),
+}
+# en course : accrochée à la nuque (derrière le col), elle traîne derrière lui en biais, plus lourde qu'une
+# étoffe (elle ne flotte pas à l'horizontale) ; le dessus lisse au reflet violet, le dessous en pointes.
+# (rangées calées à droite sur l'arrière du col ; la première rangée est celle du dessus du col, moins un)
+CROW_CAPE_RUN = [
+    "....QQPp",
+    "..QQPPpp",
+    "QQPPpPpp",
+    "rPPpQPp.",
+    ".r.rPPp.",
+    "....r.r.",
+]
+
+
+def _put(g, mask, x, y, c):
+    if c != "." and 1 <= x < CW and 0 <= y < CH and g[y, x] in BG:
+        g[y, x] = c
+        mask[y, x] = True
+
+
+def crow_cape(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    wind = _wind(g, hx, hy)
+    # un salto : la forge trace ses pans après, la pose n'en a pas
+    if not any(g[y, x] in "fFG" for y in range(CH) for x in range(max(0, hx + 2))):
+        wind = "flip"
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+    if wind == "back":
+        # l'arrière du col (le haut de l'écharpe, sous la tête)
+        neck = [(y, x) for y in range(hy + 7, min(CH, hy + 12)) for x in range(max(0, hx - 1), min(CW, hx + 11))
+                if g[y, x] in "fFG"]
+        if not neck:
+            return g, False
+        ay = min(y for y, _ in neck)
+        ax = min(x for y, x in neck if y == ay)
+        for j, row in enumerate(CROW_CAPE_RUN):
+            for i, c in enumerate(row):
+                _put(g, mask, ax - len(row) + i, ay - 1 + j, c)
+        _outline(g, mask)
+        return g, True
+    xs = _back_edge(g, hy + 11, hx, TORSO)
+    if xs is None:
+        return g, False
+    feet = [y for y in range(CH) if any(c in "tTUdD" for c in g[y])]
+    bottom = (max(feet) if feet else CH) - 4
+    dy0, rows = CROW_CAPE[wind]
+    for j, row in enumerate(rows):
+        y = hy + dy0 + j
+        if y > bottom:
+            continue
+        for i, c in enumerate(row):
+            _put(g, mask, xs - len(row) + i, y, c)
+    _outline(g, mask)
+    return g, True
+
+
 def accessory(name):
+    if name == "crow_tails":
+        return crow_tails
+    if name == "crow_cape":
+        return crow_cape
     if name == "crow_feather":
         return crow_feather
     if name == "crow_collar":

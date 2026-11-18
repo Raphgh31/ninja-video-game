@@ -6,8 +6,10 @@
   "reward": "karasu",
   "accessories": [
     "crow_wraps",
+    "crow_cape",
     "crow_collar",
-    "crow_feather"
+    "crow_feather",
+    "crow_tails"
   ],
   "projectile": "feather",
   "projectileDust": "down",
@@ -42,10 +44,10 @@
     "W": "#dfe6ee",
     "w": "#8a97a0",
     "g": "#2a2d39",
-    "r": "#3e2c1a",
-    "p": "#8d6a38",
-    "P": "#b88f4f",
-    "Q": "#dcbc7c",
+    "r": "#08090e",
+    "p": "#191a29",
+    "P": "#2c2b45",
+    "Q": "#544a7c",
     "c": "#e6dcc6",
     "C": "#b0322a",
     "b": "#0b0d14",
