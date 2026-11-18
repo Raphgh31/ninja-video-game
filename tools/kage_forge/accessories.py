@@ -1535,7 +1535,81 @@ def fox_tail(g):
     return g, True
 
 
+# ---------------------------------------------------------------------------
+# Skins de base (18 novembre 2026, sans planche de modèle) : le ninja nocturne (tenue bleu nuit semée
+# d'étoiles, un croissant de lune sur le front) et le ninja émeraude (tenue vert-bleu, bandeau d'or et
+# émeraudes). Lettres : S s u la lune et les étoiles (sans contour) · b B i les émeraudes · c C leur monture d'or
+# ---------------------------------------------------------------------------
+# le croissant de lune, sur le front (colonne, rangée relatives à la tête ; le ventre du croissant à
+# l'arrière, ses deux pointes vers l'avant)
+MOON = ((7, 1, "S"), (8, 1, "S"), (6, 2, "u"), (6, 3, "u"), (7, 3, "S"), (8, 3, "S"))
+
+
+def moon_mark(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    for dx, dy, c in MOON:
+        x, y = hx + dx, hy + dy
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in "hHI":
+            g[y, x] = c
+    return g, True
+
+
+# les étoiles de la tenue, accrochées à la ceinture (elles suivent le corps) : quelques points clairs et
+# d'autres plus pâles, jamais côte à côte
+STARS = ((2, -4, "u"), (5, -2, "s"), (0, -1, "s"), (4, -6, "s"), (1, 2, "u"), (4, 3, "s"), (6, 2, "u"), (2, 4, "s"))
+
+
+def night_sky(g):
+    b = _belt(g)
+    if b is None:
+        return g, False
+    by, bx, be = b
+    g = g.copy()
+    for dx, dy, c in STARS:
+        x, y = bx + dx, by + dy
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in "tTU":
+            g[y, x] = c
+    return g, True
+
+
+def emeralds(g):
+    """Les émeraudes : une grosse sur la boucle de la ceinture, dans une monture d'or ; une petite au bout de
+    la ceinture ; une sur le bandeau, au milieu du front."""
+    g = g.copy()
+    done = False
+    b = _belt(g)
+    if b is not None:
+        by, bx, be = b
+        mid = (bx + be) // 2
+        for x, c in ((mid - 1, "C"), (mid, "B"), (mid + 1, "i"), (mid + 2, "C")):
+            if 0 <= x < CW and g[by, x] in "lL":
+                g[by, x] = c
+        if g[by, bx] in "lL":
+            g[by, bx] = "b"
+        done = True
+    pos = find_head(g)
+    if pos is not None:
+        hx, hy = pos
+        y = hy + 4
+        for dx, c in ((6, "B"), (7, "i")):
+            x = hx + dx
+            if 0 <= x < CW and 0 <= y < CH and g[y, x] in "fFG":
+                g[y, x] = c
+        done = True
+    return g, done
+
+
 def accessory(name):
+    if name == "moon_mark":
+        return moon_mark
+    if name == "night_sky":
+        return night_sky
+    if name == "emeralds":
+        return emeralds
     if name == "fox_mask":
         return fox_mask
     if name == "haori":

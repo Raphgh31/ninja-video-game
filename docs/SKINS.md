@@ -28,6 +28,8 @@ Tout ce qu'il faut savoir pour **créer un skin** du ninja de *The Ninja Adventu
 | `pourpre.json` | Ombre pourpre | 150 | peu commun |
 | `hiver.json` | Souffle de l'hiver | 450 | épique |
 | `renard.json` | Renard blanc | 500 | rare |
+| `nocturne.json` | Le ninja nocturne (skin de base, sans modèle) | 120 | commun |
+| `emeraude.json` | Le ninja émeraude (skin de base, sans modèle) | 150 | commun |
 
 Le **vagabond** (premier skin) a été **retiré**, puis le **voyageur** (16 novembre 2026, demande de Raph ; ses planches restent dans `docs/kage/skins/`, ses accessoires `mino`, `ribbon`, `kasa_leaf` dans la forge). Un joueur qui portait un skin retiré repasse en Encre (`startChapter`, `main.js`).
 
