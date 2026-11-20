@@ -1267,7 +1267,7 @@ async function main() {
     } finally { await pa.close(); }
   });
 
-  await test('ninja de la brume : son dash laisse une traînée de brume (pas celui des autres skins) ; ses pans sont effilochés', async () => {
+  await test('ninja de la brume : son dash laisse une traînée de brume (pas celui des autres skins) ; ses habits sont en haillons et ses pans effilochés', async () => {
     const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     try {
       await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
@@ -1280,7 +1280,7 @@ async function main() {
       };
       const enc = await dash('1'), mi = await dash('5');
       const sk = await tp.evaluate(() => [window.__kage.skins.brume?.dashFx, window.__kage.skins.brume?.accessories.join()]);
-      expect(enc[0] === 'encre' && enc[1] === 0 && mi[0] === 'brume' && mi[1] >= 4 && sk.join() === 'mist,mist_tails',
+      expect(enc[0] === 'encre' && enc[1] === 0 && mi[0] === 'brume' && mi[1] >= 4 && sk.join() === 'mist,tatters,mist_tails',
         `encre ${enc.join()} · brume ${mi.join()} · ${sk.join()}`);
     } finally { await tp.close(); }
   });

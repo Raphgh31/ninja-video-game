@@ -4,6 +4,7 @@
   "rarity": "peu commun",
   "price": 250,
   "accessories": [
+    "tatters",
     "mist_tails"
   ],
   "dashFx": "mist",

@@ -1965,7 +1965,66 @@ def mist_tails(g):
     return fray(g)
 
 
+
+# les habits abîmés du ninja de la brume (demande de Raph : qu'on comprenne des haillons, sans en faire trop).
+# À notre échelle (le torse fait 4 rangées sur 6 pixels), c'est la silhouette déchiquetée qui le dit :
+# le bas de la tunique déchiré, plus clair, dont une dent déborde derrière et devant la hanche ; le bas du pantalon
+# effrangé (une dent de tissu au-dessus de chaque chaussure) ; une entaille au milieu du torse, son bord clair ;
+# un lambeau de manche, plus clair, qui pend derrière l'épaule.
+def tatters(g):
+    b = _belt(g)
+    pos = find_head(g)
+    if b is None or pos is None:
+        return g, False
+    by, bx, be = b
+    hx, hy = pos
+    g = g.copy()
+    mask = np.zeros(g.shape, bool)
+
+    def put(x, y, c, ok, outline=False):
+        if 0 <= x < CW and 0 <= y < CH and g[y, x] in ok:
+            g[y, x] = c
+            if outline:
+                mask[y, x] = True
+            return True
+        return False
+    # le bas de la tunique, déchiré : plus clair, en dents
+    if by + 1 < CH:
+        cols = [x for x in range(CW) if g[by + 1, x] in "tTU"]
+        if cols:
+            x0, x1 = min(cols), max(cols)
+            for x in range(x0, x1 + 1):
+                put(x, by + 1, "U" if (x - x0) % 2 == 0 else "T", "tTU")
+            put(x0 - 1, by + 1, "T", BG, True) and put(x0 - 1, by + 2, "t", BG, True)
+            put(x1 + 1, by + 2, "T", BG, True)
+    # l'entaille au milieu du torse : deux pixels sombres en biais, un fil clair au-dessus
+    y = by - 3
+    row = [x for x in range(CW) if 0 <= y < CH and g[y, x] in "tTU"]
+    if len(row) >= 4:
+        cx = row[len(row) // 2]
+        if g[y + 1, cx + 1] in "tTU" and g[y - 1, cx - 1] in "tTU":
+            g[y, cx] = "O"
+            g[y + 1, cx + 1] = "O"
+            g[y - 1, cx - 1] = "U"
+    # le bas du pantalon effrangé : une dent de tissu au-dessus de chaque chaussure, côté arrière de la jambe
+    for y in range(by + 2, CH - 1):
+        for x in range(1, CW):
+            if g[y, x] in "tTU" and g[y + 1, x] in "dD" and g[y, x - 1] in BG and g[y + 1, x - 1] in BG:
+                put(x - 1, y, "t", BG, True)
+                break
+    # le lambeau de manche, derrière l'épaule (plus clair que la tunique, il se détache)
+    xl = _back_edge(g, hy + 11, hx, TORSO)
+    if xl is not None:
+        for x, y, c in ((xl - 1, hy + 11, "U"), (xl - 1, hy + 12, "T"), (xl - 2, hy + 13, "T")):
+            if not put(x, y, c, BG, True):
+                break
+    _outline(g, mask)
+    return g, True
+
+
 def accessory(name):
+    if name == "tatters":
+        return tatters
     if name == "mist_tails":
         return mist_tails
     if name == "crow_skull":
