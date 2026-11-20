@@ -15,6 +15,7 @@ import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
+import { Mist } from './game/mist.js';
 import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
@@ -184,6 +185,8 @@ function drawTrail(cam) {
 }
 
 /** L'éclat d'un skin légendaire (Lumière d'or) : orbe, volutes, étincelles (src/game/aura.js). */
+// la traînée de brume du dash (skin à `dashFx: "mist"` : le ninja de la brume, src/game/mist.js)
+const mist = new Mist();
 function drawAura(cam) {
   drawAura0(ctx, Math.round(player.x - cam.x), Math.round(player.y - cam.y), player.facing, performance.now() / 1000);
 }
@@ -921,6 +924,7 @@ function update(dt) {
   multi?.update(dt);
   level.forest?.update(dt, player);
   shurikens.update(dt);
+  mist.update(dt, player, look.dashFx === 'mist');
   for (const t of enemies) {
     t.update(dt, player);
     t.interact(player);
@@ -1209,6 +1213,7 @@ function draw() {
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
+  if (!behindGate()) mist.draw(ctx, cam);
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
@@ -1750,7 +1755,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
