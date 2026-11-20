@@ -1874,7 +1874,100 @@ def crow_skull(g):
     return g, True
 
 
+
+# ---------------------------------------------------------------------------
+# Le ninja de la brume (20 novembre 2026, sans modèle, d'après sa description : tenue gris-bleu délavée, pans du
+# bandeau effilochés, traînée de brume au dash — la brume est dessinée en jeu, src/game/mist.js)
+# ---------------------------------------------------------------------------
+TAIL = set("fFG")
+
+
+def fray(g):
+    """Les pans du bandeau effilochés : au bout de chaque pan, un fil se détache et diverge (deux pixels), et la
+    pointe pâlit. Se repère au nœud (k, K) et ne touche que les pans (pas le bandeau du front ni l'écharpe) :
+    fonctionne aussi sur les images des saltos (grille agrandie, pans tracés par flip.py)."""
+    H, W = g.shape
+    knot = [(y, x) for y in range(H) for x in range(W) if g[y, x] in "kK"]
+    if not knot:
+        return g, False
+    ky = sum(y for y, _ in knot) / len(knot)
+    kx = sum(x for _, x in knot) / len(knot)
+    # les pixels de bandeau reliés au nœud
+    seen, stack = set(), []
+    for y, x in knot:
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if 0 <= y + dy < H and 0 <= x + dx < W and g[y + dy, x + dx] in TAIL:
+                    stack.append((y + dy, x + dx))
+    while stack:
+        q = stack.pop()
+        if q in seen:
+            continue
+        seen.add(q)
+        y, x = q
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                n = (y + dy, x + dx)
+                if n not in seen and 0 <= n[0] < H and 0 <= n[1] < W and g[n] in TAIL:
+                    stack.append(n)
+    nb = lambda y, x: [(y + dy, x + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy or dx) and (y + dy, x + dx) in seen]
+    def free(y, x):
+        # (du vide ou du contour, loin de tout ce qui n'est pas un pan : le fil ne touche ni le corps ni la tête)
+        if not (0 <= y < H and 0 <= x < W) or g[y, x] not in ".O":
+            return False
+        return not any(0 <= y + dy < H and 0 <= x + dx < W and g[y + dy, x + dx] not in ".O" and (y + dy, x + dx) not in seen
+                       for dy in (-1, 0, 1) for dx in (-1, 0, 1))
+    g = g.copy()
+    done = False
+    for e in sorted(seen):
+        y, x = e
+        # un bout de pan : un seul voisin de bandeau, rien d'autre que du vide ou du contour autour, loin du nœud
+        if len(nb(y, x)) != 1 or (y - ky) ** 2 + (x - kx) ** 2 < 25:
+            continue
+        if any(0 <= y + dy < H and 0 <= x + dx < W and g[y + dy, x + dx] not in ".O" and (y + dy, x + dx) not in seen
+               for dy in (-1, 0, 1) for dx in (-1, 0, 1)):
+            continue
+        path, prev = [e], None
+        while len(path) < 4:
+            cur = path[-1]
+            nxt = [n for n in nb(*cur) if n not in path]
+            if not nxt:
+                break
+            path.append(nxt[0])
+        if len(path) < 4:
+            continue
+        dy0, dx0 = path[0][0] - path[3][0], path[0][1] - path[3][1]
+        d = (max(-1, min(1, dy0)), max(-1, min(1, dx0)))
+        g[y, x] = "G"                                   # la pointe pâlit
+        # le fil qui se détache, d'un côté libre, à partir de l'avant-avant-dernier pixel
+        by, bx = path[2]
+        for py, px in ((-d[1], d[0]), (d[1], -d[0])):
+            if py == 0 and px == 0:
+                continue
+            b1 = (by + py, bx + px)
+            b2 = (b1[0] + d[0], b1[1] + d[1])
+            if free(*b1) and free(*b2) and b2 not in nb(*e) + [e]:
+                g[b1] = "F"
+                g[b2] = "G"
+                done = True
+                break
+    if done:
+        # le contour des fils
+        for y in range(H):
+            for x in range(W):
+                if g[y, x] == "." and any(0 <= y + dy < H and 0 <= x + dx < W and g[y + dy, x + dx] in TAIL
+                                          for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                    g[y, x] = "O"
+    return g, done
+
+
+def mist_tails(g):
+    return fray(g)
+
+
 def accessory(name):
+    if name == "mist_tails":
+        return mist_tails
     if name == "crow_skull":
         return crow_skull
     if name == "crow_tails":
