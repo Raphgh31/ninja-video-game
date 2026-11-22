@@ -695,7 +695,8 @@ function startRoom(cfg) {
       } else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
     },
   });
-  lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
+  lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''),
+    backdrop: new Intro(meta, null, null, { backdropOnly: true }), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
@@ -1520,6 +1521,7 @@ function endIntro() {
 }
 // ---- l'écran titre : le menu (src/game/menu.js) ------------------------------------------
 let menu = null;
+let nightBg = null;   // la nuit de l'intro, décor seul, pour les menus ouverts sans l'intro
 /** Ce qu'on dit d'une aventure : son chapitre, sa zone (d'après sa lanterne), le corbeau. */
 function chapterOf(sv) {
   const def = LEVELS[sv.chapter] ?? LEVELS.potager;
@@ -1533,6 +1535,11 @@ function chapterOf(sv) {
     zone: z ? `Zone ${z.id} · ${z.name.charAt(0).toLowerCase()}${z.name.slice(1)}` : '',
     zoneShort: z ? `${z.id} sur ${zones.length}` : '',
     boss: !!sv.bossDefeated || sv.chapter !== 'potager',
+    // pour les lanternes du menu : le numéro du chapitre, son nom, la zone
+    num: def.chapter ?? 1,
+    name: short,
+    zoneNum: Number.parseInt(z?.id ?? 1, 10) || 1,
+    zones: zones.length,
   };
 }
 /** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
@@ -1569,10 +1576,20 @@ if (CHAPTER) {
       clearSave(slot);
       if (profile.shown === slot) { profile.shown = slot === 1 ? 2 : 1; saveProfile(profile); }
     },
-    arenas: Object.entries(LEVELS).filter(([, l]) => l.arena).map(([id, l]) => ({ id, name: l.name.replace(/^Arène — /, '') })),
+    arenas: Object.entries(LEVELS).filter(([, l]) => l.arena).map(([id, l]) => ({ id, name: l.name.replace(/^Arène — /, ''), theme: l.theme })),
+    // le nom de chaque chapitre (une lanterne chacun, dans le menu Aventure)
+    chapters: Object.fromEntries(Object.values(LEVELS).filter((l) => l.chapter && !l.arena).map((l) => [l.chapter, (l.name ?? '').split('— ')[1] ?? l.name])),
     createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
     setBackdrop(on) { if (intro) intro.menuMode = on; },
+    // sans l'intro (retour de l'arène…), les écrans peignent eux-mêmes la nuit des montagnes
+    backdrop() {
+      if (intro) return null;
+      nightBg ??= new Intro(meta, null, null, { backdropOnly: true });
+      nightBg.resize(VIEW_W, VIEW_H);
+      nightBg.draw();
+      return nightBg.el;
+    },
   });
   function go(cfg) {
     try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }

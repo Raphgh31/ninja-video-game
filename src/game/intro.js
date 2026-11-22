@@ -129,7 +129,7 @@ export class Intro {
    * (kage_intro_kick.png : l'élan, l'armé, le coup) ; far : la grande chaîne déjà peinte par le
    * Potager s'il est chargé (sinon on la peint, comme la chaîne voisine).
    */
-  constructor(meta, kick, far = null, { touch = false } = {}) {
+  constructor(meta, kick, far = null, { touch = false, backdropOnly = false } = {}) {
     this.meta = meta;
     this.kick = kick;
     this.far = far ?? paintFar(480);
@@ -150,7 +150,11 @@ export class Intro {
     this.prompt = renderText(touch ? 'Touche l\'écran' : 'Appuie sur une touche', { color: '#9aa09c' });
     this.clock = null;             // { ac, t0 } : avec le son, t = ac.currentTime - t0
     this.voice = null;             // la musique en cours { s, g }
-    this.bytes = bytesOf(INTRO.music.src).catch(() => null);
+    // décor seul (salon de l'arène) : ni musique ni attente
+    this.bytes = backdropOnly ? Promise.resolve(null) : bytesOf(INTRO.music.src).catch(() => null);
+    if (backdropOnly) { this.gated = false; this.menuMode = true; this.menuK = 1; }
+    // passage vers les sous-menus (0 : l'intro, 1 : la lune sur le côté, sans titre ni ninja), en douceur
+    this.menuK ??= 0;
   }
 
   /**
@@ -341,9 +345,9 @@ export class Intro {
   /** Dessine l'image au temps courant (figée à l'arrivée de KAGE). */
   draw() {
     const { g, w, h } = this;
-    // sous-menus (Aventure, Arène, Mon ninja) : le décor seul, achevé, la lune décalée sur le côté,
-    // sans le ninja ni le titre (ils dérangeaient derrière les écrans)
-    const menu = this.menuMode;
+    // sous-menus (Aventure, Arène, Mon ninja) : le décor seul, achevé, la lune glissée sur le côté,
+    // sans le ninja ni le titre (ils dérangeaient derrière les écrans) ; on y passe en douceur (menuK)
+    const mk = this.menuK ?? (this.menuMode ? 1 : 0), em = smooth(mk), menu = mk > 0;
     const t = menu ? FREEZE : Math.min(this.t, FREEZE);
     g.fillStyle = BLACK; g.fillRect(0, 0, w, h);
     if (this.gated) {
@@ -359,23 +363,26 @@ export class Intro {
     if (light > 0) {
       g.globalAlpha = light; g.drawImage(this.sky, 0, 0);
       for (const s of this.stars) {
-        g.globalAlpha = light * (0.65 + 0.35 * Math.sin(t * 1.3 + s.p)); dot(g, s.x, s.y, s.c);
+        g.globalAlpha = light * (0.65 + 0.35 * Math.sin((menu ? performance.now() / 1000 : t) * 1.3 + s.p)); dot(g, s.x, s.y, s.c);
       }
       g.globalAlpha = 1;
     }
     if (m > 0) {
-      const my = menu ? this.moonY1 - 6 : Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
-      g.drawImage(this.moon.c, (menu ? Math.round(w * 0.82) : this.moonX) - this.moon.o, my - this.moon.o);
+      const y0 = Math.round(this.moonY0 + (this.moonY1 - this.moonY0) * easeOut(m));
+      const mx = Math.round(this.moonX + (Math.round(w * 0.82) - this.moonX) * em), my = Math.round(y0 + (this.moonY1 - 6 - y0) * em);
+      g.drawImage(this.moon.c, mx - this.moon.o, my - this.moon.o);
     }
     g.drawImage(this.black, 0, 0);
     if (light > 0) { g.globalAlpha = light; g.drawImage(this.land, 0, 0); g.globalAlpha = 1; }
-    if (menu) return;
+    const ink = 1 - clamp01(mk * 1.8);         // le titre, le pinceau et le ninja s'effacent d'abord
+    if (ink <= 0) return;
+    g.globalAlpha = ink;
     // l'encre : le titre lettre à lettre, puis le coup de pinceau
     this.letters.forEach((c, i) => {
       if (!c) return;
       const a = clamp01((t - INTRO.letters - i * INTRO.letterGap) / INTRO.letterFade);
       if (a <= 0) return;
-      g.globalAlpha = a; g.drawImage(c, this.letterX[i], this.titleY); g.globalAlpha = 1;
+      g.globalAlpha = a * ink; g.drawImage(c, this.letterX[i], this.titleY); g.globalAlpha = ink;
     });
     const b = easeOut((t - INTRO.brush) / INTRO.brushTime);
     if (b > 0) {
@@ -385,10 +392,12 @@ export class Intro {
     }
     // KAGE, en ombre chinoise
     const k = this.kage(t);
-    if (k) {
+    if (k && this.kick) {
       const s = this.silhouette(k.i), { pivot } = this.meta;
       g.drawImage(s.c, k.x - pivot.x, k.y - pivot.y);
     }
+    g.globalAlpha = 1;
+    if (menu) return;
     // la fin de la musique : fondu au noir avant de tout recommencer
     const f = (this.t - (CYCLE - INTRO.cycleFade)) / INTRO.cycleFade;
     if (f > 0) { g.globalAlpha = clamp01(f); g.fillStyle = BLACK; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
@@ -429,6 +438,7 @@ export class Intro {
     const step = (now) => {
       const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0;
       this.last = now;
+      this.menuK = clamp01((this.menuK ?? 0) + (this.menuMode ? dt : -dt) / 0.7);
       this.update(dt);
       this.draw();
       this.raf = requestAnimationFrame(step);
