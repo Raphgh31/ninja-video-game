@@ -2022,7 +2022,69 @@ def tatters(g):
     return g, True
 
 
+
+# ---------------------------------------------------------------------------
+# Le ninja blanc (22 novembre 2026, piste « ivoire et encre » choisie par Raph) : tenue ivoire, un cache-cou
+# entièrement noir qui monte du cou jusqu'au nez, plus de bandeau sur le front (le nœud et les pans restent noirs,
+# derrière la tête). Lettres : b B le cache-cou (noir, son pli plus clair)
+# ---------------------------------------------------------------------------
+GAITER_KNOT = (5, 1)       # le nœud descendu de 5 rangées, rapproché d'un pixel de la nuque
+
+
+def gaiter(g):
+    pos = find_head(g)
+    if pos is None:
+        return g, False
+    hx, hy = pos
+    g = g.copy()
+    # le front : le bandeau disparaît, la capuche ivoire le remplace
+    for y in range(hy + 3, hy + 6):
+        for x in range(hx + 1, min(CW, hx + 12)):
+            if 0 <= y < CH and g[y, x] in "fFG":
+                g[y, x] = "H"
+    # le nœud et les pans descendent au niveau du cache-cou : c'est le même foulard, noué derrière la nuque
+    # (demande de Raph). Ce que le nœud couvrait sur la capuche redevient capuche ; ailleurs, il est effacé.
+    knot = [(y, x) for y in range(CH) for x in range(CW) if g[y, x] in "kK"]
+    if knot:
+        grp, stack = set(knot), list(knot)
+        while stack:
+            y, x = stack.pop()
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    n = (y + dy, x + dx)
+                    if 0 <= n[0] < CH and 0 <= n[1] < CW and n not in grp and g[n] in "fFG" and n[1] <= hx + 1:
+                        grp.add(n)
+                        stack.append(n)
+        moved = [(y, x, g[y, x]) for y, x in grp]
+        for y, x, _ in moved:
+            g[y, x] = "h" if x >= hx else "."
+        DY, DX = GAITER_KNOT
+        for y, x, c in moved:
+            ny, nx = y + DY, x + DX
+            if 0 <= ny < CH and 0 <= nx < CW and g[ny, nx] in BG:
+                g[ny, nx] = c
+        _reoutline(g)
+    # le cache-cou : le bas du visage (sous les yeux, jusqu'au nez), puis le col autour du cou, qui fait le tour
+    # de la nuque jusqu'au nœud
+    for x in range(max(0, hx - 1), hx + 3):
+        if hy + 8 < CH and g[hy + 8, x] in "hHIO" and (x >= hx + 1 or g[hy + 8, x] == "O"):
+            g[hy + 8, x] = "B"
+    top = True
+    for y in range(hy + 8, min(CH, hy + 12)):
+        row = False
+        for x in range(max(0, hx - 1), min(CW, hx + 12)):
+            c = g[y, x]
+            if (y == hy + 8 and c in "hHI" and x >= hx + 3) or (y > hy + 8 and c in "fFG"):
+                g[y, x] = "B" if top else "b"
+                row = True
+        if row:
+            top = False
+    return g, True
+
+
 def accessory(name):
+    if name == "gaiter":
+        return gaiter
     if name == "tatters":
         return tatters
     if name == "mist_tails":
