@@ -20,6 +20,7 @@ import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
+import { Watercolor, WATERCOLOR } from './engine/watercolor.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
@@ -202,6 +203,8 @@ const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
 const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
+// filtre aquarelle (essai sur le Potager : src/engine/watercolor.js)
+const aquarelle = level.theme === 'potager' && !level.arena ? new Watercolor() : null;
 if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -1200,6 +1203,7 @@ function draw() {
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
     bgCtx.imageSmoothingEnabled = false;
     level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
+    if (aquarelle) aquarelle.apply(bgCtx, WATERCOLOR.back, { k: bgK, cam, par: 0.35, masked: false });
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
   }
   level.draw(ctx, cam, VIEW_W, VIEW_H);
@@ -1221,6 +1225,7 @@ function draw() {
   arenaArt?.drawFront(ctx, cam, level.time);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(ctx, cam);
+  if (aquarelle) aquarelle.apply(ctx, WATERCOLOR.front, { cam });   // (avant l'interface : elle reste nette)
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
