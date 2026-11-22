@@ -455,10 +455,10 @@ function build() {
   b.zone('08', 'Le comptoir du voyageur');
   x = b.x; b.flat(18);
   b.on(x + 5, 'P');                                  // point de reprise : début de la zone 8
-  b.on(x + 8, 'M');                                  // le marchand, debout à gauche de son échoppe
-  b.prop('stall', x + 11, G);
+  b.on(x + 9, 'M');                                  // le marchand, derrière son comptoir
+  b.prop('stall', x + 9, G);
   b.prop('jizo', x + 2, G);
-  b.prop('tree', x + 16, G, { kind: 'cerisier', s: 0.9 });
+  b.prop('tree', x + 15, G, { kind: 'cerisier', s: 0.9 });
   b.prop('tall_grass', x + 17, G, { w: 2 });
   b.coins([x + 3, x + 15]);
   // la pépinière en étages : des plateformes sur pilotis, cultivées, reliées par des échelles
