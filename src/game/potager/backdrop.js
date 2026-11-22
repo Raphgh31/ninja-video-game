@@ -8,7 +8,8 @@
 //   5. la lisière : grands arbres, haies, bosquet de bambous.
 // Chaque plan est peint une fois au chargement dans une longue bande, puis
 // recopié à chaque image avec son propre défilement : le monde paraît immense.
-import { Pix, Brush, fbm1, fbm2, noise1, noise2, ih, rng, pick, hazeRamp, mix, hex, mixHex, bayer, worley } from './paint.js';
+import { paintCanvas, blit } from '../../engine/brush.js';
+import { Pix, Brush, canvas, fbm1, fbm2, noise1, noise2, ih, rng, pick, hazeRamp, mix, hex, mixHex, bayer, worley } from './paint.js';
 import * as C from './palette.js';
 import { cloudSprite as fineCloud, cirrusSprite } from '../sky.js';
 
@@ -785,6 +786,15 @@ export class Backdrop {
     this.village = time('village', () => paintVillage(level.width, zones));
     this.near = time('near', () => paintNear(level.width, zones));
     this.fore = time('fore', () => paintFore(level.width, zones));
+    // style peint (variante B) : chaque plan repeint une fois au pinceau, des touches plus larges au loin
+    this.painted = !!level.painted;
+    if (this.painted) {
+      const P = [[this.far, 4.5, 2.2, 2], [this.mid, 3.8, 1.9, 2], [this.foot, 3, 1.5, 1], [this.village, 2.6, 1.3, 1], [this.near, 2.4, 1.2, 1]];
+      time('pinceau', () => {
+        P.forEach(([st, len, wid, step], i) => { st.pc = paintCanvas(st.img, { len, wid, step, seed: 11 + i, rim: i < 2 ? 0.08 : 0.14 }); });
+        this.fore.pc = paintCanvas(this.fore.img, { len: 2.4, wid: 1.2, seed: 19, plume: true, plumeA: 0.35 });
+      });
+    }
     this.timings = T;
     this.skyH = 0;
     this.k = 1;
@@ -804,6 +814,7 @@ export class Backdrop {
       const w = 110 + r() * 130, h = 4 + r() * 5;
       this.clouds.push({ img: fineCloud(700 + i, w, h, C.CLOUD), x: i * 290 + r() * 100, y: 0, dy: -(r() * 46), speed: 2.5 + r() * 3, f: 0.05, high: false });
     }
+    if (this.painted) this.clouds.forEach((c, i) => { c.pc = paintCanvas(c.img, { len: 3, wid: 1.6, seed: 31 + i, horiz: true }); });
   }
 
   /**
@@ -826,7 +837,10 @@ export class Backdrop {
     const sx = Math.floor(off), frac = off - sx;
     const y = this.planeY(strip.plane, cam, viewH);
     const w = Math.min(viewW + 1, strip.W - sx);
-    if (w > 0) ctx.drawImage(strip.img, sx, 0, w, strip.plane.h, -frac, y, w, strip.plane.h);
+    if (w > 0) {
+      if (strip.pc) blit(ctx, strip.pc, sx, 0, w, strip.plane.h, -frac, y);
+      else ctx.drawImage(strip.img, sx, 0, w, strip.plane.h, -frac, y, w, strip.plane.h);
+    }
     return y;
   }
 
@@ -838,7 +852,8 @@ export class Backdrop {
       if (x > viewW || x + c.img.width < 0) continue;
       const y = high ? c.y + Math.round((viewH - 270) * 0.3) : this.planeY(PLANES.mid, cam, viewH) + PLANES.mid.base - 64 + c.dy;
       if (!high) ctx.globalAlpha = 0.82;
-      ctx.drawImage(c.img, this.q(x), this.q(y));
+      if (c.pc) blit(ctx, c.pc, 0, 0, c.img.width, c.img.height, this.q(x), this.q(y));
+      else ctx.drawImage(c.img, this.q(x), this.q(y));
       ctx.globalAlpha = 1;
     }
   }
@@ -850,7 +865,17 @@ export class Backdrop {
       this.skyH = viewH;
       this.sky = paintSky(viewH, viewH * GROUND_AT - 30);
     }
-    ctx.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+    if (this.painted) {
+      // le ciel peint : de grandes touches horizontales (refait quand la taille de l'image change)
+      if (this.skyPcW !== viewW || this.skyPcH !== viewH) {
+        const c = canvas(viewW, viewH), g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        g.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+        this.skyPc = paintCanvas(c, { len: 9, wid: 3.4, step: 3, seed: 3, horiz: true, jitter: 0.02, rim: 0.04 });
+        this.skyPcW = viewW; this.skyPcH = viewH;
+      }
+      blit(ctx, this.skyPc, 0, 0, viewW, viewH, 0, 0);
+    } else ctx.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
     this.drawClouds(ctx, cam, viewW, viewH, time, true);
     this.drawStrip(ctx, this.far, cam, viewW, viewH);
     this.drawBirds(ctx, cam, viewW, viewH, time);
@@ -901,7 +926,8 @@ export class Backdrop {
     const sx = Math.round(cam.x * FORE.fx);
     const w = Math.min(viewW, this.fore.W - sx);
     if (w <= 0) return;
-    ctx.drawImage(this.fore.img, sx, 0, w, FORE.h, 0, viewH - FORE.h + 6, w, FORE.h);
+    if (this.fore.pc) blit(ctx, this.fore.pc, sx, 0, w, FORE.h, 0, viewH - FORE.h + 6);
+    else ctx.drawImage(this.fore.img, sx, 0, w, FORE.h, 0, viewH - FORE.h + 6, w, FORE.h);
   }
 
   /** Cheminées du village (pour la fumée animée), en coordonnées d'écran. */

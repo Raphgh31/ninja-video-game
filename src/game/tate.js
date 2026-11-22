@@ -271,12 +271,12 @@ export class Tate {
     ctx.globalAlpha = alpha;
     const blit = (img) => {
       if (this.facing > 0) {
-        ctx.drawImage(img, f.x, f.y, f.w, f.h, sx - pivot.x, sy, f.w, f.h);
+        ctx.drawImage(img, f.x * (img.P ?? 1), f.y * (img.P ?? 1), f.w * (img.P ?? 1), f.h * (img.P ?? 1), sx - pivot.x, sy, f.w, f.h);
       } else {
         ctx.save();
         ctx.translate(sx, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, f.x, f.y, f.w, f.h, -pivot.x, sy, f.w, f.h);
+        ctx.drawImage(img, f.x * (img.P ?? 1), f.y * (img.P ?? 1), f.w * (img.P ?? 1), f.h * (img.P ?? 1), -pivot.x, sy, f.w, f.h);
         ctx.restore();
       }
     };

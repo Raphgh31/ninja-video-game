@@ -20,7 +20,7 @@ import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
-import { Watercolor, WATERCOLOR } from './engine/watercolor.js';
+import { paintSheet } from './engine/brush.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
@@ -58,6 +58,8 @@ bgCanvas.hidden = true;
 canvas.before(bgCanvas);
 const bgCtx = bgCanvas.getContext('2d');
 let bgK = 1;   // pixels d'écran par pixel de jeu
+let GK = 1;    // pixels de la toile du jeu par pixel de jeu (style peint : comme le paysage)
+let paintedMode = false;
 // calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
 const touchCanvas = MOBILE ? document.createElement('canvas') : null;
 const touchCtx = touchCanvas?.getContext('2d');
@@ -117,9 +119,10 @@ function fit() {
     VIEW_H = DESK_H;
     bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
-  if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
-    canvas.width = VIEW_W;
-    canvas.height = VIEW_H;
+  GK = paintedMode ? bgK : 1;
+  if (canvas.width !== VIEW_W * GK || canvas.height !== VIEW_H * GK) {
+    canvas.width = VIEW_W * GK;
+    canvas.height = VIEW_H * GK;
     ctx.imageSmoothingEnabled = false;
   }
   canvas.style.width = `${VIEW_W * SCALE}px`;
@@ -149,7 +152,13 @@ const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à la boutique du marchand
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
-function wearSkin(id) { look = skins[id] ?? skins.encre; }
+function wearSkin(id) {
+  look = skins[id] ?? skins.encre;
+  if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
+    look.painted ??= { ...look, sheet: paintSheet(look.sheet, { seed: 41 }) };
+    look = look.painted;
+  }
+}
 /**
  * Les traînées d'or d'un skin (Lumière d'or) : derrière le coup d'épée, les images précédentes de la lame et
  * de son arc, de plus en plus pâles (une traînée légère) ; derrière le dash, des silhouettes dorées qui
@@ -203,8 +212,12 @@ const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
 const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
-// filtre aquarelle (essai sur le Potager : src/engine/watercolor.js)
-const aquarelle = level.theme === 'potager' && !level.arena ? new Watercolor() : null;
+// style peint (essai sur le Potager, src/engine/brush.js) : le décor et les personnages repeints en touches
+// d'aquarelle ; le calque du jeu est alors dessiné plus finement (GK pixels de toile par pixel de jeu).
+// ?peint=0 dans l'adresse : le pixel art d'avant.
+const PAINTED = !!level.painted;
+paintedMode = PAINTED;
+if (PAINTED) { fit(); wearSkin(look.id ?? 'encre'); }
 if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -223,13 +236,15 @@ player.onThrow = (x, y, dir, height) => {
 player.canThrow = () => shurikens.canThrow();
 // ennemis : un TATE à chaque repère « E » de la carte
 const tateMeta = await loadJson('./characters/tate/tate.json');
-const tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
+let tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
+if (PAINTED) tateSheet = paintSheet(tateSheet, { seed: 43 });
 const tateGlow = await loadImage(`./characters/tate/${tateMeta.glowImage}`);
 const tates = level.enemies.map((e) => new Tate(tateMeta, tateSheet, tateGlow, e.x, e.y, level));
 shurikens.enemies.push(...tates);
 // WARA : un épouvantail à chaque repère « W » de la carte
 const waraMeta = await loadJson('./characters/wara/wara.json');
-const waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
+let waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
+if (PAINTED) waraSheet = paintSheet(waraSheet, { seed: 47 });
 const waras = level.waras.map((w) => new Wara(waraMeta, waraSheet, w.x, w.y, level));
 shurikens.enemies.push(...waras);
 const enemies = [...tates, ...waras];
@@ -1198,12 +1213,13 @@ function draw() {
   const shake = fx.offset();
   // une seule position, arrondie au pixel, pour tout ce qui est dessiné
   const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
+  ctx.setTransform(GK, 0, 0, GK, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   if (level.art) {
     // paysage : position exacte de la caméra, arrondie au pixel d'écran
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
     bgCtx.imageSmoothingEnabled = false;
     level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
-    if (aquarelle) aquarelle.apply(bgCtx, WATERCOLOR.back, { k: bgK, cam, par: 0.35, masked: false });
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
   }
   level.draw(ctx, cam, VIEW_W, VIEW_H);
@@ -1225,7 +1241,6 @@ function draw() {
   arenaArt?.drawFront(ctx, cam, level.time);
   shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(ctx, cam);
-  if (aquarelle) aquarelle.apply(ctx, WATERCOLOR.front, { cam });   // (avant l'interface : elle reste nette)
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
@@ -1696,7 +1711,8 @@ function drawScarecrows(cam) {
     const f = waraMeta.frames[Math.floor(level.time * 1.5) % 2 ? 'idle_1' : 'idle_2'];
     const sx = Math.round(p.x * 16 + 8 - cam.x), sy = Math.round(p.y * 16 - cam.y) - waraMeta.pivot.y;
     if (sx < -60 || sx > VIEW_W + 60) continue;
-    ctx.drawImage(waraSheet, f.x, f.y, f.w, f.h, sx - waraMeta.pivot.x, sy, f.w, f.h);
+    const P = waraSheet.P ?? 1;
+    ctx.drawImage(waraSheet, f.x * P, f.y * P, f.w * P, f.h * P, sx - waraMeta.pivot.x, sy, f.w, f.h);
   }
 }
 

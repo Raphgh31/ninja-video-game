@@ -178,13 +178,14 @@ export class Animator {
     const { pivot } = this.meta;
     const dx = Math.round(x);
     const dy = Math.round(y) - pivot.y;
+    const P = sheet.P ?? 1;            // (une feuille repeinte au pinceau est P fois plus fine)
     ctx.save();
     if (facing < 0 && this.meta.flipForLeft) {
       ctx.translate(dx, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, -pivot.x, dy, f.w, f.h);
+      ctx.drawImage(sheet, f.x * P, f.y * P, f.w * P, f.h * P, -pivot.x, dy, f.w, f.h);
     } else {
-      ctx.drawImage(sheet, f.x, f.y, f.w, f.h, dx - pivot.x, dy, f.w, f.h);
+      ctx.drawImage(sheet, f.x * P, f.y * P, f.w * P, f.h * P, dx - pivot.x, dy, f.w, f.h);
     }
     ctx.restore();
   }

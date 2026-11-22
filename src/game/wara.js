@@ -301,11 +301,11 @@ export class Wara {
     ctx.save();
     ctx.globalAlpha = alpha;
     if (this.facing > 0) {
-      ctx.drawImage(this.sheet, f.x, f.y, f.w, f.h, sx - pivot.x, sy, f.w, f.h);
+      ctx.drawImage(this.sheet, f.x * (this.sheet.P ?? 1), f.y * (this.sheet.P ?? 1), f.w * (this.sheet.P ?? 1), f.h * (this.sheet.P ?? 1), sx - pivot.x, sy, f.w, f.h);
     } else {
       ctx.translate(sx, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(this.sheet, f.x, f.y, f.w, f.h, -pivot.x, sy, f.w, f.h);
+      ctx.drawImage(this.sheet, f.x * (this.sheet.P ?? 1), f.y * (this.sheet.P ?? 1), f.w * (this.sheet.P ?? 1), f.h * (this.sheet.P ?? 1), -pivot.x, sy, f.w, f.h);
     }
     ctx.restore();
   }
