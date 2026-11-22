@@ -1394,7 +1394,7 @@ function openShop() {
   music.setLevel(MUSIC.duck, 0.4);
   hideChapterUi();
   sfx('bell');
-  shop.open({ firstVisit: !save.merchantMet, save });
+  shop.open({ firstVisit: !save.merchantMet, save, title: LEVEL_ID === 'foret' ? 'Le campement de la clairière' : 'Le comptoir du voyageur' });
   if (!save.merchantMet) { save.merchantMet = true; persist(); }
 }
 ui.talk.addEventListener('click', talkAction);
