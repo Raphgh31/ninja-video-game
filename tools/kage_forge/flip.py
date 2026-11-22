@@ -188,6 +188,15 @@ def tail(knot, center, theta, omega, v, length, gravity=60.0, start=(0, 0)):
 TAIL_SCALE = {"crow_tails": 0.5}
 
 
+def _fray(g):
+    from accessories import fray
+    return fray(g)[0]
+
+
+# un skin peut retoucher les pans une fois tracés (le ninja de la brume : effilochés)
+TAIL_POST = {"mist_tails": _fray}
+
+
 def draw_tails(g, knot, center, theta, omega, v, k=1.0):
     """Dessine les deux pans derrière le corps (sur le vide seulement) ; k : facteur de longueur (skin)."""
     g = g.copy()
@@ -296,7 +305,13 @@ def frames(kind, acc=None):
     s = 1 if kind == "front" else -1
     out = []
     tk = min([TAIL_SCALE[n] for n in (acc or ()) if n in TAIL_SCALE] or [1.0])
-    fin = lambda *a: _finish(*a, tk)   # noqa: E731 (les pans du skin, à sa longueur)
+    post = [TAIL_POST[n] for n in (acc or ()) if n in TAIL_POST]
+
+    def fin(*a):
+        g = _finish(*a, tk)                    # (les pans du skin, à sa longueur)
+        for f in post:
+            g = f(g)                           # (puis retouchés : effilochés…)
+        return g
     # 1. impulsion : le corps monte vite, le foulard pend dessous
     p = TAKEOFF_FRONT if kind == "front" else TAKEOFF_BACK
     g = _grow(p, acc)

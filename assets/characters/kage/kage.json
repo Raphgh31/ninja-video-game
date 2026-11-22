@@ -1680,6 +1680,8 @@
     "note": "coup de pied sauté de l'introduction (intro_kick.py), mêmes cellule et ancrage"
   },
   "skins": [
+    "blanc",
+    "brume",
     "corbeau",
     "emeraude",
     "encre",
@@ -1691,6 +1693,8 @@
     "tengu"
   ],
   "accessorySheets": {
+    "blanc": "kage_acc_blanc_index.png",
+    "brume": "kage_acc_brume_index.png",
     "corbeau": "kage_acc_corbeau_index.png",
     "emeraude": "kage_acc_emeraude_index.png",
     "nocturne": "kage_acc_nocturne_index.png",

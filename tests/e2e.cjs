@@ -1075,7 +1075,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,paysan,emeraude,nocturne,tengu,samourai,pecheur,or,corbeau'
+    expect(look[0] && look[1] === 'encre,paysan,emeraude,nocturne,blanc,brume,tengu,samourai,pecheur,or,corbeau'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1176,7 +1176,7 @@ async function main() {
     const closed2 = await shown();
     await lp.close();
     expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
-      && r0.join() === 'true,false,encre,9' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      && r0.join() === 'true,false,encre,11' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -1267,6 +1267,24 @@ async function main() {
         && after[0] === 'Acquis' && after[1] === 'Porter' && !after[2] && worn === 'corbeau',
         `avant ${before.join()} · ${bought} · skins ${skins} · après ${after.join()} · porté ${worn}`);
     } finally { await pa.close(); }
+  });
+
+  await test('ninja de la brume : son dash laisse une traînée de brume (pas celui des autres skins) ; ses habits sont en haillons et ses pans effilochés', async () => {
+    const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
+      await tp.evaluate(() => localStorage.clear()); await tp.reload(); await tp.waitForFunction(() => window.__kage); await tp.waitForTimeout(400);
+      const dash = async (key) => {
+        await tp.keyboard.press(key); await tp.waitForTimeout(1200);
+        await tp.evaluate(() => { window.__kage.mist.puffs.length = 0; });
+        await tp.keyboard.press('ArrowRight'); await tp.waitForTimeout(40); await tp.keyboard.press('ArrowRight'); await tp.waitForTimeout(150);
+        return tp.evaluate(() => [window.__kage.skin, window.__kage.mist.puffs.length]);
+      };
+      const enc = await dash('1'), mi = await dash('6');
+      const sk = await tp.evaluate(() => [window.__kage.skins.brume?.dashFx, window.__kage.skins.brume?.accessories.join()]);
+      expect(enc[0] === 'encre' && enc[1] === 0 && mi[0] === 'brume' && mi[1] >= 4 && sk.join() === 'mist,tatters,mist_tails',
+        `encre ${enc.join()} · brume ${mi.join()} · ${sk.join()}`);
+    } finally { await tp.close(); }
   });
 
   await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
