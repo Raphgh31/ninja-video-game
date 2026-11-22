@@ -1,6 +1,7 @@
 // Tout ce qui bouge dans le Potager : la roue à eau, l'eau qui coule, les koïs,
 // la pluie de la serre, la lumière de la grange, la fumée, le marchand, et la vie
 // sauvage (papillons, pétales, feuilles, libellules, poussières dans la lumière).
+import { MerchantArt } from '../merchant.js';
 import { TempleGate, INTERIORS, DEFAULT_INTERIOR } from './temple.js';
 import { ih, rng, Brush, canvas } from './paint.js';
 import * as C from './palette.js';
@@ -258,7 +259,7 @@ export class Live {
       if (!vis(X)) continue;
       this.smoke(ctx, X - cam.x, Y - cam.y, time, 1);
     }
-    // l'échoppe : clochette, lanternes, et le marchand (dessin provisoire)
+    // l'échoppe : clochette et lanternes
     for (const s of this.stalls) {
       const X = s.x * TILE + 8, Y = s.y * TILE;
       if (!vis(X)) continue;
@@ -274,8 +275,10 @@ export class Live {
       const bell = R(Math.sin(time * 2.4) * 1.2);
       ctx.fillStyle = '#c9a24a'; ctx.fillRect(sx - 2 + bell, sy - 47, 4, 4);
       ctx.fillStyle = '#e8c76a'; ctx.fillRect(sx - 2 + bell, sy - 47, 1, 2);
-      this.merchant(ctx, sx, sy, time);
     }
+    // le marchand, debout à gauche de son échoppe (src/game/merchant.js)
+    const m = this.level.merchant;
+    if (m && vis(m.x)) this.drawMerchant(ctx, m, cam, time);
   }
 
   /** Le vieux coffre : il s'entrouvre, puis le couvercle bascule en arrière ; fermé, sa serrure brille par moments. */
@@ -512,19 +515,12 @@ export class Live {
     ctx.globalAlpha = 1;
   }
 
-  merchant(ctx, sx, sy, time) {
-    // marchand PROVISOIRE (en attendant sa planche de design) : vieil homme au grand
-    // chapeau, tenue colorée ; il compte ses pièces derrière son comptoir
-    const bob = Math.floor(time * 2) % 2;
-    const y = sy - 18;
-    ctx.fillStyle = '#2f4e7c'; ctx.fillRect(sx - 5, y - 14 + bob, 10, 14);
-    ctx.fillStyle = '#d8823a'; ctx.fillRect(sx - 5, y - 7 + bob, 10, 2);
-    ctx.fillStyle = '#e8c39a'; ctx.fillRect(sx - 3, y - 19 + bob, 6, 5);
-    ctx.fillStyle = '#f2f0e8'; ctx.fillRect(sx - 3, y - 15 + bob, 6, 3);
-    ctx.fillStyle = '#c9a85a'; ctx.fillRect(sx - 10, y - 22 + bob, 20, 2);
-    ctx.fillRect(sx - 6, y - 24 + bob, 12, 2); ctx.fillRect(sx - 3, y - 25 + bob, 6, 1);
-    ctx.fillStyle = '#e8c39a'; ctx.fillRect(sx + 4, y - 4, 3, 2);
-    ctx.fillStyle = '#e8b93c'; ctx.fillRect(sx + 6, y - 4 - (Math.floor(time * 4) % 3), 2, 2);
+  /** Le marchand du chapitre (il salue le ninja qui s'approche). */
+  drawMerchant(ctx, m, cam, time) {
+    this.merchantArt ??= new MerchantArt('potager');
+    const pl = this.level.player, near = !!pl && Math.abs(pl.x - m.x) < 46 && Math.abs(pl.y - m.y) < 30;
+    const dt = Math.min(0.1, Math.max(0, time - (this.mT ?? time))); this.mT = time;
+    this.merchantArt.draw(ctx, R(m.x - cam.x), R(m.y - cam.y), time, near, dt);
   }
 
   // -------------------------------------------------------------------------

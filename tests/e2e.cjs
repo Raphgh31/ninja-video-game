@@ -592,8 +592,10 @@ async function main() {
   const SAVE = () => pg.evaluate(() => JSON.parse(localStorage.getItem('kage.save.v1') || 'null'));
   // le menu de l'écran titre : Aventure, puis « Nouvelle aventure » ou « Continuer l'aventure »
   const ADV = async (p = pg) => { await p.click('[data-menu="aventure"]'); await p.waitForSelector('[data-screen="aventure"]'); await p.waitForTimeout(60); };
-  const NEW = async (p = pg) => { await ADV(p); await p.click('[data-new]'); };
-  const CONT = async (p = pg) => { await ADV(p); await p.click('[data-continue]'); };
+  // (le choix fait, la lanterne s'allume et l'écran s'efface : on attend que la partie commence)
+  const started = (p) => p.waitForFunction(() => window.__kage && !window.__kage.run.title, null, { timeout: 4000 }).catch(() => {});
+  const NEW = async (p = pg) => { await ADV(p); await p.click('[data-new]'); await started(p); };
+  const CONT = async (p = pg) => { await ADV(p); await p.click('[data-continue]'); await started(p); };
   // KAGE posé sur le sol (le plus bas : sous les toits et mezzanines) de la colonne tx, ennemis écartés
   const pat = (tx) => pg.evaluate((tx) => {
     const g = window.__kage, pl = g.player, l = g.level;
@@ -1010,7 +1012,7 @@ async function main() {
     await pg.reload(); await pg.waitForFunction(() => window.__kage); await pw(300);
     await ADV();
     const cont = await pg.evaluate(() => !!document.querySelector('[data-continue]'));
-    await pg.click('[data-continue]'); await pw(300);
+    await pg.click('[data-continue]'); await started(pg); await pw(100);
     const r = await pg.evaluate((lx) => { const g = window.__kage, l = g.level; return { px: g.player.x, lx, taken: l.coins.filter((c) => c.taken).map((c) => c.id),
       chest: l.chests[0].open, chestCoins: l.coins.filter((c) => c.id.startsWith('k')).length }; }, before.checkpointX);
     expect(cont && Math.abs(r.px - r.lx) < 24 && before.coins.every((id) => r.taken.includes(id)) && r.chest && r.chestCoins === 10,
@@ -1073,7 +1075,7 @@ async function main() {
     await pg.click('[data-action]'); await pw(100);
     await PK.press('Escape'); await pw(200);
     const saved = await SAVE();
-    expect(look[0] && look[1] === 'encre,paysan,emeraude,nocturne,tengu,samourai,pecheur,or,corbeau'
+    expect(look[0] && look[1] === 'encre,paysan,emeraude,nocturne,blanc,brume,tengu,samourai,pecheur,or,corbeau'
       && shown.join() === 'Paysan des rizières,Acheter · 100 ryō,false' && poor.join() === 'Paysan des rizières,Acheter · 100 ryō,false,40,encre'
       && ask[2] === true && bought.join() === '30,paysan,30 ryō,Porté,Porté' && back.join() === 'encre,Acquis'
       && saved.skin === 'paysan' && saved.skins.join() === 'encre,paysan' && saved.ryo === 30,
@@ -1174,7 +1176,7 @@ async function main() {
     const closed2 = await shown();
     await lp.close();
     expect(closed0.join() === 'true,false,true' && opened.join() === 'false,true,true' && closed1.join() === 'true,false,true' && closed2.join() === 'true,false,true'
-      && r0.join() === 'true,false,encre,9' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
+      && r0.join() === 'true,false,encre,11' && r2 === 'paysan' && r1 === 'encre' && z[0] === '03' && z[1] === 'Zone 03' && chapters[0] === 'potager:true',
       `panneau ${closed0} → ${opened} → ${closed1} → rechargé ${closed2}, ouverture ${r0.join()}, touche 2 ${r2}, clic ${r1}, zone ${z.join()}, chapitres ${chapters.join()}`);
   });
 
@@ -1265,6 +1267,24 @@ async function main() {
         && after[0] === 'Acquis' && after[1] === 'Porter' && !after[2] && worn === 'corbeau',
         `avant ${before.join()} · ${bought} · skins ${skins} · après ${after.join()} · porté ${worn}`);
     } finally { await pa.close(); }
+  });
+
+  await test('ninja de la brume : son dash laisse une traînée de brume (pas celui des autres skins) ; ses habits sont en haillons et ses pans effilochés', async () => {
+    const tp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await tp.goto('file://' + path.resolve(__dirname, '../dist/kage-test.html')); await tp.waitForFunction(() => window.__kage);
+      await tp.evaluate(() => localStorage.clear()); await tp.reload(); await tp.waitForFunction(() => window.__kage); await tp.waitForTimeout(400);
+      const dash = async (key) => {
+        await tp.keyboard.press(key); await tp.waitForTimeout(1200);
+        await tp.evaluate(() => { window.__kage.mist.puffs.length = 0; });
+        await tp.keyboard.press('ArrowRight'); await tp.waitForTimeout(40); await tp.keyboard.press('ArrowRight'); await tp.waitForTimeout(150);
+        return tp.evaluate(() => [window.__kage.skin, window.__kage.mist.puffs.length]);
+      };
+      const enc = await dash('1'), mi = await dash('6');
+      const sk = await tp.evaluate(() => [window.__kage.skins.brume?.dashFx, window.__kage.skins.brume?.accessories.join()]);
+      expect(enc[0] === 'encre' && enc[1] === 0 && mi[0] === 'brume' && mi[1] >= 4 && sk.join() === 'mist,tatters,mist_tails',
+        `encre ${enc.join()} · brume ${mi.join()} · ${sk.join()}`);
+    } finally { await tp.close(); }
   });
 
   await test('arène : le ninja y porte le skin de l\'aventure en cours', async () => {
@@ -1755,7 +1775,8 @@ async function main() {
       await B.waitForFunction(() => /Raph/.test(document.querySelector('[data-salon]').textContent));
       // le salon : plein écran, le code en grand, les deux joueurs à leur place, le combat attend
       const salon = await B.evaluate(() => { const s = document.querySelector('[data-salon]');
-        return { shown: !s.hidden, code: s.querySelector('[data-salon-code]').textContent, text: s.textContent.replace(/\s+/g, ' '), paused: window.__kage.run.paused, launch: !!s.querySelector('[data-launch]') }; });
+        return { shown: !s.hidden, code: s.querySelector('[data-salon-code]').textContent, text: s.textContent.replace(/\s+/g, ' '), paused: window.__kage.run.paused, launch: !!s.querySelector('[data-launch]'),
+          me: s.querySelector('[data-player="me"]')?.textContent }; });
       const hostLaunch = await A.evaluate(() => !document.querySelector('[data-launch]').disabled);
       // l'hôte choisit Trois lames : l'invité le voit
       await A.click('[data-mode="trois"]');
@@ -1785,16 +1806,16 @@ async function main() {
         await B.evaluate(() => window.__kage.player.die());
         await A.waitForFunction((n) => window.__kage.multi.scores.get(window.__kage.multi.net.id) === n, i, { timeout: 3000 });
       }
-      await B.waitForFunction(() => /Victoire de Raph/.test(document.querySelector('[data-salon]').textContent), null, { timeout: 4000 });
+      await B.waitForFunction(() => document.querySelector('[data-salon] [data-winner]')?.textContent === 'Raph', null, { timeout: 4000 });
       await A.waitForFunction(() => !!document.querySelector('[data-launch]'), null, { timeout: 8000 });
       // Souffle unique : une seule vie ; Kenji éliminé ne réapparaît pas, Raph gagne
       await A.click('[data-mode="souffle"]'); await A.click('[data-launch]');
       await B.waitForFunction(() => !window.__kage.run.paused, null, { timeout: 3000 });
       await B.waitForTimeout(300);
       await B.evaluate(() => window.__kage.player.die());
-      await B.waitForFunction(() => window.__kage.multi.out && /Victoire de Raph/.test(document.querySelector('[data-salon]').textContent), null, { timeout: 4000 });
+      await B.waitForFunction(() => window.__kage.multi.out && document.querySelector('[data-salon] [data-winner]')?.textContent === 'Raph', null, { timeout: 4000 });
       const sudden = await B.evaluate(() => window.__kage.multi.match.over);
-      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && /Kenji \(toi\)/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
+      expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && salon.me === 'Kenji' && /toi/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
         && rule[0] === 3 && /premier à 3/.test(rule[1]) && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
         `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}`);
     } finally { await ctx.close(); srv.close(); }
@@ -1840,8 +1861,11 @@ async function main() {
     await pm.evaluate(() => localStorage.setItem('kage.save.v1', JSON.stringify({ ...JSON.parse(localStorage.getItem('kage.save.v1') || '{}'), chapter: 'potager', ryo: 77 })));
     await pm.reload(); await pm.waitForFunction(() => window.__kage); await pm.waitForTimeout(200);
     await ADV(pm);
-    const cards = await pm.evaluate(() => [document.querySelectorAll('[data-continue]').length, document.querySelectorAll('[data-new]').length]);
-    await pm.click('[data-new]'); await pm.waitForTimeout(300);
+    // (une aventure à la fois : l'emplacement 1 est montré ; l'emplacement libre derrière « Aventure 2 »)
+    const cont1 = await pm.evaluate(() => document.querySelectorAll('[data-continue]').length);
+    await pm.click('[data-slot="2"]'); await pm.waitForTimeout(100);
+    const cards = [cont1, await pm.evaluate(() => document.querySelectorAll('[data-new]').length)];
+    await pm.click('[data-new]'); await pm.waitForTimeout(900);
     const two = await pm.evaluate(() => [localStorage.getItem('ninja.aventure'), JSON.parse(localStorage.getItem('kage.save.v1')).ryo]);
     // Mon ninja : le pseudo se garde
     await pm.reload(); await pm.waitForFunction(() => window.__kage); await pm.waitForTimeout(200);

@@ -149,7 +149,7 @@ body.mobile .talk { padding-left: 6px; }
 .title-screen__name { margin: 0; --pxf: title; --pxs: 1; color: var(--ink); }
 .title-screen__chapter { margin: 0 0 12px; --pxs: 1; color: #c9c3b4; }
 .title-screen__actions { display: grid; gap: 4px; min-width: 110px; }
-.title-screen button, .shop button {
+.title-screen button {
   display: grid; justify-items: center; color: var(--ink); background: transparent;
   border: 1px solid rgba(233, 229, 218, .45); padding: 2px 10px 3px;
 }
@@ -170,87 +170,10 @@ body.mobile .talk { padding-left: 6px; }
 .title-screen.with-intro button:hover, .title-screen.with-intro button:focus {
   color: var(--ink); outline: none; }
 
-/* --- Menus (src/game/menu.js) et salon de l'arène (src/game/arena/lobby.js) ---------
-   Écrans pleins : un voile sur le décor de l'intro, un titre en haut, le contenu, une
-   ligne d'aide en bas. 1px = 1 pixel de jeu ; cadres d'un pixel, jamais d'arrondi.
-   .short (image de moins de 236 px de haut : téléphones allongés) : versions compactes. */
-.m-screen { position: absolute; inset: 0; z-index: 6; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); padding: 8px 16px 6px; color: var(--ink); }
-.m-screen[hidden] { display: none; }
-.m-veil { position: absolute; inset: 0; z-index: -1; background: linear-gradient(rgba(8, 10, 14, .62) 0%, rgba(8, 10, 14, .76) 52%, rgba(10, 12, 16, .9) 70%, #0a0c10 88%); }
-.m-screen.solid .m-veil { background: #0a0c10; }
-.m-hd { display: flex; align-items: center; gap: 8px; padding-bottom: 5px; border-bottom: 1px solid #3a3f4a; }
-.m-hd h2 { margin: 0; --pxf: big; --pxs: 1; color: #f3e3c3; text-transform: uppercase; }
-.m-body { position: relative; min-height: 0; padding-top: 8px; }
-.m-body.m-mid { display: grid; align-content: center; padding-top: 0; }
-.m-cards.m-compact { height: auto; }
-.m-compact .m-card { align-items: flex-start; gap: 8px; padding: 9px 12px 10px; }
-.m-ft { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; color: #6f7672; }
-.m-ft p { margin: 0; }
-.m-screen p { margin: 0; }
-.m-lbl { color: #8e939c; text-transform: uppercase; --pxs: 1; }
-.m-muted { color: #8e939c; }
-.m-dim { color: #5d626b; }
-.m-warm { color: #e0a07a; }
-.m-gold { color: #e8b93c; }
-.m-ink { color: #f3e3c3; }
-.m-big { --pxf: big; --pxs: 0; color: #f3e3c3; }
-.m-center { display: grid; justify-items: center; text-align: center; }
-.ui .m-screen button { display: inline-grid; place-items: center; padding: 2px 8px 3px; border: 1px solid #8e6a44; background: rgba(27, 19, 14, .92); color: #f3e3c3; cursor: pointer; }
-.ui .m-screen button:hover, .ui .m-screen button:focus { background: #e9e5da; color: #15171c; border-color: #e9e5da; outline: none; }
-.ui .m-screen button.m-gold-btn { border-color: #e8b93c; }
-.ui .m-screen button.m-gold-btn:hover, .ui .m-screen button.m-gold-btn:focus { background: #e8b93c; border-color: #e8b93c; color: #1b130e; }
-.ui .m-screen button.m-link { border: 0; background: transparent; color: #8e939c; padding: 1px 3px 2px; }
-.ui .m-screen button.m-link:hover, .ui .m-screen button.m-link:focus { background: transparent; color: var(--ink); }
-.ui .m-screen button:disabled { color: #5d626b; border-color: #3a3f4a; background: transparent; cursor: default; }
-.m-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; height: 100%; }
-.short .m-cards { gap: 10px; }
-.short .m-card { gap: 1px; padding: 3px 8px 4px; }
-.m-card { position: relative; display: flex; flex-direction: column; gap: 3px; min-height: 0; padding: 5px 8px 7px; border: 1px solid #5a4630;
-  background: rgba(27, 19, 14, .88); box-shadow: inset 0 0 0 1px #2a1d15; }
-.m-card.m-on { border-color: #e8b93c; }
-.m-card.m-empty { border-style: dashed; border-color: #4a4f5a; background: rgba(20, 22, 28, .6); box-shadow: none; }
-.m-card .m-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.m-card .m-push { margin-top: auto; }
-.m-card canvas.m-ninja { align-self: center; image-rendering: pixelated; }
-/* Mon ninja : le ninja en grand sur toute la moitié gauche, son pseudo dessous, discret */
-.m-hero { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 0; }
-.m-hero canvas.m-ninja { image-rendering: pixelated; }
-.ui .m-hero .m-name { width: 96px; height: 14px; justify-content: center; padding-left: 0; border-color: #4a3a2a; background: transparent; }
-.short .m-hero { gap: 5px; }
-.m-field { position: relative; display: flex; align-items: center; height: 17px; padding-left: 5px; border: 1px solid #6b5236; background: rgba(18, 13, 10, .9); color: #f3e3c3; cursor: text; }
-.m-field:focus-within { border-color: #e8b93c; }
-.m-field input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
-.m-code { display: flex; justify-content: center; gap: 7px; }
-.m-code .m-box { position: relative; width: 40px; height: 52px; display: grid; place-items: center; border: 1px solid #5a4630; background: rgba(18, 13, 10, .9); --pxf: title; color: #f3e3c3; }
-.m-code .m-box.m-cur { border-color: #e8b93c; color: #e8b93c; }
-.short .m-code .m-box { width: 26px; height: 32px; --pxf: big; }
-.m-stats { display: grid; }
-.m-stats .m-row { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px solid #2a2e36; }
-.m-stats .m-row p:first-child { color: #8e939c; }
-.m-arrows { display: flex; align-items: center; gap: 4px; }
-/* salon : le code en grand, les modes, les quatre places */
-.m-salon { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; height: 100%; }
-.short .m-salon { gap: 10px; }
-.m-codeline { display: flex; align-items: center; gap: 10px; }
-.m-codebig { --pxf: title; --pxs: 3; color: #f3e3c3; }
-.short .m-codebig { --pxf: big; --pxs: 2; }
-.m-modes { display: grid; gap: 2px; }
-.ui .m-screen .m-mode { display: grid; justify-items: start; gap: 0; padding: 1px 6px 2px; min-height: 13px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); text-align: left; cursor: pointer; color: inherit; }
-.ui .m-screen button.m-mode:hover, .ui .m-screen button.m-mode:focus { background: rgba(58, 42, 18, .5); border-color: #8e6a44; color: inherit; }
-.m-mode .m-n { color: #8e939c; text-transform: uppercase; --pxs: 1; }
-.ui .m-screen .m-mode.m-on { border-color: #e8b93c; background: rgba(58, 42, 18, .75); }
-.ui.short .m-screen .m-mode { min-height: 0; padding: 0 6px 1px; }
-.ui.short .m-modes { gap: 2px; }
-.m-mode.m-on .m-n { color: #e8b93c; }
-.m-slots { display: grid; gap: 3px; }
-.m-slot { position: relative; display: flex; align-items: center; gap: 6px; height: 24px; padding-left: 30px; border: 1px solid #3a3f4a; background: rgba(20, 22, 28, .7); }
-.short .m-slot { height: 20px; }
-.m-slot.m-full { border-color: #5a4630; background: rgba(27, 19, 14, .88); }
-.m-slot .m-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.m-slot canvas.m-face { position: absolute; left: 6px; top: 0; image-rendering: pixelated; }
-.short .m-slot canvas.m-face { top: -2px; }
-.m-slot .m-tag { margin-left: auto; margin-right: 6px; }
-.title-screen.menu-open .title-screen__actions, .title-screen.menu-open .title-screen__name, .title-screen.menu-open .title-screen__chapter { visibility: hidden; }
+.title-screen.menu-open .title-screen__name, .title-screen.menu-open .title-screen__chapter { visibility: hidden; }
+/* le menu principal s'efface en douceur quand un écran s'ouvre (et revient de même) */
+.title-screen.menu-open .title-screen__actions { opacity: 0; visibility: hidden; transition: opacity .25s ease-in, visibility 0s .25s; }
+.title-screen.with-intro:not(.waiting):not(.menu-open) .title-screen__actions { transition: opacity .5s ease-out .2s, visibility 0s; }
 /* pendant le combat : le cadre de la salle, en haut au milieu, discret */
 .salle {
   position: absolute; z-index: 3; top: 3px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 1px;
@@ -263,61 +186,14 @@ body.mobile .talk { padding-left: 6px; }
 .salle__msg { margin: 0; color: #e0a07a; }
 .salle__msg:empty { display: none; }
 
-/* la boutique du marchand : tout l'écran (src/game/shop.js) — une enseigne, la bourse, les rayons ; à
-   gauche les cartes des skins (cadre à la couleur de leur rareté), à droite le skin choisi, en grand */
-.shop {
-  position: absolute; z-index: 4; inset: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 4px;
-  padding: 5px 7px 4px; color: var(--ink); background: #1b130e;
-  border: 1px solid #8e6a44; box-shadow: inset 0 0 0 2px #2a1d15, inset 0 0 0 3px #4a3626;
-}
-.shop[hidden] { display: none; }
-.shop__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 1px 2px 4px; border-bottom: 1px solid #4a3626; }
-.shop__head h2 { margin: 0; --pxs: 2; color: #f3e3c3; text-transform: uppercase; padding: 0 6px 0 2px; border-right: 1px solid #4a3626; }
-.shop__head .shop__purse { margin-left: auto; }
-/* la réplique du marchand, en bas, comme une parole */
-.shop__purse { display: flex; align-items: center; gap: 3px; padding: 2px 6px 3px; color: #f0c25a;
-  background: #2a1d15; border: 1px solid #6b4f34; }
-.shop__purse p { margin: 0; }
-/* une pièce de ryō : ronde, percée d'un trou carré */
-.shop__coin { width: 7px; height: 7px; background:
-  linear-gradient(#a8781e, #a8781e) 3px 3px / 1px 1px no-repeat,
-  linear-gradient(#f0c25a, #f0c25a) 1px 0 / 5px 7px no-repeat,
-  linear-gradient(#f0c25a, #f0c25a) 0 1px / 7px 5px no-repeat; }
-.shop__tabs { display: flex; gap: 3px; flex-wrap: nowrap; flex: none; }
-.shop .shop__tabs button { padding: 1px 6px 2px; }
-.shop__tabs button[aria-pressed="true"] { background: #8e6a44; border-color: #8e6a44; color: #fff7e6; }
-.shop__body { display: grid; grid-template-columns: 1fr 156px; gap: 6px; min-height: 0; }
-.shop--empty .shop__body { grid-template-columns: 1fr; }
-.shop--empty .shop__detail { display: none; }
-.shop__items { display: grid; grid-template-columns: repeat(auto-fill, 50px); gap: 3px; align-content: start;
-  overflow: auto; padding: 1px; min-height: 0; }
-.shop__empty { margin: 4px 2px; color: #a99a80; --pxw: 300; grid-column: 1 / -1; }
-.shop .shop__card { display: grid; justify-items: center; gap: 1px; width: 50px; padding: 2px 0 2px;
-  background: #261b13; border: 1px solid var(--rar, #6b5a46); }
-.shop .shop__card:hover, .shop .shop__card:focus-visible { background: #33251a; outline: none; }
-.shop .shop__card[aria-pressed="true"] { background: #3d2c1f; box-shadow: inset 0 0 0 1px #f3e3c3; }
-.shop__card canvas:not(.pxt) { width: 40px; height: 32px; image-rendering: pixelated; }
-.shop__tag { color: #f0c25a; }
-.shop__tag--poor { color: #8d7d64; }
-.shop__tag--own { color: #9fc7b0; }
-.shop__tag--worn { color: #f3e3c3; }
-.shop__detail { display: grid; align-content: start; justify-items: center; gap: 2px; padding: 4px 4px;
-  background: #22180f; border: 1px solid var(--rar, #5a4330); min-height: 0; overflow: auto; }
-.shop__rar { margin: 0; color: var(--rar); text-transform: uppercase; --pxs: 1; }
-.shop__name { margin: 0; --pxf: big; color: #f3e3c3; --pxw: 146; text-align: center; }
-.shop__stage { padding: 2px; background: #170f0a; border: 1px solid #3a2a1e; }
-.shop__preview { display: block; width: 114px; height: 72px; image-rendering: pixelated; }
-/* écran bas (téléphone) : le nom sur une ligne, l'aperçu à l'échelle 1 : le bouton d'achat reste visible */
-.short .shop__detail { gap: 1px; padding: 2px 3px; }
-.short .shop__name { --pxf: small; }
-.short .shop__preview, .shop__preview--small { width: 57px; height: 36px; }
-.shop__act { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
-.shop__ask { margin: 0; width: 100%; color: #f3e3c3; --pxw: 144; text-align: center; }
-.shop .shop__buy, .shop .shop__yes { background: #8e6a44; border-color: #c49a5e; color: #fff7e6; }
-.shop .shop__buy.shop__poor { background: transparent; color: #a99a80; border-color: rgba(233, 229, 218, .2); }
-.shop button:disabled { opacity: .55; cursor: default; }
-.shop__foot { display: flex; align-items: center; gap: 8px; padding-top: 3px; border-top: 1px solid #4a3626; }
-.shop__foot .shop__close { margin-left: auto; }   /* (plus de réplique du marchand : le bouton seul, à droite) */
+/* la boutique du marchand (src/game/shop.js) : style « Les lanternes », par-dessus le jeu en pause */
+.ui .shop { position: absolute; inset: 0; z-index: 8; opacity: 0; transition: opacity .3s ease-out; pointer-events: auto; }
+.ui .shop[hidden] { display: none; }
+.ui .shop.m-in { opacity: 1; }
+.ui .shop .m-txt, .ui .shop .m-act { opacity: 1; }
+.ui .m-lant .m-gold { color: #e8b93c; }
+.ui .m-lant .m-rar { color: #8d8a80; }
+.ui .m-lant button.m-act.m-poor { color: #4a4036; cursor: default; }
 
 /* écran d'arrivée */
 .win {
@@ -359,3 +235,51 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
 .lab__row span { color: #fff7e6; padding: 0 3px 1px; }
 .skinlab canvas:not(.pxt) { width: 32px; height: 26px; image-rendering: pixelated; }
 body.mobile .lab { top: 4px; }
+
+/* --- Menus « Les lanternes » (src/game/menu.js, dessin src/game/menuart.js ; salon : arena/lobby.js) ---
+   Chaque écran est une scène peinte (.m-scene, à la taille de l'image de jeu) ; textes et boutons y
+   sont posés au pixel (left/top en pixels de jeu). Pas de cadre ni de fond : la lumière et le coup de
+   pinceau (peint dans la scène) montrent le choix. Les écrans entrent et sortent en fondu. */
+.ui .m-screen.m-lant { position: absolute; inset: 0; z-index: 6; display: block; padding: 0; color: var(--ink); opacity: 0; transition: opacity .35s ease-out; }
+.ui .m-screen.m-lant[hidden] { display: none; }
+.ui .m-screen.m-lant.m-in { opacity: 1; }
+.ui .m-screen.m-lant.m-now { transition: none; }
+.ui .m-screen.m-lant.m-out { opacity: 0; transition: opacity .22s ease-in; pointer-events: none; }
+.ui .m-screen.m-lant.m-go { opacity: 0; transition: opacity .45s ease-in .15s; pointer-events: none; }
+.m-lant .m-scene { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
+.m-lant .m-layer { position: absolute; inset: 0; }
+.ui .m-lant .m-txt, .ui .m-lant .m-act { position: absolute; margin: 0; color: #4a505b; opacity: 0; transition: opacity .3s ease-out .25s; }
+.ui .m-lant.m-in .m-txt, .ui .m-lant.m-in .m-act { opacity: 1; }
+.ui .m-lant.m-in .m-txt.m-hide, .ui .m-lant.m-in .m-act.m-hide { opacity: 0; transition: opacity .12s; }
+.ui .m-lant.m-now .m-txt, .ui .m-lant.m-now .m-act { transition: none; }
+.ui .m-lant .m-txt { padding: 0; }
+.ui .m-lant button.m-act { display: block; padding: 3px 4px; margin: -3px -4px; border: 0; background: transparent; color: #4a505b; cursor: pointer; }
+.ui .m-lant button.m-act:hover, .ui .m-lant button.m-act:focus { background: transparent; border: 0; outline: none; color: var(--ink); }
+.ui .m-lant button.m-act.m-main { color: #6f747c; }
+.ui .m-lant button.m-act.m-main:focus { color: var(--ink); }
+.ui .m-lant button.m-act.m-danger:focus, .ui .m-lant button.m-act.m-danger:hover { color: #d08070; }
+.ui .m-lant button.m-act.m-gong { color: #a8803c; }
+.ui .m-lant button.m-act.m-gong:focus, .ui .m-lant button.m-act.m-gong:hover { color: #e8b25a; }
+.ui .m-lant button.m-act:disabled { color: #2f343d; cursor: default; }
+.ui .m-lant .m-tab.m-on { color: var(--ink); }
+.ui .m-lant button.m-home { width: 13px; height: 13px; padding: 0; margin: 0; opacity: 1; }
+.ui .m-lant .m-back, .ui .m-lant .m-arrow { color: #4a505b; }
+.ui .m-lant div.m-act.m-mode { color: #3d424c; }
+.ui .m-lant .m-mode.m-on, .ui .m-lant .m-mode.m-on p { color: var(--ink); }
+.m-lant .m-mode p { margin: 0; }
+.ui .m-lant .m-ttl, .ui .m-lant .m-ink { color: var(--ink); }
+.ui .m-lant .m-soft { color: #8d8a80; }
+.ui .m-lant .m-dim { color: #5d626b; }
+.ui .m-lant .m-faint { color: #3d424c; }
+.ui .m-lant .m-warm { color: #b08a58; }
+.ui .m-lant .m-big { --pxf: big; --pxs: 1; }
+.ui .m-lant .m-carved { --pxf: big; color: #1e140c; }
+.ui .m-lant .m-num { color: #2a2f38; }
+.ui .m-lant .m-num.m-on { color: #8d8a80; }
+.ui .m-lant .m-num.m-lit { color: #6e5a40; }
+.ui .m-lant .m-num.m-lit.m-on { color: #d8b070; }
+.ui .m-lant button.m-lamp { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; opacity: 0; cursor: pointer; }
+.ui .m-lant .m-codein { position: absolute; z-index: 1; padding: 0; margin: 0; border: 0; background: transparent; color: transparent; caret-color: transparent;
+  opacity: 0; font-size: 16px; cursor: text; }
+.ui .m-lant button.m-codein { cursor: copy; }
+.ui .m-lant .m-hidden { position: absolute; visibility: hidden; }

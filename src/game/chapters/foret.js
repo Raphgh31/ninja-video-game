@@ -718,6 +718,7 @@ function build() {
   coins([x + 2, x + 3], G12 - 4);
   x = b.x; ground(30, G12);
   lantern(x + 6, G12);
+  b.cols[x + 11][G12 - 1] = 'M';                     // le marchand de la Forêt et son campement, dans la clairière
   // DÉTOUR — le belvédère : on grimpe au dernier grand arbre par ses branches, étagées des deux côtés
   // comme un sapin (en tombant d'une branche, on retombe toujours sur la suivante), jusqu'à la fourche,
   // à 15 cases : la vallée au soleil couchant, l'horizon, un coffre posé dans la fourche

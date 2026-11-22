@@ -1779,18 +1779,10 @@ const PAINT = {
     for (let k = 0; k < 5; k++) b.r(X - 24 + k * 5, Y - 24, 4, 6, cols[k]).r(X - 24 + k * 5, Y - 24, 4, 1, '#ffffff33');
     b.r(X + 2, Y - 23, 6, 5, C.TERRACOTTA[2]).r(X + 2, Y - 24, 6, 1, C.TERRACOTTA[4]);
     b.r(X + 10, Y - 22, 7, 4, C.STRAW[2]).r(X + 18, Y - 23, 5, 5, '#2c303d');
-    // enseigne verticale
-    b.r(X - 40, Y - 44, 9, 30, W[3]).r(X - 40, Y - 44, 9, 1, W[5]).r(X - 36, Y - 14, 2, 14, W[1]);
-    for (let k = 0; k < 4; k++) b.r(X - 38, Y - 41 + k * 7, 5, 4, '#2a2420').r(X - 37, Y - 40 + k * 7, 3, 2, W[3]);
-    // caisses empilées et grand sac de voyage
+    // caisses empilées (le grand sac de voyage est devenu la hotte du marchand, qui se tient à gauche)
     for (const [cx, cy] of [[X + 32, Y - 14], [X + 46, Y - 14], [X + 38, Y - 27]]) {
       b.r(cx, cy, 13, 13, W[2]).r(cx, cy, 13, 1, W[4]).r(cx, cy + 6, 13, 1, W[1]).line(cx, cy, cx + 12, cy + 12, W[1]);
     }
-    for (let j = 0; j < 20; j++) for (let i = -8; i <= 8; i++) {
-      if (i * i / 64 + ((j - 11) ** 2) / 100 > 1) continue;
-      b.p(X - 50 + i, Y - 20 + j, pick(['#6e5a3e', '#8d7552', '#ab9268', '#c8b084'], clamp01(0.62 - i * 0.05 - (j - 11) * 0.02), i, j));
-    }
-    b.r(X - 54, Y - 26, 9, 2, '#4e3e2a').r(X - 49, Y - 34, 2, 10, W[1]);
   },
 
   signpost(b, p, X, Y) {

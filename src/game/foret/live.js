@@ -5,6 +5,7 @@
 //   devant KAGE : l'eau (miroir de la clairière, torrent, mare souterraine), la
 //     joue de la statue (on passe derrière), l'éboulis, la brume des ravins,
 //     poussières et lucioles, la pénombre du souterrain, le premier plan.
+import { MerchantArt, drawCamp } from '../merchant.js';
 import { canvas, ih, noise1, noise2, fbm2, pick, bayer, Brush } from '../potager/paint.js';
 import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
@@ -379,6 +380,15 @@ export class ForetLive {
     const f = this.f, lv = this.level;
     if (!f) return;
     this.drawChasmDepth(ctx, cam, vw, vh);
+    // le marchand de la Forêt, son campement (src/game/merchant.js)
+    const m = lv.merchant;
+    if (m && this.vis(m.x - 40, m.y - 60, 140, 70, cam, vw, vh)) {
+      this.merchantArt ??= new MerchantArt('foret');
+      const pl = lv.player, near = !!pl && Math.abs(pl.x - m.x) < 46 && Math.abs(pl.y - m.y) < 30;
+      const dt = Math.min(0.1, Math.max(0, time - (this.mT ?? time))); this.mT = time;
+      drawCamp(ctx, R(m.x - cam.x) + 14, R(m.y - cam.y), time);
+      this.merchantArt.draw(ctx, R(m.x - cam.x), R(m.y - cam.y), time, near, dt);
+    }
     // travées du pont et leurs colonnes
     f.spans.forEach((s, i) => {
       const x = s.x0 * TILE, y = s.row * TILE;

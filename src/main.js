@@ -15,6 +15,7 @@ import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './
 import { MUSIC, Music } from './engine/music.js';
 import { clearSave, emptySave, listSaves, loadSave, setSlot, writeSave } from './game/save.js';
 import { drawAura as drawAura0 } from './game/aura.js';
+import { Mist } from './game/mist.js';
 import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
 import { pixelUI } from './engine/pixelui.js';
@@ -184,6 +185,8 @@ function drawTrail(cam) {
 }
 
 /** L'éclat d'un skin légendaire (Lumière d'or) : orbe, volutes, étincelles (src/game/aura.js). */
+// la traînée de brume du dash (skin à `dashFx: "mist"` : le ninja de la brume, src/game/mist.js)
+const mist = new Mist();
 function drawAura(cam) {
   drawAura0(ctx, Math.round(player.x - cam.x), Math.round(player.y - cam.y), player.facing, performance.now() / 1000);
 }
@@ -695,7 +698,8 @@ function startRoom(cfg) {
       } else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
     },
   });
-  lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
+  lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''),
+    backdrop: new Intro(meta, null, null, { backdropOnly: true }), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); }, onHome: () => { net.close(); backToMenu('accueil'); } });
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
@@ -921,6 +925,7 @@ function update(dt) {
   multi?.update(dt);
   level.forest?.update(dt, player);
   shurikens.update(dt);
+  mist.update(dt, player, look.dashFx === 'mist');
   for (const t of enemies) {
     t.update(dt, player);
     t.interact(player);
@@ -1209,6 +1214,7 @@ function draw() {
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
+  if (!behindGate()) mist.draw(ctx, cam);
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   level.drawForeground(ctx, cam);
@@ -1393,7 +1399,7 @@ function openShop() {
   music.setLevel(MUSIC.duck, 0.4);
   hideChapterUi();
   sfx('bell');
-  shop.open({ firstVisit: !save.merchantMet, save });
+  shop.open({ firstVisit: !save.merchantMet, save, title: LEVEL_ID === 'foret' ? 'Le campement de la clairière' : 'Le comptoir du voyageur' });
   if (!save.merchantMet) { save.merchantMet = true; persist(); }
 }
 ui.talk.addEventListener('click', talkAction);
@@ -1520,6 +1526,7 @@ function endIntro() {
 }
 // ---- l'écran titre : le menu (src/game/menu.js) ------------------------------------------
 let menu = null;
+let nightBg = null;   // la nuit de l'intro, décor seul, pour les menus ouverts sans l'intro
 /** Ce qu'on dit d'une aventure : son chapitre, sa zone (d'après sa lanterne), le corbeau. */
 function chapterOf(sv) {
   const def = LEVELS[sv.chapter] ?? LEVELS.potager;
@@ -1533,6 +1540,11 @@ function chapterOf(sv) {
     zone: z ? `Zone ${z.id} · ${z.name.charAt(0).toLowerCase()}${z.name.slice(1)}` : '',
     zoneShort: z ? `${z.id} sur ${zones.length}` : '',
     boss: !!sv.bossDefeated || sv.chapter !== 'potager',
+    // pour les lanternes du menu : le numéro du chapitre, son nom, la zone
+    num: def.chapter ?? 1,
+    name: short,
+    zoneNum: Number.parseInt(z?.id ?? 1, 10) || 1,
+    zones: zones.length,
   };
 }
 /** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
@@ -1569,10 +1581,20 @@ if (CHAPTER) {
       clearSave(slot);
       if (profile.shown === slot) { profile.shown = slot === 1 ? 2 : 1; saveProfile(profile); }
     },
-    arenas: Object.entries(LEVELS).filter(([, l]) => l.arena).map(([id, l]) => ({ id, name: l.name.replace(/^Arène — /, '') })),
+    arenas: Object.entries(LEVELS).filter(([, l]) => l.arena).map(([id, l]) => ({ id, name: l.name.replace(/^Arène — /, ''), theme: l.theme })),
+    // le nom de chaque chapitre (une lanterne chacun, dans le menu Aventure)
+    chapters: Object.fromEntries(Object.values(LEVELS).filter((l) => l.chapter && !l.arena).map((l) => [l.chapter, (l.name ?? '').split('— ')[1] ?? l.name])),
     createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
     setBackdrop(on) { if (intro) intro.menuMode = on; },
+    // sans l'intro (retour de l'arène…), les écrans peignent eux-mêmes la nuit des montagnes
+    backdrop() {
+      if (intro) return null;
+      nightBg ??= new Intro(meta, null, null, { backdropOnly: true });
+      nightBg.resize(VIEW_W, VIEW_H);
+      nightBg.draw();
+      return nightBg.el;
+    },
   });
   function go(cfg) {
     try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
@@ -1597,11 +1619,14 @@ if (CHAPTER) {
     if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
     // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni quand on revient
     // de l'arène, ni dans la version de test quand on vient de changer de chapitre par le panneau
-    const quiet = globalThis.__KAGE_SKIP_INTRO || back || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
+    // (« accueil » : le bouton maison du salon de l'arène ramène au menu principal, sur la fin de l'intro)
+    const home = back?.screen === 'accueil';
+    const quiet = !home && (globalThis.__KAGE_SKIP_INTRO || back || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro')));
     sessionStorage.removeItem('kage-sans-intro');
-    if (!quiet) playIntro();
+    if (home) playIntro().then(() => { if (intro) { intro.begin(false); intro.skip(); } });
+    else if (!quiet) playIntro();
     else if (SKIN_LAB && back) { document.querySelector('.title-screen').hidden = false; run.title = true; }
-    if (back?.screen) menu.open(back.screen, back);
+    if (back?.screen && !home) menu.open(back.screen, back);
   }
 }
 
@@ -1750,7 +1775,7 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
