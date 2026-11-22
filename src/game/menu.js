@@ -14,7 +14,7 @@
 // posés au pixel sur la scène peinte. Transitions : les écrans entrent et sortent en fondu, les
 // lanternes s'allument l'une après l'autre, le coup de pinceau se tire sous le choix.
 import { cleanCode } from '../engine/net.js';
-import { measure } from '../engine/pixelfont.js';
+import { measure, renderText } from '../engine/pixelfont.js';
 import { play } from '../engine/sfx.js';
 import { cleanName } from './profile.js';
 import { canvas, noise1 } from './potager/paint.js';
@@ -34,6 +34,13 @@ const el = (tag, cls, text) => {
   return e;
 };
 const sfx = (n) => { try { play(n); } catch { /* le son n'est pas indispensable */ } };
+
+/** La petite maison (9 × 9 pixels) : bouton du retour au menu principal. */
+const HOUSE = ['....#....', '...#.#...', '..#...#..', '.#.....#.', '#########', '.#.....#.', '.#..#..#.', '.#..#..#.', '.#######.'];
+export function homeIcon(g, x, y, col) {
+  g.fillStyle = col;
+  HOUSE.forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '#') g.fillRect(x + i, y + j, 1, 1); });
+}
 
 export class Menu {
   /**
@@ -175,6 +182,15 @@ export class Menu {
     if (title) this.text(s, title, 16, 8, { cls: 'm-ttl' });
     const back = this.act(s, '←', W - 16, 8, () => this.back(), { align: 'right', cls: 'm-back' });
     back.setAttribute('aria-label', 'Retour');
+    // la petite maison : retour direct au menu principal (Aventure · Arène · Mon ninja), d'où qu'on soit
+    const home = el('button', 'm-act m-home');
+    home.type = 'button';
+    home.setAttribute('aria-label', 'Menu');
+    home.dataset.home = '';
+    home.style.cssText = `left:${W - 44}px;top:7px`;
+    home.addEventListener('click', () => this.home());
+    home.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') home.focus({ preventScroll: true }); });
+    s.append(home);
     s.tick = (dt) => {
       s.age += dt;
       const g = s.g;
@@ -191,8 +207,17 @@ export class Menu {
         stroke(g, k.cx, k.y, k.len, u, k.col ?? INK, k.tail);
       }
       for (const b of s.strokes.keys()) if (b !== f) s.strokes.delete(b);
+      homeIcon(g, W - 41, 9, f === home ? INK : '#4a505b');
     };
     return s;
+  }
+
+  /** Retour au menu principal, d'où qu'on soit : tous les écrans s'effacent, la lune revient. */
+  home() {
+    while (this.stack.length) this.fadeOut(this.stack.pop(), true);
+    this.title.classList.remove('menu-open');
+    this.setBackdrop?.(false);
+    setTimeout(() => this.main.querySelector('[data-menu]')?.focus({ preventScroll: true }), 260);
   }
 
   /** Un texte posé au pixel : x selon align (left | center | right), y = haut de la ligne. */
@@ -242,8 +267,11 @@ export class Menu {
   }
 
   // =================================================================================================
-  // Aventure : sept lanternes
+  // Aventure : sept lanternes, une par chapitre, le long d'un sentier qu'on parcourt
   // =================================================================================================
+  // Les lanternes sont espacées : l'image n'en montre que deux ou trois, jamais la fin du chemin. La
+  // caméra glisse le long du sentier jusqu'à la lanterne regardée (à l'ouverture, elle part de la
+  // première et suit les flammes qui s'allument jusqu'au chapitre en cours).
   build_aventure() {
     const s = this.scene(null);
     const { W, H } = s;
@@ -251,114 +279,113 @@ export class Menu {
     const has = (n) => !!saves.find((x) => x.slot === n)?.save;
     let sel = has(this.profile.shown) ? this.profile.shown : saves.find((x) => x.save)?.slot ?? 1;
 
-    // le sentier : sept lanternes d'ouest en est, qui montent doucement vers la montagne
-    const g0 = H - 54;
-    const LX = Array.from({ length: LANTERNS }, (_, i) => Math.round(36 + (i * (W - 80)) / (LANTERNS - 1)));
-    const rise = [0, 4, 7, 10, 14, 18, 26];
+    const g0 = H - 56, SP = Math.round(W * 0.42), AT = Math.round(W * 0.3);   // écart des lanternes ; place de la lanterne regardée
+    const LX = Array.from({ length: LANTERNS }, (_, i) => AT + i * SP);
+    const rise = [0, 5, 9, 14, 18, 23, 30];
     const LY = rise.map((r) => g0 - r);
+    const WW = LX[LANTERNS - 1] + W;
     const top = (x) => {
       let i = 0;
       while (i < LX.length - 2 && x > LX[i + 1]) i++;
       const t = clamp01((x - LX[i]) / (LX[i + 1] - LX[i])), e = (1 - Math.cos(t * Math.PI)) / 2;
       let y = LY[i] + (LY[i + 1] - LY[i]) * e;
-      if (x < LX[0]) y = LY[0] + (LX[0] - x) * 0.04;
-      if (x > LX[6]) y = LY[6] + (x - LX[6]) * 0.25;
-      const butte = x > LX[6] - 34 ? Math.sin(clamp01((x - LX[6] + 34) / 50) * Math.PI) * 3 : 0;
-      return y + Math.round(noise1(x / 9, 21) * 1.4) - butte;
+      if (x < LX[0]) y = LY[0] + (LX[0] - x) * 0.03;
+      if (x > LX[6]) y = LY[6] + (x - LX[6]) * 0.08;
+      return y + Math.round(noise1(x / 9, 21) * 1.4 + noise1(x / 41, 22) * 2);
     };
-    ground(s.pen, top);
+    // le monde (plus large que l'image) : peint une fois
+    s.world = canvas(WW, H);
+    const wp = new Pen(s.world.getContext('2d'));
+    ground(wp, top);
     const stones = [];
-    for (let x = LX[0] + 8; x < LX[6] - 6; x += 7) {
-      if (LX.some((l) => Math.abs(x - l) < 9)) continue;
+    for (let x = 12; x < WW - 12; x += 7) {
+      if (LX.some((l) => Math.abs(x - l) < 14)) continue;
       const y = Math.round(top(x)), w = 3 + ((x * 7) % 2);
-      s.pen.r(x, y, w, 1, '#283041'); s.pen.r(x, y + 1, w, 1, '#161b25');
+      wp.r(x, y, w, 1, '#283041'); wp.r(x, y + 1, w, 1, '#161b25');
       stones.push({ x, y, w, seg: LX.findIndex((l) => l > x) });
     }
-    const lamps = LX.map((x, i) => {
-      const lan = stoneLantern(s.pen, x, Math.round(top(x)) + 1, i === 6 ? 1.55 : 1.2);
-      return { lan, v: 0, target: 0, wait: 0, power: 0.55, pTarget: 0.55 };
-    });
+    const lamps = LX.map((x, i) => ({ lan: stoneLantern(wp, x, Math.round(top(x)) + 1, i === 6 ? 2.3 : 1.9), v: 0, target: 0, wait: 0, power: 0.55, pTarget: 0.55 }));
+    // les numéros, peints sous chaque lanterne (ils glissent avec le sentier)
+    const numCv = new Map();
+    const numOf = (n, col) => {
+      const k = `${n}|${col}`;
+      if (!numCv.has(k)) numCv.set(k, renderText(String(n), { color: col }));
+      return numCv.get(k);
+    };
 
-    // les numéros sous les lanternes, et un bouton (invisible) sur chaque lanterne allumée
-    const nums = LX.map((x, i) => this.text(s, String(i + 1), x, Math.round(top(x)) + 6, { align: 'center', cls: 'm-num' }));
+    let cam = 0, camTo = 0;
+    const camFor = (n) => Math.max(0, LX[Math.max(0, n - 1)] - AT);
+    // un bouton (invisible) sur chaque lanterne allumée : la regarder montre son chapitre
     const lampBtns = LX.map((x, i) => {
       const b = el('button', 'm-lamp');
       b.type = 'button';
       b.dataset.lantern = String(i + 1);
       const L = lamps[i].lan;
-      b.style.cssText = `left:${x - 10}px;top:${L.top - 2}px;width:20px;height:${L.by - L.top + 14}px`;
-      b.addEventListener('focus', () => { focusN = i + 1; showInfo(); });
+      b.style.top = `${L.top - 2}px`; b.style.width = '28px'; b.style.height = `${L.by - L.top + 16}px`;
+      b.addEventListener('focus', () => { focusN = i + 1; camTo = camFor(i + 1); showInfo(); });
       b.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !b.hidden) b.focus({ preventScroll: true }); });
       b.addEventListener('click', () => s.querySelector('[data-continue]')?.focus());
       s.append(b);
       return b;
     });
 
-    // les deux aventures, en haut à gauche
     const tab1 = this.act(s, 'Aventure 1', 16, 8, () => pickSlot(1), { cls: 'm-tab' });
     const tab2 = this.act(s, 'Aventure 2', 16 + measure('Aventure 1') + 14, 8, () => pickSlot(2), { cls: 'm-tab' });
     tab1.dataset.slot = '1'; tab2.dataset.slot = '2';
 
-    // les textes du bas : à côté de la lanterne en cours, les choix de l'autre côté
-    const l1 = this.text(s, '', 0, g0 + 18, { cls: 'm-ink' });
-    const l2 = this.text(s, '', 0, g0 + 30, { cls: 'm-soft' });
+    // le chapitre regardé, sous sa lanterne ; les choix à droite
+    const l1 = this.text(s, '', AT, g0 + 22, { cls: 'm-ink' });
+    const l2 = this.text(s, '', AT, g0 + 34, { cls: 'm-soft' });
     let acts = [];
-    let state = 'view';           // view | confirm | leaving
-    let focusN = 0;               // lanterne regardée (0 : celle du chapitre en cours)
+    let state = 'view';
+    let focusN = 0;
 
     const info = () => {
       const sv = saves.find((x) => x.slot === sel)?.save ?? null;
       return sv ? { sv, ...this.chapterOf(sv) } : null;
     };
-    const textX = (cur) => {
-      const left = LX[Math.max(0, cur - 1)] < W / 2;
-      return { left, ix: left ? Math.max(76, LX[Math.max(0, cur - 1)] + 28) : Math.min(W - 76, LX[cur - 1] - 28) };
-    };
-
     const showInfo = () => {
       const a = info();
-      if (!a) { nums.forEach((e) => e.classList.remove('m-on')); this.swap(l1, '', W / 2, g0 + 18, 'center'); this.swap(l2, '', W / 2, g0 + 30, 'center'); return; }
-      const n = focusN || a.num, { ix } = textX(a.num);
-      nums.forEach((e, i) => e.classList.toggle('m-on', state !== 'confirm' && i + 1 === n));
+      if (!a) { this.swap(l1, '', AT, g0 + 22, 'center'); this.swap(l2, '', AT, g0 + 34, 'center'); return; }
       if (state === 'confirm') {
-        this.swap(l1, `Éteindre l'aventure ${sel} ?`, W / 2, g0 + 18, 'center');
-        this.swap(l2, '', W / 2, g0 + 30, 'center');
+        this.swap(l1, `Éteindre l'aventure ${sel} ?`, AT, g0 + 22, 'center');
+        this.swap(l2, '', AT, g0 + 34, 'center');
         return;
       }
+      const n = focusN || a.num;
       const name = n === a.num ? a.name : this.chapters?.[n] ?? '';
-      this.swap(l1, `Chapitre ${n} — ${name}`, ix, g0 + 18, 'center');
-      this.swap(l2, n === a.num ? `zone ${a.zoneNum} sur ${a.zones} · ${a.sv.ryo ?? 0} ryō` : 'terminé', ix, g0 + 30, 'center');
+      this.swap(l1, `Chapitre ${n} — ${name}`, AT, g0 + 22, 'center');
+      this.swap(l2, n === a.num ? `zone ${a.zoneNum} sur ${a.zones} · ${a.sv.ryo ?? 0} ryō` : 'terminé', AT, g0 + 34, 'center');
     };
 
     const setActs = () => {
       for (const b of acts) b.remove();
       acts = [];
-      const a = info();
+      const a = info(), x1 = Math.round(W * 0.68), x2 = x1 + 70, ay = g0 + 26;
       if (!a) {
-        const b = this.act(s, 'Nouvelle aventure', W / 2, g0 + 22, () => begin(), { align: 'center', stroke: true, cls: 'm-main' });
+        const b = this.act(s, 'Nouvelle aventure', AT, ay, () => begin(), { align: 'center', stroke: true, cls: 'm-main' });
         b.dataset.new = ''; b.dataset.first = '';
         acts.push(b);
       } else if (state === 'confirm') {
-        const keep = this.act(s, 'Garder', W / 2 - 44, g0 + 34, () => { state = 'view'; light(); setActs(); showInfo(); keep.blur(); s.querySelector('[data-continue]')?.focus(); }, { align: 'center', stroke: true, cls: 'm-main' });
+        const keep = this.act(s, 'Garder', x1, ay, () => { state = 'view'; light(); setActs(); showInfo(); }, { align: 'center', stroke: true, cls: 'm-main' });
         keep.dataset.first = '';
-        const off = this.act(s, 'Éteindre', W / 2 + 44, g0 + 34, () => erase(), { align: 'center', stroke: { col: '#c07058', tail: '#8a5444' }, cls: 'm-danger' });
+        const off = this.act(s, 'Éteindre', x2, ay, () => erase(), { align: 'center', stroke: { col: '#c07058', tail: '#8a5444' }, cls: 'm-danger' });
         off.dataset.erase = '';
         acts.push(keep, off);
       } else {
-        const { left } = textX(a.num);
-        const x1 = left ? Math.round(W * 0.67) : Math.round(W * 0.2), x2 = x1 + 72;
-        const go = this.act(s, 'Reprendre', x1, g0 + 24, () => resume(), { align: 'center', stroke: true, cls: 'm-main' });
+        const go = this.act(s, 'Reprendre', x1, ay, () => resume(), { align: 'center', stroke: true, cls: 'm-main' });
         go.dataset.continue = ''; go.dataset.first = '';
-        const del = this.act(s, 'Effacer', x2, g0 + 24, () => { state = 'confirm'; light(); setActs(); showInfo(); }, { align: 'center', stroke: true });
+        go.addEventListener('focus', () => { focusN = 0; camTo = camFor(info()?.num ?? 1); showInfo(); });
+        const del = this.act(s, 'Effacer', x2, ay, () => { state = 'confirm'; light(); setActs(); showInfo(); }, { align: 'center', stroke: true });
         del.dataset.eraseAsk = '';
         acts.push(go, del);
       }
       if (s.isConnected) setTimeout(() => (s.querySelector('[data-first]') ?? acts[0])?.focus({ preventScroll: true }), 20);
     };
 
-    /** Les flammes visées : allumées jusqu'au chapitre en cours ; en vague, de la plus proche à la plus loin. */
-    const light = (wave = 0.12, from = 0.15) => {
-      const a = info(), cur = a?.num ?? 0;
+    /** Les flammes visées, allumées jusqu'au chapitre en cours, en vague (au passage de la caméra). */
+    const light = (wave = 0.32, from = 0.25) => {
+      const cur = info()?.num ?? 0;
       lamps.forEach((L, i) => {
         const tg = i + 1 <= cur ? 1 : 0;
         if (tg !== L.target) L.wait = from + i * wave;
@@ -368,47 +395,46 @@ export class Menu {
       lampBtns.forEach((b, i) => { b.hidden = !(i + 1 <= cur); b.tabIndex = i + 1 <= cur ? 0 : -1; b.setAttribute('aria-label', `Chapitre ${i + 1}`); });
       tab1.classList.toggle('m-on', sel === 1); tab2.classList.toggle('m-on', sel === 2);
       focusN = 0;
+      camTo = camFor(Math.max(1, cur));
     };
 
     const pickSlot = (n) => {
       if (sel === n || state === 'leaving') return;
       sel = n; state = 'view';
       if (has(n)) { this.profile.shown = n; this.saveProfile(this.profile); }
-      lamps.forEach((L) => { L.target = -1; });           // (toutes repartent : la vague se refait)
-      light(0.07, 0.05);
+      lamps.forEach((L) => { L.target = -1; });
+      light(0.12, 0.05);
       setActs(); showInfo();
     };
-
     const resume = () => {
       if (state === 'leaving') return;
       state = 'leaving';
-      const a = info();
-      lamps[a.num - 1].pTarget = 1.6;
+      lamps[info().num - 1].pTarget = 1.6;
       sfx('checkpoint');
       s.classList.add('m-go');
       setTimeout(() => this.continueAdventure(sel), 420);
     };
-
     const begin = () => {
       if (state === 'leaving') return;
       state = 'leaving';
       lamps[0].target = 1; lamps[0].wait = 0; lamps[0].pTarget = 1.4;
+      camTo = 0;
       sfx('checkpoint');
       s.classList.add('m-go');
       setTimeout(() => this.newAdventure(sel), 650);
     };
-
     const erase = () => {
       if (state === 'leaving') return;
       state = 'leaving';
-      lamps.forEach((L, i) => { L.target = 0; L.wait = (LANTERNS - 1 - i) * 0.08; });
+      lamps.forEach((L, i) => { L.target = 0; L.wait = (LANTERNS - 1 - i) * 0.12; });
+      camTo = 0;
       setTimeout(() => {
         this.eraseAdventure(sel);
         const k = saves.findIndex((x) => x.slot === sel);
         if (k >= 0) saves[k] = { slot: sel, save: null };
         state = 'view';
         light(); setActs(); showInfo();
-      }, 900);
+      }, 1000);
     };
 
     light();
@@ -423,22 +449,35 @@ export class Menu {
         L.v += Math.sign(tg - L.v) * Math.min(Math.abs(tg - L.v), dt * 2.4);
         L.power += (L.pTarget - L.power) * Math.min(1, dt * 4);
       }
-      // le sentier, tiédi par la lumière jusqu'à la lanterne atteinte
+      // la caméra glisse (lent-rapide-lent) vers la lanterne regardée
+      cam += (camTo - cam) * Math.min(1, dt * 2.6);
+      if (Math.abs(camTo - cam) < 0.3) cam = camTo;
+      const cx = Math.round(cam);
+      g.drawImage(s.world, -cx, 0);
+      g.save();
+      g.translate(-cx, 0);
       for (const st of stones) {
         const k = Math.min(lamps[st.seg - 1]?.v ?? 0, lamps[st.seg]?.v ?? 0);
-        if (k <= 0) continue;
+        if (k <= 0 || st.x < cx - 8 || st.x > cx + W + 8) continue;
         g.globalAlpha = k;
         g.fillStyle = '#5a4530'; g.fillRect(st.x, st.y, st.w, 1);
         g.fillStyle = '#2a2118'; g.fillRect(st.x, st.y + 1, st.w, 1);
       }
       g.globalAlpha = 1;
-      lamps.forEach((L, i) => drawFlame(g, L.lan, L.v, L.power, t, i));
-      // le ninja, près de la lanterne de son chapitre ; il apparaît quand elle s'allume
+      const look = focusN || cur;
+      lamps.forEach((L, i) => {
+        if (LX[i] < cx - 80 || LX[i] > cx + W + 80) return;
+        drawFlame(g, L.lan, L.v, L.power, t, i);
+        const col = L.v > 0.5 ? (i + 1 === look ? '#d8b070' : '#6e5a40') : i + 1 === look ? '#8d8a80' : '#2a2f38';
+        const nc = numOf(i + 1, col);
+        g.drawImage(nc, Math.round(LX[i] - nc.width / 2), Math.round(top(LX[i])) + 7);
+      });
       if (cur > 0) {
-        const x = LX[cur - 1] + 20, skin = a?.sv?.skin ?? 'encre';
+        const x = LX[cur - 1] + 26, skin = a?.sv?.skin ?? 'encre';
         this.art.draw(g, skin, x, Math.round(top(x)) + 1, { t, alpha: clamp01((lamps[cur - 1].v - 0.5) * 2) });
       }
-      nums.forEach((e, i) => e.classList.toggle('m-lit', lamps[i].v > 0.5));
+      g.restore();
+      lampBtns.forEach((b, i) => { b.style.left = `${LX[i] - cx - 14}px`; });
     };
     return s;
   }
@@ -572,79 +611,92 @@ export class Menu {
   }
 
   // =================================================================================================
-  // Mon ninja : le rocher, le panneau
+  // Mon ninja : le ninja debout, son pseudo sur un panneau ; l'aventure affichée en haut à gauche
   // =================================================================================================
   build_ninja() {
     const s = this.scene('Mon ninja');
     const { W, H } = s;
-    const g0 = H - 54;
+    const g0 = H - 46;
     const saves = this.saves();
     const shown = saves.find((x) => x.slot === this.profile.shown && x.save) ?? saves.find((x) => x.save) ?? null;
     const others = saves.filter((x) => x.save);
     const skin = shown?.save.skin ?? 'encre';
-    const k = 2;
-    const rx = Math.round(W * 0.3);
+    const rx = Math.round(W * 0.34);
     ground(s.pen, flat(g0));
-    const skinName = this.skins[skin]?.name ?? '';
-    if (skinName) this.text(s, skinName, rx, g0 + 10, { align: 'center', cls: 'm-warm' });
 
-    // le panneau : planche claire, le pseudo écrit à l'encre ; on clique dessus pour l'écrire
-    const sx = Math.round(W * 0.68), sw = Math.max(64, measure(this.profile.name, 'big') + 20), sh = 24, sy = g0 - 56;
-    signpost(s.pen, sx - Math.round(sw / 2), sy, sw, sh, g0, true);
-    const nameEl = this.text(s, this.profile.name, sx, sy + 1, { align: 'center', font: 'big', cls: 'm-carved' });
+    // le panneau : il s'allonge avec le pseudo (place pour les jambages du j, du y…)
+    const sx = Math.round(W * 0.64), sh = 28, sy = g0 - 58;
+    const signW = (name) => Math.max(64, measure(name, 'big') + 22);
+    let sw = signW(this.profile.name);
+    const paintSign = () => {
+      s.pen.g.clearRect(sx - 90, sy - 2, 180, g0 - sy + 4);
+      ground(s.pen, flat(g0));
+      signpost(s.pen, sx - Math.round(sw / 2), sy, sw, sh, g0, true);
+    };
+    paintSign();
+    const nameEl = this.text(s, this.profile.name, sx, sy + 2, { align: 'center', font: 'big', cls: 'm-carved' });
     const input = el('input');
     input.maxLength = 10; input.autocomplete = 'off'; input.spellcheck = false; input.value = this.profile.name;
-    input.dataset.pseudo = ''; input.dataset.first = '';
+    input.dataset.pseudo = '';
     input.setAttribute('aria-label', 'Pseudo');
     input.className = 'm-codein';
-    input.style.cssText = `left:${sx - Math.round(sw / 2)}px;top:${sy}px;width:${sw}px;height:${sh}px`;
+    const fit = () => { input.style.cssText = `left:${sx - Math.round(sw / 2)}px;top:${sy}px;width:${sw}px;height:${sh}px`; };
+    fit();
+    let before = this.profile.name;
     const mirror = () => {
       input.value = cleanName(input.value);
-      const n = input.value.trim();
-      if (n) { this.profile.name = n; this.saveProfile(this.profile); }
-      const t = input.value + (document.activeElement === input ? '_' : '');
+      const t = input.value;
       nameEl.textContent = t || ' ';
-      this.placeText(nameEl, t, sx, sy + 1, 'center', 'big');
+      this.placeText(nameEl, t, sx, sy + 2, 'center', 'big');
+      const w = signW(t || before);
+      if (w !== sw) { sw = w; paintSign(); fit(); }
+      const n = t.trim();
+      if (n) { this.profile.name = n; this.saveProfile(this.profile); }
     };
-    for (const t of ['input', 'focus', 'blur']) input.addEventListener(t, mirror);
+    // choisir son pseudo : tout est sélectionné, on écrit par-dessus (ou on efface tout) ; pas de curseur
+    input.addEventListener('focus', () => { before = this.profile.name; setTimeout(() => input.select(), 0); });
+    input.addEventListener('input', mirror);
+    input.addEventListener('blur', () => { if (!input.value.trim()) { input.value = before; mirror(); } });
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); input.blur(); s.querySelector('[data-next]:not(:disabled), .m-back')?.focus(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); s.querySelector('.m-home')?.focus(); return; }
       if (e.key !== 'Escape') e.stopPropagation();
     });
     s.append(input);
+    Object.defineProperty(input, 'stroke', { get: () => ({ cx: sx, y: sy + sh + 4, len: Math.min(sw, 60) }) });
 
-    // l'aventure affichée : ← Aventure 1 → au-dessus du panneau
+    // en haut à gauche, sous le titre : l'aventure affichée, en quelques lignes
+    const x0 = 16;
+    let y = 30;
+    const label = shown ? `Aventure ${shown.slot}` : 'Aucune aventure';
+    if (others.length > 1) {
+      const prev = this.act(s, '←', x0, y, () => flip(-1), { cls: 'm-arrow' });
+      this.text(s, label, x0 + 16, y, { cls: 'm-dim' });
+      const next = this.act(s, '→', x0 + 16 + measure(label) + 8, y, () => flip(1), { cls: 'm-arrow' });
+      prev.dataset.prev = ''; next.dataset.next = ''; next.dataset.first = '';
+    } else this.text(s, label, x0, y, { cls: 'm-dim' });
+    let reached = 0;
+    if (shown) {
+      const a = this.chapterOf(shown.save);
+      reached = a.num;
+      this.text(s, `Chapitre ${a.num} — ${a.name}`, x0, y += 18, { cls: 'm-ink' });
+      this.text(s, `zone ${a.zoneNum} sur ${a.zones}`, x0, y += 12, { cls: 'm-soft' });
+      this.text(s, `${shown.save.ryo ?? 0} ryō`, x0, y += 12, { cls: 'm-soft' });
+      y += 18;
+    }
     const flip = (d) => {
-      if (others.length < 2) return;
       this.profile.shown = this.profile.shown === 1 ? 2 : 1;
       this.saveProfile(this.profile);
       const i = this.stack.indexOf(s), fresh = this.build('ninja', {}, false);
       this.fadeOut(s, true); this.stack[i] = fresh;
       setTimeout(() => fresh.querySelector(d < 0 ? '[data-prev]' : '[data-next]')?.focus(), 40);
     };
-    const label = shown ? `Aventure ${shown.slot}` : 'Aucune aventure';
-    const ay = sy - 20, half = Math.round(measure(label) / 2) + 12;
-    this.text(s, label, sx, ay, { align: 'center', cls: 'm-dim' });
-    if (others.length > 1) {
-      const prev = this.act(s, '←', sx - half, ay, () => flip(-1), { align: 'center', cls: 'm-arrow' });
-      const next = this.act(s, '→', sx + half, ay, () => flip(1), { align: 'center', cls: 'm-arrow' });
-      prev.dataset.prev = ''; next.dataset.next = '';
-    }
-    let reached = 0;
-    if (shown) {
-      const a = this.chapterOf(shown.save);
-      reached = a.num;
-      this.text(s, `Chapitre ${a.num} — ${a.name}`, sx, g0 + 8, { align: 'center', cls: 'm-ink' });
-      this.text(s, `zone ${a.zoneNum} sur ${a.zones} · ${shown.save.ryo ?? 0} ryō`, sx, g0 + 20, { align: 'center', cls: 'm-soft' });
-    }
     s.paint = (g, t) => {
-      this.art.draw(g, skin, rx, g0 + 1, { k, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4) });
-      // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
+      this.art.draw(g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4) });
       if (!shown) return;
-      const y = g0 + 36;
+      // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
       for (let i = 0; i < LANTERNS; i++) {
-        const x = sx - 42 + i * 14, on = i < reached, a = clamp01((t - 0.3 - i * 0.08) / 0.3);
-        if (i < LANTERNS - 1) { g.fillStyle = i < reached - 1 ? '#6a5236' : '#1d2230'; g.fillRect(x + 3, y + 2, 8, 1); }
+        const x = x0 + 1 + i * 13, on = i < reached, a = clamp01((t - 0.3 - i * 0.08) / 0.3);
+        if (i < LANTERNS - 1) { g.fillStyle = i < reached - 1 ? '#6a5236' : '#1d2230'; g.fillRect(x + 3, y + 2, 7, 1); }
         if (on) {
           g.globalAlpha = a;
           g.fillStyle = '#5a3a1e'; g.fillRect(x - 2, y - 1, 5, 6);

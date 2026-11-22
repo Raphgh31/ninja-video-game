@@ -5,6 +5,7 @@
 // frappant le gong. À la fin d'un combat : le vainqueur devant le gong, les points, puis retour au salon.
 import { MODES } from '../multi.js';
 import { measure } from '../../engine/pixelfont.js';
+import { homeIcon } from '../menu.js';
 import { canvas } from '../potager/paint.js';
 import {
   Pen, INK, flat, ground, stoneLantern, drawFlame, gong, drawGongRing, ema, drawSign, rope, stroke, NinjaArt, smooth, clamp01,
@@ -147,6 +148,8 @@ export class Lobby {
       const k = f.stroke;
       stroke(g, k.cx, k.y, k.len, smooth((t - this.strokeAt) / 0.22), k.col ?? INK, k.tail);
     } else this.strokeFor = null;
+    const home = this.layer.querySelector('.m-home');
+    if (home) homeIcon(g, parseFloat(home.style.left) + 2, 9, f === home ? INK : '#4a505b');
   }
 
   skinOf(p) {
@@ -186,6 +189,12 @@ export class Lobby {
     this.text(this.arenaName ?? 'Arène', 16, 8, 'm-dim');
     const quit = this.act('Quitter', W - 16, 8, () => this.onQuit(), { align: 'right', cls: 'm-back' });
     quit.dataset.quit = ''; quit.dataset.focusKey = 'quit';
+    // la petite maison : retour au menu principal
+    const home = el('button', 'm-act m-home');
+    home.type = 'button'; home.setAttribute('aria-label', 'Menu'); home.dataset.home = ''; home.dataset.focusKey = 'home';
+    home.style.cssText = `left:${W - 16 - measure('Quitter') - 22}px;top:7px`;
+    home.addEventListener('click', () => (this.onHome ?? this.onQuit)());
+    this.layer.append(home);
     // le code : sur les tablettes (un clic le copie) ; le texte reste lisible dans la page
     const code = el('p', 'm-hidden', net.code);
     code.dataset.salonCode = '';

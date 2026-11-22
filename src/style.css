@@ -309,6 +309,7 @@ body.mobile .lab { top: 4px; }
 .ui .m-lant button.m-act.m-gong:focus, .ui .m-lant button.m-act.m-gong:hover { color: #e8b25a; }
 .ui .m-lant button.m-act:disabled { color: #2f343d; cursor: default; }
 .ui .m-lant .m-tab.m-on { color: var(--ink); }
+.ui .m-lant button.m-home { width: 13px; height: 13px; padding: 0; margin: 0; opacity: 1; }
 .ui .m-lant .m-back, .ui .m-lant .m-arrow { color: #4a505b; }
 .ui .m-lant div.m-act.m-mode { color: #3d424c; }
 .ui .m-lant .m-mode.m-on, .ui .m-lant .m-mode.m-on p { color: var(--ink); }
@@ -319,7 +320,7 @@ body.mobile .lab { top: 4px; }
 .ui .m-lant .m-faint { color: #3d424c; }
 .ui .m-lant .m-warm { color: #b08a58; }
 .ui .m-lant .m-big { --pxf: big; --pxs: 1; }
-.ui .m-lant .m-carved { --pxf: big; color: #1b120b; }
+.ui .m-lant .m-carved { --pxf: big; color: #1e140c; }
 .ui .m-lant .m-num { color: #2a2f38; }
 .ui .m-lant .m-num.m-on { color: #8d8a80; }
 .ui .m-lant .m-num.m-lit { color: #6e5a40; }

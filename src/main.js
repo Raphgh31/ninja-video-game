@@ -696,7 +696,7 @@ function startRoom(cfg) {
     },
   });
   lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''),
-    backdrop: new Intro(meta, null, null, { backdropOnly: true }), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); } });
+    backdrop: new Intro(meta, null, null, { backdropOnly: true }), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); }, onHome: () => { net.close(); backToMenu('accueil'); } });
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
 }
@@ -1614,11 +1614,14 @@ if (CHAPTER) {
     if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
     // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni quand on revient
     // de l'arène, ni dans la version de test quand on vient de changer de chapitre par le panneau
-    const quiet = globalThis.__KAGE_SKIP_INTRO || back || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro'));
+    // (« accueil » : le bouton maison du salon de l'arène ramène au menu principal, sur la fin de l'intro)
+    const home = back?.screen === 'accueil';
+    const quiet = !home && (globalThis.__KAGE_SKIP_INTRO || back || (TEST_BUILD && sessionStorage.getItem('kage-sans-intro')));
     sessionStorage.removeItem('kage-sans-intro');
-    if (!quiet) playIntro();
+    if (home) playIntro().then(() => { if (intro) { intro.begin(false); intro.skip(); } });
+    else if (!quiet) playIntro();
     else if (SKIN_LAB && back) { document.querySelector('.title-screen').hidden = false; run.title = true; }
-    if (back?.screen) menu.open(back.screen, back);
+    if (back?.screen && !home) menu.open(back.screen, back);
   }
 }
 

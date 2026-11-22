@@ -12,7 +12,7 @@ import { renderText } from '../engine/pixelfont.js';
 export const INK = '#e9e5da';
 const STONE = ['#0f131b', '#171d28', '#212a38', '#2e3a4e', '#43536c'];
 export const WOOD = ['#1d130c', '#2e1e13', '#45301d', '#5e4229', '#7c5935', '#9a7244'];
-const PLANK = ['#3a2a1a', '#6e5638', '#9a7c54', '#b8996c', '#cdb084', '#e0c79c'];   // bois clair (panneau du pseudo)
+const PLANK = ['#2a1c11', '#4e3a26', '#6e5236', '#886946', '#a08058', '#b8976a'];   // bois moyen (panneau du pseudo : le bois se voit, l'encre se lit)
 const BRONZE = ['#1a120c', '#2f2014', '#4a321c', '#6c4a26', '#946734', '#bf8f4c', '#e2bb72'];
 
 export const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -301,8 +301,9 @@ export function signpost(p, x, y, w, h, gy, light = false) {
     if (j === 0) v = 0.9;
     if (j === h - 1 || px === x + w - 1) v = 0.12;
     if (px === x) v = 0.8;
-    if (j % 6 === 5) v -= 0.18;
-    return pick(light ? PLANK : WOOD, light && j > 0 && j < h - 1 && px > x && px < x + w - 1 ? v + lift * 0.5 : v, px, py, 0.3);
+    if (j % 6 === 5) v -= light ? 0.26 : 0.18;
+    if (light && noise1(px * 0.3 + j * 1.7, 31) > 0.83) v -= 0.16;          // nœuds et veines du bois
+    return pick(light ? PLANK : WOOD, light && j > 0 && j < h - 1 && px > x && px < x + w - 1 ? v + lift * 0.35 : v, px, py, 0.3);
   });
 }
 
