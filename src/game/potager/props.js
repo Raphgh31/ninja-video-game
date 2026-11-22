@@ -1771,14 +1771,7 @@ const PAINT = {
       if (!wave) continue;
       b.p(X - 32 + i, Y - 54 + j, (i + j) % 9 === 0 ? '#e9dcc0' : pick(C.CLOTH, 0.5 - j * 0.04, i, j));
     }
-    // comptoir
-    planks(b, X - 26, Y - 16, 52, 16, W, { pw: 6, v: 0.55, seed: 31 });
-    b.r(X - 28, Y - 18, 56, 3, W[4]).r(X - 28, Y - 18, 56, 1, W[5]);
-    // marchandises : rouleaux de tissu, pots, éventails, petits sacs
-    const cols = ['#c44a37', '#4c6ba0', '#d6ba78', '#5f8a3a', '#86599a'];
-    for (let k = 0; k < 5; k++) b.r(X - 24 + k * 5, Y - 24, 4, 6, cols[k]).r(X - 24 + k * 5, Y - 24, 4, 1, '#ffffff33');
-    b.r(X + 2, Y - 23, 6, 5, C.TERRACOTTA[2]).r(X + 2, Y - 24, 6, 1, C.TERRACOTTA[4]);
-    b.r(X + 10, Y - 22, 7, 4, C.STRAW[2]).r(X + 18, Y - 23, 5, 5, '#2c303d');
+    // (le comptoir et ses marchandises sont peints devant le marchand : src/game/merchant.js, drawCounter)
     // caisses empilées (le grand sac de voyage est devenu la hotte du marchand, qui se tient à gauche)
     for (const [cx, cy] of [[X + 32, Y - 14], [X + 46, Y - 14], [X + 38, Y - 27]]) {
       b.r(cx, cy, 13, 13, W[2]).r(cx, cy, 13, 1, W[4]).r(cx, cy + 6, 13, 1, W[1]).line(cx, cy, cx + 12, cy + 12, W[1]);

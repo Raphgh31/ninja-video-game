@@ -153,6 +153,7 @@ export class MerchantArt {
    * tout près (il le salue). dt : pour la transition du salut.
    */
   draw(ctx, sx, sy, time, near = false, dt = 1 / 60) {
+    if (this.still) near = false;               // derrière son comptoir : il ne bouge pas de place
     this.greet += ((near ? 1 : 0) - this.greet) * Math.min(1, dt * 8);
     const pose = this.greet > 0.5 ? 'greet' : 'idle';
     const f = Math.floor(time * 1.4) % 2;
@@ -216,4 +217,61 @@ export function drawCamp(ctx, sx, sy, time, P = MERCHANTS.foret) {
   ctx.fillStyle = OUT; ctx.fillRect(x + 61 + sw, y - 35, 6, 9);
   ctx.fillStyle = '#c8432f'; ctx.fillRect(x + 62 + sw, y - 34, 4, 7);
   ctx.fillStyle = '#ffb060'; ctx.fillRect(x + 63 + sw, y - 33, 2, 5);
+}
+
+/**
+ * Le comptoir du Potager, devant le marchand (il ne montre que le haut de son corps) : même forme que
+ * l'ancien (un établi de planches, ses marchandises dessus), dessiné dans l'esprit du marchand — contour
+ * sombre, bois éclairé à gauche, un tablier de tissu à l'écusson de pièce, un boulier, des rouleaux de
+ * tissu, un pot, une pile de ryō. Peint une fois. (sx, sy) : le milieu du comptoir, au sol.
+ */
+let counterCv = null;
+export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
+  const CW = 64, CH = 32, BOT = 31;                  // la toile ; le sol sur la ligne BOT ; x = 32 : le milieu
+  if (!counterCv) {
+    const g = new Map();
+    const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < CW && y < CH) g.set(`${x},${y}`, c); };
+    const rect = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, c); };
+    const WD = ['#3a2616', '#5a3e24', '#7a5634', '#9a7246', '#b48a58'];
+    // le corps de l'établi : planches verticales, éclairées à gauche
+    for (let y = BOT - 16; y <= BOT; y++) for (let x = 6; x <= 57; x++) {
+      const k = (x - 6) % 7;
+      put(x, y, k === 0 ? WD[0] : x < 14 ? WD[3] : x > 50 ? WD[1] : k === 1 ? WD[3] : WD[2]);
+    }
+    // les pieds, un peu plus sombres
+    rect(6, BOT - 1, 4, 2, WD[0]); rect(54, BOT - 1, 4, 2, WD[0]);
+    // le plateau, débordant, avec sa tranche claire
+    rect(3, BOT - 19, 58, 3, WD[2]); rect(3, BOT - 19, 58, 1, WD[4]); rect(3, BOT - 17, 58, 1, WD[1]);
+    // le tablier de tissu tendu sur le devant, à l'écusson de pièce (la couleur du marchand)
+    for (let y = BOT - 15; y <= BOT - 4; y++) for (let x = 17; x <= 46; x++) {
+      const wave = y === BOT - 4 && (x % 6 === 0);
+      if (wave) continue;
+      put(x, y, x < 20 ? P.r[2] : x > 43 ? P.r[0] : P.r[1]);
+    }
+    for (let i = 0; i < 30; i++) put(17 + i, BOT - 15, P.a[1]);
+    const cx = 31, cy = BOT - 10;
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= 10 && x * x + y * y >= 4) put(cx + x, cy + y, '#ece7da');
+    rect(cx - 1, cy - 1, 2, 2, '#ece7da');
+    // les marchandises sur le plateau
+    const top = BOT - 20;
+    // (le milieu du plateau reste libre : on y voit le marchand)
+    [['#c44a37', '#e06a52'], ['#4c6ba0', '#6e8cc0'], ['#d6ba78', '#ecd69c']].forEach(([c0, c1], k) => {
+      rect(4 + k * 5, top - 5, 4, 5, c0); rect(4 + k * 5, top - 5, 4, 1, c1); put(4 + k * 5, top - 3, c1);
+    });
+    rect(42, top - 6, 7, 6, '#a0522d'); rect(43, top - 7, 5, 1, '#c0703e'); rect(42, top - 6, 2, 6, '#c0703e');   // un pot
+    for (let k = 0; k < 3; k++) rect(52, top - 2 - k * 2, 6, 2, k % 2 ? P.gold[0] : P.gold[1]);              // une pile de ryō
+    // le contour sombre
+    counterCv = canvas(CW, CH);
+    const c = counterCv.getContext('2d'), img = c.createImageData(CW, CH);
+    const at = (x, y) => g.get(`${x},${y}`);
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+      let col = at(x, y);
+      if (!col && (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1))) col = OUT;
+      if (!col) continue;
+      const [r, gg, b] = rgb(col), k = (y * CW + x) * 4;
+      img.data[k] = r; img.data[k + 1] = gg; img.data[k + 2] = b; img.data[k + 3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+  }
+  ctx.drawImage(counterCv, Math.round(sx - 32), Math.round(sy - BOT));
 }

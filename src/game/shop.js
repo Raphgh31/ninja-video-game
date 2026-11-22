@@ -116,7 +116,7 @@ export class Shop {
     this.cv.width = W; this.cv.height = H;
     this.g = this.cv.getContext('2d'); this.g.imageSmoothingEnabled = false;
     this.shelfY = H - 46;                  // le dessus de l'étagère
-    this.floorY = this.shelfY - 26;        // le sol du skin choisi
+    this.floorY = this.shelfY - 46;        // le sol du skin choisi : bien au-dessus de l'étagère, sous la lanterne
     // la couche fixe : le voile sombre et l'étagère de bois (sur toute la largeur)
     this.base = canvas(W, H);
     const p = new Pen(this.base.getContext('2d'));
@@ -303,7 +303,7 @@ export class Shop {
       let tt = (performance.now() - (this.showT0 ?? 0)) % total, k = 0;
       while (tt > SHOWCASE[k][1]) { tt -= SHOWCASE[k][1]; k++; }
       g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(cx - 18, fy, 36, 2);
-      const z = H < 236 ? 1 : 2;
+      const z = H < 236 ? 2 : 3;
       this.ninja(g, sk, SHOWCASE[k][0], tt, cx, fy + 1, z, false);
     }
     // l'étagère : chaque skin debout, au repos ; celui qu'on regarde, éclairé
