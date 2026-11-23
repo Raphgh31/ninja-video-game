@@ -461,7 +461,8 @@ export class Intro {
       this.menuK = clamp01((this.menuK ?? 0) + (this.menuMode ? dt : -dt) / 0.7);
       this.update(dt);
       this.draw();
-      if (this.bc) this.bc.present({ wide: 'wide' });
+      // (les montagnes : des touches moyennes qui restent dans les formes, plus courtes et égales : précises et simples)
+      if (this.bc) this.bc.present({ wide: 'mid', detail: 0.22, keep: 0.45, amp: 0.7, ink: 0.6 });
       this.raf = requestAnimationFrame(step);
     };
     this.raf = requestAnimationFrame(step);

@@ -66,9 +66,21 @@ let bgK = 1;   // pixels d'écran par pixel de jeu
  * de surface, l'herbe, reste dehors) ; le pinceau y garde ses touches libres.
  */
 const maskCanvas = document.createElement('canvas'), maskCtx = maskCanvas.getContext('2d');
-function earthMask(cam) {
+const rockTmp = document.createElement('canvas'), rockTmpCtx = rockTmp.getContext('2d');
+function earthMask(cam, which = 'back') {
   if (maskCanvas.width !== VIEW_W || maskCanvas.height !== VIEW_H) { maskCanvas.width = VIEW_W; maskCanvas.height = VIEW_H; }
   maskCtx.fillStyle = '#000'; maskCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // les pierres de l'éboulis de la Forêt (calque à part, src/game/foret/live.js : rockLayer) : en blanc
+  const rk = level.art?.live?.rockMasks?.[which];
+  if (rk && rk.t === level.time) {
+    if (rockTmp.width !== VIEW_W || rockTmp.height !== VIEW_H) { rockTmp.width = VIEW_W; rockTmp.height = VIEW_H; }
+    rockTmpCtx.globalCompositeOperation = 'source-over'; rockTmpCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+    rockTmpCtx.drawImage(rk.c, 0, 0);
+    rockTmpCtx.globalCompositeOperation = 'source-in'; rockTmpCtx.fillStyle = '#fff'; rockTmpCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+    rockTmpCtx.globalCompositeOperation = 'source-over';
+    maskCtx.drawImage(rockTmp, 0, 0);
+  }
+  if (which !== 'back') return maskCanvas;
   maskCtx.fillStyle = '#fff';
   const tx0 = Math.floor(cam.x / TILE), tx1 = Math.ceil((cam.x + VIEW_W) / TILE), ty0 = Math.floor(cam.y / TILE), ty1 = Math.ceil((cam.y + VIEW_H) / TILE);
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
@@ -1288,7 +1300,7 @@ function draw() {
   arenaArt?.drawFront(W, cam, level.time);
   shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(W, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT });   // (le premier plan : touches fines, plus précis)
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: earthMask(cam, 'front') });   // (le premier plan : touches fines, plus précis)
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
   const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)

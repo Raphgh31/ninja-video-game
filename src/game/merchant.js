@@ -23,6 +23,7 @@ export const MERCHANTS = {
     r: ['#2f4527', '#46623a', '#66854e'], a: ['#283a64', '#3d5590'], b: '#3d5590',
     h: ['#7f6a38', '#a98d4e', '#c9ad6e'], k: ['#1e1916', '#33291f', '#4c3d2c'], c: ['#5e2c50', '#7a3e66', '#9a5a84'], dots: '#e8c35a',
     p: ['#2a2420', '#423830'], w: ['#8f8a80', '#c4bfb4'], s: ['#a9764e', '#d6a07a'], gold: ['#a8802c', '#e8c35a'],
+    wood: ['#24180f', '#43291b', '#62402a', '#80583a', '#9a6e4a'],   // (son comptoir : un cèdre plus sombre)
   },
 };
 
@@ -225,14 +226,15 @@ export function drawCamp(ctx, sx, sy, time, P = MERCHANTS.foret) {
  * sombre, bois éclairé à gauche, un tablier de tissu à l'écusson de pièce, un boulier, des rouleaux de
  * tissu, un pot, une pile de ryō. Peint une fois. (sx, sy) : le milieu du comptoir, au sol.
  */
-let counterCv = null;
+const counters = new Map();                         // (un comptoir peint par palette)
 export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
   const CW = 84, CH = 32, BOT = 31;                  // la toile ; le sol sur la ligne BOT ; x = 42 : le milieu
+  let counterCv = counters.get(P);
   if (!counterCv) {
     const g = new Map();
     const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < CW && y < CH) g.set(`${x},${y}`, c); };
     const rect = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, c); };
-    const WD = ['#3a2616', '#5a3e24', '#7a5634', '#9a7246', '#b48a58'];
+    const WD = P.wood ?? ['#3a2616', '#5a3e24', '#7a5634', '#9a7246', '#b48a58'];
     // le corps de l'établi : planches verticales, éclairées à gauche
     for (let y = BOT - 16; y <= BOT; y++) for (let x = 6; x <= 77; x++) {
       const k = (x - 6) % 7;
@@ -262,6 +264,7 @@ export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
     for (let k = 0; k < 3; k++) rect(68, top - 2 - k * 2, 6, 2, k % 2 ? P.gold[0] : P.gold[1]);              // une pile de ryō
     // le contour sombre
     counterCv = canvas(CW, CH);
+    counters.set(P, counterCv);
     const c = counterCv.getContext('2d'), img = c.createImageData(CW, CH);
     const at = (x, y) => g.get(`${x},${y}`);
     for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {

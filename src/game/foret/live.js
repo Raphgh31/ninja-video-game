@@ -5,7 +5,7 @@
 //   devant KAGE : l'eau (miroir de la clairière, torrent, mare souterraine), la
 //     joue de la statue (on passe derrière), l'éboulis, la brume des ravins,
 //     poussières et lucioles, la pénombre du souterrain, le premier plan.
-import { MerchantArt, drawCamp } from '../merchant.js';
+import { MerchantArt, drawCounter, MERCHANTS } from '../merchant.js';
 import { canvas, ih, noise1, noise2, fbm2, pick, bayer, Brush } from '../potager/paint.js';
 import { chestSprite, CHEST, drawChest } from '../potager/props.js';
 import * as C from './palette.js';
@@ -386,8 +386,12 @@ export class ForetLive {
       this.merchantArt ??= new MerchantArt('foret');
       const pl = lv.player, near = !!pl && Math.abs(pl.x - m.x) < 46 && Math.abs(pl.y - m.y) < 30;
       const dt = Math.min(0.1, Math.max(0, time - (this.mT ?? time))); this.mT = time;
-      drawCamp(ctx, R(m.x - cam.x) + 14, R(m.y - cam.y), time);
-      this.merchantArt.draw(ctx, R(m.x - cam.x), R(m.y - cam.y), time, near, dt);
+      // derrière son comptoir, comme celui du Potager (le même établi, d'autres couleurs) ; il salue toujours
+      const sx = R(m.x - cam.x), sy = R(m.y - cam.y);
+      ctx.save(); ctx.beginPath(); ctx.rect(sx - 40, sy - 70, 90, 70); ctx.clip();
+      this.merchantArt.draw(ctx, sx, sy + 5, time, near, dt);
+      ctx.restore();
+      drawCounter(ctx, sx + 3, sy, MERCHANTS.foret);
     }
     // travées du pont et leurs colonnes
     f.spans.forEach((s, i) => {
@@ -439,7 +443,12 @@ export class ForetLive {
     // la corde de la statue : le bloc, la poulie, la corde (zone 9)
     if (f.rope) this.drawRopeWorks(ctx, f.rope, cam, vw, vh, time);
     // l'amas instable du sommet de la descente (zone 11), tant qu'il tient
-    if (f.slide?.pile) { this.aval ??= new Avalanche(this.level, f); this.aval.drawPile(ctx, cam, vw, vh, time, f.slide, this.level.player); }
+    if (f.slide?.pile) {
+      this.aval ??= new Avalanche(this.level, f);
+      const g = this.rockLayer('back', ctx, vw, vh);
+      this.aval.drawPile(g, cam, vw, vh, time, f.slide, this.level.player);
+      this.flushRocks('back', ctx);
+    }
     // lianes (derrière KAGE)
     for (const v of f.vines) this.vine(ctx, v, cam, vw, vh, time);
     // le départ des lianes de la chevelure de la statue : caché sous une touffe de son feuillage
@@ -854,7 +863,30 @@ export class ForetLive {
     const S = this.f.slide;
     if (!S) return;
     this.aval ??= new Avalanche(this.level, this.f);
-    this.aval.draw(ctx, cam, vw, vh, time, S);
+    const g = this.rockLayer('front', ctx, vw, vh);
+    this.aval.draw(g, cam, vw, vh, time, S);
+    this.flushRocks('front', ctx);
+  }
+
+  /**
+   * Style peint : les pierres de l'éboulis se dessinent sur un calque à part, recopié dans l'image ; main.js
+   * en fait un masque (rockMasks) où le pinceau garde ses touches libres, comme la terre sous le sol (sinon,
+   * avec les touches qui restent dans les formes, chaque facette de pierre resterait en pixels).
+   */
+  rockLayer(which, ctx, vw, vh) {
+    if (!this.level.painted) return ctx;
+    const c = (this.rockCv ??= {})[which] ??= document.createElement('canvas');
+    if (c.width !== vw || c.height !== vh) { c.width = vw; c.height = vh; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, vw, vh); g.imageSmoothingEnabled = false;
+    return g;
+  }
+
+  flushRocks(which, ctx) {
+    if (!this.level.painted) return;
+    const c = this.rockCv[which];
+    ctx.drawImage(c, 0, 0);
+    (this.rockMasks ??= {})[which] = { c, t: this.level.time };
   }
 
   /** Poussières dorées dans les rais (le jour), lucioles (sous-bois, soir), spores (sous terre). */
