@@ -22,6 +22,7 @@ import './style.css';
 import { pixelUI, setBrushText } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { paintSheet } from './engine/brush.js';
+import { crispSheet, NINJA_STYLES } from './engine/netsprite.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -157,10 +158,12 @@ const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à la boutique du marchand
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
+const NINJA_STYLE = new URLSearchParams(location.search).get('ninja');
 function wearSkin(id) {
   look = skins[id] ?? skins.encre;
   if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
-    look.painted ??= { ...look, sheet: paintSheet(look.sheet, { seed: 41 }) };
+    // le ninja, seul élément net du jeu peint : style à l'essai (?ninja=…), sinon repeint au pinceau
+    look.painted ??= { ...look, sheet: NINJA_STYLES.includes(NINJA_STYLE) ? crispSheet(look.sheet, NINJA_STYLE) : paintSheet(look.sheet, { seed: 41 }) };
     look = look.painted;
   }
 }

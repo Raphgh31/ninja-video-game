@@ -180,6 +180,7 @@ export class Animator {
     const dy = Math.round(y) - pivot.y;
     const P = sheet.P ?? 1;            // (une feuille repeinte au pinceau est P fois plus fine)
     ctx.save();
+    if (sheet.smooth) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; }
     if (facing < 0 && this.meta.flipForLeft) {
       ctx.translate(dx, 0);
       ctx.scale(-1, 1);
