@@ -291,6 +291,23 @@ export class ForetBackdrop {
   set(mood) { return (this.sets[mood] ??= { planes: {}, vault: null, rays: null, sky: null, skyH: 0 }); }
 
   /** Peint ce qui manque d'une lumière (tout, ou une seule pièce si !all). Renvoie true s'il a peint. */
+  /**
+   * Tout le fond du chapitre, peint d'avance (au chargement) : les montagnes et toutes les lumières des
+   * zones. Sinon, entrer dans une zone peignait son fond d'un coup, en pleine partie (un à-coup).
+   * Rend { ms, px } : le temps pris et la taille des images (en pixels).
+   */
+  prepareAll() {
+    const t0 = performance.now();
+    if (!this.mountains) this.mountains = paintFar(this.level.width, RANGE.k, RANGE.fx);
+    const moods = new Set(this.zones.map((z) => z.mood));
+    if (this.dark) moods.add('souterrain');
+    for (const m of moods) this.need(m, true);
+    this.keepAll = true;
+    let px = 0;
+    for (const s of Object.values(this.sets)) for (const c of [...Object.values(s.planes), s.vault, s.rays]) if (c) px += c.width * c.height;
+    return { ms: Math.round(performance.now() - t0), px };
+  }
+
   need(mood, all = false) {
     const m = C.MOODS[mood] ?? C.MOODS.sousbois, s = this.set(mood);
     s.used = performance.now();
@@ -313,6 +330,7 @@ export class ForetBackdrop {
 
   /** On ne garde peintes que les trois lumières vues le plus récemment (la mémoire des téléphones). */
   forget() {
+    if (this.keepAll) return;              // (tout est peint d'avance : rien à oublier)
     const moods = Object.entries(this.sets).filter(([, s]) => Object.keys(s.planes).length).sort((a, b) => (b[1].used ?? 0) - (a[1].used ?? 0));
     const now = performance.now();
     for (const [, s] of moods.slice(4)) if (now - (s.used ?? 0) > 4000) { s.planes = {}; s.vault = null; s.painted = null; }
@@ -401,19 +419,23 @@ export class ForetBackdrop {
     this.drawMood(ctx, list[0].mood, cam, viewW, viewH, time);
     if (list.length > 1) {
       // fondu exact : la seconde lumière est composée à part, puis posée par-dessus
-      const cw = ctx.canvas.width, ch = ctx.canvas.height;
+      // (à la taille de l'image de jeu, pas de l'écran : le fondu ne se voit qu'en transparence, et c'est
+      // bien plus léger — c'était ce qui alourdissait la fin de la Forêt)
+      const cw = Math.ceil(viewW), ch = Math.ceil(viewH);
       if (!this.tmp || this.tmp.width !== cw || this.tmp.height !== ch) this.tmp = canvas(cw, ch);
       const g = this.tmp.getContext('2d');
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.clearRect(0, 0, cw, ch);
-      g.setTransform(ctx.getTransform());
-      g.imageSmoothingEnabled = false;
+      const kk = this.k;
       for (let j = 1; j < list.length; j++) {
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, cw, ch);
+        g.imageSmoothingEnabled = false;
+        this.k = 1;
         this.drawMood(g, list[j].mood, cam, viewW, viewH, time);
+        this.k = kk;
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = list[j].w / (list[0].w + list[j].w) * (j === 1 ? 1 : 0.5);
-        ctx.drawImage(this.tmp, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.tmp, 0, 0, cw, ch);
         ctx.restore();
       }
     }

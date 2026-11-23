@@ -13,6 +13,7 @@
 import { Pix, ih, noise1, noise2, fbm2, pick, worley, bayer } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
+import { bakeLight } from '../daylight.js';
 
 const TILE = 16;
 const CH = 256;
@@ -94,8 +95,8 @@ export class ForetWorld {
     const back = new Window(x0, y0, CH, CH), front = new Window(x0, y0, CH, CH);
     this.paintTiles(back, x0, y0);
     const hasFront = this.paintSurface(back, front, tx0, tx1, ty0, ty1);
-    this.back.set(k, back.done());
-    if (hasFront) this.front.set(k, front.done());
+    this.back.set(k, bakeLight(back.done(), this.level.theme));
+    if (hasFront) this.front.set(k, bakeLight(front.done(), this.level.theme));
   }
 
   // -------------------------------------------------------------------------
@@ -429,8 +430,17 @@ export class ForetWorld {
   }
 
   /** Une tranche d'avance par image (les voisines de l'écran d'abord). */
+  // (les tranches lointaines sont oubliées : la mémoire reste la même du début à la fin du chapitre ; on ne
+  // peint d'avance que si l'image a encore du temps)
   idle(cam, viewW, viewH) {
     const { i0, i1, j0, j1 } = this.chunks(cam, viewW, viewH);
+    if ((this.sweep = (this.sweep ?? 0) + 1) % 30 === 0) {
+      for (const m of [this.back, this.front]) for (const k of m.keys()) {
+        const [i, j] = k.split(',').map(Number);
+        if (i < i0 - 4 || i > i1 + 4 || j < j0 - 3 || j > j1 + 3) m.delete(k);
+      }
+    }
+    if (performance.now() - (globalThis.__frameStart ?? 0) > 7) return;
     for (let i = i0 - 1; i <= i1 + 1; i++) for (let j = j0 - 1; j <= j1 + 1; j++) {
       if (i < 0 || j < 0 || i >= this.nx || j >= this.ny) continue;
       const k = this.key(i, j);

@@ -13,7 +13,7 @@
 // KAGE se fige). La musique finie (≈ 1 min), fondu au noir et volume à zéro, puis tout recommence.
 // Une touche ou un toucher pendant l'intro l'amène à sa fin. Tout est dessiné à la résolution du
 // jeu (1 pixel = 1 pixel de jeu), dans son propre canvas posé dans le calque de l'interface.
-import { crispSheet } from '../engine/netsprite.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
 import { renderText, renderSmooth, measure, FONTS } from '../engine/pixelfont.js';
 import { canvas, pick, noise2, ih, rgb, mixHex } from './potager/paint.js';
 import { paintFar, paintMid } from './potager/backdrop.js';
@@ -407,11 +407,11 @@ export class Intro {
     if (k && this.kick) {
       const s = this.silhouette(k.i), { pivot } = this.meta;
       if (this.bc) {                      // style peint : le ninja net (« trait fin »), posé après le pinceau
-        const c = (s.crisp ??= crispSheet(s.c, 'fin')), tg = this.bc.tg;
+        const c = (s.crisp ??= crispSheet(s.c, NINJA_DEFAULT)), tg = this.bc.tg;
         const end = menu ? 0 : clamp01((this.t - (CYCLE - INTRO.cycleFade)) / INTRO.cycleFade);
         tg.save();
         tg.globalAlpha = g.globalAlpha * (1 - end);
-        tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high';
+        tg.imageSmoothingEnabled = !!c.smooth; tg.imageSmoothingQuality = 'high';
         tg.drawImage(c, k.x - pivot.x, k.y - pivot.y, c.width / c.P, c.height / c.P);
         tg.restore();
       } else g.drawImage(s.c, k.x - pivot.x, k.y - pivot.y);

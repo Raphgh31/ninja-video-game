@@ -7,6 +7,7 @@
 import { Pix, Brush, canvas } from './paint.js';
 import { TileMap, paintTiles, paintOverhangs, paintGrassTops, TILE } from './tiles.js';
 import { paintProp, propLayers, PROP_REACH, autoDecor, groveLeaves } from './props.js';
+import { bakeLight } from '../daylight.js';
 
 const CHUNK = 512;
 
@@ -68,24 +69,27 @@ export class World {
     paintGrassTops(b, this.map, tx0, tx1);
     groveLeaves(b, this.map, tx0, tx1);
     paint(b, 'ground');
-    this.back[i] = back;
+    this.back[i] = bakeLight(back, this.level.theme);
     // --- couche avant ---
     const front = canvas(CHUNK, H);
     const fctx = front.getContext('2d');
     fctx.translate(-x0, 0);
     const any = paint(new Brush(fctx), 'front') > 0;
-    this.front[i] = front;
+    this.front[i] = any ? bakeLight(front, this.level.theme) : front;
     this.frontEmpty[i] = !any;
   }
 
-  /** À appeler à chaque image : peint au plus une tranche d'avance. */
+  /**
+   * À chaque image : au plus une tranche d'avance (les voisines de l'écran, dans le sens de la marche), et
+   * seulement si l'image a encore du temps ; les tranches lointaines sont oubliées (la mémoire reste la même
+   * du début à la fin du chapitre : le jeu ne s'alourdit pas en avançant).
+   */
   idle(cam, viewW) {
     const a = Math.floor(cam.x / CHUNK), z = Math.floor((cam.x + viewW) / CHUNK);
     for (let i = a; i <= z; i++) this.ensure(i);
-    // d'avance : les tranches voisines, puis tout le reste, une par image
-    for (const i of [z + 1, a - 1]) if (i >= 0 && i < this.n && !this.back[i]) { this.ensure(i); return; }
-    while (this.next < this.n && this.back[this.next]) this.next++;
-    if (this.next < this.n) this.ensure(this.next);
+    for (let i = 0; i < this.n; i++) if (this.back[i] && (i < a - 4 || i > z + 4)) { this.back[i] = null; this.front[i] = null; }
+    if (performance.now() - (globalThis.__frameStart ?? 0) > 7) return;
+    for (const i of [z + 1, a - 1, z + 2]) if (i >= 0 && i < this.n && !this.back[i]) { this.ensure(i); return; }
   }
 
   drawHills(ctx, cam, viewW) {

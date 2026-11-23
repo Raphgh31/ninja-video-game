@@ -9,6 +9,9 @@
 import { canvas } from '../game/potager/paint.js';
 
 export const NINJA_STYLES = ['pixel', 'lisse', 'doux', 'encre', 'fin', 'lavis'];
+// le style du ninja partout (jeu, intro, menus, boutique) : ses pixels d'origine, nets (choix de Raph,
+// 23 novembre 2026, avec le pixel art lumineux ; le « trait fin » arrondi reste possible : ?ninja=fin)
+export const NINJA_DEFAULT = 'pixel';
 
 function imageData(src) {
   const c = canvas(src.width, src.height), g = c.getContext('2d', { willReadFrequently: true });
@@ -128,4 +131,20 @@ export function crispSheet(sheet, style = 'lisse') {
   c.P = Q;
   c.smooth = true;
   return c;
+}
+
+/**
+ * La même feuille nette, ramenée une fois pour toutes à k points par pixel de jeu (celle du calque du jeu) :
+ * à chaque image, elle se pose alors point pour point, sans lissage (bien plus léger que de la réduire à
+ * chaque fois).
+ */
+export function atScale(c, k) {
+  if (!c || c.P === k || !k) return c;
+  const w = Math.round(c.width / c.P * k), h = Math.round(c.height / c.P * k);
+  const o = canvas(w, h), g = o.getContext('2d');
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(c, 0, 0, w, h);
+  o.P = k;
+  o.smooth = false;
+  return o;
 }

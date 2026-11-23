@@ -6,7 +6,7 @@
 // Les pièges de l'arène (gong, corde de la grue, caisses, échafaudages, planches
 // vermoulues de la Forêt) sont partagés ; le bassin de la Forêt suit l'horloge du
 // combat (remise à zéro au départ, chez tous) ; les bonus, c'est l'hôte qui les décide.
-import { crispSheet } from '../engine/netsprite.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
 import { renderText } from '../engine/pixelfont.js';
 import { Shurikens } from './shuriken.js';
 import { HEALTH } from './combat.js';
@@ -294,7 +294,7 @@ export class Multi {
       if (!r.seen || r.state === 'respawn') continue;
       const sk = this.skins[r.skin] ?? this.skins.encre, anim = this.meta.animations[r.anim];
       // style peint : le ninja reste net (trait fin, comme dans main.js : wearSkin)
-      const sh = (this.painted && (sk.paintedSheet ??= crispSheet(sk.sheet, 'fin'))) || sk.sheet, Q = sh.P ?? 1;
+      const sh = (this.painted && (sk.paintedSheet ??= crispSheet(sk.sheet, NINJA_DEFAULT))) || sk.sheet, Q = sh.P ?? 1;
       const fr = anim?.frames[Math.min(r.frame, anim.frames.length - 1)];
       const x = Math.round(r.x - cam.x), y = Math.round(r.y - cam.y);
       const blink = r.iv > 0 && Math.floor(this.time * 16) % 2 === 0;

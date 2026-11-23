@@ -9,6 +9,7 @@ import { ForetBackdrop } from './backdrop.js';
 import { ForetProps } from './props.js';
 import { ForetWorld } from './world.js';
 import { ForetLive } from './live.js';
+import * as C from './palette.js';
 
 export class ForetArt {
   constructor(level) {
@@ -18,8 +19,15 @@ export class ForetArt {
     this.props = new ForetProps(level);
     this.world = new ForetWorld(level, this.props.mask);
     this.live = new ForetLive(level, this);
+    this.prep = this.backdrop.prepareAll();      // (tout le fond d'avance : aucun à-coup en jouant)
     this.frame = 0;
     this.buildMs = Math.round(performance.now() - t0);
+  }
+
+  /** La part souterraine de la lumière à cette abscisse (0 dehors, 1 sous terre) : pas de soleil sous terre. */
+  caveAt(x) {
+    const z = this.level.zones.find((zz) => x >= zz.px0 && x < zz.px1);
+    return z && C.MOODS[z.mood]?.cave ? 1 : 0;
   }
 
   /** Une seule pièce peinte d'avance par image, à tour de rôle. */

@@ -2,14 +2,14 @@ import { drawAura } from './aura.js';
 import { measure } from '../engine/pixelfont.js';
 import { canvas, bayer } from './potager/paint.js';
 import { BrushedCanvas, brushView } from '../engine/brushgl.js';
-import { crispSheet } from '../engine/netsprite.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
 import { Pen, INK, stroke, smooth, WOOD } from './menuart.js';
 /** Une feuille nette voilée de nuit (les skins de l'étagère qu'on ne regarde pas). */
 function dimmed(c) {
   const d = document.createElement('canvas'); d.width = c.width; d.height = c.height;
   const g = d.getContext('2d'); g.drawImage(c, 0, 0);
   g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(6, 8, 12, 0.45)'; g.fillRect(0, 0, d.width, d.height);
-  d.P = c.P; d.smooth = true;
+  d.P = c.P; d.smooth = c.smooth;
   return d;
 }
 
@@ -273,8 +273,8 @@ export class Shop {
     while (i < A.frames.length - 1 && acc + (A.frames[i].duration ?? 100) <= tt) { acc += A.frames[i].duration ?? 100; i++; }
     const f = A.frames[i];
     if (this.bc) {                // style peint : le ninja net (« trait fin »), posé après le pinceau
-      const c = dim ? (sk.crispDim ??= dimmed(sk.crisp ??= crispSheet(sk.sheet, 'fin'))) : (sk.crisp ??= crispSheet(sk.sheet, 'fin')), P = c.P, tg = this.bc.tg;
-      tg.save(); tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high';
+      const c = dim ? (sk.crispDim ??= dimmed(sk.crisp ??= crispSheet(sk.sheet, NINJA_DEFAULT))) : (sk.crisp ??= crispSheet(sk.sheet, NINJA_DEFAULT)), P = c.P, tg = this.bc.tg;
+      tg.save(); tg.imageSmoothingEnabled = !!c.smooth; tg.imageSmoothingQuality = 'high';
       tg.drawImage(c, f.x * P, f.y * P, f.w * P, f.h * P, Math.round(x - meta.pivot.x * k), Math.round(y - meta.pivot.y * k), f.w * k, f.h * k);
       tg.restore();
     } else g.drawImage(sk.sheet, f.x, f.y, f.w, f.h, Math.round(x - meta.pivot.x * k), Math.round(y - meta.pivot.y * k), f.w * k, f.h * k);

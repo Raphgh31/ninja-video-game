@@ -22,7 +22,7 @@ import './style.css';
 import { pixelUI, setBrushText } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { paintSheet } from './engine/brush.js';
-import { crispSheet, NINJA_STYLES } from './engine/netsprite.js';
+import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsprite.js';
 import { BRUSH } from './engine/brush.js';
 import { Lights, DayCycle } from './game/daylight.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
@@ -157,7 +157,9 @@ function fit() {
     VIEW_H = DESK_H;
     bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
+  const gk0 = GK;
   GK = paintedMode ? bgK : 1;
+  if (GK !== gk0 && typeof look !== 'undefined' && look?.id) wearSkin(look.id);   // (le ninja net suit la finesse du calque)
   brushView.k = bgK; brushView.on = paintedMode;
   if (paintedMode && (passCanvas.width !== VIEW_W || passCanvas.height !== VIEW_H)) { passCanvas.width = VIEW_W; passCanvas.height = VIEW_H; passCtx.imageSmoothingEnabled = false; }
   if (canvas.width !== VIEW_W * GK || canvas.height !== VIEW_H * GK) {
@@ -203,12 +205,16 @@ const FRONT = {
   4: { keep: 0.45, amp: 0.7, ink: 0.6, edge: 0.2 },
 }[new URLSearchParams(location.search).get('pinceau')] ?? { keep: 0.45, amp: 0.7, ink: 0.6 };
 function wearSkin(id) {
-  look = skins[id] ?? skins.encre;
-  if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
-    // le ninja, seul élément net du jeu peint : trait fin (choix de Raph, style E) ; ?ninja=… pour un autre
-    // style (pixel, lisse, doux, encre, lavis), ?ninja=peint pour l'ancien ninja au pinceau
-    look.painted ??= { ...look, sheet: NINJA_STYLE === 'peint' ? paintSheet(look.sheet, { seed: 41 }) : crispSheet(look.sheet, NINJA_STYLES.includes(NINJA_STYLE) ? NINJA_STYLE : 'fin') };
-    look = look.painted;
+  const base = skins[id] ?? skins.encre;
+  look = base;
+  if (paintedMode) {
+    // le ninja en pixels nets (NINJA_DEFAULT) ; ?ninja=… pour un autre style (lisse, doux, encre, fin, lavis :
+    // ramenés une fois à la finesse du calque du jeu, GK), ?ninja=peint pour l'ancien au pinceau
+    if (!base.painted || base.painted.k !== GK) {
+      const sheet = NINJA_STYLE === 'peint' ? paintSheet(base.sheet, { seed: 41 }) : (NINJA_STYLES.includes(NINJA_STYLE) ? NINJA_STYLE : NINJA_DEFAULT) === 'pixel' ? crispSheet(base.sheet, 'pixel') : atScale(crispSheet(base.sheet, NINJA_STYLE), GK);
+      base.painted = { ...base, k: GK, sheet };
+    }
+    look = base.painted;
   }
 }
 /**
@@ -966,7 +972,14 @@ function setupSkinLab() {
   setInterval(skyLabel, 1000);          // (le cycle avance tout seul)
   const quick = document.createElement('div');
   quick.className = 'lab__quick';
-  quick.append(sky, toggle);
+  // le compteur d'images par seconde (et le temps de calcul d'une image), pour vérifier la fluidité
+  const fps = document.createElement('span');
+  fps.className = 'lab__fps';
+  setInterval(() => {
+    const l = perf.last, avg = l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0;
+    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms`;
+  }, 500);
+  quick.append(fps, sky, toggle);
   lab.append(quick, panel);
   uiLayer.append(lab);
   pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
@@ -1300,9 +1313,12 @@ function draw() {
   // style peint : le monde se dessine d'abord en pixels sur une toile à part (W), puis le pinceau de la carte
   // graphique le repeint dans l'image (touches accrochées au monde) ; les personnages, repeints à l'avance,
   // se posent par-dessus ; puis le premier plan et les effets, repeints de même ; puis l'interface.
+  // (pixel art lumineux : le monde se dessine directement, net, dans le calque du jeu ; GL : seulement
+  // l'ancien pinceau d'aquarelle, ?aquarelle=1, qui passe par la carte graphique)
   const B = PAINTED && brush.ok;
-  const W = B ? passCtx : ctx;
-  if (B) { passCtx.setTransform(1, 0, 0, 1, 0, 0); passCtx.clearRect(0, 0, VIEW_W, VIEW_H); }
+  const GL = B && BRUSH;
+  const W = GL ? passCtx : ctx;
+  if (GL) { passCtx.setTransform(1, 0, 0, 1, 0, 0); passCtx.clearRect(0, 0, VIEW_W, VIEW_H); }
   if (level.art) {
     // paysage : position exacte de la caméra, arrondie au pixel d'écran
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
@@ -1316,8 +1332,8 @@ function draw() {
   arenaArt?.drawBack(W, cam, level.time);
   boss?.drawBack(W, cam);
   shurikens.drawStuck(W, look.projectiles.shuriken, cam);
-  const LIGHT = B ? lights.shader(level, cycle) : null;
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: BRUSH ? earthMask(cam) : null, light: LIGHT });
+  const LIGHT = GL ? lights.shader(level, cycle) : null;
+  if (GL) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: BRUSH ? earthMask(cam) : null, light: LIGHT });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
@@ -1330,13 +1346,13 @@ function draw() {
   }
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
-  if (B) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+  if (GL) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
   if (!behindGate()) mist.draw(W, cam);
   level.drawForeground(W, cam);
   arenaArt?.drawFront(W, cam, level.time);
   shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(W, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: BRUSH ? earthMask(cam, 'front') : null, light: LIGHT });   // (le premier plan)
+  if (GL) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: BRUSH ? earthMask(cam, 'front') : null, light: LIGHT });   // (le premier plan)
   // la lumière : la nuit sur le monde (flaques de lumière des lanternes), puis le calque de lumière
   const lit = level.art && B;
   lights.show(lit);
@@ -1892,14 +1908,28 @@ const STEP = 1 / 120;
 let manual = false;   // tests : le temps n'avance que par __kage.step()
 let acc = 0;
 let last = performance.now();
+// mesure : temps de calcul de chaque image (update + draw), et images par seconde (compteur de la version
+// de test, qualité automatique de la lumière : lights.quality)
+const perf = { last: [], fps: 60, slow: 0 };
+globalThis.__frameStart = 0;
 function frame(now) {
-  acc += Math.min(0.1, (now - last) / 1000);
+  // (au plus 0,1 s rattrapée d'un coup ; un pas de physique ne coûte presque rien, le dessin est fait une
+  // seule fois par image : le jeu ne s'emballe pas)
+  const gap = (now - last) / 1000;
+  acc += Math.min(0.1, gap);
   last = now;
+  globalThis.__frameStart = performance.now();
   while (acc >= STEP) {
     if (!manual) update(STEP);
     acc -= STEP;
   }
   draw();
+  const ms = performance.now() - globalThis.__frameStart;
+  perf.last.push(ms); if (perf.last.length > 240) perf.last.shift();
+  if (gap > 0 && gap < 1) perf.fps += (1 / gap - perf.fps) * 0.05;
+  // qualité automatique : un appareil qui ne tient pas l'image allège la lumière (jamais le jeu)
+  perf.slow = perf.fps < 48 ? Math.min(240, perf.slow + 1) : Math.max(0, perf.slow - 2);
+  if (perf.slow >= 180 && lights.quality > 0) { lights.quality--; perf.slow = 0; }
   requestAnimationFrame(frame);
 }
 fit();
@@ -1913,7 +1943,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, cycle, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, cycle, perf, lights, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

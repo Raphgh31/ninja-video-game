@@ -14,6 +14,7 @@ import { paintStatue, drawStatue, STATUE } from './statue.js';
 import { Avalanche } from './avalanche.js';
 import { pearlTreeShape, limbSprite, GATE } from './props.js';
 import { FOREST } from './mechanics.js';
+import { BRUSH } from '../../engine/brush.js';
 
 const TILE = 16;
 const R = Math.round;
@@ -738,12 +739,22 @@ export class ForetLive {
       const rh = Math.min(H, 40);
       // (seulement la part de l'eau qui est dans l'image : une eau qui sort à gauche ne déborde pas sur la rive)
       const rx0 = Math.max(0, x0), rw = Math.min(x0 + W, vw) - rx0;
-      for (let k = 0; k < rh && rw > 0; k++) {
-        const sy = y0 - 1 - k, dy = y0 + k;
-        if (sy < 0 || dy >= vh || dy < 0) continue;
-        const wob = R(Math.sin(time * 2.2 + k * 0.7) * (k > 3 ? 1 : 0));
-        ctx.globalAlpha = (w.mirror ? 0.55 : 0.3) * (1 - k / (rh + 4));
-        ctx.drawImage(ctx.canvas, rx0, sy, rw, 1, rx0 + wob, dy, rw, 1);
+      // la bande au-dessus de l'eau est recopiée une seule fois (se recopier soi-même ligne à ligne était très
+      // lent), dans la finesse du calque (a points par pixel de jeu), puis posée ligne à ligne, retournée
+      const T = ctx.getTransform(), a = T.a || 1, top = Math.max(0, y0 - rh), bh = y0 - top;
+      if (rw > 0 && bh > 0) {
+        const cw = Math.ceil(rw * a), chh = Math.ceil(bh * a);
+        if (!this.mirrorCv || this.mirrorCv.width < cw || this.mirrorCv.height < chh) this.mirrorCv = canvas(Math.max(cw, this.mirrorCv?.width ?? 0), Math.max(chh, this.mirrorCv?.height ?? 0));
+        const mg = this.mirrorCv.getContext('2d');
+        mg.clearRect(0, 0, cw, chh);
+        mg.drawImage(ctx.canvas, rx0 * a + T.e, top * a + T.f, cw, chh, 0, 0, cw, chh);
+        for (let k = 0; k < rh; k++) {
+          const sy = y0 - 1 - k, dy = y0 + k;
+          if (sy < top || dy >= vh || dy < 0) continue;
+          const wob = R(Math.sin(time * 2.2 + k * 0.7) * (k > 3 ? 1 : 0));
+          ctx.globalAlpha = (w.mirror ? 0.55 : 0.3) * (1 - k / (rh + 4));
+          ctx.drawImage(this.mirrorCv, 0, (sy - top) * a, cw, a, rx0 + wob, dy, rw, 1);
+        }
       }
       ctx.globalAlpha = 1;
     }
@@ -874,7 +885,7 @@ export class ForetLive {
    * avec les touches qui restent dans les formes, chaque facette de pierre resterait en pixels).
    */
   rockLayer(which, ctx, vw, vh) {
-    if (!this.level.painted) return ctx;
+    if (!this.level.painted || !BRUSH) return ctx;      // (seulement pour l'aquarelle)
     const c = (this.rockCv ??= {})[which] ??= document.createElement('canvas');
     if (c.width !== vw || c.height !== vh) { c.width = vw; c.height = vh; }
     const g = c.getContext('2d');
@@ -883,7 +894,7 @@ export class ForetLive {
   }
 
   flushRocks(which, ctx) {
-    if (!this.level.painted) return;
+    if (!this.level.painted || !BRUSH) return;
     const c = this.rockCv[which];
     ctx.drawImage(c, 0, 0);
     (this.rockMasks ??= {})[which] = { c, t: this.level.time };

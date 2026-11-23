@@ -13,6 +13,7 @@ import * as C from './palette.js';
 import * as L from './layers.js';
 import { Window } from './world.js';
 import { shape as rockShape, stone as rockStone, LIT as ROCK_LIT } from './avalanche.js';
+import { bakeLight } from '../daylight.js';
 
 const TILE = 16;
 
@@ -357,14 +358,19 @@ export class ForetProps {
     if (!it.img) {
       const pix = new Window(it.x, it.y, it.w, it.h);
       it.paint(pix);
-      it.img = pix.done();
+      it.img = bakeLight(pix.done(), this.level?.theme ?? 'foret');
     }
     return it.img;
   }
 
   /** Peint un décor d'avance (proche de l'écran) ; renvoie true s'il a peint. */
   idle(cam, viewW, viewH) {
-    const m = 200;
+    const m = 200, far = 1400;
+    // les décors lointains sont oubliés (repeints s'il le faut : la mémoire ne grossit pas en avançant)
+    if ((this.sweep = (this.sweep ?? 0) + 1) % 30 === 0) {
+      for (const it of this.list) if (it.img && (it.x > cam.x + viewW + far || it.x + it.w < cam.x - far)) it.img = null;
+    }
+    if (performance.now() - (globalThis.__frameStart ?? 0) > 7) return false;
     for (const it of this.list) {
       if (it.img) continue;
       if (it.x > cam.x + viewW + m || it.x + it.w < cam.x - m || it.y > cam.y + viewH + m || it.y + it.h < cam.y - m) continue;

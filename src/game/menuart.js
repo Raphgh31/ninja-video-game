@@ -9,7 +9,7 @@
 import { canvas, pick, ih, noise1, bayer, rgb } from './potager/paint.js';
 import { renderText, renderSmooth } from '../engine/pixelfont.js';
 import { smoothText } from '../engine/brushgl.js';
-import { crispSheet } from '../engine/netsprite.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
 
 export const INK = '#e9e5da';
 const STONE = ['#0f131b', '#171d28', '#212a38', '#2e3a4e', '#43536c'];
@@ -357,7 +357,7 @@ export class NinjaArt {
     while (ms > (anim.frames[i].duration ?? 167)) { ms -= anim.frames[i].duration ?? 167; i++; }
     let c = this.frame(skin, i, tint);
     const { pivot } = this.meta;
-    if (crisp) c = c.crisp ??= crispSheet(c, 'fin');
+    if (crisp) c = c.crisp ??= crispSheet(c, NINJA_DEFAULT);
     const P = c.P ?? 1;
     g.save();
     g.imageSmoothingEnabled = !!c.smooth;

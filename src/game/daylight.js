@@ -60,6 +60,38 @@ const NIGHT_LAND = '#141a3c';
 const NIGHT_GAME = '#10142e';
 const MOON_RIM = [0.62, 0.7, 0.95];
 
+/**
+ * La lumière, peinte une fois dans une tranche de décor fixe (terrain, décors) : étalonnage (ombres froides,
+ * lumières chaudes, un peu plus de couleur) et liseré de lumière sur le bord des formes, en pixels de jeu.
+ * (Ce que faisait la carte graphique à chaque image : une fois pour toutes, c'est bien plus léger.)
+ */
+export function bakeLight(c, themeName) {
+  const T = THEMES[themeName];
+  if (!T || !c || !c.width || !c.height) return c;
+  const g = c.getContext('2d', { willReadFrequently: true }), w = c.width, h = c.height;
+  const img = g.getImageData(0, 0, w, h), d = img.data, a0 = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) a0[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+  const [sr, sg, sb] = T.shadow, [hr, hg, hb] = T.high, [rr, rg, rb] = T.rim, rk = T.rimK, back = T.back;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, o = i * 4;
+    if (d[o + 3] < 3) continue;
+    let r = d[o] / 255, gg = d[o + 1] / 255, b = d[o + 2] / 255;
+    const l = r * 0.3 + gg * 0.59 + b * 0.11;
+    r = l + (r - l) * 1.12; gg = l + (gg - l) * 1.12; b = l + (b - l) * 1.12;
+    r = (r - 0.5) * 1.06 + 0.5; gg = (gg - 0.5) * 1.06 + 0.5; b = (b - 0.5) * 1.06 + 0.5;
+    const ws = Math.max(0, Math.min(1, 1 - l * 2.2)) * 0.26, wh = Math.max(0, Math.min(1, (l - 0.55) * 2.2)) * 0.13;
+    r += (sr - r) * ws; gg += (sg - gg) * ws; b += (sb - b) * ws;
+    r = 1 - (1 - r) * (1 - hr * wh); gg = 1 - (1 - gg) * (1 - hg * wh); b = 1 - (1 - b) * (1 - hb * wh);
+    // le liseré : le dessus des formes, et le côté tourné vers la lumière (les deux en contre-jour)
+    const up = y > 0 && !a0[i - w], lf = x > 0 && !a0[i - 1], rt = x < w - 1 && !a0[i + 1];
+    const e = Math.min(1, (up ? 1 : 0) + (back ? 0.5 * ((lf ? 1 : 0) + (rt ? 1 : 0)) : (lf ? 0.6 : 0))) * rk;
+    if (e > 0) { r = 1 - (1 - r) * (1 - rr * e); gg = 1 - (1 - gg) * (1 - rg * e); b = 1 - (1 - b) * (1 - rb * e); }
+    d[o] = r * 255; d[o + 1] = gg * 255; d[o + 2] = b * 255;
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
 
 export class Lights {
@@ -81,6 +113,7 @@ export class Lights {
     this.stars = Array.from({ length: 90 }, (_, i) => ({ x: ih(i, 1, 71), y: ih(i, 2, 71) ** 1.4 * 0.55, b: ih(i, 3, 71), p: ih(i, 4, 71) * 6.28, big: ih(i, 5, 71) > 0.93 }));
     this.motes = Array.from({ length: 34 }, (_, i) => ({ x: ih(i, 6, 73), y: 0.12 + ih(i, 7, 73) * 0.78, s: 0.4 + ih(i, 8, 73), p: ih(i, 9, 73) * 6.28, f: 0.35 + ih(i, 10, 73) * 0.5 }));
     this.rayCache = new Map();
+    this.quality = 2;                              // 2 : tout ; 1 : sans les rais ; 0 : ni rais ni poussières (appareils lents)
   }
 
   theme(level) { return THEMES[level?.theme] ?? null; }
@@ -161,6 +194,7 @@ export class Lights {
       bg.save(); bg.setTransform(1, 0, 0, 1, 0, 0); bg.drawImage(this.planes, 0, 0); bg.restore();
     }
     if (!T) return;
+    if (level.art?.caveAt?.(cam.x + w / 2)) return;   // (sous terre : ni brume ni ciel)
     // le jour : la brume des lointains (plus haut = plus loin) et le haut du ciel qui fonce (estampe)
     const day = 1 - n;
     if (day > 0.01) {
@@ -238,7 +272,7 @@ export class Lights {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, w, h);
     if (!T) return;
-    const n = cycle.night, d = cycle.dusk, day = 1 - n;
+    const n = cycle.night, d = cycle.dusk, cave = level.art?.caveAt?.(cam.x + w / 2) ?? 0, day = (1 - n) * (1 - cave);
     g.imageSmoothingEnabled = true;
     if (day > 0.01) {
       // le soleil qui baigne la scène depuis sa direction, et ses rais qui respirent lentement
@@ -246,9 +280,11 @@ export class Lights {
       const sg = g.createRadialGradient(sx, sy, 0, sx, sy, R);
       sg.addColorStop(0, rgba(T.sunCol, T.sunK * day)); sg.addColorStop(1, rgba(T.sunCol, 0));
       g.fillStyle = sg; g.fillRect(0, 0, w, h);
-      g.globalAlpha = T.raysK * day * (0.8 + 0.2 * Math.sin(time * 0.35));
-      g.drawImage(this.raysOf(T, w, h), 0, 0, w, h);
-      g.globalAlpha = 1;
+      if (this.quality >= 2) {
+        g.globalAlpha = T.raysK * day * (0.8 + 0.2 * Math.sin(time * 0.35));
+        g.drawImage(this.raysOf(T, w, h), 0, 0, w, h);
+        g.globalAlpha = 1;
+      }
     }
     if (d > 0.01) {
       const gw = g.createLinearGradient(0, h * 0.3, 0, h);
@@ -266,7 +302,7 @@ export class Lights {
       g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2, R * 2);
     }
     // poussières dorées le jour, lucioles la nuit (au pixel près, avec un petit halo)
-    for (const m of this.motes) {
+    for (const m of this.quality >= 1 ? this.motes : []) {
       const x = Math.round(((m.x * w * 1.3 - cam.x * m.f + Math.sin(time * 0.3 * m.s + m.p) * 14 + time * 3 * m.s) % w + w) % w);
       const y = Math.round(m.y * h + Math.sin(time * 0.5 * m.s + m.p * 2) * 8 - (cam.y * m.f * 0.2) % 20);
       const tw = 0.5 + 0.5 * Math.sin(time * (n > 0.5 ? 2.2 : 1.2) * m.s + m.p);
