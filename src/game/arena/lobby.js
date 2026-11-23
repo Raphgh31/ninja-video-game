@@ -133,7 +133,7 @@ export class Lobby {
     if (this.ring >= 0) { this.ring += dt; drawGongRing(g, this.gong, this.ring); }
     if (this.view === 'result') {
       const w = this.winner;
-      if (w?.skin) this.art.draw(g, w.skin, Math.round(this.W / 2), this.g0, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.2) / 0.4) });
+      if (w?.skin) this.art.draw(this.bc?.tg ?? g, w.skin, Math.round(this.W / 2), this.g0, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.2) / 0.4), crisp: !!this.bc });
     } else {
       const { net } = this;
       this.seats.forEach((S, i) => {
@@ -141,7 +141,7 @@ export class Lobby {
         const tg = p ? 1 : 0;
         this.lights[i] += Math.sign(tg - this.lights[i]) * Math.min(Math.abs(tg - this.lights[i]), dt * 2);
         drawFlame(g, S.lan, this.lights[i], 0.8, t, i);
-        if (p) this.art.draw(g, this.skinOf(p), S.cx + 11, this.g0, { t, alpha: clamp01((this.lights[i] - 0.5) * 2) });
+        if (p) this.art.draw(this.bc?.tg ?? g, this.skinOf(p), S.cx + 11, this.g0, { t, alpha: clamp01((this.lights[i] - 0.5) * 2), crisp: !!this.bc });
       });
       this.tabs.forEach((T, i) => { if (net.code[i]) drawSign(g, T, net.code[i], 0, this.bc?.tg); });
     }
@@ -153,7 +153,7 @@ export class Lobby {
     } else this.strokeFor = null;
     const home = this.layer.querySelector('.m-home');
     if (home) homeIcon(g, parseFloat(home.style.left) + 2, 9, f === home ? INK : '#4a505b');
-    this.bc?.present({ wide: 'huge' });
+    this.bc?.present({ wide: 'mid', detail: 0.22 });
   }
 
   skinOf(p) {

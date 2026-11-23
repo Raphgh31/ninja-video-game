@@ -213,7 +213,7 @@ export class Menu {
       }
       for (const b of s.strokes.keys()) if (b !== f) s.strokes.delete(b);
       homeIcon(g, W - 41, 9, f === home ? INK : '#4a505b');
-      if (bc) bc.present({ wide: 'huge' });
+      if (bc) bc.present({ wide: 'mid', detail: 0.22 });   // (des touches moyennes : le sentier, les lanternes se reconnaissent)
     };
     return s;
   }
@@ -480,7 +480,8 @@ export class Menu {
       });
       if (cur > 0) {
         const x = LX[cur - 1] + 26, skin = a?.sv?.skin ?? 'encre';
-        this.art.draw(g, skin, x, Math.round(top(x)) + 1, { t, alpha: clamp01((lamps[cur - 1].v - 0.5) * 2) });
+        // (style peint : le ninja net, sur le calque du dessus, qui n'est pas décalé avec le sentier)
+        this.art.draw(s.tg ?? g, skin, s.tg ? x - cx : x, Math.round(top(x)) + 1, { t, alpha: clamp01((lamps[cur - 1].v - 0.5) * 2), crisp: !!s.tg });
       }
       g.restore();
       lampBtns.forEach((b, i) => { b.style.left = `${LX[i] - cx - 14}px`; });
@@ -697,7 +698,7 @@ export class Menu {
       setTimeout(() => fresh.querySelector(d < 0 ? '[data-prev]' : '[data-next]')?.focus(), 40);
     };
     s.paint = (g, t) => {
-      this.art.draw(g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4) });
+      this.art.draw(s.tg ?? g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4), crisp: !!s.tg });
       if (!shown) return;
       // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
       for (let i = 0; i < LANTERNS; i++) {

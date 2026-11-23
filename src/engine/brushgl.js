@@ -120,6 +120,8 @@ export class BrushGL {
     set('wide', 2, strokeMap({ len: 6.5, wid: 2.4, curve: 0.18, seed: 5 }));
     set('huge', 4, strokeMap({ len: 11, wid: 3.6, curve: 0.22, seed: 7 }));
     set('mid', 6, strokeMap({ len: 4, wid: 1.7, curve: 0.14, seed: 17 }));
+    // (le premier plan : des touches un peu plus longues et plus droites, moins nombreuses : un trait plus continu)
+    set('line', 7, strokeMap({ len: 3.4, wid: 1.3, curve: 0.06, seed: 19 }));
     set('tiny', 5, strokeMap({ len: 1.25, wid: 0.75, curve: 0.06, seed: 13 }));
     // le grain du papier (64 × 64 pixels de jeu, à 4 texels par pixel : 256)
     const gr = new Uint8Array(256 * 256 * 4), r = rand(9);
