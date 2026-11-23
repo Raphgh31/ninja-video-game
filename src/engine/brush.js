@@ -17,6 +17,7 @@ const SPECS = {
   fine: { len: 2.4, wid: 1.25, curve: 0.12, seed: 3 },
   wide: { len: 6.5, wid: 2.4, curve: 0.18, seed: 5 },
   huge: { len: 11, wid: 3.6, curve: 0.22, seed: 7 },
+  mid: { len: 4, wid: 1.7, curve: 0.14, seed: 17 },
   tiny: { len: 1.25, wid: 0.75, curve: 0.06, seed: 13 },
 };
 function map(name) { return (maps[name] ??= strokeMap(SPECS[name])); }
@@ -35,9 +36,9 @@ export function paintCanvas(src, o = {}) {
   const MS = F.size, detail = (o.detail ?? 0.32) * 255, ink = o.ink ?? 1, paper = o.paper ?? 0.08;
   const ox0 = o.ox ?? 0, oy0 = o.oy ?? 0, soft = o.soft ?? true;
   // les couleurs lues à travers un petit flou (comme le pinceau en direct : le tramage se fond dans la touche)
-  // (un flou en boîte 3 × 3, deux fois : le tramage en damier des décors se fond entièrement)
+  // (un flou en boîte 3 × 3, une seule fois : le tramage se fond sans voiler l'image)
   let bl = new Float32Array(sd);
-  if (soft) for (let pass = 0; pass < 2; pass++) {
+  if (soft) for (let pass = 0; pass < 1; pass++) {
     const nb = new Float32Array(w * h * 4);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const o = (y * w + x) * 4;

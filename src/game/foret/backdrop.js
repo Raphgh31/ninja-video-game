@@ -308,7 +308,7 @@ export class ForetBackdrop {
   brushed(img, i) {
     if (!this.level.painted) return img;
     this.forget();
-    return paintBand(img, { wide: i < 2 ? 'huge' : 'wide', ox: i * 41, oy: i * 17 });
+    return paintBand(img, { P: 3, wide: i < 2 ? 'huge' : 'mid', ox: i * 41, oy: i * 17 });
   }
 
   /** On ne garde peintes que les trois lumières vues le plus récemment (la mémoire des téléphones). */

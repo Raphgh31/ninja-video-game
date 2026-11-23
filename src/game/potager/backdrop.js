@@ -789,10 +789,10 @@ export class Backdrop {
     // style peint (variante B) : chaque plan repeint une fois au pinceau, des touches plus larges au loin
     this.painted = !!level.painted;
     if (this.painted) {
-      const P = [[this.far, 'huge'], [this.mid, 'huge'], [this.foot, 'wide'], [this.village, 'wide'], [this.near, 'wide']];
+      const P = [[this.far, 'huge'], [this.mid, 'huge'], [this.foot, 'mid'], [this.village, 'mid'], [this.near, 'mid']];
       time('pinceau', () => {
         P.forEach(([st, wide]) => { st.pc = paintCanvas(st.img, { wide }); });
-        this.fore.pc = paintCanvas(this.fore.img, { wide: 'wide' });
+        this.fore.pc = paintCanvas(this.fore.img, { wide: null });
       });
     }
     this.timings = T;
