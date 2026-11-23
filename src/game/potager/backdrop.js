@@ -859,13 +859,20 @@ export class Backdrop {
   }
 
   /** k = pixels d'écran par pixel de jeu (le contexte est déjà mis à l'échelle). */
-  draw(ctx, cam, viewW, viewH, time, k = 1) {
+  /** Le ciel seul (la nuit : main.js pose la lune et les étoiles entre le ciel et les plans). */
+  drawSkyOnly(ctx, cam, viewW, viewH) {
+    if (this.skyH !== viewH) { this.skyH = viewH; this.sky = paintSky(viewH, viewH * GROUND_AT - 30); }
+    ctx.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+  }
+
+  // sky = false : les plans seuls, sur une toile transparente (la nuit, voir drawSkyOnly)
+  draw(ctx, cam, viewW, viewH, time, k = 1, sky = true) {
     this.k = k;
     if (this.skyH !== viewH) {
       this.skyH = viewH;
       this.sky = paintSky(viewH, viewH * GROUND_AT - 30);
     }
-    if (this.painted) {
+    if (!sky) { /* (le ciel est déjà posé) */ } else if (this.painted) {
       // le ciel peint : de grandes touches horizontales (refait quand la taille de l'image change)
       if (this.skyPcW !== viewW || this.skyPcH !== viewH) {
         const c = canvas(viewW, viewH), g = c.getContext('2d');

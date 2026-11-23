@@ -109,16 +109,16 @@ function brushPixels(half) {
 }
 
 /** La lune et sa clarté (anneaux nets, aucun flou). */
-function paintMoon() {
-  const RG = MOON_R * 3.2, S = Math.ceil(RG) * 2 + 1, o = Math.ceil(RG), c = canvas(S, S), g = c.getContext('2d');
+export function paintMoon(MR = MOON_R) {
+  const RG = MR * 3.2, S = Math.ceil(RG) * 2 + 1, o = Math.ceil(RG), c = canvas(S, S), g = c.getContext('2d');
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const d = Math.hypot(x - o, y - o);
-    if (d > MOON_R && d < RG) {
-      const step = Math.floor((1 - (d - MOON_R) / (RG - MOON_R)) * 5) + 1;
+    if (d > MR && d < RG) {
+      const step = Math.floor((1 - (d - MR) / (RG - MR)) * 5) + 1;
       g.fillStyle = `rgba(150,165,200,${(0.045 * step).toFixed(3)})`; g.fillRect(x, y, 1, 1);
-    } else if (d <= MOON_R) {
-      const dx = x - o, dy = y - o, k = d / MOON_R;
-      const lit = 0.8 - 0.3 * k + 0.3 * (noise2(dx * 0.08, dy * 0.08, 3) - 0.5) - 0.18 * Math.max(0, (dx + dy) / MOON_R);
+    } else if (d <= MR) {
+      const dx = x - o, dy = y - o, k = d / MR;
+      const lit = 0.8 - 0.3 * k + 0.3 * (noise2(dx * 0.08, dy * 0.08, 3) - 0.5) - 0.18 * Math.max(0, (dx + dy) / MR);
       dot(g, x, y, pick(MOON, lit, x, y, 0.5));
     }
   }

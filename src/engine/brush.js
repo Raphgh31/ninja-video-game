@@ -11,6 +11,13 @@ import { canvas } from '../game/potager/paint.js';
 import { strokeMap } from './brushgl.js';
 
 export const P = 4;                 // points de toile par pixel de jeu (la résolution du motif)
+// Le pinceau d'aquarelle n'est plus utilisé (23 novembre 2026 : retour aux pixels nets, « pixel art lumineux ») ;
+// ?aquarelle=1 dans l'adresse le remet, pour comparer. Sans lui, les fonctions ci-dessous rendent l'image telle quelle.
+export const BRUSH = typeof location !== 'undefined' && /[?&]aquarelle=1\b/.test(location.search);
+function asIs(src) {                // (l'image elle-même : certaines bandes de décor sont très larges)
+  src.P = 1;
+  return src;
+}
 const TILE = 128;                   // un motif couvre 128 × 128 pixels de jeu
 const maps = {};
 const SPECS = {
@@ -29,6 +36,7 @@ function map(name) { return (maps[name] ??= strokeMap(SPECS[name])); }
  * Rend { tiles: [{ x0, w, c }], P, w, h } ; à dessiner avec blit().
  */
 export function paintCanvas(src, o = {}) {
+  if (!BRUSH) return { tiles: [{ x0: 0, w: src.width, c: src }], P: 1, w: src.width, h: src.height };
   if (!src.getContext) { const c = canvas(src.width, src.height); c.getContext('2d').drawImage(src, 0, 0); src = c; }
   const w = src.width, h = src.height, TW = o.tile ?? 1024, Q = o.P ?? P, step = P / Q;
   const sd = src.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
@@ -111,6 +119,7 @@ export function blit(ctx, pc, sx, sy, sw, sh, dx, dy, dw = sw, dh = sh) {
 
 /** Une feuille de sprites (ou toute petite image) repeinte : une seule toile, avec son facteur P. */
 export function paintSheet(sheet, o = {}) {
+  if (!BRUSH) return asIs(sheet);
   const pc = paintCanvas(sheet, { fine: 'tiny', wide: null, ink: 0.45, soft: false, tile: 1 << 20, ...o });
   const c = pc.tiles[0].c;
   c.P = pc.P;
@@ -119,6 +128,7 @@ export function paintSheet(sheet, o = {}) {
 
 /** Une bande de décor repeinte (une seule toile, finesse Q) : pour les plans du fond de la Forêt. */
 export function paintBand(img, o = {}) {
+  if (!BRUSH) return asIs(img);
   const pc = paintCanvas(img, { P: 2, wide: 'wide', tile: 1 << 20, ...o });
   const c = pc.tiles[0].c;
   c.P = pc.P;

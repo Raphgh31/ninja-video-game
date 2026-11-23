@@ -37,9 +37,14 @@ h1 { margin: 0; --pxs: 2; }
 /* calque du paysage, exactement sous le jeu */
 .bg-layer { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
 .bg-layer[hidden] { display: none; }
-.stage > #game, .stage > .bg-layer, .stage > .ui { grid-area: 1 / 1; }
+.stage > #game, .stage > .bg-layer, .stage > .ui, .stage > .light-layer, .stage > .vignette { grid-area: 1 / 1; }
+/* la lumière du monde (src/game/daylight.js) : douce, posée en « écran » sur le jeu et le fond */
+.light-layer { display: block; mix-blend-mode: screen; pointer-events: none; image-rendering: auto; }
+.vignette { pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 58%, rgba(14, 12, 34, 0.26) 100%); }
+.light-layer[hidden], .vignette[hidden] { display: none; }
 #game.over-bg { background: transparent; }
 body.mobile .bg-layer { position: absolute; left: 0; top: 0; }
+body.mobile .light-layer, body.mobile .vignette { position: absolute; left: 0; top: 0; }
 
 .keys { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 0; }
 .keys div { display: flex; gap: 8px; }

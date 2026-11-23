@@ -382,8 +382,20 @@ export class ForetBackdrop {
   q(v) { return Math.round(v * this.k) / this.k; }
 
   /** k = pixels d'écran par pixel de jeu (le contexte est déjà mis à l'échelle). */
-  draw(ctx, cam, viewW, viewH, time, k = 1) {
+  /** Le ciel seul, de la lumière dominante (la nuit : main.js pose la lune et les étoiles avant les plans). */
+  drawSkyOnly(ctx, cam, viewW, viewH) {
+    const list = this.weights(cam, viewW, viewH), mood = list[0].mood;
+    if (!this.ready(mood)) this.need(mood, true);
+    const s = this.sets[mood];
+    if (SKIES[mood]) this.skyOf(mood, viewH);
+    else if (s.skyH !== viewH) { s.sky = paintSky(C.MOODS[mood] ?? C.MOODS.sousbois, viewH); s.skyH = viewH; s.painted = null; }
+    this.drawSky(ctx, s, viewW, viewH);
+  }
+
+  // sky = false : les plans seuls, sur une toile transparente (la nuit, voir drawSkyOnly)
+  draw(ctx, cam, viewW, viewH, time, k = 1, sky = true) {
     this.k = k;
+    this.noSky = !sky;
     const list = this.weights(cam, viewW, viewH);
     for (const o of list) if (!this.ready(o.mood)) this.need(o.mood, true);
     this.drawMood(ctx, list[0].mood, cam, viewW, viewH, time);
@@ -464,8 +476,8 @@ export class ForetBackdrop {
     s.used = performance.now();
     if (K) {
       this.skyOf(mood, viewH);
-      this.drawSky(ctx, s, viewW, viewH);
-      if (s.stars) {
+      if (!this.noSky) this.drawSky(ctx, s, viewW, viewH);
+      if (s.stars && !this.noSky) {
         ctx.fillStyle = '#f4ecff';
         for (const st of s.stars) {
           const a = (0.35 + 0.65 * st.b) * (0.75 + 0.25 * Math.sin(time * 1.3 + st.p));
@@ -475,7 +487,7 @@ export class ForetBackdrop {
         }
         ctx.globalAlpha = 1;
       }
-      if (s.sun) {
+      if (s.sun && !this.noSky) {
         const R = K.sun.R + 1;
         ctx.drawImage(s.sun, this.q(K.sun.x * viewW - R - cam.x * 0.006), this.q(K.sun.y * viewH - R));
       }
@@ -497,7 +509,7 @@ export class ForetBackdrop {
       }
     } else {
       if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; s.painted = null; }
-      this.drawSky(ctx, s, viewW, viewH);
+      if (!this.noSky) this.drawSky(ctx, s, viewW, viewH);
     }
     for (const pl of PLANES) {
       // un décor lointain glissé entre deux plans (l'arène : le temple, la statue) : avant le plan pl

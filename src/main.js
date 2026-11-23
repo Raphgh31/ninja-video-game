@@ -23,6 +23,8 @@ import { pixelUI, setBrushText } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { paintSheet } from './engine/brush.js';
 import { crispSheet, NINJA_STYLES } from './engine/netsprite.js';
+import { BRUSH } from './engine/brush.js';
+import { Lights, DayCycle } from './game/daylight.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -60,6 +62,9 @@ bgCanvas.className = 'bg-layer';
 bgCanvas.hidden = true;
 canvas.before(bgCanvas);
 const bgCtx = bgCanvas.getContext('2d');
+// la lumière du monde et l'heure (src/game/daylight.js) : un calque de lumière par-dessus le jeu
+const lights = new Lights(canvas);
+const cycle = new DayCycle();
 let bgK = 1;   // pixels d'écran par pixel de jeu
 /**
  * Le masque de la terre sous le sol (style peint) : blanc dans les blocs « # » sous la surface (le haut du bloc
@@ -168,6 +173,7 @@ function fit() {
   }
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
+  lights.resize(VIEW_W, VIEW_H, canvas.style.width, canvas.style.height);
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   uiLayer.classList.toggle('short', VIEW_H < 236);   // écrans de menu compacts (téléphones allongés)
   uiLayer.style.width = `${VIEW_W}px`;
@@ -910,6 +916,8 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  // l'heure du monde (cycle du jour et de la nuit) : pour essayer
+  for (const [w, label, title] of [['matin', 'Matin', 'Passer au matin'], ['soir', 'Soir', 'Passer au soir'], ['nuit', 'Nuit', 'Passer à la nuit']]) row.append(button(label, title, () => cycle.set(w)));
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
@@ -977,6 +985,19 @@ function gotoZone(i) {
   snapCamera();
 }
 
+/** Les sources de lumière du chapitre (monde) : lanternes, échoppes, marchand, ryō. k : force, r : portée. */
+function lightSources() {
+  const S = [];
+  for (const c of level.checkpoints) S.push({ x: c.x, y: c.y - 28, k: c.lit ? 1 : 0.5, r: 1 });
+  for (const p of level.props ?? []) {
+    if (p.type === 'lantern_stone') S.push({ x: p.x * TILE + 8, y: p.y * TILE - 22, k: 0.8, r: 0.8 });
+    else if (p.type === 'stall') { const X = p.x * TILE + 8, Y = p.y * TILE; S.push({ x: X - 34, y: Y - 40, k: 0.55, r: 0.7 }, { x: X + 36, y: Y - 40, k: 0.55, r: 0.7 }); }
+  }
+  if (level.merchant && level.theme === 'foret') S.push({ x: level.merchant.x + 14, y: level.merchant.y - 36, k: 0.5, r: 0.7 });
+  for (const c of level.coins) if (!c.taken) S.push({ x: c.x, y: c.y, k: 0.3, r: 0.32 });
+  return S;
+}
+
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
@@ -990,6 +1011,7 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   if (!multi?.out) player.update(dt, run.won ? IDLE_INPUT : input);   // (Souffle unique : éliminé, il regarde)
   level.update(dt);
+  cycle.update(dt);              // (l'heure du monde ne passe que pendant le jeu)
   level.arena?.update(dt, [player]);
   multi?.update(dt);
   level.forest?.update(dt, player);
@@ -1276,7 +1298,7 @@ function draw() {
     // paysage : position exacte de la caméra, arrondie au pixel d'écran
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
     bgCtx.imageSmoothingEnabled = false;
-    level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
+    lights.backdrop(bgCtx, level.art.backdrop, level, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK, cycle);
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
   }
   level.draw(W, cam, VIEW_W, VIEW_H);
@@ -1285,13 +1307,18 @@ function draw() {
   arenaArt?.drawBack(W, cam, level.time);
   boss?.drawBack(W, cam);
   shurikens.drawStuck(W, look.projectiles.shuriken, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: earthMask(cam) });
+  const LIGHT = B ? lights.shader(level, cycle) : null;
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: BRUSH ? earthMask(cam) : null, light: LIGHT });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
+  if (B && level.art && player.onGround && !behindGate() && !multi?.out) {   // une ombre douce sous ses pieds
+    ctx.save(); ctx.globalAlpha = 0.22 * (1 - 0.5 * cycle.night); ctx.fillStyle = '#0c0e22';
+    ctx.beginPath(); ctx.ellipse(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 9, 1.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   if (B) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
@@ -1300,7 +1327,15 @@ function draw() {
   arenaArt?.drawFront(W, cam, level.time);
   shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(W, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: earthMask(cam, 'front') });   // (le premier plan : touches fines, plus précis)
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: BRUSH ? earthMask(cam, 'front') : null, light: LIGHT });   // (le premier plan)
+  // la lumière : la nuit sur le monde (flaques de lumière des lanternes), puis le calque de lumière
+  const lit = level.art && B;
+  lights.show(lit);
+  if (lit) {
+    const src = lightSources();
+    lights.night(ctx, level, cam, VIEW_W, VIEW_H, src, cycle);
+    lights.frame(level, cam, VIEW_W, VIEW_H, level.time, src, cycle);
+  }
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
   const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)
@@ -1869,7 +1904,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, cycle, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

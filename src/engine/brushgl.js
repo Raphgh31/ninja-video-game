@@ -11,6 +11,7 @@
 // de l'image au centre de la touche : toute la touche prend une seule couleur, comme un coup de pinceau.
 // Là où l'image est détaillée (au centre d'une touche large), on prend les touches fines.
 
+import { BRUSH } from './brush.js';
 const T = 128;          // un motif couvre 128 × 128 pixels de jeu…
 const R = 4;            // … à 4 texels par pixel de jeu (texture 512 × 512, qui se répète)
 
@@ -65,6 +66,10 @@ const FS = `precision highp float;
 varying vec2 uv;
 uniform sampler2D src, mapF, mapW, grain, mask;
 uniform float hasMask;
+// pix : les pixels nets (« pixel art lumineux ») : étalonnage (ombres froides, lumières chaudes) et liseré de
+// lumière sur le bord des formes, en pixels de jeu ; rimSide 0 : lumière de gauche, 1 : contre-jour
+uniform float pix, gradeK, rimK, rimSide;
+uniform vec3 shCol, hiCol, rimCol;
 uniform vec2 size;       // taille de l'image source (pixels de jeu)
 uniform vec2 cam;        // position du coin haut-gauche de l'image dans le monde (pixels de jeu)
 uniform float detail, wide, ink, paper, soft, keep, amp, edge;
@@ -75,8 +80,24 @@ vec3 stroke(sampler2D m, vec2 g) {
 vec4 at1(vec2 g) { return texture2D(src, (floor(clamp(g, vec2(0.0), size - 0.5)) + 0.5) / size); }
 // la couleur d'une touche : un léger mélange avec ses voisins (le tramage des pixels se fond dans la touche)
 vec4 at(vec2 g) { return mix(at1(g), 0.25 * (at1(g + vec2(1.0, 0.0)) + at1(g + vec2(0.0, 1.0)) + at1(g - vec2(1.0, 0.0)) + at1(g - vec2(0.0, 1.0))), 0.55 * soft); }
+vec3 scr(vec3 a, vec3 b) { return 1.0 - (1.0 - a) * (1.0 - b); }
 void main() {
   vec2 g = uv * size;
+  if (pix > 0.5) {
+    vec4 c = at1(g);
+    if (c.a < 0.01) { gl_FragColor = c; return; }
+    float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+    c.rgb = mix(vec3(l), c.rgb, 1.0 + 0.12 * gradeK);
+    c.rgb = (c.rgb - 0.5) * (1.0 + 0.06 * gradeK) + 0.5;
+    float ws = clamp(1.0 - l * 2.2, 0.0, 1.0), wh = clamp((l - 0.55) * 2.2, 0.0, 1.0);
+    c.rgb = mix(c.rgb, shCol, 0.26 * ws * gradeK);
+    c.rgb = scr(c.rgb, hiCol * 0.13 * wh * gradeK);
+    float up = step(at1(g - vec2(0.0, 1.0)).a, 0.5), lf = step(at1(g - vec2(1.0, 0.0)).a, 0.5), rt = step(at1(g + vec2(1.0, 0.0)).a, 0.5);
+    float r = clamp(up + (rimSide < 0.5 ? 0.6 * lf : 0.5 * (lf + rt)), 0.0, 1.0);
+    c.rgb = scr(c.rgb, rimCol * r * rimK);
+    gl_FragColor = vec4(clamp(c.rgb, 0.0, 1.0), c.a);
+    return;
+  }
   vec3 sw = stroke(mapW, g);
   vec2 cw = g + sw.xy;
   vec4 c0 = at1(cw);
@@ -143,7 +164,7 @@ export class BrushGL {
     this.srcTex = tex(0, null, 0, false);
     this.maskTex = tex(7, null, 0, false);   // (le masque de la terre sous le sol : elle garde le pinceau libre)
     this.u = {};
-    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft', 'keep', 'amp', 'edge', 'mask', 'hasMask']) this.u[n] = gl.getUniformLocation(pr, n);
+    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft', 'keep', 'amp', 'edge', 'mask', 'hasMask', 'pix', 'gradeK', 'rimK', 'rimSide', 'shCol', 'hiCol', 'rimCol']) this.u[n] = gl.getUniformLocation(pr, n);
     gl.uniform1i(this.u.src, 0); gl.uniform1i(this.u.grain, 3); gl.uniform1i(this.u.mask, 7);
   }
 
@@ -155,7 +176,8 @@ export class BrushGL {
   paint(ctx, src, k, o = {}) {
     if (!this.ok) { ctx.drawImage(src, 0, 0, src.width * k, src.height * k); return; }
     // (au-delà de 3 points par pixel de jeu — téléphones —, on peint à 2 puis on agrandit en douceur)
-    const kk = k > 3 ? 2 : k, gl = this.gl, W = Math.round(src.width * kk), H = Math.round(src.height * kk);
+    // (pixels nets : à pleine finesse, sans lissage ; aquarelle : au-delà de 3, à 2 puis agrandi en douceur)
+    const kk = !BRUSH ? k : k > 3 ? 2 : k, gl = this.gl, W = Math.round(src.width * kk), H = Math.round(src.height * kk);
     if (this.cv.width !== W || this.cv.height !== H) { this.cv.width = W; this.cv.height = H; }
     gl.viewport(0, 0, W, H);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
@@ -173,8 +195,12 @@ export class BrushGL {
     gl.uniform1f(this.u.keep, o.keep ?? 0);
     gl.uniform1f(this.u.amp, o.amp ?? 1);
     gl.uniform1f(this.u.edge, o.edge ?? 0);
-    gl.uniform1f(this.u.hasMask, o.mask ? 1 : 0);
-    if (o.mask) {
+    gl.uniform1f(this.u.hasMask, o.mask && BRUSH ? 1 : 0);
+    gl.uniform1f(this.u.pix, BRUSH ? 0 : 1);
+    const L = o.light ?? {};
+    gl.uniform1f(this.u.gradeK, L.grade ?? 0); gl.uniform1f(this.u.rimK, L.rim ?? 0); gl.uniform1f(this.u.rimSide, L.back ? 1 : 0);
+    gl.uniform3fv(this.u.shCol, L.shadow ?? [0.2, 0.24, 0.5]); gl.uniform3fv(this.u.hiCol, L.high ?? [1, 0.84, 0.58]); gl.uniform3fv(this.u.rimCol, L.rimCol ?? [1, 0.88, 0.62]);
+    if (o.mask && BRUSH) {
       gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, this.maskTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, o.mask);
     }
