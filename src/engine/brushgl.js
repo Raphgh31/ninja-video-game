@@ -66,7 +66,7 @@ varying vec2 uv;
 uniform sampler2D src, mapF, mapW, grain;
 uniform vec2 size;       // taille de l'image source (pixels de jeu)
 uniform vec2 cam;        // position du coin haut-gauche de l'image dans le monde (pixels de jeu)
-uniform float detail, wide, ink, paper, soft;
+uniform float detail, wide, ink, paper, soft, keep, amp, edge;
 vec3 stroke(sampler2D m, vec2 g) {
   vec4 t = texture2D(m, fract((g + cam) / ${T}.0));
   return vec3((t.rg * 255.0 - 128.0) / 16.0, t.b * 255.0 / 200.0);
@@ -81,8 +81,19 @@ void main() {
   vec4 c0 = at1(cw);
   float d = max(distance(c0, at1(cw + vec2(2.0, 0.0))), distance(c0, at1(cw + vec2(0.0, 2.0))));
   vec3 s = (d > detail || wide < 0.5) ? stroke(mapF, g) : sw;
-  vec4 c = at(g + s.xy);
+  vec4 c = at(g + amp * s.xy);
+  // keep : la touche ne franchit pas un bord net (le point garde sa propre couleur) : les formes restent précises
+  vec4 own = at1(g);
+  if (keep > 0.0) {
+    float k = abs(c.a - own.a) > 0.3 ? 1.0 : smoothstep(keep, keep + 0.2, distance(c.rgb, own.rgb));
+    c = mix(c, own, k);
+  }
   c.rgb *= mix(1.0, s.z, ink);
+  // edge : un trait d'encre léger le long des bords nets (les formes se lisent)
+  if (edge > 0.0) {
+    float e = max(max(distance(own, at1(g + vec2(1.0, 0.0))), distance(own, at1(g - vec2(1.0, 0.0)))), max(distance(own, at1(g + vec2(0.0, 1.0))), distance(own, at1(g - vec2(0.0, 1.0)))));
+    c.rgb *= 1.0 - edge * smoothstep(0.35, 0.7, e);
+  }
   // le grain du papier, très discret
   float gr = texture2D(grain, fract((g + cam) / 64.0)).r;
   c.rgb *= 1.0 + (gr - 0.5) * paper;
@@ -129,7 +140,7 @@ export class BrushGL {
     this.grain = tex(3, gr, 256, true);
     this.srcTex = tex(0, null, 0, false);
     this.u = {};
-    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft']) this.u[n] = gl.getUniformLocation(pr, n);
+    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft', 'keep', 'amp', 'edge']) this.u[n] = gl.getUniformLocation(pr, n);
     gl.uniform1i(this.u.src, 0); gl.uniform1i(this.u.grain, 3);
   }
 
@@ -156,6 +167,9 @@ export class BrushGL {
     gl.uniform1f(this.u.ink, o.ink ?? 1);
     gl.uniform1f(this.u.paper, o.paper ?? 0.08);
     gl.uniform1f(this.u.soft, o.soft ?? 1);
+    gl.uniform1f(this.u.keep, o.keep ?? 0);
+    gl.uniform1f(this.u.amp, o.amp ?? 1);
+    gl.uniform1f(this.u.edge, o.edge ?? 0);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     ctx.save();

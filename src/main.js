@@ -159,6 +159,14 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 const NINJA_STYLE = new URLSearchParams(location.search).get('ninja');
+// le pinceau du premier plan (terrain, décors, effets) : échantillons à l'essai (?pinceau=1…4), sinon celui
+// du 23 novembre (touches fines, sans retenue aux bords)
+const FRONT = {
+  1: { keep: 0.45 },                                         // bords nets : les touches restent dans les formes
+  2: { keep: 0.45, amp: 0.7, ink: 0.6 },                     // touches calmes : plus courtes, plus égales
+  3: { keep: 0.45, fine: 'line', ink: 0.5 },                // traits suivis : longs et droits, dans les formes
+  4: { keep: 0.45, amp: 0.7, ink: 0.6, edge: 0.2 },         // contour d'encre : touches calmes et bords soulignés
+}[new URLSearchParams(location.search).get('pinceau')] ?? {};
 function wearSkin(id) {
   look = skins[id] ?? skins.encre;
   if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
@@ -1248,7 +1256,7 @@ function draw() {
   arenaArt?.drawBack(W, cam, level.time);
   boss?.drawBack(W, cam);
   shurikens.drawStuck(W, look.projectiles.shuriken, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, fine: 'line', wide: 'mid', detail: 0.2, soft: 0.35, ink: 0.6 });
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
@@ -1263,7 +1271,7 @@ function draw() {
   arenaArt?.drawFront(W, cam, level.time);
   shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(W, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, fine: 'line', wide: null, soft: 0.2, ink: 0.6 });   // (le premier plan : touches fines, plus précis)
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT });   // (le premier plan : touches fines, plus précis)
   if (run.title) return;   // écran titre : le décor seul, sans interface
   // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
   const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)
