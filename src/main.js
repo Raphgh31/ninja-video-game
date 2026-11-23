@@ -2,7 +2,7 @@ import { renderSmooth } from './engine/pixelfont.js';
 import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
-import { Level } from './game/level.js';
+import { Level, TILE } from './game/level.js';
 import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
 import { Shurikens, SHURIKEN } from './game/shuriken.js';
@@ -61,6 +61,23 @@ bgCanvas.hidden = true;
 canvas.before(bgCanvas);
 const bgCtx = bgCanvas.getContext('2d');
 let bgK = 1;   // pixels d'écran par pixel de jeu
+/**
+ * Le masque de la terre sous le sol (style peint) : blanc dans les blocs « # » sous la surface (le haut du bloc
+ * de surface, l'herbe, reste dehors) ; le pinceau y garde ses touches libres.
+ */
+const maskCanvas = document.createElement('canvas'), maskCtx = maskCanvas.getContext('2d');
+function earthMask(cam) {
+  if (maskCanvas.width !== VIEW_W || maskCanvas.height !== VIEW_H) { maskCanvas.width = VIEW_W; maskCanvas.height = VIEW_H; }
+  maskCtx.fillStyle = '#000'; maskCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+  maskCtx.fillStyle = '#fff';
+  const tx0 = Math.floor(cam.x / TILE), tx1 = Math.ceil((cam.x + VIEW_W) / TILE), ty0 = Math.floor(cam.y / TILE), ty1 = Math.ceil((cam.y + VIEW_H) / TILE);
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    if (level.at(tx, ty) !== '#') continue;
+    const top = level.at(tx, ty - 1) === '#' ? 0 : 7;          // (le bloc de surface : sous son herbe)
+    maskCtx.fillRect(tx * TILE - cam.x, ty * TILE - cam.y + top, TILE, TILE - top);
+  }
+  return maskCanvas;
+}
 let GK = 1;    // pixels de la toile du jeu par pixel de jeu (style peint : comme le paysage)
 let paintedMode = false;
 const hudText = [];   // style peint : les textes de l'interface, posés après le pinceau
@@ -159,14 +176,14 @@ let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à 
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
 const NINJA_STYLE = new URLSearchParams(location.search).get('ninja');
-// le pinceau du premier plan (terrain, décors, effets) : échantillons à l'essai (?pinceau=1…4), sinon celui
-// du 23 novembre (touches fines, sans retenue aux bords)
+// le pinceau du premier plan (terrain, décors, effets), choix de Raph (23 novembre, échantillon 2) : les
+// touches ne franchissent pas les bords des objets, plus courtes et plus égales ; la terre sous le sol garde
+// le pinceau libre (masque). ?pinceau=0 : l'ancien partout ; 1 : bords nets seuls ; 4 : avec contour d'encre.
 const FRONT = {
-  1: { keep: 0.45 },                                         // bords nets : les touches restent dans les formes
-  2: { keep: 0.45, amp: 0.7, ink: 0.6 },                     // touches calmes : plus courtes, plus égales
-  3: { keep: 0.45, fine: 'line', ink: 0.5 },                // traits suivis : longs et droits, dans les formes
-  4: { keep: 0.45, amp: 0.7, ink: 0.6, edge: 0.2 },         // contour d'encre : touches calmes et bords soulignés
-}[new URLSearchParams(location.search).get('pinceau')] ?? {};
+  0: {},
+  1: { keep: 0.45 },
+  4: { keep: 0.45, amp: 0.7, ink: 0.6, edge: 0.2 },
+}[new URLSearchParams(location.search).get('pinceau')] ?? { keep: 0.45, amp: 0.7, ink: 0.6 };
 function wearSkin(id) {
   look = skins[id] ?? skins.encre;
   if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
@@ -1256,7 +1273,7 @@ function draw() {
   arenaArt?.drawBack(W, cam, level.time);
   boss?.drawBack(W, cam);
   shurikens.drawStuck(W, look.projectiles.shuriken, cam);
-  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT });
+  if (B) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: earthMask(cam) });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);

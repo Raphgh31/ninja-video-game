@@ -63,7 +63,8 @@ export function strokeMap({ len, wid, curve = 0.08, count, seed = 1 }) {
 const VS = `attribute vec2 p; varying vec2 uv; void main(){ uv = p * 0.5 + 0.5; uv.y = 1.0 - uv.y; gl_Position = vec4(p, 0.0, 1.0); }`;
 const FS = `precision highp float;
 varying vec2 uv;
-uniform sampler2D src, mapF, mapW, grain;
+uniform sampler2D src, mapF, mapW, grain, mask;
+uniform float hasMask;
 uniform vec2 size;       // taille de l'image source (pixels de jeu)
 uniform vec2 cam;        // position du coin haut-gauche de l'image dans le monde (pixels de jeu)
 uniform float detail, wide, ink, paper, soft, keep, amp, edge;
@@ -81,14 +82,17 @@ void main() {
   vec4 c0 = at1(cw);
   float d = max(distance(c0, at1(cw + vec2(2.0, 0.0))), distance(c0, at1(cw + vec2(0.0, 2.0))));
   vec3 s = (d > detail || wide < 0.5) ? stroke(mapF, g) : sw;
-  vec4 c = at(g + amp * s.xy);
+  // mask : là où il est blanc (la terre sous le sol), le pinceau libre d'avant (ni retenue, ni touches calmes)
+  float m = hasMask > 0.5 ? texture2D(mask, uv).r : 0.0;
+  float kp = keep * (1.0 - m), am = mix(amp, 1.0, m), ik = mix(ink, 1.0, m);
+  vec4 c = at(g + am * s.xy);
   // keep : la touche ne franchit pas un bord net (le point garde sa propre couleur) : les formes restent précises
   vec4 own = at1(g);
-  if (keep > 0.0) {
-    float k = abs(c.a - own.a) > 0.3 ? 1.0 : smoothstep(keep, keep + 0.2, distance(c.rgb, own.rgb));
+  if (kp > 0.0) {
+    float k = abs(c.a - own.a) > 0.3 ? 1.0 : smoothstep(kp, kp + 0.2, distance(c.rgb, own.rgb));
     c = mix(c, own, k);
   }
-  c.rgb *= mix(1.0, s.z, ink);
+  c.rgb *= mix(1.0, s.z, ik);
   // edge : un trait d'encre léger le long des bords nets (les formes se lisent)
   if (edge > 0.0) {
     float e = max(max(distance(own, at1(g + vec2(1.0, 0.0))), distance(own, at1(g - vec2(1.0, 0.0)))), max(distance(own, at1(g + vec2(0.0, 1.0))), distance(own, at1(g - vec2(0.0, 1.0)))));
@@ -131,17 +135,16 @@ export class BrushGL {
     set('wide', 2, strokeMap({ len: 6.5, wid: 2.4, curve: 0.18, seed: 5 }));
     set('huge', 4, strokeMap({ len: 11, wid: 3.6, curve: 0.22, seed: 7 }));
     set('mid', 6, strokeMap({ len: 4, wid: 1.7, curve: 0.14, seed: 17 }));
-    // (le premier plan : des touches un peu plus longues et plus droites, moins nombreuses : un trait plus continu)
-    set('line', 7, strokeMap({ len: 5, wid: 1.4, curve: 0.04, seed: 19 }));
     set('tiny', 5, strokeMap({ len: 1.25, wid: 0.75, curve: 0.06, seed: 13 }));
     // le grain du papier (64 × 64 pixels de jeu, à 4 texels par pixel : 256)
     const gr = new Uint8Array(256 * 256 * 4), r = rand(9);
     for (let i = 0; i < 256 * 256; i++) { const v = 128 + (r() - 0.5) * 120; gr[i * 4] = gr[i * 4 + 1] = gr[i * 4 + 2] = v; gr[i * 4 + 3] = 255; }
     this.grain = tex(3, gr, 256, true);
     this.srcTex = tex(0, null, 0, false);
+    this.maskTex = tex(7, null, 0, false);   // (le masque de la terre sous le sol : elle garde le pinceau libre)
     this.u = {};
-    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft', 'keep', 'amp', 'edge']) this.u[n] = gl.getUniformLocation(pr, n);
-    gl.uniform1i(this.u.src, 0); gl.uniform1i(this.u.grain, 3);
+    for (const n of ['src', 'mapF', 'mapW', 'grain', 'size', 'cam', 'detail', 'wide', 'ink', 'paper', 'soft', 'keep', 'amp', 'edge', 'mask', 'hasMask']) this.u[n] = gl.getUniformLocation(pr, n);
+    gl.uniform1i(this.u.src, 0); gl.uniform1i(this.u.grain, 3); gl.uniform1i(this.u.mask, 7);
   }
 
   /**
@@ -170,6 +173,11 @@ export class BrushGL {
     gl.uniform1f(this.u.keep, o.keep ?? 0);
     gl.uniform1f(this.u.amp, o.amp ?? 1);
     gl.uniform1f(this.u.edge, o.edge ?? 0);
+    gl.uniform1f(this.u.hasMask, o.mask ? 1 : 0);
+    if (o.mask) {
+      gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, this.maskTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, o.mask);
+    }
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     ctx.save();
