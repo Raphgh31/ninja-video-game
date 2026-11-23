@@ -4,7 +4,7 @@
 //   lisse  — agrandi en arrondissant les diagonales (Scale2x deux fois) : des traits nets, sans escaliers ;
 //   doux   — lisse, et le bord de la silhouette adouci d'un quart de pixel ;
 //   encre  — doux, et le contour un peu fondu dans les couleurs du ninja (il ressort moins) ;
-//   fin    — lisse, la silhouette affinée d'un quart de pixel : des traits plus fins ;
+//   fin    — lisse, la silhouette affinée d'un quart de pixel : des traits plus fins (CHOISI, 23 nov. 2026) ;
 //   lavis  — doux, les couleurs accordées à la peinture (un rien moins vives, un grain de papier).
 import { canvas } from '../game/potager/paint.js';
 

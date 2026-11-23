@@ -162,8 +162,9 @@ const NINJA_STYLE = new URLSearchParams(location.search).get('ninja');
 function wearSkin(id) {
   look = skins[id] ?? skins.encre;
   if (paintedMode) {                      // style peint : la feuille du skin, repeinte au pinceau (une fois)
-    // le ninja, seul élément net du jeu peint : style à l'essai (?ninja=…), sinon repeint au pinceau
-    look.painted ??= { ...look, sheet: NINJA_STYLES.includes(NINJA_STYLE) ? crispSheet(look.sheet, NINJA_STYLE) : paintSheet(look.sheet, { seed: 41 }) };
+    // le ninja, seul élément net du jeu peint : trait fin (choix de Raph, style E) ; ?ninja=… pour un autre
+    // style (pixel, lisse, doux, encre, lavis), ?ninja=peint pour l'ancien ninja au pinceau
+    look.painted ??= { ...look, sheet: NINJA_STYLE === 'peint' ? paintSheet(look.sheet, { seed: 41 }) : crispSheet(look.sheet, NINJA_STYLES.includes(NINJA_STYLE) ? NINJA_STYLE : 'fin') };
     look = look.painted;
   }
 }
