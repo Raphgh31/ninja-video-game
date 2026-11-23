@@ -224,8 +224,9 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
   image-rendering: pixelated; image-rendering: crisp-edges; }
 
 /* panneau de la version de test : skins, chapitres, zones (en haut à droite de l'image), derrière le bouton « Réglages » */
-.lab { position: absolute; z-index: 6; top: 5px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }   /* au-dessus de l'intro (3), du menu (4) et des cartes de chapitre (5) */
+.lab { position: absolute; z-index: 6; top: 26px; right: 5px; display: grid; gap: 2px; justify-items: end; pointer-events: none; }   /* au-dessus de l'intro (3), du menu (4) et des cartes de chapitre (5) */
 .lab__panel { display: grid; gap: 2px; justify-items: end; }
+.lab__quick { display: flex; gap: 2px; }
 .lab__panel[hidden] { display: none; }
 .lab .lab__toggle { pointer-events: auto; padding: 1px 5px 2px; background: rgba(20, 16, 12, .78); border: 1px solid #5a4330; }
 .lab .lab__toggle[aria-expanded="true"] { border-color: #8e6a44; color: #fff7e6; }
@@ -240,7 +241,7 @@ body.mobile .touch-layer { position: absolute; left: 0; top: 0; z-index: 1; touc
 .lab button[aria-pressed="true"] { border-color: #8e6a44; background: rgba(142, 106, 68, .35); color: #fff7e6; }
 .lab__row span { color: #fff7e6; padding: 0 3px 1px; }
 .skinlab canvas:not(.pxt) { width: 32px; height: 26px; image-rendering: pixelated; }
-body.mobile .lab { top: 4px; }
+body.mobile .lab { top: 24px; }
 
 /* --- Menus « Les lanternes » (src/game/menu.js, dessin src/game/menuart.js ; salon : arena/lobby.js) ---
    Chaque écran est une scène peinte (.m-scene, à la taille de l'image de jeu) ; textes et boutons y

@@ -958,7 +958,16 @@ function setupSkinLab() {
     labSet('open', open ? '1' : '0');
   }
   setOpen(labGet('open') === '1');      // fermé au premier lancement, puis comme on l'a laissé
-  lab.append(toggle, panel);
+  // à côté de « Réglages » : passer directement au jour ou à la nuit (le libellé dit où l'on va)
+  const sky = button('Nuit', 'Passer directement au jour ou à la nuit', () => { cycle.set(cycle.night > 0.5 ? 'midi' : 'nuit'); skyLabel(); });
+  sky.className = 'lab__toggle';
+  sky.dataset.labSky = '';
+  const skyLabel = () => { sky.textContent = cycle.night > 0.5 ? 'Jour' : 'Nuit'; };
+  setInterval(skyLabel, 1000);          // (le cycle avance tout seul)
+  const quick = document.createElement('div');
+  quick.className = 'lab__quick';
+  quick.append(sky, toggle);
+  lab.append(quick, panel);
   uiLayer.append(lab);
   pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
 }
@@ -991,9 +1000,9 @@ function lightSources() {
   for (const c of level.checkpoints) S.push({ x: c.x, y: c.y - 28, k: c.lit ? 1 : 0.5, r: 1 });
   for (const p of level.props ?? []) {
     if (p.type === 'lantern_stone') S.push({ x: p.x * TILE + 8, y: p.y * TILE - 22, k: 0.8, r: 0.8 });
-    else if (p.type === 'stall') { const X = p.x * TILE + 8, Y = p.y * TILE; S.push({ x: X - 34, y: Y - 40, k: 0.55, r: 0.7 }, { x: X + 36, y: Y - 40, k: 0.55, r: 0.7 }); }
+    else if (p.type === 'stall') { const X = p.x * TILE + 8, Y = p.y * TILE; S.push({ x: X - 34, y: Y - 40, k: 0.75, r: 0.8 }, { x: X + 36, y: Y - 40, k: 0.75, r: 0.8 }); }
   }
-  if (level.merchant && level.theme === 'foret') S.push({ x: level.merchant.x + 14, y: level.merchant.y - 36, k: 0.5, r: 0.7 });
+  if (level.merchant && level.theme === 'foret') S.push({ x: level.merchant.x + 14, y: level.merchant.y - 36, k: 0.7, r: 0.8 });
   for (const c of level.coins) if (!c.taken) S.push({ x: c.x, y: c.y, k: 0.3, r: 0.32 });
   return S;
 }

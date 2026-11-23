@@ -189,14 +189,14 @@ export class Lights {
     dg.globalCompositeOperation = 'destination-out';
     wg.clearRect(0, 0, w, h);
     for (const s of sources) {
-      const x = s.x - cam.x, y = s.y - cam.y, R = 44 * s.r;
+      const x = s.x - cam.x, y = s.y - cam.y, R = 52 * s.r;
       if (x < -R || x > w + R || y < -R || y > h + R) continue;
       const fl = 0.93 + 0.07 * Math.sin(cycle.t * 7 + s.x);
       let gr = dg.createRadialGradient(x, y, 0, x, y, R);
-      gr.addColorStop(0, `rgba(0,0,0,${(0.66 * s.k * fl).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gr.addColorStop(0, `rgba(0,0,0,${(0.78 * s.k * fl).toFixed(3)})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
       dg.fillStyle = gr; dg.fillRect(x - R, y - R, R * 2, R * 2);
       gr = wg.createRadialGradient(x, y, 0, x, y, R * 0.8);
-      gr.addColorStop(0, `rgba(255,170,90,${(0.22 * s.k * n * fl).toFixed(3)})`); gr.addColorStop(1, 'rgba(255,170,90,0)');
+      gr.addColorStop(0, `rgba(255,170,90,${(0.34 * s.k * n * fl).toFixed(3)})`); gr.addColorStop(1, 'rgba(255,170,90,0)');
       wg.fillStyle = gr; wg.fillRect(x - R, y - R, R * 2, R * 2);
     }
     dg.globalCompositeOperation = 'source-over';
@@ -257,10 +257,10 @@ export class Lights {
     }
     // halos des lanternes (plus présents la nuit)
     for (const s of sources) {
-      const x = s.x - cam.x, y = s.y - cam.y, R = (16 + 14 * n) * s.r * 1.6;
+      const x = s.x - cam.x, y = s.y - cam.y, R = (18 + 18 * n) * s.r * 1.6;
       if (x < -R || x > w + R || y < -R || y > h + R) continue;
       const fl = 0.9 + 0.1 * Math.sin(time * 6.3 + s.x * 0.1) * Math.sin(time * 3.1 + s.y);
-      const a = (0.16 + 0.24 * n) * s.k * fl;
+      const a = (0.2 + 0.34 * n) * s.k * fl;
       const gr = g.createRadialGradient(x, y, 0, x, y, R);
       gr.addColorStop(0, `rgba(255,190,110,${a.toFixed(3)})`); gr.addColorStop(0.35, `rgba(255,160,80,${(a * 0.45).toFixed(3)})`); gr.addColorStop(1, 'rgba(255,150,70,0)');
       g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2, R * 2);
