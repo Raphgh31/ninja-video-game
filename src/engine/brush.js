@@ -1,151 +1,98 @@
-// Le « pinceau » : repeint une image en pixels en petites touches d'aquarelle (essai du 22 novembre 2026,
-// demande de Raph : variante B, des touches petites au premier plan et sur les détails, plus larges au
-// loin ; elles suivent les formes ; contours fins seulement au premier plan ; le ninja traité comme le
-// décor). L'image d'origine reste la source : on retouche les pixels comme avant, le pinceau refait la
-// version peinte tout seul.
+// Le pinceau « à l'avance » : repeint une image fixe (plans du fond, ciel, feuilles de sprites) en touches
+// d'aquarelle, une fois, au chargement. Exactement le même motif de touches que le pinceau en direct de la
+// carte graphique (src/engine/brushgl.js), calculé ici sur le processeur : tout le jeu a la même main.
 //
-// Chaque pixel devient une touche : une ellipse allongée (longueur et largeur en pixels de jeu), de la
-// couleur du pixel (un peu variée), orientée le long des contours (tenseur de structure), dont le bord
-// est un peu plus chargé (le pigment s'accumule) et la fin s'effile. Les touches sont tirées d'un hasard
-// fixé par la position : la même image donne toujours la même peinture (pas de « grouillement »).
-// La sortie est P fois plus fine que l'image (P pixels de toile par pixel de jeu), découpée en tuiles
-// (une toile ne peut pas être trop large).
+// Pour chaque point de la toile finale (4 points par pixel de jeu), on lit le motif : il dit à quelle
+// touche ce point appartient (décalage vers le centre de la touche, et sa teinte) ; le point prend la
+// couleur de l'image au centre de la touche. Touches larges sur les aplats (ciel, montagnes), fines là où
+// l'image est détaillée. Les touches sont accrochées à l'image : une feuille de sprites garde les mêmes
+// touches d'une image à l'autre (le ninja ne « grouille » pas en courant).
 import { canvas } from '../game/potager/paint.js';
+import { strokeMap } from './brushgl.js';
 
-const hash = (x, y, s) => {
-  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+export const P = 4;                 // points de toile par pixel de jeu (la résolution du motif)
+const TILE = 128;                   // un motif couvre 128 × 128 pixels de jeu
+const maps = {};
+const SPECS = {
+  fine: { len: 2.4, wid: 1.25, curve: 0.12, seed: 3 },
+  wide: { len: 6.5, wid: 2.4, curve: 0.18, seed: 5 },
+  huge: { len: 11, wid: 3.6, curve: 0.22, seed: 7 },
+  tiny: { len: 1.25, wid: 0.75, curve: 0.06, seed: 13 },
 };
-
-/** Flou en boîte séparable (rayon r) d'un champ w × h, sur place. */
-function boxBlur(a, w, h, r) {
-  const t = new Float32Array(a.length);
-  for (let y = 0; y < h; y++) {
-    let s = 0;
-    for (let x = -r; x <= r; x++) s += a[y * w + Math.min(w - 1, Math.max(0, x))];
-    for (let x = 0; x < w; x++) {
-      t[y * w + x] = s / (2 * r + 1);
-      s += a[y * w + Math.min(w - 1, x + r + 1)] - a[y * w + Math.max(0, x - r)];
-    }
-  }
-  for (let x = 0; x < w; x++) {
-    let s = 0;
-    for (let y = -r; y <= r; y++) s += t[Math.min(h - 1, Math.max(0, y)) * w + x];
-    for (let y = 0; y < h; y++) {
-      a[y * w + x] = s / (2 * r + 1);
-      s += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x];
-    }
-  }
-}
+function map(name) { return (maps[name] ??= strokeMap(SPECS[name])); }
 
 /**
- * Repeint une toile. o : { P = 3 (finesse), len, wid (taille d'une touche, en pixels de jeu), step = 1
- * (une touche tous les step pixels), jitter (variation des couleurs), rim (bord plus chargé), horiz (touches
- * horizontales, pour le ciel), plume (contour fin autour des formes), seed, tile (largeur d'une tuile) }.
+ * Repeint une toile (ou une image). o : { fine = 'fine', wide = 'wide' | 'huge' | null, detail = 0.32
+ * (seuil, comme le pinceau en direct), ink = 1 (bords des touches), paper = 0.08 (grain), tile = 1024
+ * (largeur d'une tuile, en pixels de jeu), ox, oy (où l'image commence dans le motif) }.
  * Rend { tiles: [{ x0, w, c }], P, w, h } ; à dessiner avec blit().
  */
 export function paintCanvas(src, o = {}) {
-  const P = o.P ?? 3, len = o.len ?? 2, wid = o.wid ?? 1.1, step = o.step ?? 1, seed = o.seed ?? 1;
-  const jitter = o.jitter ?? 0.05, rim = o.rim ?? 0.14, TW = o.tile ?? 1024;
-  if (!src.getContext) { const c = canvas(src.width, src.height); c.getContext('2d').drawImage(src, 0, 0); src = c; }   // (une image chargée)
-  const w = src.width, h = src.height;
+  if (!src.getContext) { const c = canvas(src.width, src.height); c.getContext('2d').drawImage(src, 0, 0); src = c; }
+  const w = src.width, h = src.height, TW = o.tile ?? 1024, Q = o.P ?? P, step = P / Q;
   const sd = src.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
-  // l'orientation : le long des contours (tenseur de structure lissé) ; horizontale dans les aplats
-  const lum = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) lum[i] = sd[i * 4 + 3] < 8 ? 0 : 0.3 * sd[i * 4] + 0.55 * sd[i * 4 + 1] + 0.15 * sd[i * 4 + 2];
-  const jxx = new Float32Array(w * h), jyy = new Float32Array(w * h), jxy = new Float32Array(w * h);
-  if (!o.horiz) {
-    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      const gx = lum[i + 1] - lum[i - 1] + 0.5 * (lum[i - w + 1] - lum[i - w - 1] + lum[i + w + 1] - lum[i + w - 1]);
-      const gy = lum[i + w] - lum[i - w] + 0.5 * (lum[i + w - 1] - lum[i - w - 1] + lum[i + w + 1] - lum[i - w + 1]);
-      jxx[i] = gx * gx; jyy[i] = gy * gy; jxy[i] = gx * gy;
+  const F = map(o.fine ?? 'fine'), Wd = o.wide === null ? null : map(o.wide ?? 'wide');
+  const MS = F.size, detail = (o.detail ?? 0.32) * 255, ink = o.ink ?? 1, paper = o.paper ?? 0.08;
+  const ox0 = o.ox ?? 0, oy0 = o.oy ?? 0, soft = o.soft ?? true;
+  // les couleurs lues à travers un petit flou (comme le pinceau en direct : le tramage se fond dans la touche)
+  // (un flou en boîte 3 × 3, deux fois : le tramage en damier des décors se fond entièrement)
+  let bl = new Float32Array(sd);
+  if (soft) for (let pass = 0; pass < 2; pass++) {
+    const nb = new Float32Array(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4;
+      let r = 0, gg = 0, b = 0, a = 0, n = 0;
+      for (let ay = -1; ay <= 1; ay++) for (let ax = -1; ax <= 1; ax++) {
+        const xx = x + ax, yy = y + ay;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const j = (yy * w + xx) * 4, wa = bl[j + 3] / 255;
+        r += bl[j] * wa; gg += bl[j + 1] * wa; b += bl[j + 2] * wa; a += bl[j + 3]; n += wa;
+      }
+      if (n > 0) { nb[o] = r / n; nb[o + 1] = gg / n; nb[o + 2] = b / n; }
+      nb[o + 3] = a / 9;                      // (la transparence tramée aussi : une brume pleine et douce)
     }
-    const r = Math.max(1, Math.round(len));
-    boxBlur(jxx, w, h, r); boxBlur(jyy, w, h, r); boxBlur(jxy, w, h, r);
+    bl = nb;
+  }
+  const sdRaw = sd;
+  // le détail de l'image, une fois par pixel de jeu : l'écart de couleur le plus grand à 2 pixels autour
+  const det = new Uint8Array(w * h);
+  if (Wd) {
+    const lim = detail * detail;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let m = 0;
+      for (const [ax, ay] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
+        const xx = Math.min(w - 1, Math.max(0, x + ax)), yy = Math.min(h - 1, Math.max(0, y + ay)), j = (yy * w + xx) * 4;
+        const a = bl[i] - bl[j], b = bl[i + 1] - bl[j + 1], c = bl[i + 2] - bl[j + 2], e = bl[i + 3] - bl[j + 3];
+        const q = a * a + b * b + c * c + e * e;
+        if (q > m) m = q;
+      }
+      det[y * w + x] = m > lim ? 1 : 0;
+    }
   }
   const tiles = [];
-  const R = Math.ceil(len) + 1;
   for (let x0 = 0; x0 < w; x0 += TW) {
-    const tw = Math.min(TW, w - x0), OW = tw * P, OH = h * P;
-    const c = canvas(OW, OH), g = c.getContext('2d');
-    const img = g.createImageData(OW, OH), d = img.data;
-    // le fond : l'image d'origine, agrandie (sous les touches, il n'en reste presque rien)
+    const tw = Math.min(TW, w - x0), OW = tw * Q, OH = h * Q;
+    const c = canvas(OW, OH), g = c.getContext('2d'), img = g.createImageData(OW, OH), d = img.data;
     for (let y = 0; y < OH; y++) {
-      const sy = (y / P) | 0;
+      const gy = (y + 0.5) / Q, my = (((((y * step) | 0) + oy0 * P) % MS + MS) % MS) * MS;
       for (let x = 0; x < OW; x++) {
-        const si = (sy * w + x0 + ((x / P) | 0)) * 4, oi = (y * OW + x) * 4;
-        d[oi] = sd[si]; d[oi + 1] = sd[si + 1]; d[oi + 2] = sd[si + 2]; d[oi + 3] = sd[si + 3];
-      }
-    }
-    const A = len * P / 2, B = wid * P / 2;
-    // quatre passes mêlées : les touches se recouvrent dans un ordre qui varie
-    for (let pass = 0; pass < 4; pass++) {
-      for (let y = 0; y < h; y += 1) {
-        for (let x = Math.max(0, x0 - R); x < Math.min(w, x0 + tw + R); x += 1) {
-          if (step > 1 && ((x % step) || (y % step))) continue;
-          const hv = hash(x, y, seed);
-          if (((hv * 4) | 0) !== pass) continue;
-          const si = (y * w + x) * 4, sa = sd[si + 3];
-          if (sa < 10) continue;
-          const i = y * w + x;
-          let ang;
-          if (o.horiz) ang = (hash(x, y, seed + 7) - 0.5) * 0.25;
-          else {
-            const a = jxx[i], b = jyy[i], cxy = jxy[i];
-            const coh = Math.sqrt((a - b) * (a - b) + 4 * cxy * cxy) / (a + b + 1e-3);
-            ang = coh > 0.2 ? 0.5 * Math.atan2(2 * cxy, a - b) + Math.PI / 2 : (hash(x, y, seed + 7) - 0.5) * 0.5;
-            ang += (hash(x, y, seed + 3) - 0.5) * 0.35;
-          }
-          const k = 1 + (hash(x, y, seed + 5) - 0.5) * 2 * jitter;
-          const r0 = sd[si] * k, g0 = sd[si + 1] * k, b0 = sd[si + 2] * k;
-          const sz = 0.8 + hash(x, y, seed + 9) * 0.45;
-          const a2 = A * sz, b2 = B * (0.85 + hash(x, y, seed + 11) * 0.3);
-          const ca = Math.cos(ang), sa2 = Math.sin(ang);
-          const cx = (x - x0 + 0.5) * P + (hash(x, y, seed + 13) - 0.5) * P * 0.6;
-          const cy = (y + 0.5) * P + (hash(x, y, seed + 17) - 0.5) * P * 0.6;
-          const rr = Math.ceil(a2) + 1;
-          const xa = Math.max(0, Math.floor(cx - rr)), xb = Math.min(OW - 1, Math.ceil(cx + rr));
-          const ya = Math.max(0, Math.floor(cy - rr)), yb = Math.min(OH - 1, Math.ceil(cy + rr));
-          for (let py = ya; py <= yb; py++) {
-            const dy = py + 0.5 - cy;
-            for (let px = xa; px <= xb; px++) {
-              const dx = px + 0.5 - cx;
-              const u = (dx * ca + dy * sa2) / a2, v = (-dx * sa2 + dy * ca) / b2;
-              const e = u * u + v * v;
-              if (e > 1) continue;
-              // la touche s'effile vers sa fin ; son bord est plus chargé
-              const t = (u + 1) / 2;
-              let s = 0.88 * (t > 0.72 ? 1 - (t - 0.72) * 2.2 : 1);
-              if (s <= 0) continue;
-              const dk = e > 0.62 ? 1 - rim : 1;
-              const oi = (py * OW + px) * 4, oa = d[oi + 3];
-              if (oa < 10) { d[oi] = r0 * dk; d[oi + 1] = g0 * dk; d[oi + 2] = b0 * dk; d[oi + 3] = sa * s; continue; }
-              d[oi] += (r0 * dk - d[oi]) * s; d[oi + 1] += (g0 * dk - d[oi + 1]) * s; d[oi + 2] += (b0 * dk - d[oi + 2]) * s;
-              if (sa * s > oa) d[oi + 3] = sa * s;
-            }
-          }
+        const gx = x0 + (x + 0.5) / Q, mi = (my + (((((x * step) | 0) + (x0 + ox0) * P) % MS + MS) % MS)) * 4;
+        let m = F.data;
+        if (Wd) {
+          const cx = Math.min(w - 1, Math.max(0, (gx + (Wd.data[mi] - 128) / 16) | 0)), cy = Math.min(h - 1, Math.max(0, (gy + (Wd.data[mi + 1] - 128) / 16) | 0));
+          if (!det[cy * w + cx]) m = Wd.data;
         }
-      }
-    }
-    // le contour fin, à la plume, autour des formes (le premier plan)
-    if (o.plume) {
-      const pc = o.plumeCol ?? [40, 32, 26], pa = o.plumeA ?? 0.5;
-      const al = new Uint8Array(OW * OH);
-      for (let i = 0; i < OW * OH; i++) al[i] = d[i * 4 + 3] > 120 ? 1 : 0;
-      for (let y = 1; y < OH - 1; y++) for (let x = 1; x < OW - 1; x++) {
-        const i = y * OW + x;
-        if (!al[i] || (al[i - 1] && al[i + 1] && al[i - OW] && al[i + OW])) continue;
-        if (hash(x >> 2, y >> 2, seed + 21) < 0.18) continue;                    // le trait s'interrompt par endroits
-        const s = pa * (0.7 + 0.3 * hash(x, y, seed + 23)), oi = i * 4;
-        d[oi] += (pc[0] - d[oi]) * s; d[oi + 1] += (pc[1] - d[oi + 1]) * s; d[oi + 2] += (pc[2] - d[oi + 2]) * s;
+        const sx2 = Math.min(w - 1, Math.max(0, (gx + (m[mi] - 128) / 16) | 0)), sy2 = Math.min(h - 1, Math.max(0, (gy + (m[mi + 1] - 128) / 16) | 0)), si = (sy2 * w + sx2) * 4;
+        const k = (1 + (m[mi + 2] / 200 - 1) * ink) * (1 + (((x * 7 + y * 13) % 17) / 17 - 0.5) * paper * 0.6);
+        const oi = (y * OW + x) * 4;
+        d[oi] = bl[si] * k; d[oi + 1] = bl[si + 1] * k; d[oi + 2] = bl[si + 2] * k; d[oi + 3] = bl[si + 3];
       }
     }
     g.putImageData(img, 0, 0);
     tiles.push({ x0, w: tw, c });
   }
-  return { tiles, P, w, h };
+  return { tiles, P: Q, w, h };
 }
 
 /**
@@ -153,18 +100,70 @@ export function paintCanvas(src, o = {}) {
  * (par défaut sw × sh) : comme ctx.drawImage, mais à travers les tuiles.
  */
 export function blit(ctx, pc, sx, sy, sw, sh, dx, dy, dw = sw, dh = sh) {
-  const kx = dw / sw, ky = dh / sh, P = pc.P;
+  const kx = dw / sw, Q = pc.P;
   for (const t of pc.tiles) {
     const a = Math.max(sx, t.x0), b = Math.min(sx + sw, t.x0 + t.w);
     if (b <= a) continue;
-    ctx.drawImage(t.c, (a - t.x0) * P, sy * P, (b - a) * P, sh * P, dx + (a - sx) * kx, dy, (b - a) * kx, dh);
+    ctx.drawImage(t.c, (a - t.x0) * Q, sy * Q, (b - a) * Q, sh * Q, dx + (a - sx) * kx, dy, (b - a) * kx, dh);
   }
 }
 
-/** Une feuille de sprites repeinte : une seule toile (pas de tuiles), avec son facteur P. */
+/** Une feuille de sprites (ou toute petite image) repeinte : une seule toile, avec son facteur P. */
 export function paintSheet(sheet, o = {}) {
-  const pc = paintCanvas(sheet, { len: 1.6, wid: 1.0, jitter: 0.04, rim: 0.12, tile: 1 << 20, ...o });
+  const pc = paintCanvas(sheet, { fine: 'tiny', wide: null, ink: 0.45, soft: false, tile: 1 << 20, ...o });
   const c = pc.tiles[0].c;
   c.P = pc.P;
   return c;
+}
+
+/** Une bande de décor repeinte (une seule toile, finesse Q) : pour les plans du fond de la Forêt. */
+export function paintBand(img, o = {}) {
+  const pc = paintCanvas(img, { P: 2, wide: 'wide', tile: 1 << 20, ...o });
+  const c = pc.tiles[0].c;
+  c.P = pc.P;
+  return c;
+}
+
+/**
+ * Un texte (ou un petit pictogramme) au pinceau, lisible même petit : les lettres sont agrandies en douceur,
+ * puis leurs bords deviennent irréguliers comme un trait d'encre (seuil bruité), avec un léger grain de
+ * touche dans la couleur. Les lettres gardent leur forme : on n'y déplace pas les couleurs.
+ */
+export function paintText(src, o = {}) {
+  const Q = o.P ?? P, w = src.width, h = src.height, OW = w * Q, OH = h * Q;
+  const up = canvas(OW, OH), ug = up.getContext('2d', { willReadFrequently: true });
+  ug.imageSmoothingEnabled = true;
+  ug.imageSmoothingQuality = 'high';
+  ug.filter = `blur(${Q * 0.32}px)`;
+  ug.drawImage(src, 0, 0, OW, OH);
+  ug.filter = 'none';
+  const u = ug.getImageData(0, 0, OW, OH).data;
+  const sd = (src.getContext ? src : (() => { const c = canvas(w, h); c.getContext('2d').drawImage(src, 0, 0); return c; })()).getContext('2d').getImageData(0, 0, w, h).data;
+  const F = map('fine'), MS = F.size, seed = o.seed ?? 3;
+  const out = canvas(OW, OH), og = out.getContext('2d'), img = og.createImageData(OW, OH), d = img.data;
+  for (let y = 0; y < OH; y++) for (let x = 0; x < OW; x++) {
+    const i = (y * OW + x) * 4, a = u[i + 3];
+    if (a < 8) continue;
+    const mi = ((((y + seed * 7) % MS) * MS) + ((x + seed * 13) % MS)) * 4;
+    // le bord : un seuil qui ondule avec les touches (l'encre mord un peu, ou manque)
+    const wob = (F.data[mi] - 128) / 255 * 0.5 + ((x * 7 + y * 13) % 11) / 11 * 0.12;
+    const t = a / 255 - 0.42 - wob * 0.35;
+    if (t <= 0) continue;
+    const al = Math.min(1, t * 5);
+    // la couleur : celle du pixel d'origine (sans moyenne : un liseré garde sa couleur), un grain de touche
+    const sx = Math.min(w - 1, (x / Q) | 0), sy = Math.min(h - 1, (y / Q) | 0), si = (sy * w + sx) * 4;
+    let si2 = si;
+    if (sd[si + 3] < 8) {                       // bord adouci, hors des pixels pleins : le voisin le plus plein
+      let best = -1;
+      for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const xx = Math.min(w - 1, Math.max(0, sx + ax)), yy = Math.min(h - 1, Math.max(0, sy + ay)), j = (yy * w + xx) * 4;
+        if (sd[j + 3] > best) { best = sd[j + 3]; si2 = j; }
+      }
+    }
+    const k = 0.9 + (F.data[mi + 2] / 200) * 0.1;
+    d[i] = sd[si2] * k; d[i + 1] = sd[si2 + 1] * k; d[i + 2] = sd[si2 + 2] * k; d[i + 3] = 255 * al;
+  }
+  og.putImageData(img, 0, 0);
+  out.P = Q;
+  return out;
 }

@@ -1,3 +1,4 @@
+import { renderSmooth } from './engine/pixelfont.js';
 import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
@@ -18,9 +19,10 @@ import { drawAura as drawAura0 } from './game/aura.js';
 import { Mist } from './game/mist.js';
 import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
-import { pixelUI } from './engine/pixelui.js';
+import { pixelUI, setBrushText } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
 import { paintSheet } from './engine/brush.js';
+import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
@@ -60,6 +62,7 @@ const bgCtx = bgCanvas.getContext('2d');
 let bgK = 1;   // pixels d'écran par pixel de jeu
 let GK = 1;    // pixels de la toile du jeu par pixel de jeu (style peint : comme le paysage)
 let paintedMode = false;
+const hudText = [];   // style peint : les textes de l'interface, posés après le pinceau
 // calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
 const touchCanvas = MOBILE ? document.createElement('canvas') : null;
 const touchCtx = touchCanvas?.getContext('2d');
@@ -120,6 +123,8 @@ function fit() {
     bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
   GK = paintedMode ? bgK : 1;
+  brushView.k = bgK; brushView.on = paintedMode;
+  if (paintedMode && (passCanvas.width !== VIEW_W || passCanvas.height !== VIEW_H)) { passCanvas.width = VIEW_W; passCanvas.height = VIEW_H; passCtx.imageSmoothingEnabled = false; }
   if (canvas.width !== VIEW_W * GK || canvas.height !== VIEW_H * GK) {
     canvas.width = VIEW_W * GK;
     canvas.height = VIEW_H * GK;
@@ -216,7 +221,11 @@ const level = new Level(LEVEL_ID);
 // d'aquarelle ; le calque du jeu est alors dessiné plus finement (GK pixels de toile par pixel de jeu).
 // ?peint=0 dans l'adresse : le pixel art d'avant.
 const PAINTED = !!level.painted;
+const brush = brushGL();
+const passCanvas = document.createElement('canvas');
+const passCtx = passCanvas.getContext('2d', { willReadFrequently: false });
 paintedMode = PAINTED;
+brushView.on = PAINTED;
 if (PAINTED) { fit(); wearSkin(look.id ?? 'encre'); }
 if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
@@ -254,7 +263,7 @@ if (level.boss?.type === 'karasu') {
   const kbase = './characters/karasu';
   const kmeta = await loadJson(`${kbase}/karasu.json`);
   const [sheet, perch, items] = await Promise.all([kmeta.image, kmeta.perchImage, kmeta.itemImage].map((f) => loadImage(`${kbase}/${f}`)));
-  boss = new Karasu(kmeta, { sheet, perch, items }, level.boss, level);
+  boss = new Karasu(kmeta, PAINTED ? { sheet: paintSheet(sheet, { ox: 3 }), perch: paintSheet(perch, { ox: 7 }), items } : { sheet, perch, items }, level.boss, level);
   enemies.push(boss);
   shurikens.enemies.push(boss);
 }
@@ -680,6 +689,7 @@ function startRoom(cfg) {
     }
   };
   multi = new Multi({
+    painted: PAINTED,
     net, player, shurikens, level, levelId: LEVEL_ID, meta, skins, skinId: () => look.id,
     onEvent(n, d) {
       if (n === 'roster') { showList(); lobby?.render(); }
@@ -1215,6 +1225,12 @@ function draw() {
   const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
   ctx.setTransform(GK, 0, 0, GK, 0, 0);
   ctx.imageSmoothingEnabled = false;
+  // style peint : le monde se dessine d'abord en pixels sur une toile à part (W), puis le pinceau de la carte
+  // graphique le repeint dans l'image (touches accrochées au monde) ; les personnages, repeints à l'avance,
+  // se posent par-dessus ; puis le premier plan et les effets, repeints de même ; puis l'interface.
+  const B = PAINTED && brush.ok;
+  const W = B ? passCtx : ctx;
+  if (B) { passCtx.setTransform(1, 0, 0, 1, 0, 0); passCtx.clearRect(0, 0, VIEW_W, VIEW_H); }
   if (level.art) {
     // paysage : position exacte de la caméra, arrondie au pixel d'écran
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
@@ -1222,43 +1238,49 @@ function draw() {
     level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
   }
-  level.draw(ctx, cam, VIEW_W, VIEW_H);
-  level.drawTargets(ctx, cam);
-  level.drawProps(ctx, cam);
-  arenaArt?.drawBack(ctx, cam, level.time);
-  boss?.drawBack(ctx, cam);
-  shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
+  level.draw(W, cam, VIEW_W, VIEW_H);
+  level.drawTargets(W, cam);
+  level.drawProps(W, cam);
+  arenaArt?.drawBack(W, cam, level.time);
+  boss?.drawBack(W, cam);
+  shurikens.drawStuck(W, look.projectiles.shuriken, cam);
+  if (B) brush.paint(ctx, passCanvas, GK, { cam });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
-  if (!behindGate()) mist.draw(ctx, cam);
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
-  level.drawForeground(ctx, cam);
-  arenaArt?.drawFront(ctx, cam, level.time);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
-  fx.draw(ctx, cam);
+  if (B) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+  if (!behindGate()) mist.draw(W, cam);
+  level.drawForeground(W, cam);
+  arenaArt?.drawFront(W, cam, level.time);
+  shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
+  fx.draw(W, cam);
+  if (B) brush.paint(ctx, passCanvas, GK, { cam });
   if (run.title) return;   // écran titre : le décor seul, sans interface
+  // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
+  const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
     if (t.gone || t.noBar) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
     const top = t instanceof Wara ? 34 + Math.round(t.lift) : 38;   // au-dessus du chapeau (personnages agrandis de 20 %)
-    t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
+    t.bar.draw(U, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn' && !behindGate()) {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
+    kageBar.draw(U, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
-  player.energy.draw(ctx, 13, 13, { always: true });
-  shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
+  player.energy.draw(U, 13, 13, { always: true });
+  shurikens.drawHud(U, look.projectiles.shuriken, 26, 8);
   // ryō : sous les shurikens (dans un chapitre)
-  if (save) drawRyo(ctx, 27, 19, save.ryo);
+  if (save) drawRyo(U, 27, 19, save.ryo);
   // chronomètre centré en haut, hors chapitre (le coin haut-droit accueille le bouton du son sur mobile)
-  if (level.goal && !CHAPTER) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
+  if (level.goal && !CHAPTER) drawTime(U, Math.round(VIEW_W / 2 + 9), 5, run.time);
+  for (const f of hudText.splice(0)) f();
   if (touch) {
     touchCtx.clearRect(0, 0, touchCanvas.width, touchCanvas.height);
     touch.draw(touchCtx);
@@ -1762,6 +1784,10 @@ const DIGITS = {
 };
 function drawTime(c, right, y, t, label = null) {
   const text = label ?? fmt(t);
+  if (PAINTED && brush.ok) {          // style peint : une écriture lisse, posée sur l'image finale (pas repeinte)
+    hudText.push(() => smoothText(ctx, renderSmooth, text, right + 3, y - 4, { color: '#e9e5da', outline: '#06070a' }, 'right'));
+    return;
+  }
   let x = right - text.length * 4 + 1;
   for (const ch of text) {
     const bits = DIGITS[ch];
@@ -1792,8 +1818,14 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 fit();
+setBrushText(PAINTED);
 pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
+// le jeu est peint : l'écran de chargement s'efface (après la première image)
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const ld = document.querySelector('.loading');
+  if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 700); }
+}));
 
 // Accès pour les tests automatisés.
 window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },

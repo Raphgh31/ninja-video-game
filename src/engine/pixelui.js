@@ -8,7 +8,11 @@
 //   --pxf : small | big | title      --pxw : largeur maximale (retour à la ligne)
 //   --pxs : interlettrage (pixels)   --pxo : couleur d'un contour d'un pixel
 //   --pxl : pixels ajoutés entre deux lignes
-import { renderText } from './pixelfont.js';
+import { renderText, renderSmooth } from './pixelfont.js';
+
+// style peint (novembre 2026) : les textes repeints au pinceau (touches fines), 4 fois plus fins que le jeu
+let brushText = false;
+export function setBrushText(on) { brushText = !!on; }
 
 const cache = new WeakMap();   // élément → { key, cv }
 
@@ -43,11 +47,13 @@ function paint(el) {
     if (old.cv.parentNode !== el) el.append(old.cv);
     return;
   }
-  const cv = renderText(shown, opts);
-  cv.className = 'pxt';
+  const px = renderText(shown, opts);
+  let cv = px;
+  if (brushText) cv = renderSmooth(shown, opts);   // (style peint : une écriture lisse, élégante)
+  cv.className = cv !== px ? 'pxt brush' : 'pxt';
   cv.setAttribute('aria-hidden', 'true');
-  cv.style.setProperty('--pw', cv.width);
-  cv.style.setProperty('--ph', cv.height);
+  cv.style.setProperty('--pw', cv.width / (cv.P ?? 1));
+  cv.style.setProperty('--ph', cv.height / (cv.P ?? 1));
   old?.cv.remove();
   el.append(cv);
   cache.set(el, { key, cv });

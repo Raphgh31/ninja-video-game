@@ -270,7 +270,7 @@ export class Live {
       this.merchantArt.draw(ctx, sx - 3, sy + 5, time, false);
       ctx.restore();
       drawCounter(ctx, sx, sy);
-      for (const lx of [-26, 24]) {
+      for (const lx of [-36, 34]) {
         const sw = R(Math.sin(time * 1.8 + lx) * 1.5);
         ctx.fillStyle = '#3a2e22'; ctx.fillRect(sx + lx + 2, sy - 50, 1, 6);
         ctx.fillStyle = C.RED[3]; ctx.fillRect(sx + lx + sw, sy - 44, 6, 8);

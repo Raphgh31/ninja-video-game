@@ -7,7 +7,8 @@
 // Tout est peint en pixels de jeu (1 pixel de canvas = 1 pixel de jeu) : les parties fixes une fois
 // (couche « base »), ce qui vit à chaque image (flammes, lueurs, ninjas, coups de pinceau).
 import { canvas, pick, ih, noise1, bayer, rgb } from './potager/paint.js';
-import { renderText } from '../engine/pixelfont.js';
+import { renderText, renderSmooth } from '../engine/pixelfont.js';
+import { smoothText } from '../engine/brushgl.js';
 
 export const INK = '#e9e5da';
 const STONE = ['#0f131b', '#171d28', '#212a38', '#2e3a4e', '#43536c'];
@@ -257,8 +258,13 @@ export function inkGlyph(ch, font = 'big', color = '#1b120b') {
   return s;
 }
 
-/** Écrit un signe au centre de la tablette (centré sur ses pixels, jamais hors du bois). */
-export function drawSign(g, tab, ch, dy = 0) {
+/** Écrit un signe au centre de la tablette (centré sur ses pixels, jamais hors du bois). top : style peint (lisse). */
+export function drawSign(g, tab, ch, dy = 0, top = null) {
+  if (top) {
+    const b = tab.body;
+    smoothText(top, renderSmooth, ch, b.x + b.w / 2, b.y + (b.h - 24) / 2 - 1 + dy, { font: 'big', color: '#1b120b' }, 'center');
+    return;
+  }
   const b = tab.body;
   let s = inkGlyph(ch, 'big');
   if (s && (s.w > b.w - 4 || s.h > b.h - 4)) s = inkGlyph(ch, 'small');

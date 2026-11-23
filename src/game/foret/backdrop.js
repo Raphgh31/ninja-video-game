@@ -12,6 +12,7 @@
 // KAGE grimpe (ascension, canopée), la forêt lointaine descend sous lui ; quand il
 // dévale la pente, elle remonte. Les bandes se prolongent vers le haut (fûts) et
 // vers le bas (sous-bois) : aucune coupe ne se voit, quelle que soit la hauteur.
+import { paintBand } from '../../engine/brush.js';
 import { canvas, ih, pick, bayer, hazeRamp } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
@@ -292,14 +293,29 @@ export class ForetBackdrop {
   /** Peint ce qui manque d'une lumière (tout, ou une seule pièce si !all). Renvoie true s'il a peint. */
   need(mood, all = false) {
     const m = C.MOODS[mood] ?? C.MOODS.sousbois, s = this.set(mood);
+    s.used = performance.now();
     for (const pl of PLANES) {
       if (s.planes[pl.id]) continue;
-      s.planes[pl.id] = paintPlane(pl.id, m);
+      s.planes[pl.id] = this.brushed(paintPlane(pl.id, m), PLANES.indexOf(pl));
       if (!all) return true;
     }
-    if (!s.vault && !m.cave && !m.crowns) { s.vault = paintVault(m); if (!all) return true; }
-    if (!s.rays && !m.cave) { s.rays = paintRays(m); if (!all) return true; }
+    if (!s.vault && !m.cave && !m.crowns) { s.vault = this.brushed(paintVault(m), 20); if (!all) return true; }
+    if (!s.rays && !m.cave) { s.rays = this.brushed(paintRays(m), 21); if (!all) return true; }
     return false;
+  }
+
+  /** Style peint : une bande repeinte au pinceau (touches larges au loin) ; sinon telle quelle. */
+  brushed(img, i) {
+    if (!this.level.painted) return img;
+    this.forget();
+    return paintBand(img, { wide: i < 2 ? 'huge' : 'wide', ox: i * 41, oy: i * 17 });
+  }
+
+  /** On ne garde peintes que les trois lumières vues le plus récemment (la mémoire des téléphones). */
+  forget() {
+    const moods = Object.entries(this.sets).filter(([, s]) => Object.keys(s.planes).length).sort((a, b) => (b[1].used ?? 0) - (a[1].used ?? 0));
+    const now = performance.now();
+    for (const [, s] of moods.slice(4)) if (now - (s.used ?? 0) > 4000) { s.planes = {}; s.vault = null; s.painted = null; }
   }
 
   ready(mood) {
@@ -348,7 +364,7 @@ export class ForetBackdrop {
       g.drawImage(src, 0, 0);
       g.globalCompositeOperation = 'source-atop';
       g.globalAlpha = t[1]; g.fillStyle = t[0]; g.fillRect(0, 0, c.width, c.height);
-      s.range = c;
+      s.range = this.level.painted && c.width * 2 < 30000 ? paintBand(c, { wide: 'huge', ox: 5 }) : c;
     }
     return s.range;
   }
@@ -445,9 +461,10 @@ export class ForetBackdrop {
 
   drawMood(ctx, mood, cam, viewW, viewH, time) {
     const s = this.sets[mood], m = C.MOODS[mood] ?? C.MOODS.sousbois, K = SKIES[mood];
+    s.used = performance.now();
     if (K) {
       this.skyOf(mood, viewH);
-      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      this.drawSky(ctx, s, viewW, viewH);
       if (s.stars) {
         ctx.fillStyle = '#f4ecff';
         for (const st of s.stars) {
@@ -467,18 +484,20 @@ export class ForetBackdrop {
       if (rg) {
         const base = this.q(viewH * GROUND_AT + RANGE.drop + (this.refRow(cam.x + 240) * TILE - cam.y - viewH * GROUND_AT) * RANGE.fy);
         const off = this.q(cam.x * RANGE.fx), sx = Math.floor(off);
-        const w = Math.min(viewW + 1, rg.width - sx);
-        if (w > 0) ctx.drawImage(rg, sx, 0, w, rg.height, -(off - sx), base - this.mountains.plane.base, w, rg.height);
+        const Q = rg.P ?? 1, w = Math.min(viewW + 1, rg.width / Q - sx);
+        if (w > 0) ctx.drawImage(rg, sx * Q, 0, w * Q, rg.height, -(off - sx), base - this.mountains.plane.base, w, rg.height / Q);
       }
       const span = 2400;
       for (const c of s.clouds) {
         const x = ((c.x + time * c.speed - cam.x * c.f) % span + span) % span - 260;
         if (x > viewW || x + c.img.width < 0) continue;
-        ctx.drawImage(c.img, this.q(x), this.q(c.y * viewH));
+        if (this.level.painted) c.pimg ??= paintBand(c.img, { wide: 'wide', ox: c.x | 0 });
+        const im = c.pimg ?? c.img, Q = im.P ?? 1;
+        ctx.drawImage(im, this.q(x), this.q(c.y * viewH), im.width / Q, im.height / Q);
       }
     } else {
-      if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; }
-      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; s.painted = null; }
+      this.drawSky(ctx, s, viewW, viewH);
     }
     for (const pl of PLANES) {
       // un décor lointain glissé entre deux plans (l'arène : le temple, la statue) : avant le plan pl
@@ -511,14 +530,26 @@ export class ForetBackdrop {
     }
   }
 
+  /** Le ciel : son dégradé, ou (style peint) le même repeint en grandes touches, refait si la taille change. */
+  drawSky(ctx, s, viewW, viewH) {
+    if (!this.level.painted) { ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH); return; }
+    if (!s.painted || s.painted.w !== viewW || s.painted.sky !== s.sky) {
+      const c = canvas(viewW, viewH), g = c.getContext('2d');
+      g.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      s.painted = { w: viewW, sky: s.sky, c: paintBand(c, { wide: 'huge', detail: 1, ink: 0.7 }) };
+    }
+    const c = s.painted.c;
+    ctx.drawImage(c, 0, 0, c.width, c.height, 0, 0, viewW, viewH);
+  }
+
   /** Recopie une bande périodique (décalage off) à la hauteur y. */
   tile(ctx, img, off, y, h, viewW, sy = 1) {
     let sx = ((off % W) + W) % W;
     const fl = Math.floor(sx), frac = sx - fl;
     let dx = -frac, x = fl;
     while (dx < viewW) {
-      const w = Math.min(W - x, viewW - dx + 1);
-      ctx.drawImage(img, x, 0, w, h, dx, y, w, h * sy);
+      const w = Math.min(W - x, viewW - dx + 1), Q = img.P ?? 1;
+      ctx.drawImage(img, x * Q, 0, w * Q, h * Q, dx, y, w, h * sy);
       dx += w; x = 0;
     }
   }
@@ -530,8 +561,8 @@ export class ForetBackdrop {
     const fl = Math.floor(sx), frac = sx - fl;
     let dx = -frac, x = fl;
     while (dx < viewW) {
-      const w = Math.min(W - x, viewW - dx + 1);
-      ctx.drawImage(img, x, sy, w, sh, dx, y, w, h + 0.5);
+      const w = Math.min(W - x, viewW - dx + 1), Q = img.P ?? 1;
+      ctx.drawImage(img, x * Q, sy * Q, w * Q, sh * Q, dx, y, w, h + 0.5);
       dx += w; x = 0;
     }
   }

@@ -88,8 +88,8 @@ export class Level {
     if (this.arena && !this.spawn) this.spawn = this.arena.nextSpawn();
     // chapitre peint (décors calculés une fois, au chargement)
     this.view = { w: 480, h: 270 };
-    // style peint (essai sur le Potager, src/engine/brush.js) ; ?peint=0 : le pixel art d'avant
-    this.painted = this.theme === 'potager' && !this.arena && !/[?&]peint=0\b/.test(globalThis.location?.search ?? '');
+    // style peint (novembre 2026 : src/engine/brush.js, brushgl.js) : les chapitres et les arènes ; ?peint=0 : le pixel art d'avant
+    this.painted = (this.theme === 'potager' || this.theme === 'foret') && !/[?&]peint=0\b/.test(globalThis.location?.search ?? '');
     this.art = this.theme === 'potager' ? new PotagerArt(this) : this.theme === 'foret' ? new ForetArt(this) : null;
   }
 

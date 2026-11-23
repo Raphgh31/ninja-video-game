@@ -1,6 +1,7 @@
 import { drawAura } from './aura.js';
 import { measure } from '../engine/pixelfont.js';
 import { canvas, bayer } from './potager/paint.js';
+import { BrushedCanvas, brushView } from '../engine/brushgl.js';
 import { Pen, INK, stroke, smooth, WOOD } from './menuart.js';
 
 // Boutique du marchand ambulant, refaite le 22 novembre 2026 dans le style des menus « Les lanternes »
@@ -56,7 +57,8 @@ export class Shop {
     this.confirming = false;
     root.replaceChildren();
     root.classList.add('m-lant');
-    this.cv = canvas(1, 1);
+    this.bc = brushView.on ? new BrushedCanvas('m-scene') : null;     // style peint : repeinte à chaque image
+    this.cv = this.bc ? this.bc.el : canvas(1, 1);
     this.cv.className = 'm-scene';
     this.layer = el('div', 'm-layer');
     root.append(this.cv, this.layer);
@@ -113,8 +115,9 @@ export class Shop {
     const W = ui?.offsetWidth || 448, H = ui?.offsetHeight || 252;
     if (this.W === W && this.H === H) return;
     this.W = W; this.H = H;
-    this.cv.width = W; this.cv.height = H;
-    this.g = this.cv.getContext('2d'); this.g.imageSmoothingEnabled = false;
+    if (this.bc) { this.bc.size(W, H); this.g = this.bc.g; }
+    else { this.cv.width = W; this.cv.height = H; this.g = this.cv.getContext('2d'); }
+    this.g.imageSmoothingEnabled = false;
     this.shelfY = H - 46;                  // le dessus de l'étagère
     this.floorY = this.shelfY - 46;        // le sol du skin choisi : bien au-dessus de l'étagère, sous la lanterne
     // la couche fixe : le voile sombre et l'étagère de bois (sur toute la largeur)
@@ -328,5 +331,6 @@ export class Shop {
       const s = f.stroke;
       stroke(g, s.cx, s.y, s.len, smooth((t - this.strokeAt) / 0.22), s.col ?? INK, s.tail);
     } else this.strokeFor = null;
+    this.bc?.present({ fine: 'tiny' });   // (des touches fines : le skin, agrandi, se reconnaît)
   }
 }

@@ -789,10 +789,10 @@ export class Backdrop {
     // style peint (variante B) : chaque plan repeint une fois au pinceau, des touches plus larges au loin
     this.painted = !!level.painted;
     if (this.painted) {
-      const P = [[this.far, 4.5, 2.2, 2], [this.mid, 3.8, 1.9, 2], [this.foot, 3, 1.5, 1], [this.village, 2.6, 1.3, 1], [this.near, 2.4, 1.2, 1]];
+      const P = [[this.far, 'huge'], [this.mid, 'huge'], [this.foot, 'wide'], [this.village, 'wide'], [this.near, 'wide']];
       time('pinceau', () => {
-        P.forEach(([st, len, wid, step], i) => { st.pc = paintCanvas(st.img, { len, wid, step, seed: 11 + i, rim: i < 2 ? 0.08 : 0.14 }); });
-        this.fore.pc = paintCanvas(this.fore.img, { len: 2.4, wid: 1.2, seed: 19, plume: true, plumeA: 0.35 });
+        P.forEach(([st, wide]) => { st.pc = paintCanvas(st.img, { wide }); });
+        this.fore.pc = paintCanvas(this.fore.img, { wide: 'wide' });
       });
     }
     this.timings = T;
@@ -814,7 +814,7 @@ export class Backdrop {
       const w = 110 + r() * 130, h = 4 + r() * 5;
       this.clouds.push({ img: fineCloud(700 + i, w, h, C.CLOUD), x: i * 290 + r() * 100, y: 0, dy: -(r() * 46), speed: 2.5 + r() * 3, f: 0.05, high: false });
     }
-    if (this.painted) this.clouds.forEach((c, i) => { c.pc = paintCanvas(c.img, { len: 3, wid: 1.6, seed: 31 + i, horiz: true }); });
+    if (this.painted) this.clouds.forEach((c, i) => { c.pc = paintCanvas(c.img, { wide: 'wide', ox: i * 37, oy: i * 11 }); });
   }
 
   /**
@@ -871,7 +871,7 @@ export class Backdrop {
         const c = canvas(viewW, viewH), g = c.getContext('2d');
         g.imageSmoothingEnabled = false;
         g.drawImage(this.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
-        this.skyPc = paintCanvas(c, { len: 9, wid: 3.4, step: 3, seed: 3, horiz: true, jitter: 0.02, rim: 0.04 });
+        this.skyPc = paintCanvas(c, { wide: 'huge', detail: 1, ink: 0.7 });
         this.skyPcW = viewW; this.skyPcH = viewH;
       }
       blit(ctx, this.skyPc, 0, 0, viewW, viewH, 0, 0);

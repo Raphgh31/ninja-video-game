@@ -5,7 +5,6 @@
 // Les tranches sont peintes à la demande (celles qu'on voit d'abord, puis les
 // suivantes une par une pendant le jeu), pour un chargement rapide.
 import { Pix, Brush, canvas } from './paint.js';
-import { paintCanvas, blit } from '../../engine/brush.js';
 import { TileMap, paintTiles, paintOverhangs, paintGrassTops, TILE } from './tiles.js';
 import { paintProp, propLayers, PROP_REACH, autoDecor, groveLeaves } from './props.js';
 
@@ -32,31 +31,10 @@ export class World {
       const g = c.getContext('2d');
       g.translate(-x0, 0);
       paintProp(new Brush(g), p, { level, map: this.map, x0, x1: x0 + w }, 'backdrop');
-      // style peint : la colline repeinte une fois, touches un peu plus larges (elle est au loin)
-      return { x0, c, pc: level.painted ? paintCanvas(c, { len: 2.6, wid: 1.3, seed: 5 }) : null };
+      return { x0, c };
     });
     this.items = this.items.filter((it) => it.p.type !== 'terraces_bg');
     this.next = 0;                       // prochaine tranche à peindre en tâche de fond
-    // style peint : les tranches repeintes au pinceau (src/engine/brush.js), seulement près de la caméra
-    this.painted = !!level.painted;
-    this.pcs = new Map();
-  }
-
-  /** La tranche i repeinte (layer : back | front), faite à la demande ; on n'en garde que quelques-unes. */
-  paintedChunk(i, layer) {
-    const key = `${layer}${i}`;
-    let e = this.pcs.get(key);
-    if (!e) {
-      this.ensure(i);
-      const raw = layer === 'front' ? this.front[i] : this.back[i];
-      e = { i, pc: paintCanvas(raw, { len: 1.9, wid: 1.1, seed: 100 + i, plume: true, plumeA: 0.45 }) };
-      this.pcs.set(key, e);
-      if (this.pcs.size > 10) {                         // les plus loin de celle-ci s'en vont
-        const far = [...this.pcs.entries()].sort((a, b) => Math.abs(b[1].i - i) - Math.abs(a[1].i - i));
-        for (const [k] of far.slice(0, this.pcs.size - 10)) this.pcs.delete(k);
-      }
-    }
-    return e.pc;
   }
 
   /** Peint la tranche i (si ce n'est pas déjà fait). */
@@ -106,13 +84,6 @@ export class World {
     for (let i = a; i <= z; i++) this.ensure(i);
     // d'avance : les tranches voisines, puis tout le reste, une par image
     for (const i of [z + 1, a - 1]) if (i >= 0 && i < this.n && !this.back[i]) { this.ensure(i); return; }
-    if (this.painted) {                                  // la tranche suivante, repeinte d'avance
-      for (const i of [z + 1, a - 1]) {
-        if (i < 0 || i >= this.n) continue;
-        if (!this.pcs.has(`back${i}`)) { this.paintedChunk(i, 'back'); return; }
-        if (!this.frontEmpty[i] && !this.pcs.has(`front${i}`)) { this.paintedChunk(i, 'front'); return; }
-      }
-    }
     while (this.next < this.n && this.back[this.next]) this.next++;
     if (this.next < this.n) this.ensure(this.next);
   }
@@ -121,8 +92,7 @@ export class World {
     const cx = Math.round(cam.x), cy = Math.round(cam.y);
     for (const h of this.hills) {
       if (h.x0 - cx > viewW || h.x0 + h.c.width - cx < 0) continue;
-      if (h.pc) blit(ctx, h.pc, 0, 0, h.c.width, h.c.height, h.x0 - cx, -cy);
-      else ctx.drawImage(h.c, h.x0 - cx, -cy);
+      ctx.drawImage(h.c, h.x0 - cx, -cy);
     }
   }
 
@@ -133,10 +103,8 @@ export class World {
     for (let i = Math.max(0, a); i <= Math.min(this.n - 1, z); i++) {
       this.ensure(i);
       if (layer === 'front' && this.frontEmpty[i]) continue;
-      const sx = i * CHUNK - cx, sy = Math.max(0, cy), sh = Math.min(viewH, this.level.height - sy);
-      if (sh <= 0) continue;
-      if (this.painted) blit(ctx, this.paintedChunk(i, layer), 0, sy, CHUNK, sh, sx, Math.max(0, -cy));
-      else ctx.drawImage(arr[i], 0, sy, CHUNK, sh, sx, Math.max(0, -cy), CHUNK, sh);
+      const sx = i * CHUNK - cx;
+      ctx.drawImage(arr[i], 0, Math.max(0, cy), CHUNK, Math.min(viewH, this.level.height - Math.max(0, cy)), sx, Math.max(0, -cy), CHUNK, Math.min(viewH, this.level.height - Math.max(0, cy)));
     }
   }
 }

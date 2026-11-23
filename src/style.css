@@ -21,6 +21,7 @@ canvas.pxt {
   width: calc(var(--pw) * var(--k, 1px)); height: calc(var(--ph) * var(--k, 1px));
   image-rendering: pixelated; image-rendering: crisp-edges;
 }
+canvas.pxt.brush { image-rendering: auto; }   /* (texte peint au pinceau : 4 fois plus fin que le jeu) */
 
 .bar {
   --k: 2px;
@@ -283,3 +284,15 @@ body.mobile .lab { top: 4px; }
   opacity: 0; font-size: 16px; cursor: text; }
 .ui .m-lant button.m-codein { cursor: copy; }
 .ui .m-lant .m-hidden { position: absolute; visibility: hidden; }
+
+/* l'écran de chargement (le jeu se peint au pinceau) : une lune, un coup de pinceau qui se tire en boucle ;
+   animé par le navigateur seul (il tourne même pendant que le jeu peint) */
+.loading { position: fixed; inset: 0; z-index: 50; background: #07090c; transition: opacity .6s ease-out; }
+.loading.done { opacity: 0; pointer-events: none; }
+.loading__moon { position: absolute; left: 50%; top: 38%; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 38%, #f2ecdc 0 55%, #d8d2c2 70%, #b9b4a6 100%);
+  box-shadow: 0 0 60px 18px rgba(230, 226, 210, .08); }
+.loading__ink { position: absolute; left: 50%; top: 58%; width: 180px; height: 6px; margin-left: -90px; border-radius: 3px 40% 40% 3px / 3px 50% 50% 3px;
+  background: linear-gradient(90deg, #e9e5da 0 70%, rgba(233, 229, 218, .55) 88%, transparent);
+  transform-origin: left center; animation: loading-ink 1.6s cubic-bezier(.6, 0, .3, 1) infinite; }
+@keyframes loading-ink { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }

@@ -1765,15 +1765,15 @@ const PAINT = {
     b.r(X + 21 - 50, Y - 69, 101, 1, C.RED[0]);
     b.r(X + 17, Y - 85, 8, 3, C.RED[2]);
     // auvent de tissu indigo à motifs et poteaux
-    b.r(X - 30, Y - 50, 2, 50, W[2]).r(X + 28, Y - 50, 2, 50, W[2]);
-    for (let i = 0; i < 64; i++) for (let j = 0; j < 9; j++) {
+    b.r(X - 40, Y - 50, 2, 50, W[2]).r(X + 38, Y - 50, 2, 50, W[2]);   // (élargi avec le comptoir)
+    for (let i = 0; i < 84; i++) for (let j = 0; j < 9; j++) {
       const wave = j < 7 || i % 8 < 6;
       if (!wave) continue;
-      b.p(X - 32 + i, Y - 54 + j, (i + j) % 9 === 0 ? '#e9dcc0' : pick(C.CLOTH, 0.5 - j * 0.04, i, j));
+      b.p(X - 42 + i, Y - 54 + j, (i + j) % 9 === 0 ? '#e9dcc0' : pick(C.CLOTH, 0.5 - j * 0.04, i, j));
     }
     // (le comptoir et ses marchandises sont peints devant le marchand : src/game/merchant.js, drawCounter)
     // caisses empilées (le grand sac de voyage est devenu la hotte du marchand, qui se tient à gauche)
-    for (const [cx, cy] of [[X + 32, Y - 14], [X + 46, Y - 14], [X + 38, Y - 27]]) {
+    for (const [cx, cy] of [[X + 44, Y - 14], [X + 58, Y - 14], [X + 50, Y - 27]]) {
       b.r(cx, cy, 13, 13, W[2]).r(cx, cy, 13, 1, W[4]).r(cx, cy + 6, 13, 1, W[1]).line(cx, cy, cx + 12, cy + 12, W[1]);
     }
   },
