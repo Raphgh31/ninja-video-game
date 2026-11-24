@@ -83,7 +83,7 @@ export class Forest {
       const { plankW: w, plankGap: g } = FOREST.bridge, n = Math.floor((br.x1 - br.x0 + g) / (w + g));
       const x0 = br.x0 + Math.floor((br.x1 - br.x0 - (n * (w + g) - g)) / 2);
       for (let i = 0; i < n; i++) {
-        B.planks.push({ kind: 'plank', bridge: B, i, x: x0 + i * (w + g), w, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: FOREST.bridge.rotten.includes(i) });
+        B.planks.push({ kind: 'plank', bridge: B, i, x: x0 + i * (w + g), w, y: br.y, y0: br.y, active: true, state: 'idle', t: 0, dx: 0, dy: 0, vy: 0, load: false, rotten: (br.rotten ?? FOREST.bridge.rotten).includes(i) });
       }
       return B;
     });
@@ -313,7 +313,7 @@ export class Forest {
       l.x += l.dir * l.speed * dt;
       if (l.x > l.x1) { l.x = l.x1; l.dir = -1; } else if (l.x < l.x0) { l.x = l.x0; l.dir = 1; }
       const was = l.sink;
-      l.sink = l.load ? Math.min(L.max, l.sink + L.sink * dt) : Math.max(0, l.sink - L.rise * dt);
+      l.sink = l.load ? Math.min(L.max, l.sink + L.sink * (l.sinkK ?? 1) * dt) : Math.max(0, l.sink - L.rise * dt);   // (sinkK : l'arène l'enfonce plus vite à l'eau haute)
       if (l.load && was === 0) this.emit('logDip', { x: l.x + l.w / 2, y: l.y });
       l.y = l.y0 + l.sink + Math.sin(this.time * 2.1 + l.phase) * L.bob * (l.load ? 0.3 : 1);
       l.dx = l.x - px; l.dy = l.y - py;

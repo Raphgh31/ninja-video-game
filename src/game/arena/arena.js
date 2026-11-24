@@ -29,11 +29,13 @@ export const ARENA = {
   scaffold: { warn: 0.32, rebuild: 7.5 },   // ils ne tombent que sous le choc du rocher, rebâtis ensuite
   crate: { kick: 270, friction: 330, dmg: 1 },
   pickup: { heart: 17, firstHeart: 9, bundle: 10, firstBundle: 5, heal: 1 },
-  // le bassin de la Forêt : un cycle lent (s), qui commence eau basse. Eau basse, les rochers
-  // émergent ; l'eau monte (la source gronde, des bulles) jusqu'à lécher leur dessus, s'arrête un
-  // instant, puis les noie ; elle reste haute, puis redescend. Surfaces (px sous le haut du bord) :
-  // low (rochers à sec), mid (l'eau affleure), high (rochers noyés : mortels)
-  basin: { low: 15, rise: 3.2, mid: 2.2, flood: 2.4, high: 9, fall: 4.5, sLow: 26, sMid: 17, sHigh: 4 },
+  // le bassin de la Forêt : un cycle (s), qui commence eau basse. Eau basse, les rochers émergent ;
+  // l'eau monte (la source gronde, des bulles) jusqu'à lécher leur dessus, s'arrête un court instant,
+  // puis les noie ; elle reste haute, puis redescend. Surfaces (px sous le haut du bord) : low (rochers à
+  // sec), mid (l'eau affleure), high (rochers noyés : mortels). Durci le 24 novembre 2026 (demande de
+  // Raph : un débutant doit s'y faire prendre) : l'alerte est plus courte, l'eau monte plus vite, reste
+  // haute plus longtemps, et le tronc flottant, à l'eau haute, file et s'enfonce plus vite
+  basin: { low: 12, rise: 2.2, mid: 0.9, flood: 1.2, high: 11, fall: 3.5, sLow: 26, sMid: 17, sHigh: 2, logSpeed: 1.9, logSink: 1.8 },
 };
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -146,8 +148,15 @@ export class Arena {
         if (lv.at(x, r) !== want) lv.setTile(x, r, want);
       }
     }
-    // le tronc flottant monte et descend avec l'eau
-    for (const l of lv.forest?.logs ?? []) l.y0 = b.y - Math.round(l.d * 0.62);
+    // le tronc flottant monte et descend avec l'eau ; à l'eau haute, le courant l'emporte plus vite et il
+    // s'enfonce plus vite sous le poids
+    const wild = phase === 'flood' || phase === 'high';
+    for (const l of lv.forest?.logs ?? []) {
+      l.y0 = b.y - Math.round(l.d * 0.62);
+      l.speed0 ??= l.speed;
+      l.speed = l.speed0 * (wild ? ARENA.basin.logSpeed : 1);
+      l.sinkK = wild ? ARENA.basin.logSink : 1;
+    }
   }
 
 

@@ -1256,27 +1256,37 @@ function groundBelow(x, y) {
  * on passe de l'une à l'autre d'un seul mouvement fluide (0,6 s, lent-rapide-lent), et il
  * faut redescendre à 3,5 cases ou moins pour revenir en bas.
  */
-let arenaY = null, arenaHigh = false, arenaMove = null;
+let arenaY = null, arenaHigh = false, arenaTop = false, arenaMove = null;
 const ARENA_CAM = { up: 4.5 * 16, down: 3.5 * 16, top: 9 * 16, head: 30, margin: 0.15, time: 0.6 };
 function arenaCamY(dt = 1) {
   // (le sol à 85 % de l'image ; une arène peut le remonter : camGround, la Forêt montre son bassin)
   const a = level.arena.def, low = Math.round(a.ground + VIEW_H * (1 - (a.camGround ?? 0.85)) - VIEW_H);
+  // une arène plus haute (camTop : son étage le plus haut, en cases) ; une grotte (cave) : la caméra y descend
+  const topTiles = a.camTop != null ? -a.camTop : null;
+  const cave = a.cave, inCave = !!cave && player.x >= cave.x0 - 8 && player.x < cave.x1 + 8 && player.y > cave.y;
+  const caveY = cave ? Math.round(cave.floor + VIEW_H * 0.14 - VIEW_H) : low;
   if (VIEW_H >= 236) {                                     // ordinateur : presque fixe
-    const top = Math.min(low, Math.round(a.ground - 15 * 16));
-    let want = low;
-    if (top < low) want = Math.max(top, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
+    const top = Math.min(low, Math.round(a.ground - (topTiles != null ? topTiles * 16 + 60 : 15 * 16)));
+    let want = inCave ? caveY : low;
+    if (!inCave && top < low) want = Math.max(top, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
     arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);
     return clampCamY(Math.round(arenaY));
   }
   // en haut : une montée légère, juste ce qu'il faut pour que KAGE, debout sur l'étage le plus
-  // haut (9 cases), ait la tête dans l'image avec un peu de marge (15 % de l'image au-dessus)
-  const high = Math.min(low, Math.round(a.ground - ARENA_CAM.top - ARENA_CAM.head - VIEW_H * ARENA_CAM.margin));
+  // haut (9 cases ; camHigh pour une autre arène), ait la tête dans l'image avec un peu de marge
+  // (15 % de l'image au-dessus) ; une arène à canopée (camTop) a un palier de plus, tout en haut
+  const tierY = (tiles) => Math.min(low, Math.round(a.ground - tiles * 16 - ARENA_CAM.head - VIEW_H * ARENA_CAM.margin));
+  const high = tierY(a.camHigh ?? ARENA_CAM.top / 16), canopy = topTiles != null ? tierY(topTiles) : high;
   const feet = a.ground - player.y, alive = player.state !== 'death' && player.state !== 'respawn';
   if (alive && player.onGround) {
     if (feet >= ARENA_CAM.up) arenaHigh = true;
     else if (feet <= ARENA_CAM.down) arenaHigh = false;
+    if (topTiles != null) {
+      if (feet >= (topTiles - 2) * 16) arenaTop = true;
+      else if (feet <= (topTiles - 3) * 16) arenaTop = false;
+    }
   }
-  const want = arenaHigh ? high : low;
+  const want = inCave ? caveY : arenaTop ? canopy : arenaHigh ? high : low;
   if (arenaY == null) { arenaY = want; arenaMove = null; }
   if (!arenaMove || arenaMove.to !== want) arenaMove = { from: arenaY, to: want, t: arenaY === want ? 1 : 0 };
   arenaMove.t = Math.min(1, arenaMove.t + dt / ARENA_CAM.time);
@@ -1288,6 +1298,7 @@ function arenaCamera() {
   camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
   arenaY = null; arenaMove = null;
   arenaHigh = level.arena.def.ground - player.y >= ARENA_CAM.up;
+  arenaTop = level.arena.def.camTop != null && level.arena.def.ground - player.y >= (-level.arena.def.camTop - 2) * 16;
   camera.y = arenaCamY();
   camVX = 0;
 }

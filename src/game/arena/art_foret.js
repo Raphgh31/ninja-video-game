@@ -120,6 +120,10 @@ export class ForetArenaArt extends ArenaArt {
       }
     };
     this.bubbles = [];
+    // sous terre (la petite grotte), le soleil, ses rais et ses poussières s'effacent (daylight.js) :
+    // caveK monte quand KAGE descend dans la grotte, et retombe quand il en sort
+    this.caveK = 0;
+    level.art.caveAt = () => this.caveK;
   }
 
   /** La surface de l'eau du bassin, telle que live.js la peint (elle suit le niveau). */
@@ -134,6 +138,10 @@ export class ForetArenaArt extends ArenaArt {
 
   drawBack(ctx, cam, time) {
     const ox = -R(cam.x), oy = -R(cam.y);
+    const cv = this.a.def.cave, p = this.level.player;
+    const under = !!cv && !!p && p.x >= cv.x0 - 8 && p.x < cv.x1 + 8 && p.y > cv.y;
+    this.caveK += ((under ? 1 : 0) - this.caveK) * 0.08;
+    if (this.caveK < 0.01) this.caveK = 0;
     this.syncWater();
     this.drawSpring(ctx, ox, oy, time);
     this.drawPickups(ctx, ox, oy, time);

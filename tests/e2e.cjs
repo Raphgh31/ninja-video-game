@@ -1690,40 +1690,71 @@ async function main() {
     }, [jumpX, dir]);
   };
 
-  await test('arène de la Forêt : le bassin — eau basse, on tient sur les rochers ; l\'eau monte, les noie (on y meurt) puis redescend ; le tronc flottant suit le niveau', async () => {
-    const r = await af.evaluate(() => {
-      const g = window.__kage, a = g.level.arena, pl = g.player, out = {};
+  // le cycle du bassin (ARENA.basin) : eau basse 12 s, montée 2,2, affleure 0,9, noie 1,2, haute 11, descente 3,5
+  const B_MID = 12 + 2.2 + 0.4, B_HIGH = 12 + 2.2 + 0.9 + 1.2 + 2, B_BACK = 12 + 2.2 + 0.9 + 1.2 + 11 + 3.5 + 1;
+  await test('arène de la Forêt : le bassin — eau basse, on tient sur les rochers ; l\'eau monte vite, les noie (on y meurt) puis redescend ; le tronc suit le niveau et, à l\'eau haute, file et coule plus vite', async () => {
+    const r = await af.evaluate(([mid, high, back]) => {
+      const g = window.__kage, a = g.level.arena, pl = g.player, out = {}, log = g.level.forest.logs[0];
       const stand = (t) => { a.time = t; a.updateBasin(0, []); pl.x = 30 * 16 + 14; pl.y = 19 * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 0; for (let i = 0; i < 60; i++) g.step(1); return pl.state; };
-      out.low = stand(2); out.logLow = Math.round(g.level.forest.logs[0].y0); out.phaseLow = a.basin.phase;
-      out.mid = stand(15 + 3.2 + 0.6);                                   // l'eau affleure : on tient encore
-      out.high = stand(15 + 3.2 + 2.2 + 2.4 + 2); out.logHigh = Math.round(g.level.forest.logs[0].y0); out.phaseHigh = a.basin.phase;
+      out.low = stand(2); out.logLow = Math.round(log.y0); out.phaseLow = a.basin.phase; out.speedLow = log.speed;
+      out.mid = stand(mid);                                               // l'eau affleure : on tient encore
+      out.high = stand(high); out.logHigh = Math.round(log.y0); out.phaseHigh = a.basin.phase; out.speedHigh = log.speed; out.sinkHigh = log.sinkK;
       for (let i = 0; i < 400 && ['death', 'respawn'].includes(pl.state); i++) g.step(1);
-      out.back = stand(15 + 3.2 + 2.2 + 2.4 + 9 + 4.5 + 1);              // redescendue
+      out.back = stand(back);                                             // redescendue
       for (let i = 0; i < 400 && ['death', 'respawn'].includes(pl.state); i++) g.step(1);
       return out;
-    });
-    expect(r.low !== 'death' && r.mid !== 'death' && r.high === 'death' && r.back !== 'death' && r.phaseLow === 'low' && r.phaseHigh === 'high' && r.logLow - r.logHigh >= 18,
-      JSON.stringify(r));
+    }, [B_MID, B_HIGH, B_BACK]);
+    expect(r.low !== 'death' && r.mid !== 'death' && r.high === 'death' && r.back !== 'death' && r.phaseLow === 'low' && r.phaseHigh === 'high' && r.logLow - r.logHigh >= 18
+      && r.speedHigh > r.speedLow * 1.5 && r.sinkHigh > 1.5, JSON.stringify(r));
   });
 
-  await test('arène de la Forêt : chaque étage s\'atteint par un vrai saut (souches, tronc couché, branches basses et hautes, pile de bûches, hautes souches, bout de la branche basse)', async () => {
+  await test('arène de la Forêt : chaque étage s\'atteint par un vrai saut (tronc creux, souches, branches, voûte, canopée, tronc de remontée, pont)', async () => {
     await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 2; a.updateBasin(0, []); window.__kage.step(2); });
     const r = {
-      stump: await fjump(6, 18, 1, 7 * 16 + 4),            // sol → souche moyenne (2 cases)
-      log: await fjump(8, 16, 1, 9 * 16 + 12),             // souche → tronc couché (3 cases)
-      low: await fjump(15, 15, 1, 16 * 16 + 8),            // tronc couché → branche basse (5 cases)
-      high: await fjump(19, 13, 1, 20 * 16 + 8),           // branche basse → grande branche (8 cases)
+      trunk: await fjump(7, 18, 1, 8 * 16 + 2),            // sol → paroi basse du tronc creux (3 cases) ou dedans
+      log: await fjump(18, 18, -1, 17 * 16 + 4),           // sol → souche (2 cases)
+      low: await fjump(15, 16, 1, 15 * 16 + 12),           // souche → branche basse (5 cases)
+      over: await fjump(9, 15, 1, 10 * 16 + 4),            // on passe par-dessus le tronc creux (ses parois à la même hauteur)
+      high: await fjump(20, 13, 1, 21 * 16 + 8),           // branche basse → grande branche (8 cases)
+      arch: await fjump(26, 10, 1, 27 * 16 + 8),           // grande branche → la voûte (11 cases)
+      perch: await fjump(27, 7, -1, 26 * 16 + 4),          // la voûte → le perchoir du chêne (14 cases)
+      cedar: await fjump(43, 7, 1, 44 * 16 + 4),           // la voûte → la branche haute du cèdre (14 cases)
       lowR: await fjump(43, 16, 1, 44 * 16 + 4),           // rocher de la source → branche basse de droite
       highR: await fjump(51, 13, -1, 49 * 16 + 4),         // branche basse → grande branche de droite
-      tall: await fjump(49, 16, 1, 50 * 16 + 8),           // pile de bûches → haute souche (4 cases)
-      tip: await fjump(53, 14, -1, 52 * 16 + 12),          // haute souche → bout de la branche basse
+      stump: await fjump(47, 18, 1, 48 * 16 + 4),          // sol → souche (2 cases)
+      tall: await fjump(49, 16, 1, 50 * 16 + 8),           // souche → haute souche (4 cases)
+      step1: await fjump(62, 18, -1, 61 * 16 + 4),         // sol → première branche du tronc de remontée
+      step2: await fjump(58, 16, 1, 59 * 16 + 4),          // une branche → la suivante (en quinconce)
+      bridge: await fjump(61, 6, -1, 61 * 16 + 2),         // dernière branche → le bout du pont suspendu
     };
-    const ok = r.stump[0] === 16 && r.log[0] === 15 && r.low[0] === 13 && r.high[0] === 10 && r.lowR[0] === 13 && r.highR[0] === 10 && r.tall[0] === 14 && r.tip[0] === 13;
+    const ok = [15, 17].includes(r.trunk[0]) && r.log[0] === 16 && r.low[0] === 13 && r.over[1] >= 12 && r.over[2] !== 'death' && r.high[0] === 10 && r.arch[0] === 7 && r.perch[0] === 4 && r.cedar[0] === 4
+      && r.lowR[0] === 13 && r.highR[0] === 10 && r.stump[0] === 16 && r.tall[0] === 14 && r.step1[0] === 16 && r.step2[0] === 14 && [4, 5].includes(r.bridge[0]) && r.bridge[1] < 60;
     expect(ok, JSON.stringify(r));
   });
 
-  await test('arène de la Forêt : eau haute, du bout de la grande branche on se lance sur la liane de la voûte ; d\'un saut du bord vers le rocher, on ne l\'attrape pas ; en glissade on passe sous le tronc couché', async () => {
-    await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 15 + 3.2 + 2.2 + 2.4 + 2; a.updateBasin(0, []); window.__kage.step(2); });
+  await test('arène de la Forêt : par le tronc creux, de nœud en nœud, on descend sans dommage dans la grotte (la caméra la suit) ; on en ressort par le puits de racines', async () => {
+    // on se laisse tomber dans le tronc, puis on passe d'un nœud à l'autre (en quinconce)
+    const down = await af.evaluate(() => {
+      const g = window.__kage, pl = g.player, inp = g.input, out = [];
+      pl.x = 10 * 16 + 8; pl.y = 15 * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.onGround = false; pl.setState('fall'); pl.invuln = 0; pl.hp = 5;
+      for (let i = 0; i < 90; i++) g.step(1);
+      out.push(Math.round(pl.y / 16));
+      for (const [k, n] of [['right', 22], ['left', 22], ['right', 22]]) {
+        inp.lastTap = { left: -9, right: -9 }; inp.press(k); for (let i = 0; i < n; i++) g.step(1); inp.release(k);
+        for (let i = 0; i < 100; i++) g.step(1);
+        out.push(Math.round(pl.y / 16));
+      }
+      for (let i = 0; i < 120; i++) g.step(1);
+      return { rows: out, state: pl.state, hp: pl.hp, cam: Math.round(g.camera.y), ground: g.level.arena.def.ground };
+    });
+    // et on remonte par le puits de racines, sous le chêne
+    const up = [await fjump(21, 26, 1, 21 * 16 + 12), await fjump(22, 23, -1, 22 * 16 + 2), await fjump(21, 20, 1, 21 * 16 + 6)];
+    expect(down.rows[0] === 17 && down.rows[1] === 20 && down.rows[3] === 26 && down.state !== 'death' && down.hp === 5 && down.cam > down.ground - 100 && up[0][0] === 23 && up[1][0] === 20 && up[2][0] === 18,
+      `descente ${JSON.stringify(down)} ; remontée ${JSON.stringify(up)}`);
+  });
+
+  await test('arène de la Forêt : eau haute, du bout de la grande branche on se lance sur la liane de la voûte ; d\'un saut du bord vers le rocher, on ne l\'attrape pas', async () => {
+    await af.evaluate(([t]) => { const a = window.__kage.level.arena; a.time = t; a.updateBasin(0, []); window.__kage.step(2); }, [B_HIGH]);
     await FAT(31, 10, { facing: 1, x: 31 * 16 + 9 });
     await FK.down('ArrowRight');
     await FK.down('Space'); await af.evaluate(() => window.__kage.step(10)); await FK.up('Space');
@@ -1732,25 +1763,26 @@ async function main() {
     // depuis le sol, en sautant vers le premier rocher (eau basse), on n'attrape pas de liane
     await af.evaluate(() => { const a = window.__kage.level.arena; a.time = 2; a.updateBasin(0, []); window.__kage.step(2); });
     const hop = await fjump(26, 18, 1, 27 * 16 + 8);
-    // en glissade : il passe dessous
-    await FAT(10, 18, { facing: 1 });
-    await FK.down('ArrowRight'); await af.evaluate(() => window.__kage.step(12));
-    await FK.press('ArrowDown');
-    const slid = await af.evaluate(() => { const g = window.__kage; for (let i = 0; i < 240; i++) g.step(1); return Math.round(g.player.x); });
-    await FK.up('ArrowRight'); await af.evaluate(() => window.__kage.step(20));
-    expect(vine && hop[0] === 19 && hop[2] !== 'vine' && slid > 18 * 16, `liane ${vine}, saut vers le rocher ${hop}, en glissade ${slid}`);
+    expect(vine && hop[0] === 19 && hop[2] !== 'vine', `liane ${vine}, saut vers le rocher ${hop}`);
   });
 
-  await test('arène de la Forêt : la passerelle vermoulue cède sous le pied, puis se refait', async () => {
-    const r = await af.evaluate(() => {
-      const g = window.__kage, f = g.level.forest, pl = g.player, c = f.crumbles[0];
-      pl.x = c.x + c.w / 2; pl.y = c.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); pl.invuln = 9;
-      for (let i = 0; i < 150; i++) g.step(1);
-      const fell = c.state, below = Math.round(pl.y / 16);
-      for (let i = 0; i < 480; i++) g.step(1);
-      return [fell, below, c.state, c.active];
-    });
-    expect(r[0] === 'fall' && r[1] === 18 && r[2] === 'idle' && r[3], JSON.stringify(r));
+  await test('arène de la Forêt sur téléphone : la caméra a ses paliers (en bas, en haut, la canopée) et descend dans la grotte', async () => {
+    const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+    const mp = await mctx.newPage();
+    try {
+      await mp.goto(PAGE + '#arene-foret'); await mp.waitForFunction(() => window.__kage && window.__kage.level.arena); await mp.waitForTimeout(400);
+      const put = (c, r) => mp.evaluate(([c, r]) => { const pl = window.__kage.player; pl.x = c * 16 + 8; pl.y = r * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.invuln = 9; }, [c, r]);
+      const cy = () => mp.evaluate(() => window.__kage.camera.y);
+      await put(24, 18); await mp.waitForTimeout(900); const low = await cy();
+      await put(24, 10); await mp.waitForTimeout(900); const high = await cy();
+      await put(30, 7); await mp.waitForTimeout(900); const arch = await cy();
+      await put(22, 4); await mp.waitForTimeout(900); const top = await cy();
+      await put(15, 26); await mp.waitForTimeout(900); const cave = await cy();
+      const v = await mp.evaluate(() => window.__kage.view());
+      const headTop = 4 * 16 - 30 - top, headArch = 7 * 16 - 30 - arch;
+      expect(low > high && high === arch && arch > top && headTop >= 8 && headArch >= 8 && cave > low && 26 * 16 - cave < v.h,
+        `en bas ${low}, en haut ${high} (voûte ${arch}), canopée ${top}, grotte ${cave} ; image ${v.w}×${v.h}`);
+    } finally { await mctx.close(); }
   });
 
   // ---- jouer à plusieurs : une arène à deux (transport local, deux onglets servis en http) ----
@@ -1821,7 +1853,7 @@ async function main() {
     } finally { await ctx.close(); srv.close(); }
   });
 
-  await test('à plusieurs, dans la Forêt : l\'invité suit l\'arène de l\'hôte ; le bassin part du même instant chez tous ; la planche vermoulue cède chez les deux', async () => {
+  await test('à plusieurs, dans la Forêt : l\'invité suit l\'arène de l\'hôte ; le bassin part du même instant chez tous', async () => {
     const http = require('node:http'), fs = require('node:fs');
     const dist = path.resolve(__dirname, '../dist');
     const srv = http.createServer((q, r) => fs.readFile(path.join(dist, q.url.split('?')[0].split('#')[0]), (e, d) => { r.writeHead(e ? 404 : 200, { 'content-type': 'text/html' }); r.end(d); }));
@@ -1843,9 +1875,6 @@ async function main() {
       await A.click('[data-launch]');
       await B.waitForFunction(() => !window.__kage.run.paused, null, { timeout: 3000 });
       const t = await Promise.all([A, B].map((P) => P.evaluate(() => window.__kage.level.arena.time)));
-      // Raph se pose sur la planche : elle cède aussi chez Kenji
-      await A.evaluate(() => { const c = window.__kage.level.forest.crumbles[1], pl = window.__kage.player; pl.x = c.x + c.w / 2; pl.y = c.y; pl.vx = 0; pl.vy = 0; pl.onGround = true; pl.setState('idle'); });
-      await B.waitForFunction(() => window.__kage.level.forest.crumbles[1].state !== 'idle', null, { timeout: 3000 });
       expect(Math.abs(t[0] - t[1]) < 1.5, `horloges du bassin ${t.map((x) => x.toFixed(2))}`);
     } finally { await ctx.close(); srv.close(); }
   });
