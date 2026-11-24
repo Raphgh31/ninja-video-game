@@ -52,9 +52,11 @@ const js = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.js'));
 const css = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.css'));
 html = html.replace(/<link rel="stylesheet"[^>]*>/, () =>
   `<style>${readFileSync(join(dist, 'assets', css), 'utf8')}</style>`);
-html = html.replace(/<script type="module"[^>]*><\/script>/, () =>
+// (les scripts du jeu, très lourds, vont en fin de page : le navigateur affiche d'abord l'écran de chargement)
+html = html.replace(/<script type="module"[^>]*><\/script>/, '');
+html = html.replace('</body>', () =>
   `<script>window.__KAGE_EMBED=${JSON.stringify(embed)};${process.env.KAGE_TEST ? 'window.__KAGE_TEST=true;' : ''}</script>\n` +
-  `<script type="module">${readFileSync(join(dist, 'assets', js), 'utf8').replace(/<\/script/g, '<\\/script')}</script>`);
+  `<script type="module">${readFileSync(join(dist, 'assets', js), 'utf8').replace(/<\/script/g, '<\\/script')}</script>\n</body>`);
 const out = process.env.KAGE_TEST ? 'kage-test.html' : 'kage-standalone.html';
 writeFileSync(join(dist, out), html);
 console.log(`dist/${out} (${Math.round(html.length / 1024)} Ko)`);
