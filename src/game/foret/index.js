@@ -24,8 +24,42 @@ export class ForetArt {
     this.buildMs = Math.round(performance.now() - t0);
   }
 
+  /**
+   * Les lieux souterrains, en rectangles du monde { x0, y0, x1, y1, fade } (fade : le fondu, en px, sous leur
+   * bord haut) : la caverne (zone à la lumière de grotte), les galeries de l'ascension, l'arbre creux et le
+   * tunnel de la statue (et leur profondeur), et dans l'arène, ce qui est sous le sol. Le cycle du jour et de
+   * la nuit ne les touche pas : sous terre, la lumière est toujours la même (src/game/daylight.js).
+   */
+  undergroundRects() {
+    if (this.under) return this.under;
+    const L = this.level, f = L.forest?.def ?? L.forest, R = [];
+    const BIG = 1e7;
+    for (const z of L.zones ?? []) if (C.MOODS[z.mood]?.cave) R.push({ x0: z.px0, x1: z.px1, y0: -BIG, y1: BIG, fade: 0 });
+    const g = f?.galleries;
+    if (g) R.push({ x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, fade: 32 });
+    const d = f?.dark;
+    if (d) {
+      R.push({ x0: d.x0, x1: d.x1, y0: d.y0, y1: BIG, fade: 48 });
+      if (d.deep) R.push({ x0: d.deep.x0, x1: d.x0, y0: d.deep.y0, y1: BIG, fade: 48 });
+    }
+    const b = L.arena?.basin;
+    if (b) R.push({ x0: -BIG, x1: BIG, y0: (b.top + 1) * 16, y1: BIG, fade: 8 });   // l'arène : sous le sol, le bassin
+    return (this.under = R);
+  }
+
+  /** Sous terre à ce point du monde : 0 dehors, 1 dedans (avec le fondu du bord haut). */
+  undergroundAt(x, y) {
+    let u = 0;
+    for (const r of this.undergroundRects()) {
+      if (x < r.x0 || x >= r.x1 || y >= r.y1) continue;
+      u = Math.max(u, r.fade > 0 ? Math.max(0, Math.min(1, (y - r.y0) / r.fade)) : y >= r.y0 ? 1 : 0);
+    }
+    return u;
+  }
+
   /** La part souterraine de la lumière à cette abscisse (0 dehors, 1 sous terre) : pas de soleil sous terre. */
-  caveAt(x) {
+  caveAt(x, y) {
+    if (y != null) return this.undergroundAt(x, y);
     const z = this.level.zones.find((zz) => x >= zz.px0 && x < zz.px1);
     return z && C.MOODS[z.mood]?.cave ? 1 : 0;
   }

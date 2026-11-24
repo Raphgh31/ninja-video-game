@@ -358,7 +358,8 @@ export class ForetProps {
     if (!it.img) {
       const pix = new Window(it.x, it.y, it.w, it.h);
       it.paint(pix);
-      it.img = bakeLight(pix.done(), this.level?.theme ?? 'foret');
+      const art = this.level?.art;
+      it.img = bakeLight(pix.done(), this.level?.theme ?? 'foret', art?.undergroundAt ? { x: it.x, y: it.y, under: (x, y) => art.undergroundAt(x, y) } : null);
     }
     return it.img;
   }

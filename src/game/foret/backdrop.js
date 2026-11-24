@@ -556,10 +556,12 @@ export class ForetBackdrop {
       const off = this.q(cam.x * VAULT.fx);
       this.tile(ctx, s.vault, off, -6, VAULT.h, viewW);
     }
-    if (s.rays) {
+    if (s.rays && (this.under ?? 0) < 0.99) {
+      // les rais tombent du ciel : accrochés en haut (ils ne descendent pas avec la caméra), effacés sous terre
       const off = this.q(cam.x * 0.3 + Math.sin(time * 0.07) * 20);
-      ctx.globalAlpha = 0.75 + 0.25 * Math.sin(time * 0.5);
-      this.tile(ctx, s.rays, off, 0, Math.min(H, viewH), viewW, viewH / H);
+      const dy = Math.min(0, this.groundAt(1, cam, viewH) - Math.round(viewH * GROUND_AT));
+      ctx.globalAlpha = (0.75 + 0.25 * Math.sin(time * 0.5)) * (1 - (this.under ?? 0));
+      this.tile(ctx, s.rays, off, dy, Math.min(H, viewH), viewW, viewH / H);
       ctx.globalAlpha = 1;
     }
   }

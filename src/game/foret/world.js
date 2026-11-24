@@ -95,8 +95,9 @@ export class ForetWorld {
     const back = new Window(x0, y0, CH, CH), front = new Window(x0, y0, CH, CH);
     this.paintTiles(back, x0, y0);
     const hasFront = this.paintSurface(back, front, tx0, tx1, ty0, ty1);
-    this.back.set(k, bakeLight(back.done(), this.level.theme));
-    if (hasFront) this.front.set(k, bakeLight(front.done(), this.level.theme));
+    const under = this.level.art?.undergroundAt ? { x: x0, y: y0, under: (x, y) => this.level.art.undergroundAt(x, y) } : null;
+    this.back.set(k, bakeLight(back.done(), this.level.theme, under));
+    if (hasFront) this.front.set(k, bakeLight(front.done(), this.level.theme, under));
   }
 
   // -------------------------------------------------------------------------
