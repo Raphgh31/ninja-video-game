@@ -14,6 +14,11 @@
 (function () {
   const root = document.querySelector('.loading');
   if (!root) return;
+  // la scène ne se joue que si un monde se charge vraiment (une aventure ou une arène choisie au menu, le
+  // chapitre suivant, une adresse qui ouvre un monde) ; à l'ouverture du jeu, l'intro arrive tout de suite
+  let busy = !!location.hash || /[?&]salle=/.test(location.search);
+  try { busy = busy || !!sessionStorage.getItem('kage-charge'); } catch { /* rien */ }
+  if (!busy) return;
 
   /**
    * La scène, dessinée en pixels de jeu (W × H) puis agrandie k fois, nette. Rien d'extérieur : elle est
@@ -270,6 +275,8 @@
       },
       frame(t) {
         if (!g) return;
+        // (rien tant que les images ne sont pas prêtes : les montagnes ne doivent pas surgir après coup)
+        if (!IMG.far || !IMG.mid || !IMG.run) { const o = out.getContext('2d'); o.fillStyle = '#07090c'; o.fillRect(0, 0, out.width, out.height); return; }
         const u = t % CYCLE;
         // la lune : un cercle — de l'horizon gauche (matin) au sommet (midi) à l'horizon droit (soir), puis sous la terre
         const a = u < DAY ? Math.PI * (1 - u / DAY) : -Math.PI * ((u - DAY) / NIGHT);
@@ -331,7 +338,7 @@
         const m = e.data;
         if (m.canvas) { S = scene(m.canvas, (w, h) => new OffscreenCanvas(w, h)); S.resize(m.w, m.h, m.k); loop(); }
         if (m.size) S.resize(m.w, m.h, m.k);
-        if (m.images) S.setImages(m.images);
+        if (m.images) { S.setImages(m.images); t0 = performance.now() - 300; }   // (la journée part de l'aube quand tout est prêt)
       };`;
     worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
     worker.postMessage({ canvas: off, ...size }, [off]);
@@ -345,8 +352,8 @@
     worker = null;
     local = scene(cv, (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
     local.resize(size.w, size.h, size.k);
-    images.then((list) => local.setImages(Object.fromEntries(list.filter(([, im]) => im))));
-    const t0 = performance.now();
+    let t0 = performance.now();
+    images.then((list) => { local.setImages(Object.fromEntries(list.filter(([, im]) => im))); t0 = performance.now() - 300; });
     const loop = () => { local.frame((performance.now() - t0) / 1000); raf = requestAnimationFrame(loop); };
     loop();
   }

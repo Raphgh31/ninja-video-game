@@ -267,7 +267,16 @@ const labSet = (k, v) => { try { localStorage.setItem(`kage.lab.${k}`, v); } cat
 const hashId = location.hash.slice(1);
 // sans ancre : le chapitre de la partie en cours (la sauvegarde suit KAGE d'un chapitre à l'autre)
 const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
-const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
+// L'accueil sans attente (24 novembre 2026, demande de Raph) : à l'ouverture, le monde n'est pas construit
+// (un petit terrain vide, invisible derrière l'intro) ; l'intro et le menu sont là tout de suite. Le choix
+// d'une aventure ou d'une arène recharge la page sur ce monde, et c'est là que l'écran de chargement (le
+// ninja qui court, src/loading/loader.js) attend qu'il soit prêt. Les tests (__KAGE_SKIP_INTRO) construisent
+// le monde tout de suite, comme avant.
+const flag = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+const MENU_ONLY = !hashId && !flag('kage-go') && !flag('kage-salle') && !globalThis.__KAGE_SKIP_INTRO
+  && !(TEST_BUILD && flag('kage-sans-intro')) && !loadSave()?.intro && !new URLSearchParams(location.search).get('salle');
+try { sessionStorage.removeItem('kage-charge'); } catch { /* rien */ }
+const LEVEL_ID = MENU_ONLY ? 'terrain' : LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
 // style peint (essai sur le Potager, src/engine/brush.js) : le décor et les personnages repeints en touches
@@ -321,9 +330,9 @@ if (level.boss?.type === 'karasu') {
   shurikens.enemies.push(boss);
 }
 // partie : chronomètre, chutes, arrivée ; dans un chapitre, la partie s'ouvre sur l'écran titre
-const CHAPTER = level.chapter != null;
+const CHAPTER = MENU_ONLY || level.chapter != null;   // (l'accueil : le menu des chapitres, sans monde)
 const run = { time: 0, falls: 0, won: false, paused: CHAPTER };
-let save = CHAPTER ? emptySave(LEVEL_ID) : null;
+let save = CHAPTER && !MENU_ONLY ? emptySave(LEVEL_ID) : null;   // (l'accueil n'enregistre rien : la vraie partie est intacte)
 const ui = {
   zone: document.querySelector('.zone-banner'),
   hint: document.querySelector('.hint'),
@@ -750,7 +759,7 @@ function startRoom(cfg) {
         // l'hôte a ouvert une autre arène : on la rejoint (même code)
         net.onStatus = () => {};
         net.close();
-        try { sessionStorage.setItem('kage-salle', JSON.stringify({ ...cfg, arena: d.id })); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+        try { sessionStorage.setItem('kage-salle', JSON.stringify({ ...cfg, arena: d.id })); sessionStorage.setItem('kage-sans-intro', '1'); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
         if (TEST_BUILD) labSet('chapter', d.id);
         location.hash = `#${d.id}`;
       }
@@ -903,6 +912,7 @@ function setupSkinLab() {
       if (id === LEVEL_ID) { gotoZone(0); return; }
       labSet('chapter', id);
       sessionStorage.setItem('kage-sans-intro', '1');   // on change de chapitre : pas d'intro
+      sessionStorage.setItem('kage-charge', '1');       // (l'écran de chargement, le temps de construire le monde)
       location.hash = `#${id}`;
       location.reload();
     });
@@ -915,6 +925,7 @@ function setupSkinLab() {
     const b = button(`Arène ${{ potager: 'Potager', foret: 'Forêt' }[l.theme] ?? ''}`.trim(), l.name, () => {
       labSet('chapter', id);
       sessionStorage.setItem('kage-sans-intro', '1');
+      sessionStorage.setItem('kage-charge', '1');
       location.hash = `#${id}`;
       location.reload();
     });
@@ -1692,7 +1703,7 @@ function chapterOf(sv) {
 }
 /** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
 function goAdventure(chapter, how) {
-  try { sessionStorage.setItem('kage-go', how); } catch { /* rien */ }
+  try { sessionStorage.setItem('kage-go', how); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
   if (TEST_BUILD) labSet('chapter', chapter);
   location.replace(location.pathname + location.search);
 }
@@ -1701,7 +1712,7 @@ if (CHAPTER) {
   title.hidden = false;
   run.title = true;
   snapCamera();
-  title.querySelector('[data-chapter]').textContent = level.name;
+  title.querySelector('[data-chapter]').textContent = MENU_ONLY ? (LEVELS[loadSave()?.chapter]?.name ?? '') : level.name;
   menu = new Menu(title, {
     meta, skins, profile, saveProfile,
     saves: listSaves,
@@ -1709,7 +1720,8 @@ if (CHAPTER) {
     continueAdventure(slot) {
       setSlot(slot);
       const sv = loadSave(slot);
-      if (sv && sv.chapter !== LEVEL_ID) { goAdventure(sv.chapter, 'continue'); return; }
+      // (depuis l'accueil, le monde n'est pas construit : on recharge toujours sur celui de la partie)
+      if (MENU_ONLY || (sv && sv.chapter !== LEVEL_ID)) { goAdventure(sv && LEVELS[sv.chapter] ? sv.chapter : 'potager', 'continue'); return; }
       menu.closeAll();
       startChapter(true);
     },
@@ -1740,7 +1752,7 @@ if (CHAPTER) {
     },
   });
   function go(cfg) {
-    try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+    try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
     location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`;
   }
   title.querySelector('[data-menu="aventure"]').focus();
@@ -1759,7 +1771,7 @@ if (CHAPTER) {
     persist();
     chapterCard(level.intro, true);
   } else {
-    if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
+    if (SKIN_LAB && !MENU_ONLY) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
     // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni quand on revient
     // de l'arène, ni dans la version de test quand on vient de changer de chapitre par le panneau
     // (« accueil » : le bouton maison du salon de l'arène ramène au menu principal, sur la fin de l'intro)
@@ -1806,6 +1818,7 @@ function nextChapter() {
   chapterCard(def.intro ?? { num: `Chapitre ${def.chapter}`, name: def.name }, false);
   music.setLevel(0, 2.5);
   setTimeout(() => {
+    try { sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
     if (location.hash) location.replace(location.pathname + location.search);
     else location.reload();
   }, 4600);
