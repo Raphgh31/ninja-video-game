@@ -1663,7 +1663,7 @@ async function main() {
   af.setDefaultTimeout(8000);
   af.on('pageerror', (e) => errors.push('[arène forêt] ' + e.message));
   if (!process.env.SEUL || 'arène'.includes(process.env.SEUL) || process.env.SEUL.includes('arène')) {
-    await af.goto(PAGE + '#arene-foret'); await af.waitForFunction(() => window.__kage && window.__kage.level.arena); await af.waitForTimeout(300);
+    await af.goto(PAGE + '#arene-foret'); await af.waitForFunction(() => window.__kage && window.__kage.level.arena && !window.__loading, null, { timeout: 15000 }); await af.waitForTimeout(300);
   }
   const FK = af.keyboard;
   // KAGE posé en (colonne, ligne du sol), à l'arrêt ; le temps n'avance que par step()
@@ -1770,7 +1770,7 @@ async function main() {
     const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
     const mp = await mctx.newPage();
     try {
-      await mp.goto(PAGE + '#arene-foret'); await mp.waitForFunction(() => window.__kage && window.__kage.level.arena); await mp.waitForTimeout(400);
+      await mp.goto(PAGE + '#arene-foret'); await mp.waitForFunction(() => window.__kage && window.__kage.level.arena && !window.__loading, null, { timeout: 15000 }); await mp.waitForTimeout(400);
       const put = (c, r) => mp.evaluate(([c, r]) => { const pl = window.__kage.player; pl.x = c * 16 + 8; pl.y = r * 16; pl.fallFrom = pl.y; pl.vx = 0; pl.vy = 0; pl.invuln = 9; }, [c, r]);
       const cy = () => mp.evaluate(() => window.__kage.camera.y);
       await put(24, 18); await mp.waitForTimeout(900); const low = await cy();
