@@ -951,7 +951,7 @@ export class ForetLive {
     for (const [tx, ty, a] of G.cells) {
       const sx = R(tx * TILE - cam.x), sy = R(ty * TILE - cam.y);
       if (sx < -16 || sx > vw || sy < -16 || sy > vh) continue;
-      s.fillStyle = `rgba(3,7,11,${a * 0.75})`; s.fillRect(sx, sy, TILE, TILE);
+      s.fillStyle = `rgba(3,7,11,${Math.min(0.92, a * 0.75 * (g.shade ?? 1))})`; s.fillRect(sx, sy, TILE, TILE);   // (shade : une grotte plus sombre, l'arène)
     }
     s.globalCompositeOperation = 'destination-out';
     if (p) s.drawImage(this.halo, R(p.x - cam.x - 72), R(p.y - 14 - cam.y - 72));
