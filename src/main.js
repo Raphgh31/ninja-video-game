@@ -712,7 +712,7 @@ function backToMenu(screen = null, extra = {}) {
     if (screen) sessionStorage.setItem('kage-menu', JSON.stringify({ screen, ...extra }));
   } catch { /* rien */ }
   if (TEST_BUILD) labSet('chapter', 'potager');
-  location.replace(location.pathname + location.search.replace(/[?&]salle=[^&]*/, ''));
+  fadeOut(() => location.replace(location.pathname + location.search.replace(/[?&]salle=[^&]*/, '')));
 }
 function startRoom(cfg) {
   const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
@@ -1034,8 +1034,8 @@ function lightSources() {
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
-  // écran titre ou boutique ouverte : le monde attend
-  if (run.paused) {
+  // écran titre, boutique ouverte, ou l'écran de chargement qui s'efface encore : le monde attend
+  if (run.paused || globalThis.__loading) {
     if (shop.isOpen && input.wasPressed('escape')) shop.close();
     input.endFrame();
     return;
@@ -1701,11 +1701,24 @@ function chapterOf(sv) {
     zones: zones.length,
   };
 }
+/**
+ * Un fondu au noir sur tout l'écran, puis `then` (un rechargement de page : on n'y coupe jamais net). Le
+ * nouvel écran repart du même noir (l'écran de chargement, puis le jeu, s'ouvrent en fondu).
+ */
+function fadeOut(then, ms = 450) {
+  let f = document.querySelector('.fade-black');
+  if (!f) { f = document.createElement('div'); f.className = 'fade-black'; document.body.append(f); }
+  f.style.transitionDuration = `${ms}ms`;
+  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('on')));
+  music?.setLevel?.(0, ms / 1000);
+  intro?.stopVoice?.(ms / 1000);
+  setTimeout(then, ms + 40);
+}
 /** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
 function goAdventure(chapter, how) {
   try { sessionStorage.setItem('kage-go', how); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
   if (TEST_BUILD) labSet('chapter', chapter);
-  location.replace(location.pathname + location.search);
+  fadeOut(() => location.replace(location.pathname + location.search));
 }
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');
@@ -1753,7 +1766,7 @@ if (CHAPTER) {
   });
   function go(cfg) {
     try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
-    location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`;
+    fadeOut(() => { location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`; });
   }
   title.querySelector('[data-menu="aventure"]').focus();
   const existing = loadSave();
@@ -1951,6 +1964,8 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 // le jeu est peint : l'écran de chargement s'efface (après la première image)
 requestAnimationFrame(() => requestAnimationFrame(() => {
+  // l'écran de chargement s'éteint en fondu (src/loading/loader.js : __loadingDone), puis s'ouvre sur le jeu
+  if (window.__loadingDone) { window.__loadingDone(); return; }
   const ld = document.querySelector('.loading');
   if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 700); }
 }));

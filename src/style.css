@@ -296,4 +296,10 @@ body.mobile .lab { top: 24px; }
    animé par le navigateur seul (il tourne même pendant que le jeu peint) */
 .loading { position: fixed; inset: 0; z-index: 50; background: #07090c; transition: opacity .6s ease-out; }
 .loading.done { opacity: 0; pointer-events: none; }
-.loading__scene { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; image-rendering: crisp-edges; transform-origin: 0 0; }
+.loading__scene { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; image-rendering: crisp-edges; transform-origin: 0 0;
+  opacity: 0; transition: opacity .6s ease-out; }
+.loading__scene.on { opacity: 1; }
+.loading.done { transition: opacity .55s ease-in-out; }
+/* le fondu au noir avant un rechargement de page (main.js : fadeOut) */
+.fade-black { position: fixed; inset: 0; z-index: 70; background: #07090c; opacity: 0; pointer-events: none; transition: opacity .45s ease-in; }
+.fade-black.on { opacity: 1; pointer-events: auto; }

@@ -18,6 +18,25 @@
   // chapitre suivant, une adresse qui ouvre un monde) ; à l'ouverture du jeu, l'intro arrive tout de suite
   let busy = !!location.hash || /[?&]salle=/.test(location.search);
   try { busy = busy || !!sessionStorage.getItem('kage-charge'); } catch { /* rien */ }
+  // la fin (appelée par main.js quand le jeu est prêt) : la scène reste au moins un instant (elle ne clignote
+  // pas), s'éteint en fondu vers le noir, puis le noir s'ouvre en fondu sur le jeu (qui attend : __loading)
+  let scene0 = null, finishing = false;
+  const startedAt = performance.now();
+  window.__loading = busy;
+  window.__loadingDone = () => {
+    if (finishing) return;
+    finishing = true;
+    // (au moins ~2 s depuis l'ouverture de la page, si la scène joue : elle a le temps d'apparaître)
+    const wait = scene0 ? Math.max(0, startedAt + 2000 - performance.now()) : 0;
+    setTimeout(() => {
+      scene0?.classList.remove('on');
+      setTimeout(() => {
+        window.__loading = false;
+        root.classList.add('done');
+        setTimeout(() => root.remove(), 600);
+      }, scene0 ? 500 : 0);
+    }, wait);
+  };
   if (!busy) return;
 
   /**
@@ -25,7 +44,7 @@
    * recopiée telle quelle dans le worker. mk(w, h) : une toile.
    */
   function scene(out, mk) {
-    let W = 448, H = 252, K = 1, P = null, g = null, sky = null, L = null, lg = null;
+    let W = 448, H = 252, K = 1, P = null, g = null, sky = null, L = null, lg = null, readyAt = null;
     const IMG = { far: null, mid: null, run: null };
     const NIGHT_IMG = {}, GLOW = {}, DARK = {};
     // la journée : 16 s de course (de l'aube au soir), 3,6 s de nuit sans lui
@@ -299,6 +318,10 @@
         drawNinja(t, u);
         drawFireflies(t, n, sc);
         drawFore(sc);
+        // l'entrée : la scène sort du noir en fondu, dès que tout est prêt (0,8 s)
+        readyAt ??= t;
+        const fin = Math.min(1, (t - readyAt) / 0.8);
+        if (fin < 1) { g.fillStyle = `rgba(7,9,12,${(1 - fin * fin * (3 - 2 * fin)).toFixed(3)})`; g.fillRect(0, 0, W, H); }
         const o = out.getContext('2d');
         o.imageSmoothingEnabled = false;
         o.drawImage(P, 0, 0, W * K, H * K);
@@ -311,6 +334,8 @@
   cv.className = 'loading__scene';
   root.textContent = '';
   root.appendChild(cv);
+  scene0 = cv;
+  cv.classList.add('on');      // (le fondu d'entrée est dans le dessin lui-même : il ne dépend pas du jeu)
   function layout() {
     const dpr = window.devicePixelRatio || 1;
     const rot = window.matchMedia('(pointer: coarse)').matches && innerHeight > innerWidth;
@@ -338,7 +363,7 @@
         const m = e.data;
         if (m.canvas) { S = scene(m.canvas, (w, h) => new OffscreenCanvas(w, h)); S.resize(m.w, m.h, m.k); loop(); }
         if (m.size) S.resize(m.w, m.h, m.k);
-        if (m.images) { S.setImages(m.images); t0 = performance.now() - 300; }   // (la journée part de l'aube quand tout est prêt)
+        if (m.images) { S.setImages(m.images); t0 = performance.now() - 2600; }   // (la journée part de l'aube, le ninja vient d'entrer, quand tout est prêt)
       };`;
     worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
     worker.postMessage({ canvas: off, ...size }, [off]);
@@ -353,7 +378,7 @@
     local = scene(cv, (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
     local.resize(size.w, size.h, size.k);
     let t0 = performance.now();
-    images.then((list) => { local.setImages(Object.fromEntries(list.filter(([, im]) => im))); t0 = performance.now() - 300; });
+    images.then((list) => { local.setImages(Object.fromEntries(list.filter(([, im]) => im))); t0 = performance.now() - 2600; });
     const loop = () => { local.frame((performance.now() - t0) / 1000); raf = requestAnimationFrame(loop); };
     loop();
   }
