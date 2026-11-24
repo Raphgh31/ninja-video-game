@@ -23,6 +23,7 @@ export const MERCHANTS = {
     r: ['#2f4527', '#46623a', '#66854e'], a: ['#283a64', '#3d5590'], b: '#3d5590',
     h: ['#7f6a38', '#a98d4e', '#c9ad6e'], k: ['#1e1916', '#33291f', '#4c3d2c'], c: ['#5e2c50', '#7a3e66', '#9a5a84'], dots: '#e8c35a',
     p: ['#2a2420', '#423830'], w: ['#8f8a80', '#c4bfb4'], s: ['#a9764e', '#d6a07a'], gold: ['#a8802c', '#e8c35a'],
+    wood: ['#24180f', '#43291b', '#62402a', '#80583a', '#9a6e4a'],   // (son comptoir : un cèdre plus sombre)
   },
 };
 
@@ -225,31 +226,32 @@ export function drawCamp(ctx, sx, sy, time, P = MERCHANTS.foret) {
  * sombre, bois éclairé à gauche, un tablier de tissu à l'écusson de pièce, un boulier, des rouleaux de
  * tissu, un pot, une pile de ryō. Peint une fois. (sx, sy) : le milieu du comptoir, au sol.
  */
-let counterCv = null;
+const counters = new Map();                         // (un comptoir peint par palette)
 export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
-  const CW = 64, CH = 32, BOT = 31;                  // la toile ; le sol sur la ligne BOT ; x = 32 : le milieu
+  const CW = 84, CH = 32, BOT = 31;                  // la toile ; le sol sur la ligne BOT ; x = 42 : le milieu
+  let counterCv = counters.get(P);
   if (!counterCv) {
     const g = new Map();
     const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < CW && y < CH) g.set(`${x},${y}`, c); };
     const rect = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, c); };
-    const WD = ['#3a2616', '#5a3e24', '#7a5634', '#9a7246', '#b48a58'];
+    const WD = P.wood ?? ['#3a2616', '#5a3e24', '#7a5634', '#9a7246', '#b48a58'];
     // le corps de l'établi : planches verticales, éclairées à gauche
-    for (let y = BOT - 16; y <= BOT; y++) for (let x = 6; x <= 57; x++) {
+    for (let y = BOT - 16; y <= BOT; y++) for (let x = 6; x <= 77; x++) {
       const k = (x - 6) % 7;
-      put(x, y, k === 0 ? WD[0] : x < 14 ? WD[3] : x > 50 ? WD[1] : k === 1 ? WD[3] : WD[2]);
+      put(x, y, k === 0 ? WD[0] : x < 14 ? WD[3] : x > 70 ? WD[1] : k === 1 ? WD[3] : WD[2]);
     }
     // les pieds, un peu plus sombres
-    rect(6, BOT - 1, 4, 2, WD[0]); rect(54, BOT - 1, 4, 2, WD[0]);
+    rect(6, BOT - 1, 4, 2, WD[0]); rect(74, BOT - 1, 4, 2, WD[0]);
     // le plateau, débordant, avec sa tranche claire
-    rect(3, BOT - 19, 58, 3, WD[2]); rect(3, BOT - 19, 58, 1, WD[4]); rect(3, BOT - 17, 58, 1, WD[1]);
+    rect(3, BOT - 19, 78, 3, WD[2]); rect(3, BOT - 19, 78, 1, WD[4]); rect(3, BOT - 17, 78, 1, WD[1]);
     // le tablier de tissu tendu sur le devant, à l'écusson de pièce (la couleur du marchand)
-    for (let y = BOT - 15; y <= BOT - 4; y++) for (let x = 17; x <= 46; x++) {
+    for (let y = BOT - 15; y <= BOT - 4; y++) for (let x = 24; x <= 59; x++) {
       const wave = y === BOT - 4 && (x % 6 === 0);
       if (wave) continue;
-      put(x, y, x < 20 ? P.r[2] : x > 43 ? P.r[0] : P.r[1]);
+      put(x, y, x < 27 ? P.r[2] : x > 56 ? P.r[0] : P.r[1]);
     }
-    for (let i = 0; i < 30; i++) put(17 + i, BOT - 15, P.a[1]);
-    const cx = 31, cy = BOT - 10;
+    for (let i = 0; i < 36; i++) put(24 + i, BOT - 15, P.a[1]);
+    const cx = 41, cy = BOT - 10;
     for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= 10 && x * x + y * y >= 4) put(cx + x, cy + y, '#ece7da');
     rect(cx - 1, cy - 1, 2, 2, '#ece7da');
     // les marchandises sur le plateau
@@ -258,10 +260,11 @@ export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
     [['#c44a37', '#e06a52'], ['#4c6ba0', '#6e8cc0'], ['#d6ba78', '#ecd69c']].forEach(([c0, c1], k) => {
       rect(4 + k * 5, top - 5, 4, 5, c0); rect(4 + k * 5, top - 5, 4, 1, c1); put(4 + k * 5, top - 3, c1);
     });
-    rect(42, top - 6, 7, 6, '#a0522d'); rect(43, top - 7, 5, 1, '#c0703e'); rect(42, top - 6, 2, 6, '#c0703e');   // un pot
-    for (let k = 0; k < 3; k++) rect(52, top - 2 - k * 2, 6, 2, k % 2 ? P.gold[0] : P.gold[1]);              // une pile de ryō
+    rect(56, top - 6, 7, 6, '#a0522d'); rect(57, top - 7, 5, 1, '#c0703e'); rect(56, top - 6, 2, 6, '#c0703e');   // un pot
+    for (let k = 0; k < 3; k++) rect(68, top - 2 - k * 2, 6, 2, k % 2 ? P.gold[0] : P.gold[1]);              // une pile de ryō
     // le contour sombre
     counterCv = canvas(CW, CH);
+    counters.set(P, counterCv);
     const c = counterCv.getContext('2d'), img = c.createImageData(CW, CH);
     const at = (x, y) => g.get(`${x},${y}`);
     for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
@@ -273,5 +276,5 @@ export function drawCounter(ctx, sx, sy, P = MERCHANTS.potager) {
     }
     c.putImageData(img, 0, 0);
   }
-  ctx.drawImage(counterCv, Math.round(sx - 32), Math.round(sy - BOT));
+  ctx.drawImage(counterCv, Math.round(sx - 42), Math.round(sy - BOT));
 }

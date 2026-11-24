@@ -1,7 +1,8 @@
+import { renderSmooth } from './engine/pixelfont.js';
 import { loadCharacter, loadImage, loadJson } from './engine/sprites.js';
 import { Input } from './engine/input.js';
 import { TouchControls } from './engine/touch.js';
-import { Level } from './game/level.js';
+import { Level, TILE } from './game/level.js';
 import { LEVELS } from './game/maps.js';
 import { Player } from './game/player.js';
 import { Shurikens, SHURIKEN } from './game/shuriken.js';
@@ -18,8 +19,13 @@ import { drawAura as drawAura0 } from './game/aura.js';
 import { Mist } from './game/mist.js';
 import { Shop, skinOrder } from './game/shop.js';
 import './style.css';
-import { pixelUI } from './engine/pixelui.js';
+import { pixelUI, setBrushText } from './engine/pixelui.js';
 import { Intro } from './game/intro.js';
+import { paintSheet } from './engine/brush.js';
+import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsprite.js';
+import { BRUSH } from './engine/brush.js';
+import { Lights, DayCycle } from './game/daylight.js';
+import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
@@ -56,7 +62,42 @@ bgCanvas.className = 'bg-layer';
 bgCanvas.hidden = true;
 canvas.before(bgCanvas);
 const bgCtx = bgCanvas.getContext('2d');
+// la lumière du monde et l'heure (src/game/daylight.js) : un calque de lumière par-dessus le jeu
+const lights = new Lights(canvas);
+const cycle = new DayCycle();
 let bgK = 1;   // pixels d'écran par pixel de jeu
+/**
+ * Le masque de la terre sous le sol (style peint) : blanc dans les blocs « # » sous la surface (le haut du bloc
+ * de surface, l'herbe, reste dehors) ; le pinceau y garde ses touches libres.
+ */
+const maskCanvas = document.createElement('canvas'), maskCtx = maskCanvas.getContext('2d');
+const rockTmp = document.createElement('canvas'), rockTmpCtx = rockTmp.getContext('2d');
+function earthMask(cam, which = 'back') {
+  if (maskCanvas.width !== VIEW_W || maskCanvas.height !== VIEW_H) { maskCanvas.width = VIEW_W; maskCanvas.height = VIEW_H; }
+  maskCtx.fillStyle = '#000'; maskCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // les pierres de l'éboulis de la Forêt (calque à part, src/game/foret/live.js : rockLayer) : en blanc
+  const rk = level.art?.live?.rockMasks?.[which];
+  if (rk && rk.t === level.time) {
+    if (rockTmp.width !== VIEW_W || rockTmp.height !== VIEW_H) { rockTmp.width = VIEW_W; rockTmp.height = VIEW_H; }
+    rockTmpCtx.globalCompositeOperation = 'source-over'; rockTmpCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+    rockTmpCtx.drawImage(rk.c, 0, 0);
+    rockTmpCtx.globalCompositeOperation = 'source-in'; rockTmpCtx.fillStyle = '#fff'; rockTmpCtx.fillRect(0, 0, VIEW_W, VIEW_H);
+    rockTmpCtx.globalCompositeOperation = 'source-over';
+    maskCtx.drawImage(rockTmp, 0, 0);
+  }
+  if (which !== 'back') return maskCanvas;
+  maskCtx.fillStyle = '#fff';
+  const tx0 = Math.floor(cam.x / TILE), tx1 = Math.ceil((cam.x + VIEW_W) / TILE), ty0 = Math.floor(cam.y / TILE), ty1 = Math.ceil((cam.y + VIEW_H) / TILE);
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    if (level.at(tx, ty) !== '#') continue;
+    const top = level.at(tx, ty - 1) === '#' ? 0 : 7;          // (le bloc de surface : sous son herbe)
+    maskCtx.fillRect(tx * TILE - cam.x, ty * TILE - cam.y + top, TILE, TILE - top);
+  }
+  return maskCanvas;
+}
+let GK = 1;    // pixels de la toile du jeu par pixel de jeu (style peint : comme le paysage)
+let paintedMode = false;
+const hudText = [];   // style peint : les textes de l'interface, posés après le pinceau
 // calque des commandes tactiles (au-dessus du jeu, sous l'interface HTML)
 const touchCanvas = MOBILE ? document.createElement('canvas') : null;
 const touchCtx = touchCanvas?.getContext('2d');
@@ -116,9 +157,14 @@ function fit() {
     VIEW_H = DESK_H;
     bgK = Math.max(1, Math.min(6, Math.round(SCALE * (window.devicePixelRatio || 1))));
   }
-  if (canvas.width !== VIEW_W || canvas.height !== VIEW_H) {
-    canvas.width = VIEW_W;
-    canvas.height = VIEW_H;
+  const gk0 = GK;
+  GK = paintedMode ? bgK : 1;
+  if (GK !== gk0 && typeof look !== 'undefined' && look?.id) wearSkin(look.id);   // (le ninja net suit la finesse du calque)
+  brushView.k = bgK; brushView.on = paintedMode;
+  if (paintedMode && (passCanvas.width !== VIEW_W || passCanvas.height !== VIEW_H)) { passCanvas.width = VIEW_W; passCanvas.height = VIEW_H; passCtx.imageSmoothingEnabled = false; }
+  if (canvas.width !== VIEW_W * GK || canvas.height !== VIEW_H * GK) {
+    canvas.width = VIEW_W * GK;
+    canvas.height = VIEW_H * GK;
     ctx.imageSmoothingEnabled = false;
   }
   canvas.style.width = `${VIEW_W * SCALE}px`;
@@ -129,6 +175,7 @@ function fit() {
   }
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
+  lights.resize(VIEW_W, VIEW_H, canvas.style.width, canvas.style.height);
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   uiLayer.classList.toggle('short', VIEW_H < 236);   // écrans de menu compacts (téléphones allongés)
   uiLayer.style.width = `${VIEW_W}px`;
@@ -148,7 +195,28 @@ const { meta, skins } = await loadCharacter('./characters/kage', 'kage.json');
 let look = skins.encre;     // skin porté (Encre : le ninja noir) ; changé à la boutique du marchand
 // version de test (artefact privé) : tous les skins sont disponibles sans achat
 const TEST_BUILD = !!globalThis.__KAGE_TEST;
-function wearSkin(id) { look = skins[id] ?? skins.encre; }
+const NINJA_STYLE = new URLSearchParams(location.search).get('ninja');
+// le pinceau du premier plan (terrain, décors, effets), choix de Raph (23 novembre, échantillon 2) : les
+// touches ne franchissent pas les bords des objets, plus courtes et plus égales ; la terre sous le sol garde
+// le pinceau libre (masque). ?pinceau=0 : l'ancien partout ; 1 : bords nets seuls ; 4 : avec contour d'encre.
+const FRONT = {
+  0: {},
+  1: { keep: 0.45 },
+  4: { keep: 0.45, amp: 0.7, ink: 0.6, edge: 0.2 },
+}[new URLSearchParams(location.search).get('pinceau')] ?? { keep: 0.45, amp: 0.7, ink: 0.6 };
+function wearSkin(id) {
+  const base = skins[id] ?? skins.encre;
+  look = base;
+  if (paintedMode) {
+    // le ninja en pixels nets (NINJA_DEFAULT) ; ?ninja=… pour un autre style (lisse, doux, encre, fin, lavis :
+    // ramenés une fois à la finesse du calque du jeu, GK), ?ninja=peint pour l'ancien au pinceau
+    if (!base.painted || base.painted.k !== GK) {
+      const sheet = NINJA_STYLE === 'peint' ? paintSheet(base.sheet, { seed: 41 }) : (NINJA_STYLES.includes(NINJA_STYLE) ? NINJA_STYLE : NINJA_DEFAULT) === 'pixel' ? crispSheet(base.sheet, 'pixel') : atScale(crispSheet(base.sheet, NINJA_STYLE), GK);
+      base.painted = { ...base, k: GK, sheet };
+    }
+    look = base.painted;
+  }
+}
 /**
  * Les traînées d'or d'un skin (Lumière d'or) : derrière le coup d'épée, les images précédentes de la lame et
  * de son arc, de plus en plus pâles (une traînée légère) ; derrière le dash, des silhouettes dorées qui
@@ -202,6 +270,16 @@ const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
 const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
+// style peint (essai sur le Potager, src/engine/brush.js) : le décor et les personnages repeints en touches
+// d'aquarelle ; le calque du jeu est alors dessiné plus finement (GK pixels de toile par pixel de jeu).
+// ?peint=0 dans l'adresse : le pixel art d'avant.
+const PAINTED = !!level.painted;
+const brush = brushGL();
+const passCanvas = document.createElement('canvas');
+const passCtx = passCanvas.getContext('2d', { willReadFrequently: false });
+paintedMode = PAINTED;
+brushView.on = PAINTED;
+if (PAINTED) { fit(); wearSkin(look.id ?? 'encre'); }
 if (level.forest) level.forest.touch = MOBILE;   // sur téléphone, le bouton de saut saisit la corde de la statue (comme une liane)
 if (level.art) {
   level.art.hiBackdrop = true;      // le paysage passe sur son calque fin
@@ -220,13 +298,15 @@ player.onThrow = (x, y, dir, height) => {
 player.canThrow = () => shurikens.canThrow();
 // ennemis : un TATE à chaque repère « E » de la carte
 const tateMeta = await loadJson('./characters/tate/tate.json');
-const tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
+let tateSheet = await loadImage(`./characters/tate/${tateMeta.image}`);
+if (PAINTED) tateSheet = paintSheet(tateSheet, { seed: 43 });
 const tateGlow = await loadImage(`./characters/tate/${tateMeta.glowImage}`);
 const tates = level.enemies.map((e) => new Tate(tateMeta, tateSheet, tateGlow, e.x, e.y, level));
 shurikens.enemies.push(...tates);
 // WARA : un épouvantail à chaque repère « W » de la carte
 const waraMeta = await loadJson('./characters/wara/wara.json');
-const waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
+let waraSheet = await loadImage(`./characters/wara/${waraMeta.image}`);
+if (PAINTED) waraSheet = paintSheet(waraSheet, { seed: 47 });
 const waras = level.waras.map((w) => new Wara(waraMeta, waraSheet, w.x, w.y, level));
 shurikens.enemies.push(...waras);
 const enemies = [...tates, ...waras];
@@ -236,7 +316,7 @@ if (level.boss?.type === 'karasu') {
   const kbase = './characters/karasu';
   const kmeta = await loadJson(`${kbase}/karasu.json`);
   const [sheet, perch, items] = await Promise.all([kmeta.image, kmeta.perchImage, kmeta.itemImage].map((f) => loadImage(`${kbase}/${f}`)));
-  boss = new Karasu(kmeta, { sheet, perch, items }, level.boss, level);
+  boss = new Karasu(kmeta, PAINTED ? { sheet: paintSheet(sheet, { ox: 3 }), perch: paintSheet(perch, { ox: 7 }), items } : { sheet, perch, items }, level.boss, level);
   enemies.push(boss);
   shurikens.enemies.push(boss);
 }
@@ -662,6 +742,7 @@ function startRoom(cfg) {
     }
   };
   multi = new Multi({
+    painted: PAINTED,
     net, player, shurikens, level, levelId: LEVEL_ID, meta, skins, skinId: () => look.id,
     onEvent(n, d) {
       if (n === 'roster') { showList(); lobby?.render(); }
@@ -841,6 +922,8 @@ function setupSkinLab() {
     b.setAttribute('aria-pressed', String(id === LEVEL_ID));
     row.append(b);
   }
+  // l'heure du monde (cycle du jour et de la nuit) : pour essayer
+  for (const [w, label, title] of [['matin', 'Matin', 'Passer au matin'], ['soir', 'Soir', 'Passer au soir'], ['nuit', 'Nuit', 'Passer à la nuit']]) row.append(button(label, title, () => cycle.set(w)));
   const again = button('Intro', 'Rejouer l\'introduction', () => playIntro());
   again.dataset.labIntro = '';
   row.append(again);
@@ -881,7 +964,23 @@ function setupSkinLab() {
     labSet('open', open ? '1' : '0');
   }
   setOpen(labGet('open') === '1');      // fermé au premier lancement, puis comme on l'a laissé
-  lab.append(toggle, panel);
+  // à côté de « Réglages » : passer directement au jour ou à la nuit (le libellé dit où l'on va)
+  const sky = button('Nuit', 'Passer directement au jour ou à la nuit', () => { cycle.set(cycle.night > 0.5 ? 'midi' : 'nuit'); skyLabel(); });
+  sky.className = 'lab__toggle';
+  sky.dataset.labSky = '';
+  const skyLabel = () => { sky.textContent = cycle.night > 0.5 ? 'Jour' : 'Nuit'; };
+  setInterval(skyLabel, 1000);          // (le cycle avance tout seul)
+  const quick = document.createElement('div');
+  quick.className = 'lab__quick';
+  // le compteur d'images par seconde (et le temps de calcul d'une image), pour vérifier la fluidité
+  const fps = document.createElement('span');
+  fps.className = 'lab__fps';
+  setInterval(() => {
+    const l = perf.last, avg = l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0;
+    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms`;
+  }, 500);
+  quick.append(fps, sky, toggle);
+  lab.append(quick, panel);
   uiLayer.append(lab);
   pick(skins[labGet('skin')] ? labGet('skin') : 'encre');
 }
@@ -908,6 +1007,19 @@ function gotoZone(i) {
   snapCamera();
 }
 
+/** Les sources de lumière du chapitre (monde) : lanternes, échoppes, marchand, ryō. k : force, r : portée. */
+function lightSources() {
+  const S = [];
+  for (const c of level.checkpoints) S.push({ x: c.x, y: c.y - 28, k: c.lit ? 1 : 0.5, r: 1 });
+  for (const p of level.props ?? []) {
+    if (p.type === 'lantern_stone') S.push({ x: p.x * TILE + 8, y: p.y * TILE - 22, k: 0.8, r: 0.8 });
+    else if (p.type === 'stall') { const X = p.x * TILE + 8, Y = p.y * TILE; S.push({ x: X - 34, y: Y - 40, k: 0.75, r: 0.8 }, { x: X + 36, y: Y - 40, k: 0.75, r: 0.8 }); }
+  }
+  if (level.merchant && level.theme === 'foret') S.push({ x: level.merchant.x + 14, y: level.merchant.y - 36, k: 0.7, r: 0.8 });
+  for (const c of level.coins) if (!c.taken) S.push({ x: c.x, y: c.y, k: 0.3, r: 0.32 });
+  return S;
+}
+
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
@@ -921,6 +1033,7 @@ function update(dt) {
   if (fx.frozen(dt)) return;
   if (!multi?.out) player.update(dt, run.won ? IDLE_INPUT : input);   // (Souffle unique : éliminé, il regarde)
   level.update(dt);
+  cycle.update(dt);              // (l'heure du monde ne passe que pendant le jeu)
   level.arena?.update(dt, [player]);
   multi?.update(dt);
   level.forest?.update(dt, player);
@@ -1195,50 +1308,80 @@ function draw() {
   const shake = fx.offset();
   // une seule position, arrondie au pixel, pour tout ce qui est dessiné
   const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
+  ctx.setTransform(GK, 0, 0, GK, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  // style peint : le monde se dessine d'abord en pixels sur une toile à part (W), puis le pinceau de la carte
+  // graphique le repeint dans l'image (touches accrochées au monde) ; les personnages, repeints à l'avance,
+  // se posent par-dessus ; puis le premier plan et les effets, repeints de même ; puis l'interface.
+  // (pixel art lumineux : le monde se dessine directement, net, dans le calque du jeu ; GL : seulement
+  // l'ancien pinceau d'aquarelle, ?aquarelle=1, qui passe par la carte graphique)
+  const B = PAINTED && brush.ok;
+  const GL = B && BRUSH;
+  const W = GL ? passCtx : ctx;
+  if (GL) { passCtx.setTransform(1, 0, 0, 1, 0, 0); passCtx.clearRect(0, 0, VIEW_W, VIEW_H); }
   if (level.art) {
     // paysage : position exacte de la caméra, arrondie au pixel d'écran
     bgCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
     bgCtx.imageSmoothingEnabled = false;
-    level.art.backdrop.draw(bgCtx, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK);
+    lights.backdrop(bgCtx, level.art.backdrop, level, { x: camera.x + shake.x, y: camera.y + shake.y }, VIEW_W, VIEW_H, level.time, bgK, cycle);
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
   }
-  level.draw(ctx, cam, VIEW_W, VIEW_H);
-  level.drawTargets(ctx, cam);
-  level.drawProps(ctx, cam);
-  arenaArt?.drawBack(ctx, cam, level.time);
-  boss?.drawBack(ctx, cam);
-  shurikens.drawStuck(ctx, look.projectiles.shuriken, cam);
+  level.draw(W, cam, VIEW_W, VIEW_H);
+  level.drawTargets(W, cam);
+  level.drawProps(W, cam);
+  arenaArt?.drawBack(W, cam, level.time);
+  boss?.drawBack(W, cam);
+  shurikens.drawStuck(W, look.projectiles.shuriken, cam);
+  const LIGHT = GL ? lights.shader(level, cycle) : null;
+  if (GL) brush.paint(ctx, passCanvas, GK, { cam, wide: 'mid', detail: 0.2, soft: 0.35, ...FRONT, mask: BRUSH ? earthMask(cam) : null, light: LIGHT });
   for (const t of tates) t.draw(ctx, cam, player);
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
   multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
-  if (!behindGate()) mist.draw(ctx, cam);
+  if (B && level.art && player.onGround && !behindGate() && !multi?.out) {   // une ombre douce sous ses pieds
+    ctx.save(); ctx.globalAlpha = 0.22 * (1 - 0.5 * cycle.night); ctx.fillStyle = '#0c0e22';
+    ctx.beginPath(); ctx.ellipse(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 9, 1.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
   if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
-  level.drawForeground(ctx, cam);
-  arenaArt?.drawFront(ctx, cam, level.time);
-  shurikens.drawFlying(ctx, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
-  fx.draw(ctx, cam);
+  if (GL) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+  if (!behindGate()) mist.draw(W, cam);
+  level.drawForeground(W, cam);
+  arenaArt?.drawFront(W, cam, level.time);
+  shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
+  fx.draw(W, cam);
+  if (GL) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: BRUSH ? earthMask(cam, 'front') : null, light: LIGHT });   // (le premier plan)
+  // la lumière : la nuit sur le monde (flaques de lumière des lanternes), puis le calque de lumière
+  const lit = level.art && B;
+  lights.show(lit);
+  if (lit) {
+    const src = lightSources();
+    lights.night(ctx, level, cam, VIEW_W, VIEW_H, src, cycle);
+    lights.frame(level, cam, VIEW_W, VIEW_H, level.time, src, cycle);
+  }
   if (run.title) return;   // écran titre : le décor seul, sans interface
+  // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
+  const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage
   for (const t of enemies) {
     if (t.gone || t.noBar) continue;
     const fade = t.state === 'defeated' ? Math.max(0, 1 - t.timer / 0.6) : 1;
     const top = t instanceof Wara ? 34 + Math.round(t.lift) : 38;   // au-dessus du chapeau (personnages agrandis de 20 %)
-    t.bar.draw(ctx, t.x - cam.x, t.y - cam.y - top, fade);
+    t.bar.draw(U, t.x - cam.x, t.y - cam.y - top, fade);
   }
   if (player.state !== 'death' && player.state !== 'respawn' && !behindGate()) {
-    kageBar.draw(ctx, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
+    kageBar.draw(U, player.x - cam.x, player.y - cam.y - 31 - (look.barLift ?? 0));   // (barLift : au-dessus d'un casque à cornes)
   }
   // interface en haut à gauche : anneau d'énergie, puis stock de shurikens
-  player.energy.draw(ctx, 13, 13, { always: true });
-  shurikens.drawHud(ctx, look.projectiles.shuriken, 26, 8);
+  player.energy.draw(U, 13, 13, { always: true });
+  shurikens.drawHud(U, look.projectiles.shuriken, 26, 8);
   // ryō : sous les shurikens (dans un chapitre)
-  if (save) drawRyo(ctx, 27, 19, save.ryo);
+  if (save) drawRyo(U, 27, 19, save.ryo);
   // chronomètre centré en haut, hors chapitre (le coin haut-droit accueille le bouton du son sur mobile)
-  if (level.goal && !CHAPTER) drawTime(ctx, Math.round(VIEW_W / 2 + 9), 5, run.time);
+  if (level.goal && !CHAPTER) drawTime(U, Math.round(VIEW_W / 2 + 9), 5, run.time);
+  for (const f of hudText.splice(0)) f();
   if (touch) {
     touchCtx.clearRect(0, 0, touchCanvas.width, touchCanvas.height);
     touch.draw(touchCtx);
@@ -1691,7 +1834,8 @@ function drawScarecrows(cam) {
     const f = waraMeta.frames[Math.floor(level.time * 1.5) % 2 ? 'idle_1' : 'idle_2'];
     const sx = Math.round(p.x * 16 + 8 - cam.x), sy = Math.round(p.y * 16 - cam.y) - waraMeta.pivot.y;
     if (sx < -60 || sx > VIEW_W + 60) continue;
-    ctx.drawImage(waraSheet, f.x, f.y, f.w, f.h, sx - waraMeta.pivot.x, sy, f.w, f.h);
+    const P = waraSheet.P ?? 1;
+    ctx.drawImage(waraSheet, f.x * P, f.y * P, f.w * P, f.h * P, sx - waraMeta.pivot.x, sy, f.w, f.h);
   }
 }
 
@@ -1741,6 +1885,10 @@ const DIGITS = {
 };
 function drawTime(c, right, y, t, label = null) {
   const text = label ?? fmt(t);
+  if (PAINTED && brush.ok) {          // style peint : une écriture lisse, posée sur l'image finale (pas repeinte)
+    hudText.push(() => smoothText(ctx, renderSmooth, text, right + 3, y - 4, { color: '#e9e5da', outline: '#06070a' }, 'right'));
+    return;
+  }
   let x = right - text.length * 4 + 1;
   for (const ch of text) {
     const bits = DIGITS[ch];
@@ -1760,22 +1908,42 @@ const STEP = 1 / 120;
 let manual = false;   // tests : le temps n'avance que par __kage.step()
 let acc = 0;
 let last = performance.now();
+// mesure : temps de calcul de chaque image (update + draw), et images par seconde (compteur de la version
+// de test, qualité automatique de la lumière : lights.quality)
+const perf = { last: [], fps: 60, slow: 0 };
+globalThis.__frameStart = 0;
 function frame(now) {
-  acc += Math.min(0.1, (now - last) / 1000);
+  // (au plus 0,1 s rattrapée d'un coup ; un pas de physique ne coûte presque rien, le dessin est fait une
+  // seule fois par image : le jeu ne s'emballe pas)
+  const gap = (now - last) / 1000;
+  acc += Math.min(0.1, gap);
   last = now;
+  globalThis.__frameStart = performance.now();
   while (acc >= STEP) {
     if (!manual) update(STEP);
     acc -= STEP;
   }
   draw();
+  const ms = performance.now() - globalThis.__frameStart;
+  perf.last.push(ms); if (perf.last.length > 240) perf.last.shift();
+  if (gap > 0 && gap < 1) perf.fps += (1 / gap - perf.fps) * 0.05;
+  // qualité automatique : un appareil qui ne tient pas l'image allège la lumière (jamais le jeu)
+  perf.slow = perf.fps < 48 ? Math.min(240, perf.slow + 1) : Math.max(0, perf.slow - 2);
+  if (perf.slow >= 180 && lights.quality > 0) { lights.quality--; perf.slow = 0; }
   requestAnimationFrame(frame);
 }
 fit();
+setBrushText(PAINTED);
 pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
+// le jeu est peint : l'écran de chargement s'efface (après la première image)
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const ld = document.querySelector('.loading');
+  if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 700); }
+}));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, cycle, perf, lights, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

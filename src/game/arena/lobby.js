@@ -7,6 +7,7 @@ import { MODES } from '../multi.js';
 import { measure } from '../../engine/pixelfont.js';
 import { homeIcon } from '../menu.js';
 import { canvas } from '../potager/paint.js';
+import { BrushedCanvas, brushView } from '../../engine/brushgl.js';
 import {
   Pen, INK, flat, ground, stoneLantern, drawFlame, gong, drawGongRing, ema, drawSign, rope, stroke, NinjaArt, smooth, clamp01,
 } from '../menuart.js';
@@ -32,7 +33,8 @@ export class Lobby {
     this.el = el('section', 'm-screen m-lant solid');
     this.el.dataset.salon = '';
     this.el.setAttribute('aria-label', "Salon de l'arène");
-    this.cv = canvas(1, 1);
+    this.bc = brushView.on ? new BrushedCanvas('m-scene') : null;     // style peint : repeinte à chaque image
+    this.cv = this.bc ? this.bc.el : canvas(1, 1);
     this.cv.className = 'm-scene';
     this.layer = el('div', 'm-layer');
     this.el.append(this.cv, this.layer);
@@ -89,8 +91,9 @@ export class Lobby {
     const key = `${this.view}|${W}x${H}`;
     if (this.key === key) return false;
     this.key = key; this.W = W; this.H = H;
-    this.cv.width = W; this.cv.height = H;
-    this.g = this.cv.getContext('2d'); this.g.imageSmoothingEnabled = false;
+    if (this.bc) { this.bc.size(W, H); this.g = this.bc.g; }
+    else { this.cv.width = W; this.cv.height = H; this.g = this.cv.getContext('2d'); }
+    this.g.imageSmoothingEnabled = false;
     this.base = canvas(W, H);
     const p = new Pen(this.base.getContext('2d'));
     if (this.backdrop) { this.backdrop.resize(W, H); this.backdrop.draw(); p.g.drawImage(this.backdrop.el, 0, 0); }
@@ -130,7 +133,7 @@ export class Lobby {
     if (this.ring >= 0) { this.ring += dt; drawGongRing(g, this.gong, this.ring); }
     if (this.view === 'result') {
       const w = this.winner;
-      if (w?.skin) this.art.draw(g, w.skin, Math.round(this.W / 2), this.g0, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.2) / 0.4) });
+      if (w?.skin) this.art.draw(this.bc?.tg ?? g, w.skin, Math.round(this.W / 2), this.g0, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.2) / 0.4), crisp: !!this.bc });
     } else {
       const { net } = this;
       this.seats.forEach((S, i) => {
@@ -138,9 +141,9 @@ export class Lobby {
         const tg = p ? 1 : 0;
         this.lights[i] += Math.sign(tg - this.lights[i]) * Math.min(Math.abs(tg - this.lights[i]), dt * 2);
         drawFlame(g, S.lan, this.lights[i], 0.8, t, i);
-        if (p) this.art.draw(g, this.skinOf(p), S.cx + 11, this.g0, { t, alpha: clamp01((this.lights[i] - 0.5) * 2) });
+        if (p) this.art.draw(this.bc?.tg ?? g, this.skinOf(p), S.cx + 11, this.g0, { t, alpha: clamp01((this.lights[i] - 0.5) * 2), crisp: !!this.bc });
       });
-      this.tabs.forEach((T, i) => { if (net.code[i]) drawSign(g, T, net.code[i]); });
+      this.tabs.forEach((T, i) => { if (net.code[i]) drawSign(g, T, net.code[i], 0, this.bc?.tg); });
     }
     const f = document.activeElement;
     if (f && this.el.contains(f) && f.stroke && !f.disabled) {
@@ -150,6 +153,7 @@ export class Lobby {
     } else this.strokeFor = null;
     const home = this.layer.querySelector('.m-home');
     if (home) homeIcon(g, parseFloat(home.style.left) + 2, 9, f === home ? INK : '#4a505b');
+    this.bc?.present({ wide: 'mid', detail: 0.22 });
   }
 
   skinOf(p) {

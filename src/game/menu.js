@@ -14,7 +14,8 @@
 // posés au pixel sur la scène peinte. Transitions : les écrans entrent et sortent en fondu, les
 // lanternes s'allument l'une après l'autre, le coup de pinceau se tire sous le choix.
 import { cleanCode } from '../engine/net.js';
-import { measure, renderText } from '../engine/pixelfont.js';
+import { BrushedCanvas, brushView, smoothText } from '../engine/brushgl.js';
+import { measure, renderText, renderSmooth } from '../engine/pixelfont.js';
 import { play } from '../engine/sfx.js';
 import { cleanName } from './profile.js';
 import { canvas, noise1 } from './potager/paint.js';
@@ -169,10 +170,14 @@ export class Menu {
     const W = this.ui.offsetWidth || 448, H = this.ui.offsetHeight || 252;
     const s = el('section', 'm-screen m-lant');
     s.W = W; s.H = H;
-    const cv = canvas(W, H);
+    // style peint : la scène se dessine en pixels sur une toile à part, le pinceau la repeint à chaque image
+    const bc = brushView.on ? new BrushedCanvas('m-scene') : null;
+    if (bc) bc.size(W, H);
+    const cv = bc ? bc.el : canvas(W, H);
     cv.className = 'm-scene';
     s.append(cv);
-    s.g = cv.getContext('2d');
+    s.g = bc ? bc.g : cv.getContext('2d');
+    s.tg = bc ? bc.tg : null;          // (style peint : les textes lisses, posés après le pinceau)
     s.g.imageSmoothingEnabled = false;
     s.base = canvas(W, H);
     s.pen = new Pen(s.base.getContext('2d'));
@@ -208,6 +213,7 @@ export class Menu {
       }
       for (const b of s.strokes.keys()) if (b !== f) s.strokes.delete(b);
       homeIcon(g, W - 41, 9, f === home ? INK : '#4a505b');
+      if (bc) bc.present({ wide: 'mid', detail: 0.22 });   // (des touches moyennes : le sentier, les lanternes se reconnaissent)
     };
     return s;
   }
@@ -469,12 +475,13 @@ export class Menu {
         if (LX[i] < cx - 80 || LX[i] > cx + W + 80) return;
         drawFlame(g, L.lan, L.v, L.power, t, i);
         const col = L.v > 0.5 ? (i + 1 === look ? '#d8b070' : '#6e5a40') : i + 1 === look ? '#8d8a80' : '#2a2f38';
-        const nc = numOf(i + 1, col);
-        g.drawImage(nc, Math.round(LX[i] - nc.width / 2), Math.round(top(LX[i])) + 7);
+        if (s.tg) smoothText(s.tg, renderSmooth, String(i + 1), LX[i] - cx, Math.round(top(LX[i])) + 7, { color: col }, 'center');
+        else { const nc = numOf(i + 1, col); g.drawImage(nc, Math.round(LX[i] - nc.width / 2), Math.round(top(LX[i])) + 7); }
       });
       if (cur > 0) {
         const x = LX[cur - 1] + 26, skin = a?.sv?.skin ?? 'encre';
-        this.art.draw(g, skin, x, Math.round(top(x)) + 1, { t, alpha: clamp01((lamps[cur - 1].v - 0.5) * 2) });
+        // (style peint : le ninja net, sur le calque du dessus, qui n'est pas décalé avec le sentier)
+        this.art.draw(s.tg ?? g, skin, s.tg ? x - cx : x, Math.round(top(x)) + 1, { t, alpha: clamp01((lamps[cur - 1].v - 0.5) * 2), crisp: !!s.tg });
       }
       g.restore();
       lampBtns.forEach((b, i) => { b.style.left = `${LX[i] - cx - 14}px`; });
@@ -601,7 +608,7 @@ export class Menu {
         g.fillStyle = '#6a5d45'; g.fillRect(T.x + dx, T.hang, 1, Math.max(1, y + Math.round(tw / 3) - 2 - T.hang));
         g.drawImage(T.c, x, y);
         const tab = { body: { ...T.tab.body, x: x + T.tab.body.x, y: y + T.tab.body.y } };
-        if (val[i]) drawSign(g, tab, val[i]);
+        if (val[i]) drawSign(g, tab, val[i], 0, s.tg);
         else if (focused && i === val.length && Math.floor(t * 2.2) % 2 === 0) {
           g.fillStyle = '#1b120b'; g.fillRect(tab.body.x + Math.round(tab.body.w / 2) - 4, tab.body.y + tab.body.h - 6, 8, 2);
         }
@@ -691,7 +698,7 @@ export class Menu {
       setTimeout(() => fresh.querySelector(d < 0 ? '[data-prev]' : '[data-next]')?.focus(), 40);
     };
     s.paint = (g, t) => {
-      this.art.draw(g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4) });
+      this.art.draw(s.tg ?? g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4), crisp: !!s.tg });
       if (!shown) return;
       // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
       for (let i = 0; i < LANTERNS; i++) {

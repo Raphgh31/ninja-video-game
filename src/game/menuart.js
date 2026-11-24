@@ -7,7 +7,9 @@
 // Tout est peint en pixels de jeu (1 pixel de canvas = 1 pixel de jeu) : les parties fixes une fois
 // (couche « base »), ce qui vit à chaque image (flammes, lueurs, ninjas, coups de pinceau).
 import { canvas, pick, ih, noise1, bayer, rgb } from './potager/paint.js';
-import { renderText } from '../engine/pixelfont.js';
+import { renderText, renderSmooth } from '../engine/pixelfont.js';
+import { smoothText } from '../engine/brushgl.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
 
 export const INK = '#e9e5da';
 const STONE = ['#0f131b', '#171d28', '#212a38', '#2e3a4e', '#43536c'];
@@ -257,8 +259,13 @@ export function inkGlyph(ch, font = 'big', color = '#1b120b') {
   return s;
 }
 
-/** Écrit un signe au centre de la tablette (centré sur ses pixels, jamais hors du bois). */
-export function drawSign(g, tab, ch, dy = 0) {
+/** Écrit un signe au centre de la tablette (centré sur ses pixels, jamais hors du bois). top : style peint (lisse). */
+export function drawSign(g, tab, ch, dy = 0, top = null) {
+  if (top) {
+    const b = tab.body;
+    smoothText(top, renderSmooth, ch, b.x + b.w / 2, b.y + (b.h - 24) / 2 - 1 + dy, { font: 'big', color: '#1b120b' }, 'center');
+    return;
+  }
   const b = tab.body;
   let s = inkGlyph(ch, 'big');
   if (s && (s.w > b.w - 4 || s.h > b.h - 4)) s = inkGlyph(ch, 'small');
@@ -342,18 +349,23 @@ export class NinjaArt {
   }
 
   /** Le ninja, pieds en (x, y), agrandi k fois ; t : l'heure (pour l'animation de repos). */
-  draw(g, skin, x, y, { k = 1, t = 0, flip = false, tint = 'rgba(10,14,30,0.25)', alpha = 1 } = {}) {
+  // crisp : le ninja net (style peint : posé sur le calque du dessus, après le pinceau, en « trait fin »)
+  draw(g, skin, x, y, { k = 1, t = 0, flip = false, tint = 'rgba(10,14,30,0.25)', alpha = 1, crisp = false } = {}) {
     if (alpha <= 0) return;
     const anim = this.meta.animations.idle, total = anim.frames.reduce((s, f) => s + (f.duration ?? 167), 0);
     let ms = (t * 1000) % total, i = 0;
     while (ms > (anim.frames[i].duration ?? 167)) { ms -= anim.frames[i].duration ?? 167; i++; }
-    const c = this.frame(skin, i, tint), { pivot } = this.meta;
+    let c = this.frame(skin, i, tint);
+    const { pivot } = this.meta;
+    if (crisp) c = c.crisp ??= crispSheet(c, NINJA_DEFAULT);
+    const P = c.P ?? 1;
     g.save();
-    g.imageSmoothingEnabled = false;
+    g.imageSmoothingEnabled = !!c.smooth;
+    if (c.smooth) g.imageSmoothingQuality = 'high';
     g.globalAlpha = alpha;
     if (flip) { g.translate(Math.round(x + pivot.x * k), Math.round(y - pivot.y * k)); g.scale(-1, 1); }
     else g.translate(Math.round(x - pivot.x * k), Math.round(y - pivot.y * k));
-    g.drawImage(c, 0, 0, c.width * k, c.height * k);
+    g.drawImage(c, 0, 0, c.width / P * k, c.height / P * k);
     g.restore();
   }
 }

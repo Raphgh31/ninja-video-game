@@ -667,7 +667,7 @@ export class Karasu {
     const k = Math.max(0, Math.min(4, Math.round((this.sway + 1) * 2)));
     const f = m.frames[`perch_${k}`];
     const sx = Math.round(this.perchX - m.perchPivot.x - cam.x), sy = Math.round(this.groundY - m.perchPivot.y - cam.y);
-    ctx.drawImage(this.img.perch, f.x, f.y, f.w, f.h, sx, sy, f.w, f.h);
+    { const Q = this.img.perch.P ?? 1; ctx.drawImage(this.img.perch, f.x * Q, f.y * Q, f.w * Q, f.h * Q, sx, sy, f.w, f.h); }
     // ombres au sol (ou sur une plateforme) : elles annoncent où tombe chaque pierre
     const shadow = (x, floor, h, r) => {
       const w = Math.max(3, Math.round(r * 2.4 - h / 14));
@@ -700,9 +700,9 @@ export class Karasu {
     if (this.facing < 0) {
       ctx.translate(sx, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(this.img.sheet, f.x, f.y, f.w, f.h, -m.pivot.x, sy, f.w, f.h);
+      ctx.drawImage(this.img.sheet, f.x * (this.img.sheet.P ?? 1), f.y * (this.img.sheet.P ?? 1), f.w * (this.img.sheet.P ?? 1), f.h * (this.img.sheet.P ?? 1), -m.pivot.x, sy, f.w, f.h);
     } else {
-      ctx.drawImage(this.img.sheet, f.x, f.y, f.w, f.h, sx - m.pivot.x, sy, f.w, f.h);
+      ctx.drawImage(this.img.sheet, f.x * (this.img.sheet.P ?? 1), f.y * (this.img.sheet.P ?? 1), f.w * (this.img.sheet.P ?? 1), f.h * (this.img.sheet.P ?? 1), sx - m.pivot.x, sy, f.w, f.h);
     }
     ctx.restore();
     if (this.flash > 0) {                        // éclair blanc bref quand il est touché

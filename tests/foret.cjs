@@ -35,9 +35,11 @@ async function main() {
     expect(r[0] === 12 && r[1] === 12 && r[2] >= 17 && r[3], `zones ${r[0]}, zones avec lanterne au début ${r[1]}, lanternes ${r[2]}, arrivée ${r[3]}`);
   });
 
-  await test('forêt : la peinture se prépare vite (moins de 0,6 s au chargement)', async () => {
+  // (1,2 s : depuis le 24 novembre 2026, tout le fond de la Forêt est peint d'avance, au chargement, pour qu'aucune
+  // zone ne se peigne en pleine partie — c'étaient des à-coups ; voir prepareAll dans foret/backdrop.js)
+  await test('forêt : la peinture se prépare vite (moins de 1,2 s au chargement, fond compris)', async () => {
     const ms = await ev(() => __kage.level.art.buildMs);
-    expect(ms < 600, `${ms} ms`);
+    expect(ms < 1200, `${ms} ms`);
   });
 
   await test('zone 1 : on marche jusqu\'à la zone 2 en ramassant des ryō', async () => {

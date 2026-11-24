@@ -12,6 +12,7 @@
 // KAGE grimpe (ascension, canopée), la forêt lointaine descend sous lui ; quand il
 // dévale la pente, elle remonte. Les bandes se prolongent vers le haut (fûts) et
 // vers le bas (sous-bois) : aucune coupe ne se voit, quelle que soit la hauteur.
+import { paintBand } from '../../engine/brush.js';
 import { canvas, ih, pick, bayer, hazeRamp } from '../potager/paint.js';
 import * as C from './palette.js';
 import * as L from './layers.js';
@@ -290,16 +291,49 @@ export class ForetBackdrop {
   set(mood) { return (this.sets[mood] ??= { planes: {}, vault: null, rays: null, sky: null, skyH: 0 }); }
 
   /** Peint ce qui manque d'une lumière (tout, ou une seule pièce si !all). Renvoie true s'il a peint. */
+  /**
+   * Tout le fond du chapitre, peint d'avance (au chargement) : les montagnes et toutes les lumières des
+   * zones. Sinon, entrer dans une zone peignait son fond d'un coup, en pleine partie (un à-coup).
+   * Rend { ms, px } : le temps pris et la taille des images (en pixels).
+   */
+  prepareAll() {
+    const t0 = performance.now();
+    if (!this.mountains) this.mountains = paintFar(this.level.width, RANGE.k, RANGE.fx);
+    const moods = new Set(this.zones.map((z) => z.mood));
+    if (this.dark) moods.add('souterrain');
+    for (const m of moods) this.need(m, true);
+    this.keepAll = true;
+    let px = 0;
+    for (const s of Object.values(this.sets)) for (const c of [...Object.values(s.planes), s.vault, s.rays]) if (c) px += c.width * c.height;
+    return { ms: Math.round(performance.now() - t0), px };
+  }
+
   need(mood, all = false) {
     const m = C.MOODS[mood] ?? C.MOODS.sousbois, s = this.set(mood);
+    s.used = performance.now();
     for (const pl of PLANES) {
       if (s.planes[pl.id]) continue;
-      s.planes[pl.id] = paintPlane(pl.id, m);
+      s.planes[pl.id] = this.brushed(paintPlane(pl.id, m), PLANES.indexOf(pl));
       if (!all) return true;
     }
-    if (!s.vault && !m.cave && !m.crowns) { s.vault = paintVault(m); if (!all) return true; }
-    if (!s.rays && !m.cave) { s.rays = paintRays(m); if (!all) return true; }
+    if (!s.vault && !m.cave && !m.crowns) { s.vault = this.brushed(paintVault(m), 20); if (!all) return true; }
+    if (!s.rays && !m.cave) { s.rays = this.brushed(paintRays(m), 21); if (!all) return true; }
     return false;
+  }
+
+  /** Style peint : une bande repeinte au pinceau (touches larges au loin) ; sinon telle quelle. */
+  brushed(img, i) {
+    if (!this.level.painted) return img;
+    this.forget();
+    return paintBand(img, { P: 3, wide: i < 2 ? 'huge' : 'mid', ox: i * 41, oy: i * 17 });
+  }
+
+  /** On ne garde peintes que les trois lumières vues le plus récemment (la mémoire des téléphones). */
+  forget() {
+    if (this.keepAll) return;              // (tout est peint d'avance : rien à oublier)
+    const moods = Object.entries(this.sets).filter(([, s]) => Object.keys(s.planes).length).sort((a, b) => (b[1].used ?? 0) - (a[1].used ?? 0));
+    const now = performance.now();
+    for (const [, s] of moods.slice(4)) if (now - (s.used ?? 0) > 4000) { s.planes = {}; s.vault = null; s.painted = null; }
   }
 
   ready(mood) {
@@ -348,7 +382,7 @@ export class ForetBackdrop {
       g.drawImage(src, 0, 0);
       g.globalCompositeOperation = 'source-atop';
       g.globalAlpha = t[1]; g.fillStyle = t[0]; g.fillRect(0, 0, c.width, c.height);
-      s.range = c;
+      s.range = this.level.painted && c.width * 2 < 30000 ? paintBand(c, { wide: 'huge', ox: 5 }) : c;
     }
     return s.range;
   }
@@ -366,26 +400,42 @@ export class ForetBackdrop {
   q(v) { return Math.round(v * this.k) / this.k; }
 
   /** k = pixels d'écran par pixel de jeu (le contexte est déjà mis à l'échelle). */
-  draw(ctx, cam, viewW, viewH, time, k = 1) {
+  /** Le ciel seul, de la lumière dominante (la nuit : main.js pose la lune et les étoiles avant les plans). */
+  drawSkyOnly(ctx, cam, viewW, viewH) {
+    const list = this.weights(cam, viewW, viewH), mood = list[0].mood;
+    if (!this.ready(mood)) this.need(mood, true);
+    const s = this.sets[mood];
+    if (SKIES[mood]) this.skyOf(mood, viewH);
+    else if (s.skyH !== viewH) { s.sky = paintSky(C.MOODS[mood] ?? C.MOODS.sousbois, viewH); s.skyH = viewH; s.painted = null; }
+    this.drawSky(ctx, s, viewW, viewH);
+  }
+
+  // sky = false : les plans seuls, sur une toile transparente (la nuit, voir drawSkyOnly)
+  draw(ctx, cam, viewW, viewH, time, k = 1, sky = true) {
     this.k = k;
+    this.noSky = !sky;
     const list = this.weights(cam, viewW, viewH);
     for (const o of list) if (!this.ready(o.mood)) this.need(o.mood, true);
     this.drawMood(ctx, list[0].mood, cam, viewW, viewH, time);
     if (list.length > 1) {
       // fondu exact : la seconde lumière est composée à part, puis posée par-dessus
-      const cw = ctx.canvas.width, ch = ctx.canvas.height;
+      // (à la taille de l'image de jeu, pas de l'écran : le fondu ne se voit qu'en transparence, et c'est
+      // bien plus léger — c'était ce qui alourdissait la fin de la Forêt)
+      const cw = Math.ceil(viewW), ch = Math.ceil(viewH);
       if (!this.tmp || this.tmp.width !== cw || this.tmp.height !== ch) this.tmp = canvas(cw, ch);
       const g = this.tmp.getContext('2d');
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.clearRect(0, 0, cw, ch);
-      g.setTransform(ctx.getTransform());
-      g.imageSmoothingEnabled = false;
+      const kk = this.k;
       for (let j = 1; j < list.length; j++) {
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, cw, ch);
+        g.imageSmoothingEnabled = false;
+        this.k = 1;
         this.drawMood(g, list[j].mood, cam, viewW, viewH, time);
+        this.k = kk;
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = list[j].w / (list[0].w + list[j].w) * (j === 1 ? 1 : 0.5);
-        ctx.drawImage(this.tmp, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.tmp, 0, 0, cw, ch);
         ctx.restore();
       }
     }
@@ -445,10 +495,11 @@ export class ForetBackdrop {
 
   drawMood(ctx, mood, cam, viewW, viewH, time) {
     const s = this.sets[mood], m = C.MOODS[mood] ?? C.MOODS.sousbois, K = SKIES[mood];
+    s.used = performance.now();
     if (K) {
       this.skyOf(mood, viewH);
-      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
-      if (s.stars) {
+      if (!this.noSky) this.drawSky(ctx, s, viewW, viewH);
+      if (s.stars && !this.noSky) {
         ctx.fillStyle = '#f4ecff';
         for (const st of s.stars) {
           const a = (0.35 + 0.65 * st.b) * (0.75 + 0.25 * Math.sin(time * 1.3 + st.p));
@@ -458,7 +509,7 @@ export class ForetBackdrop {
         }
         ctx.globalAlpha = 1;
       }
-      if (s.sun) {
+      if (s.sun && !this.noSky) {
         const R = K.sun.R + 1;
         ctx.drawImage(s.sun, this.q(K.sun.x * viewW - R - cam.x * 0.006), this.q(K.sun.y * viewH - R));
       }
@@ -467,18 +518,20 @@ export class ForetBackdrop {
       if (rg) {
         const base = this.q(viewH * GROUND_AT + RANGE.drop + (this.refRow(cam.x + 240) * TILE - cam.y - viewH * GROUND_AT) * RANGE.fy);
         const off = this.q(cam.x * RANGE.fx), sx = Math.floor(off);
-        const w = Math.min(viewW + 1, rg.width - sx);
-        if (w > 0) ctx.drawImage(rg, sx, 0, w, rg.height, -(off - sx), base - this.mountains.plane.base, w, rg.height);
+        const Q = rg.P ?? 1, w = Math.min(viewW + 1, rg.width / Q - sx);
+        if (w > 0) ctx.drawImage(rg, sx * Q, 0, w * Q, rg.height, -(off - sx), base - this.mountains.plane.base, w, rg.height / Q);
       }
       const span = 2400;
       for (const c of s.clouds) {
         const x = ((c.x + time * c.speed - cam.x * c.f) % span + span) % span - 260;
         if (x > viewW || x + c.img.width < 0) continue;
-        ctx.drawImage(c.img, this.q(x), this.q(c.y * viewH));
+        if (this.level.painted) c.pimg ??= paintBand(c.img, { wide: 'wide', ox: c.x | 0 });
+        const im = c.pimg ?? c.img, Q = im.P ?? 1;
+        ctx.drawImage(im, this.q(x), this.q(c.y * viewH), im.width / Q, im.height / Q);
       }
     } else {
-      if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; }
-      ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      if (s.skyH !== viewH) { s.sky = paintSky(m, viewH); s.skyH = viewH; s.painted = null; }
+      if (!this.noSky) this.drawSky(ctx, s, viewW, viewH);
     }
     for (const pl of PLANES) {
       // un décor lointain glissé entre deux plans (l'arène : le temple, la statue) : avant le plan pl
@@ -511,14 +564,26 @@ export class ForetBackdrop {
     }
   }
 
+  /** Le ciel : son dégradé, ou (style peint) le même repeint en grandes touches, refait si la taille change. */
+  drawSky(ctx, s, viewW, viewH) {
+    if (!this.level.painted) { ctx.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH); return; }
+    if (!s.painted || s.painted.w !== viewW || s.painted.sky !== s.sky) {
+      const c = canvas(viewW, viewH), g = c.getContext('2d');
+      g.drawImage(s.sky, 0, 0, 4, viewH, 0, 0, viewW, viewH);
+      s.painted = { w: viewW, sky: s.sky, c: paintBand(c, { wide: 'huge', detail: 1, ink: 0.7 }) };
+    }
+    const c = s.painted.c;
+    ctx.drawImage(c, 0, 0, c.width, c.height, 0, 0, viewW, viewH);
+  }
+
   /** Recopie une bande périodique (décalage off) à la hauteur y. */
   tile(ctx, img, off, y, h, viewW, sy = 1) {
     let sx = ((off % W) + W) % W;
     const fl = Math.floor(sx), frac = sx - fl;
     let dx = -frac, x = fl;
     while (dx < viewW) {
-      const w = Math.min(W - x, viewW - dx + 1);
-      ctx.drawImage(img, x, 0, w, h, dx, y, w, h * sy);
+      const w = Math.min(W - x, viewW - dx + 1), Q = img.P ?? 1;
+      ctx.drawImage(img, x * Q, 0, w * Q, h * Q, dx, y, w, h * sy);
       dx += w; x = 0;
     }
   }
@@ -530,8 +595,8 @@ export class ForetBackdrop {
     const fl = Math.floor(sx), frac = sx - fl;
     let dx = -frac, x = fl;
     while (dx < viewW) {
-      const w = Math.min(W - x, viewW - dx + 1);
-      ctx.drawImage(img, x, sy, w, sh, dx, y, w, h + 0.5);
+      const w = Math.min(W - x, viewW - dx + 1), Q = img.P ?? 1;
+      ctx.drawImage(img, x * Q, sy * Q, w * Q, sh * Q, dx, y, w, h + 0.5);
       dx += w; x = 0;
     }
   }

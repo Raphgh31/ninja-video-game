@@ -13,12 +13,14 @@
 // KAGE se fige). La musique finie (≈ 1 min), fondu au noir et volume à zéro, puis tout recommence.
 // Une touche ou un toucher pendant l'intro l'amène à sa fin. Tout est dessiné à la résolution du
 // jeu (1 pixel = 1 pixel de jeu), dans son propre canvas posé dans le calque de l'interface.
-import { renderText, measure, FONTS } from '../engine/pixelfont.js';
+import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
+import { renderText, renderSmooth, measure, FONTS } from '../engine/pixelfont.js';
 import { canvas, pick, noise2, ih, rgb, mixHex } from './potager/paint.js';
 import { paintFar, paintMid } from './potager/backdrop.js';
 import { audioOutput } from '../engine/sfx.js';
 import { bytesOf } from '../engine/bytes.js';
 import { MUSIC } from '../engine/music.js';
+import { BrushedCanvas, brushView } from '../engine/brushgl.js';
 
 const INK = '#e9e5da', BLACK = '#05080a';
 const TITLE = 'THE NINJA ADVENTURE';
@@ -107,16 +109,16 @@ function brushPixels(half) {
 }
 
 /** La lune et sa clarté (anneaux nets, aucun flou). */
-function paintMoon() {
-  const RG = MOON_R * 3.2, S = Math.ceil(RG) * 2 + 1, o = Math.ceil(RG), c = canvas(S, S), g = c.getContext('2d');
+export function paintMoon(MR = MOON_R) {
+  const RG = MR * 3.2, S = Math.ceil(RG) * 2 + 1, o = Math.ceil(RG), c = canvas(S, S), g = c.getContext('2d');
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const d = Math.hypot(x - o, y - o);
-    if (d > MOON_R && d < RG) {
-      const step = Math.floor((1 - (d - MOON_R) / (RG - MOON_R)) * 5) + 1;
+    if (d > MR && d < RG) {
+      const step = Math.floor((1 - (d - MR) / (RG - MR)) * 5) + 1;
       g.fillStyle = `rgba(150,165,200,${(0.045 * step).toFixed(3)})`; g.fillRect(x, y, 1, 1);
-    } else if (d <= MOON_R) {
-      const dx = x - o, dy = y - o, k = d / MOON_R;
-      const lit = 0.8 - 0.3 * k + 0.3 * (noise2(dx * 0.08, dy * 0.08, 3) - 0.5) - 0.18 * Math.max(0, (dx + dy) / MOON_R);
+    } else if (d <= MR) {
+      const dx = x - o, dy = y - o, k = d / MR;
+      const lit = 0.8 - 0.3 * k + 0.3 * (noise2(dx * 0.08, dy * 0.08, 3) - 0.5) - 0.18 * Math.max(0, (dx + dy) / MR);
       dot(g, x, y, pick(MOON, lit, x, y, 0.5));
     }
   }
@@ -134,20 +136,23 @@ export class Intro {
     this.kick = kick;
     this.far = far ?? paintFar(480);
     this.mid = paintMid(480);
-    this.el = canvas(1, 1);
-    this.el.className = 'intro';
-    this.g = this.el.getContext('2d');
+    // style peint : l'intro se dessine en pixels sur une toile à part, puis le pinceau la repeint (sauf le
+    // décor seul, que le salon et les menus repeignent eux-mêmes)
+    this.bc = brushView.on && !backdropOnly ? new BrushedCanvas('intro') : null;
+    this.el = this.bc ? this.bc.el : canvas(1, 1);
+    if (!this.bc) this.el.className = 'intro';
+    this.g = this.bc ? this.bc.g : this.el.getContext('2d');
     this.t = 0;
     this.menuShown = false;
     this.onMenu = null;            // appelé une fois, quand le menu doit apparaître
-    this.letters = [...TITLE].map((ch) => (ch === ' ' ? null : renderText(ch, { font: FONT.font, color: INK })));
+    this.letters = [...TITLE].map((ch) => (ch === ' ' ? null : (brushView.on && !backdropOnly ? renderSmooth : renderText)(ch, { font: FONT.font, color: INK })));
     this.moon = paintMoon();
     this.sil = new Map();          // silhouettes de KAGE déjà découpées
     this.raf = 0;
     this.last = 0;
     // en attente du geste qui lance l'intro et sa musique (les navigateurs ne jouent aucun son avant)
     this.gated = true;
-    this.prompt = renderText(touch ? 'Touche l\'écran' : 'Appuie sur une touche', { color: '#9aa09c' });
+    this.prompt = (brushView.on && !backdropOnly ? renderSmooth : renderText)(touch ? 'Touche l\'écran' : 'Appuie sur une touche', { color: '#9aa09c' });
     this.clock = null;             // { ac, t0 } : avec le son, t = ac.currentTime - t0
     this.voice = null;             // la musique en cours { s, g }
     // décor seul (salon de l'arène) : ni musique ni attente
@@ -236,7 +241,8 @@ export class Intro {
   resize(w, h) {
     if (w === this.w && h === this.h) return;
     this.w = w; this.h = h;
-    this.el.width = w; this.el.height = h;
+    if (this.bc) this.bc.size(w, h);
+    else { this.el.width = w; this.el.height = h; }
     this.g.imageSmoothingEnabled = false;
     // les deux chaînes, posées comme au début du Potager ; le Mont Kagero à droite
     const lay = (strip, sx, y) => { const c = canvas(w, h), g = c.getContext('2d'); g.drawImage(strip.img, -sx, y); return c; };
@@ -353,7 +359,11 @@ export class Intro {
     if (this.gated) {
       // l'attente : une invitation discrète, qui respire lentement
       g.globalAlpha = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * 2.4));
-      g.drawImage(this.prompt, Math.round((w - this.prompt.width) / 2), Math.round(h / 2 - this.prompt.height / 2));
+      const pr = this.prompt, pw = pr.width / (pr.P ?? 1), ph = pr.height / (pr.P ?? 1), tg = this.bc ? this.bc.tg : g;
+      tg.globalAlpha = g.globalAlpha; tg.imageSmoothingEnabled = !!pr.P;
+      tg.drawImage(pr, Math.round((w - pw) / 2), Math.round(h / 2 - ph / 2), pw, ph);
+      tg.globalAlpha = 1;
+      if (this.bc) this.bc.present();
       g.globalAlpha = 1;
       return;
     }
@@ -382,7 +392,9 @@ export class Intro {
       if (!c) return;
       const a = clamp01((t - INTRO.letters - i * INTRO.letterGap) / INTRO.letterFade);
       if (a <= 0) return;
-      g.globalAlpha = a * ink; g.drawImage(c, this.letterX[i], this.titleY); g.globalAlpha = ink;
+      const tg = this.bc ? this.bc.tg : g;   // (style peint : les lettres lisses, posées après le pinceau)
+      tg.globalAlpha = a * ink; tg.imageSmoothingEnabled = !!c.P;
+      tg.drawImage(c, this.letterX[i], this.titleY, c.width / (c.P ?? 1), c.height / (c.P ?? 1)); tg.globalAlpha = ink; g.globalAlpha = ink;
     });
     const b = easeOut((t - INTRO.brush) / INTRO.brushTime);
     if (b > 0) {
@@ -394,7 +406,15 @@ export class Intro {
     const k = this.kage(t);
     if (k && this.kick) {
       const s = this.silhouette(k.i), { pivot } = this.meta;
-      g.drawImage(s.c, k.x - pivot.x, k.y - pivot.y);
+      if (this.bc) {                      // style peint : le ninja net (« trait fin »), posé après le pinceau
+        const c = (s.crisp ??= crispSheet(s.c, NINJA_DEFAULT)), tg = this.bc.tg;
+        const end = menu ? 0 : clamp01((this.t - (CYCLE - INTRO.cycleFade)) / INTRO.cycleFade);
+        tg.save();
+        tg.globalAlpha = g.globalAlpha * (1 - end);
+        tg.imageSmoothingEnabled = !!c.smooth; tg.imageSmoothingQuality = 'high';
+        tg.drawImage(c, k.x - pivot.x, k.y - pivot.y, c.width / c.P, c.height / c.P);
+        tg.restore();
+      } else g.drawImage(s.c, k.x - pivot.x, k.y - pivot.y);
     }
     g.globalAlpha = 1;
     if (menu) return;
@@ -441,6 +461,8 @@ export class Intro {
       this.menuK = clamp01((this.menuK ?? 0) + (this.menuMode ? dt : -dt) / 0.7);
       this.update(dt);
       this.draw();
+      // (les montagnes : des touches moyennes qui restent dans les formes, plus courtes et égales : précises et simples)
+      if (this.bc) this.bc.present({ wide: 'mid', detail: 0.22, keep: 0.45, amp: 0.7, ink: 0.6 });
       this.raf = requestAnimationFrame(step);
     };
     this.raf = requestAnimationFrame(step);

@@ -314,3 +314,41 @@ export function renderText(text, options = {}) {
   ctx.putImageData(img, 0, 0);
   return cv;
 }
+
+/**
+ * Le même texte en police lisse (style peint, novembre 2026 : demande de Raph, une écriture sans pixels,
+ * lisible et élégante). Il occupe exactement la place du texte en pixels (même boîte, mêmes lignes : la mise
+ * en page ne bouge pas), P fois plus fin ; la lettre est centrée dans la largeur de chaque ligne, et
+ * resserrée si elle est plus large. Rend une toile, avec .P.
+ */
+export const SMOOTH_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", "P052", Georgia, serif';
+export function renderSmooth(text, options = {}, P = 4) {
+  const box = renderText(text, options);
+  const { font: fontName = 'small', color = '#e9e5da', outline = '', maxW = 0, spacing = 0, align = 'left', leading = 0 } = options;
+  const font = FONTS[fontName] ?? FONTS.small, k = font.k;
+  const lines = wrap(text, fontName, maxW, spacing);
+  const pad = outline ? 1 : 0;
+  const c = document.createElement('canvas');
+  c.width = box.width * P; c.height = box.height * P;
+  const g = c.getContext('2d');
+  // corps : la hauteur des capitales de la police en pixels (7 points par corps) → taille lisse équivalente
+  const px = 10.6 * k * P;
+  g.font = `${px}px ${SMOOTH_FONT}`;
+  g.textBaseline = 'alphabetic';
+  lines.forEach((line, li) => {
+    const lw = measure(line, fontName, spacing);
+    const x0 = pad + (align === 'center' ? Math.floor((box.width - 2 * pad - lw) / 2) : align === 'right' ? box.width - 2 * pad - lw : 0);
+    const base = (pad + li * (font.line + leading) + 9 * k) * P;   // ligne de base (sous les capitales)
+    const tw = g.measureText(line).width, room = Math.max(1, lw * P + 2 * k * P);
+    const sx = Math.min(1, room / Math.max(1, tw));
+    g.save();
+    g.translate(x0 * P + (lw * P - tw * sx) / 2, base);
+    g.scale(sx, 1);
+    if (outline) { g.lineJoin = 'round'; g.lineWidth = 2.2 * P; g.strokeStyle = outline; g.strokeText(line, 0, 0); }
+    g.fillStyle = color;
+    g.fillText(line, 0, 0);
+    g.restore();
+  });
+  c.P = P;
+  return c;
+}
