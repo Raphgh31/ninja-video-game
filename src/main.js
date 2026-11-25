@@ -9,7 +9,8 @@ import { Shurikens, SHURIKEN } from './game/shuriken.js';
 import { Tate, TATE } from './game/tate.js';
 import { Wara, WARA } from './game/wara.js';
 import { Karasu, KARASU } from './game/karasu.js';
-import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH } from './game/combat.js';
+import { DAMAGE_DEALT, DAMAGE_TAKEN, HEALTH, IMPACT, PARRY } from './game/combat.js';
+import { ENERGY } from './game/energy.js';
 import { HealthBar } from './game/healthbar.js';
 import { Fx } from './engine/fx.js';
 import { ambience, audioOutput, musicOutput, play as sfx, unlockAudio } from './engine/sfx.js';
@@ -33,6 +34,10 @@ import { ForetArenaArt } from './game/arena/art_foret.js';
 import { Net, randomCode, cleanCode } from './engine/net.js';
 import { Multi, SLOT_COLORS, MODES } from './game/multi.js';
 import { Lobby } from './game/arena/lobby.js';
+import { Duel } from './game/arena/duel.js';
+import { ShadowBot, BOT } from './game/arena/bot.js';
+import { ArenaStats, TRAILS, drawSeal } from './game/arena/stats.js';
+import { localPair } from './engine/localnet.js';
 import { Menu } from './game/menu.js';
 import { loadProfile, saveProfile } from './game/profile.js';
 
@@ -110,6 +115,13 @@ if (touchCanvas) {
 
 // Mise à l'échelle entière : chaque pixel du sprite reste un carré net.
 const stage = canvas.parentElement;
+// le calque du duel (arena/duel.js) : bandes noires, voile du coup fatal, trait d'encre, titres ; au-dessus de
+// la lumière, sous l'interface ; il ne grossit pas avec le zoom du coup fatal
+const duelCanvas = document.createElement('canvas');
+duelCanvas.className = 'duel-layer';
+duelCanvas.hidden = true;
+const duelCtx = duelCanvas.getContext('2d');
+lights.vig.after(duelCanvas);
 // calque de l'interface : à la taille de l'image de jeu, en pixels de jeu, puis
 // agrandi comme elle ; tous ses textes sont tracés avec la police en pixels
 const uiLayer = document.querySelector('.ui');
@@ -178,6 +190,9 @@ function fit() {
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
   lights.resize(VIEW_W, VIEW_H, canvas.style.width, canvas.style.height);
+  if (duelCanvas.width !== VIEW_W || duelCanvas.height !== VIEW_H) { duelCanvas.width = VIEW_W; duelCanvas.height = VIEW_H; }
+  duelCanvas.style.width = canvas.style.width;
+  duelCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
   uiLayer.classList.toggle('short', VIEW_H < 236);   // écrans de menu compacts (téléphones allongés)
   uiLayer.style.width = `${VIEW_W}px`;
@@ -363,6 +378,8 @@ const shop = new Shop(document.querySelector('.shop'), {
 shop.onClose = () => { run.paused = false; music.setLevel(1, 0.6); };
 // ---- effets : poussière, étincelles, secousses, micro-arrêts, sons ----------
 const fx = new Fx();
+// les statistiques d'arène et les titres (arena/stats.js) : comptées pendant les combats
+const arenaStats = level.arena ? new ArenaStats() : null;
 player.onEvent = (n, d) => {
   switch (n) {
     case 'flip': sfx('flip'); break;
@@ -417,11 +434,36 @@ player.onEvent = (n, d) => {
     case 'vine_release': sfx('vineRelease'); if (d.perfect) { sfx('flip'); fx.drift(d.x, d.y - 20, 5, { palette: 'leaf', speed: 50, up: 20, life: 0.8, g: 40 }); } break;
     case 'vine_step': sfx('vineStep'); break;
     case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
-    case 'hurt':
+    case 'hurt': {
+      // (arène : la force du coup reçu dépend du coup — combat.js : IMPACT ; secousse seulement pour les lourds)
+      const k = level.arena ? IMPACT[d.kind] : null;
       sfx('hurt');
+      if (k) { sfx('impact', { k: 0.6 + k.stop * 4 }); fx.hitStop(k.stop); if (k.shake) fx.shake(k.shake, k.shakeT); }
+      else fx.shake(2, 0.2);
       pads.rumble(120, 0.6, 0.4);
-      fx.shake(2, 0.2);
-      fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
+      fx.sparks(d.x, d.y - 14, k ? 4 + Math.round(k.stop * 40) : 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
+      break;
+    }
+    // ---- le duel (mode Arène) : la garde, la parade réussie, le déséquilibre, le choc des lames ----
+    case 'parry': sfx('guard'); break;
+    case 'parry_ok':
+      sfx('parry');
+      fx.flash(d.x, d.y, { size: 12, life: 0.26, halo: 10 });
+      fx.sparks(d.x, d.y, 9, { palette: 'glow', speed: 110, dir: d.dir });
+      fx.hitStop(0.09);
+      pads.rumble(90, 0.35, 0.8);
+      arenaStats?.add('parries');
+      if (bot?.dojo) { dojoCount.parries++; document.querySelector('[data-salle-msg]') && setText(document.querySelector('[data-salle-msg]'), `Parades ${dojoCount.parries} · Ripostes ${dojoCount.ripostes}`); }
+      break;
+    case 'stagger': sfx('stagger'); fx.dust(d.x, d.y + 16, 4, { spread: 20, up: 8, life: 0.35 }); break;
+    case 'clash':
+      sfx('clash');
+      fx.flash(d.x, d.y, { size: 15, life: 0.3, halo: 13 });
+      fx.sparks(d.x, d.y, 11, { speed: 130 });
+      fx.hitStop(0.1);
+      fx.shake(1.5, 0.15);
+      pads.rumble(110, 0.6, 0.6);
+      arenaStats?.add('clashes');
       break;
     case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
     case 'death':
@@ -688,7 +730,7 @@ if (level.arena) {
       case 'pickupAppear': sfxAt('pickup', d, undefined, 0.5); break;
       case 'pickup':
         if (d.kind === 'heart') { d.fighter.hp = Math.min(HEALTH.max, d.fighter.hp + 1); sfx('heart'); fx.sparks(d.x, d.y, 8, { palette: 'heart', speed: 50 }); }
-        else { shurikens.stock = SHURIKEN.stock; sfx('pickup'); fx.sparks(d.x, d.y, 6, { speed: 50 }); }
+        else { (d.fighter === bot?.player ? bot.shurikens : shurikens).stock = SHURIKEN.stock; sfx('pickup'); fx.sparks(d.x, d.y, 6, { speed: 50 }); }
         break;
       default: level.onEvent?.(n, d);                         // corde, chute des balles, échafaudages : comme dans le chapitre
     }
@@ -700,6 +742,8 @@ if (level.arena) {
 // une adresse ?salle=CODE rejoint aussi directement une arène.
 let multi = null;
 let lobby = null;
+let duel = null;   // le duel : ouverture, coup fatal, revoir, fin (arena/duel.js)
+let bot = null;    // le ninja de l'ombre (arena/bot.js), seul ou au Dojo
 const profile = loadProfile();
 function roomConfig() {
   let c = null;
@@ -721,19 +765,26 @@ function backToMenu(screen = null, extra = {}) {
 function startRoom(cfg) {
   const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
   const listEl = hud.querySelector('[data-salle-list]'), msgEl = hud.querySelector('[data-salle-msg]');
+  // seul contre le ninja de l'ombre (arena/bot.js) ou au Dojo : un réseau dans la page (engine/localnet.js)
+  const solo = cfg.mode === 'bot' || cfg.mode === 'dojo', dojo = cfg.mode === 'dojo';
   const transport = new URLSearchParams(location.search).get('net') === 'local' || window.__KAGE_NET === 'local' ? 'local' : 'peer';
-  const net = new Net({ code: cfg.code, host: cfg.mode === 'host', name: cfg.name, transport });
+  let net, botNet = null;
+  if (solo) [net, botNet] = localPair(cfg.name, BOT.name);
+  else net = new Net({ code: cfg.code, host: cfg.mode === 'host', name: cfg.name, transport });
   let msgT = null;
   const say = (t, keep = false) => { setText(msgEl, t); clearTimeout(msgT); if (!keep) msgT = setTimeout(() => setText(msgEl, ''), 3500); };
   const nameOf = (id) => net.roster.find((p) => p.id === id)?.name ?? '?';
   const showList = () => {
+    const rounds = MODES[multi?.match?.mode]?.rounds;
     listEl.replaceChildren(...net.roster.map((p) => {
       const el = document.createElement('p');
       el.style.setProperty('--slot', SLOT_COLORS[p.slot % 4]);
-      el.textContent = `${p.name} : ${multi?.scores.get(p.id) ?? 0}`;
+      el.textContent = dojo ? p.name : `${p.name} : ${(rounds ? multi?.wins : multi?.scores)?.get(p.id) ?? 0}`;
       return el;
     }));
   };
+  const dojoLine = () => say(`Parades ${dojoCount.parries} · Ripostes ${dojoCount.ripostes}`, true);
+  const rank = () => Math.max(0, Math.min(2, arenaStats?.s.botRank ?? 1));
   run.paused = true;                       // le salon d'abord : le combat attend que l'hôte le lance
   setCloseUp(false);                       // (le salon à l'échelle des menus)
   net.onStatus = (st, detail) => {
@@ -747,16 +798,24 @@ function startRoom(cfg) {
       net.close();
       cfg.code = randomCode();
       try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); } catch { /* rien */ }
-      lobby?.el.remove(); lobby = null; multi = null;
+      lobby?.el.remove(); lobby = null; multi = null; duel?.endEl.remove(); duel = null;
       startRoom(cfg);
     } else if (st === 'erreur') {
       if (cfg.mode === 'host') lobby?.setStatus(detail || 'Pas de connexion au service des arènes');
       else backToMenu('rejoindre', { code: cfg.code, message: detail || 'Pas de connexion au service des arènes' });
     }
   };
+  const toLobby = () => {
+    if (solo) { backToMenu('arene'); return; }
+    run.paused = true;
+    hud.hidden = true;
+    setCloseUp(false);
+    lobby?.show();
+  };
   multi = new Multi({
     painted: PAINTED,
-    net, player, shurikens, level, levelId: LEVEL_ID, meta, skins, skinId: () => look.id,
+    net, player, shurikens, level, levelId: solo ? null : LEVEL_ID, meta, skins, skinId: () => look.id, seal: () => arenaStats?.seal ?? null,
+    ...(solo ? { sendEvery: 1 / 120, noDelay: true } : {}),
     onEvent(n, d) {
       if (n === 'roster') { showList(); lobby?.render(); }
       else if (n === 'arena') {
@@ -772,30 +831,76 @@ function startRoom(cfg) {
         lobby?.hide();
         setCloseUp(true);
         hud.hidden = false;
-        setText(codeEl, `${MODES[d.mode].name} · ${net.code}`);
-        showList(); say('Le combat commence !');
-        sfx('gong');
+        setText(codeEl, solo ? (dojo ? 'Dojo' : `Contre l'ombre · ${BOT.levels[rank()].name}`) : `${MODES[d.mode].name} · ${net.code}`);
+        showList();
+        if (dojo) dojoLine();
         run.paused = false;
-        snapCamera();
-      } else if (n === 'ko') { showList(); say(`Un point pour ${nameOf(d.by)}`); }
-      else if (n === 'out') say('Éliminé : tu regardes la fin du combat', true);
+        duel.start(d.mode);
+        snapCamera(); camera.x = targetX(); camVX = 0;
+      } else if (n === 'roundEnd') { showList(); duel.roundEnd(d); }
+      else if (n === 'roundStart') { duel.roundStart(d.n, d.decisive); snapCamera(); camera.x = targetX(); camVX = 0; }
+      else if (n === 'ko') {
+        showList();
+        if (d.by === net.id && d.cause === 'trap') arenaStats?.add('trapKills');
+        if (MODES[multi.match?.mode]?.goal) say(`Un point pour ${nameOf(d.by)}`);
+      } else if (n === 'out') { if (net.roster.length > 2) say('Éliminé : tu regardes la fin de la manche', true); }
       else if (n === 'end') {
-        sfx('gong');
-        const lines = net.roster.map((p) => `${p.name} : ${multi.scores.get(p.id) ?? 0}`);
-        setTimeout(() => {
-          run.paused = true;
-          hud.hidden = true;
-          setCloseUp(false);
-          lobby?.result(d.name, lines);
-          setTimeout(() => { if (lobby) { lobby.show(); } }, 4000);
-        }, 900);
-      } else if (n === 'strike') fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir });
+        showList();
+        if (solo && !dojo && arenaStats) { arenaStats.s.botRank = Math.max(0, Math.min(2, rank() + (d.mine ? 1 : -1))); arenaStats.add('botMatches', 0); }
+        duel.end(d);
+      } else if (n === 'strike') { fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir }); duel.strike(d); }
+      else if (n === 'hurtBy') duel.hurt(d);
+      else if (n === 'parried') {
+        // notre coup a heurté sa garde : l'acier chante chez lui, on est rejeté
+        sfx('parry'); fx.sparks(d.x + player.facing * 12, d.y, 7, { palette: 'glow', speed: 100, dir: -player.facing }); pads.rumble(80, 0.5, 0.3);
+      } else if (n === 'deflect') { sfx('deflect'); fx.sparks(d.x, d.y, 6, { palette: 'glow', dir: d.dir, speed: 90 }); arenaStats?.add('deflects'); }
+      else if (n === 'again') {
+        duel.again(d);
+        // (contre l'ombre : elle accepte toujours la revanche, à son nouveau niveau)
+        if (solo && d.id === net.id) setTimeout(() => { if (bot) { bot.setRank(rank()); bot.multi.askAgain(); } }, 400);
+      }
     },
   });
+  duel = new Duel({
+    level, player, fx, sfx: (n) => sfx(n), music, cycle, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), uiLayer,
+    layers: () => [bgCanvas, canvas, lights.el, lights.vig], meta, stats: arenaStats, bot: solo,
+    mySkin: () => look.id, sheetOf: (id) => (id === look.id ? look.sheet : (() => { const sk = skins[id] ?? skins.encre; return (PAINTED && (sk.paintedSheet ??= crispSheet(sk.sheet, NINJA_DEFAULT))) || sk.sheet; })()),
+    onLobby: toLobby,
+  });
+  duel.multi = multi;
+  if (solo) {
+    // l'ombre porte une tenue de nuit (une autre si c'est déjà celle du joueur)
+    const skin = look.id === 'nocturne' ? 'encre' : skins.nocturne ? 'nocturne' : 'encre';
+    bot = new ShadowBot({ level, meta, skins, net: botNet, skin, foe: player, foeShurikens: shurikens, dojo, rank: rank(),
+      onEvent: botEvent, mist: () => duel?.mistEdges(), foeOut: () => multi?.out });
+    net.start();
+    botNet.start();
+    lobby = null;
+    setTimeout(() => multi.launch(dojo ? 'dojo' : 'duel'), 60);
+    return;
+  }
   lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''),
     backdrop: new Intro(meta, null, null, { backdropOnly: true }), onLaunch: (mode) => multi.launch(mode), onQuit: () => { net.close(); backToMenu('arene'); }, onHome: () => { net.close(); backToMenu('accueil'); } });
   net.onStatus('connexion');
   net.start().catch(() => net.onStatus('erreur', 'Pas de connexion au service des arènes'));
+}
+const dojoCount = { parries: 0, ripostes: 0 };
+/** Les gestes du ninja de l'ombre : ses sons et sa poussière (ses coups, eux, passent par multi.js). */
+function botEvent(n, d) {
+  switch (n) {
+    case 'swing': case 'swing_heavy': case 'swing_power': sfxAt(n, d); break;
+    case 'kick': sfxAt('kick', d); break;
+    case 'jump': sfxAt('jump', d, undefined, 0.7); fx.dust(d.x, d.y, 4, { spread: 22, up: 12 }); break;
+    case 'land': if (d.speed > 200) { sfxAt('land', d, { strength: 0.6 }); fx.dust(d.x, d.y, 4, { spread: 22 }); } break;
+    case 'dash': sfxAt('dash', d); fx.dust(d.x - d.dir * 4, d.y, 5, { dir: -d.dir, spread: 40, up: 10 }); break;
+    case 'parry': sfxAt('guard', d); break;
+    case 'stagger': sfxAt('stagger', d); break;
+    case 'drown': sfxAt('logDip', d); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;
+    case 'death': sfxAt('death', d); fx.shake(1.5, 0.2); break;
+    case 'respawn': sfxAt('respawn', d); break;
+    case 'fall_death': sfxAt('land', d, { strength: 1 }); fx.dust(d.x, d.y, 8, { spread: 30, up: 14 }); break;
+    default:
+  }
 }
 /** Arène : image rapprochée (combat) ou à l'échelle des menus (salon). */
 function setCloseUp(on) {
@@ -806,7 +911,7 @@ function setCloseUp(on) {
 }
 // en arène, le ninja porte le skin de l'aventure en cours (dans la version de test, c'est la barre des skins)
 if (level.arena && !SKIN_LAB) { const s = loadSave(); if (s?.skin && (s.skins ?? []).includes(s.skin)) wearSkin(s.skin); }
-if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
+// (l'arène s'ouvre à la fin du module : le duel a besoin de la caméra, de la musique, du calque de lumière)
 
 // son : débloqué au premier geste, toujours actif (aucun bouton ni touche pour le couper : le joueur passe son
 // téléphone en silencieux s'il le veut)
@@ -840,7 +945,7 @@ const pauseEl = document.querySelector('.pause');
 const pauseScene = new PauseScene(pauseEl);
 const pads = new Gamepads(input, {
   // un menu a la main : la manette y choisit au lieu de jouer
-  ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading,
+  ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading || (!!duel && !duel.endEl.hidden),
   onPause: () => openPause(),
   // une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher)
   onActive: () => document.body.classList.add('pad'),
@@ -858,7 +963,7 @@ function openPause() {
   pauseEl.hidden = false;
   // à plusieurs, le combat continue chez les autres : on ne fige rien (seulement le choix)
   pauseEl.wasPaused = run.paused;
-  if (!multi) run.paused = true;
+  if (!multi || bot) run.paused = true;     // (seul contre l'ombre : tout s'arrête)
   pauseEl.querySelector('[data-quit]').textContent = multi ? 'Quitter l\'arène' : 'Menu principal';
   pauseScene.open();
   requestAnimationFrame(() => pauseEl.querySelector('[data-resume]').focus());
@@ -867,7 +972,7 @@ function closePause() {
   if (pauseEl.hidden) return;
   pauseEl.hidden = true;
   pauseScene.close();
-  if (!multi) run.paused = !!pauseEl.wasPaused;
+  if (!multi || bot) run.paused = !!pauseEl.wasPaused;
   document.activeElement?.blur?.();
 }
 pauseEl.querySelector('[data-resume]').addEventListener('click', closePause);
@@ -896,6 +1001,7 @@ if (MOBILE) {
   }, { once: true });
 }
 const camera = { x: 0, y: 0 };
+const cameraLive = camera;   // (draw : la caméra du jeu, ou celle du revoir du duel)
 const IDLE_INPUT = { isHeld: () => false, wasPressed: () => false };
 let debug = false;
 
@@ -1088,6 +1194,22 @@ function lightSources() {
   return S;
 }
 
+/**
+ * Arène : notre coup porte sur un autre ninja. Les deux écrans se figent un instant (le même temps que chez
+ * la victime : IMPACT), le son en couches (le claquement de la lame, le coup sourd dans le corps), une
+ * secousse seulement pour les coups lourds, et un peu d'énergie revient (frapper nourrit le combat).
+ */
+function landHit(kind) {
+  const k = IMPACT[kind] ?? IMPACT.sword;
+  if (kind !== 'kick') sfx('bladeHit', { heavy: kind !== 'sword' && kind !== 'shuriken' });
+  sfx('impact', { k: 0.6 + k.stop * 4 });
+  fx.hitStop(k.stop);
+  if (k.shake) fx.shake(k.shake, k.shakeT);
+  pads.rumble(70, 0.3, 0.5);
+  player.energy.gain(ENERGY.hitGain);
+  if (kind === 'riposte' && bot?.dojo) { dojoCount.ripostes++; setText(document.querySelector('[data-salle-msg]'), `Parades ${dojoCount.parries} · Ripostes ${dojoCount.ripostes}`); }
+}
+
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
@@ -1098,13 +1220,27 @@ function update(dt) {
     input.endFrame();
     return;
   }
+  // le duel (arena/duel.js) : son horloge est le temps réel ; le monde peut ralentir (coup fatal) ou se figer
+  // (revoir, score de la manche), et les commandes être retenues (ouverture, fin)
+  if (duel) {
+    multi?.roundClock(dt);
+    duel.update(dt);
+    if (duel.freeze) { fx.update(dt); input.endFrame(); return; }
+    dt *= duel.timeScale;
+    if (bot) bot.locked = duel.lock;
+  }
   // micro-arrêt sur un coup : tout se fige un instant (les appuis de jeu sont gardés)
   if (fx.frozen(dt)) return;
-  if (!multi?.out) player.update(dt, run.won ? IDLE_INPUT : input);   // (Souffle unique : éliminé, il regarde)
+  // (une vie par manche : le vaincu reste à terre, player.holdDeath, jusqu'à la manche suivante)
+  player.update(dt, run.won || duel?.lock ? IDLE_INPUT : input);
   level.update(dt);
   cycle.update(dt);              // (l'heure du monde ne passe que pendant le jeu)
-  level.arena?.update(dt, [player]);
+  level.arena?.update(dt, bot ? [player, bot.player] : [player]);
   multi?.update(dt);
+  bot?.update(dt);
+  duel?.step(dt);
+  // le Dojo : on ne meurt pas, la vie revient
+  if (bot?.dojo) for (const f of [player, bot.player]) if (f.hp <= 1 && f.state !== 'death') f.hp = HEALTH.max;
   level.forest?.update(dt, player);
   shurikens.update(dt);
   mist.update(dt, player, look.dashFx === 'mist');
@@ -1117,8 +1253,12 @@ function update(dt) {
     const power = player.state === 'flip_attack';
     const heavy = player.state === 'air_attack' || power;
     level.hitGongs(ab);
-    if (multi?.strikeBox(ab, player.x, `a${player.attackId}`, power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword, 0)) {
-      sfx('bladeHit', { heavy }); fx.hitStop(power ? 0.15 : heavy ? 0.11 : 0.07);
+    if (multi) {
+      // (arène : la riposte, juste après une parade réussie, porte un point de plus et frappe plus fort)
+      const kind = player.riposte ? 'riposte' : power ? 'flip' : heavy ? 'air' : 'sword';
+      const dmg = (power ? DAMAGE_DEALT.flipSword : heavy ? DAMAGE_DEALT.airSword : DAMAGE_DEALT.sword) + (kind === 'riposte' ? PARRY.riposteBonus : 0);
+      const r = multi.strikeBox(ab, player.x, `a${player.attackId}`, dmg, 0, kind);
+      if (r === 'hit') landHit(kind);
     }
     for (const t of enemies) {
       swordStrike = true;
@@ -1137,7 +1277,7 @@ function update(dt) {
   const kb = player.kickBox();
   if (kb) {
     level.hitGongs(kb);
-    if (multi?.strikeBox(kb, player.x, `k${player.attackId}`, DAMAGE_DEALT.kick, player.kickPush)) { sfx('kickHit'); fx.hitStop(0.06); }
+    if (multi?.strikeBox(kb, player.x, `k${player.attackId}`, DAMAGE_DEALT.kick, player.kickPush, 'kick') === 'hit') { sfx('kickHit'); landHit('kick'); }
     for (const t of enemies) {
       const r = t.takeHit(kb, player.x, player.attackId, DAMAGE_DEALT.kick);
       if (r) {
@@ -1252,6 +1392,11 @@ const clampCamY = (y) => Math.min(Math.max(y, 0), level.height - VIEW_H);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);   // lent, rapide, lent
 
 function targetX() {
+  // l'ouverture du duel : les deux combattants face à face, la caméra entre eux (s'ils tiennent dans l'image)
+  if (duel?.phase === 'intro' && multi) {
+    const foe = [...multi.remotes.values()].find((r) => r.seen);
+    if (foe && Math.abs(foe.x - player.x) < VIEW_W - 36) return clampCamX((foe.x + player.x) / 2 - VIEW_W / 2);
+  }
   let x = camera.x;
   const sx = player.x - camera.x;
   if (sx > VIEW_W * CAM.right) x = player.x - VIEW_W * CAM.right;
@@ -1383,9 +1528,39 @@ function snapCamera() {
   camV.to = camera.y; camV.t = 1; camVX = 0;
 }
 
+/** Le calque du duel : effacé, puis ce que le duel y peint (rien hors des combats). */
+function drawDuelLayer() {
+  const on = !!duel && duel.phase !== 'idle' && duel.phase !== 'fight' && duel.phase !== 'result';
+  if (duelCanvas.hidden === on) duelCanvas.hidden = !on;
+  document.querySelector('.salle')?.classList.toggle('duel-hide', on);   // (le cadre de la salle s'efface pendant ces moments)
+  if (!on && !duelCanvas.dirty) return;
+  duelCtx.setTransform(1, 0, 0, 1, 0, 0);
+  duelCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+  duelCtx.imageSmoothingEnabled = false;
+  duelCanvas.dirty = on;
+  if (on) duel.drawOver(duelCtx);
+}
+
+/** La traînée de la lame (récompense d'un titre d'arène, arena/stats.js : TRAILS) : un croissant de couleur. */
+function drawBladeTrail(cam) {
+  const ab = player.attackBox(), c = arenaStats.trail;
+  if (!ab || !c) return;
+  const f = player.facing, cx = ab.x + ab.w / 2 - cam.x - f * ab.w * 0.25, cy = ab.y + ab.h / 2 - cam.y, rx = ab.w * 0.7, ry = ab.h * 0.5;
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  for (let a = -1.25; a <= 1.25; a += 0.07) {
+    const x = Math.round(cx + Math.cos(a) * rx * f), y = Math.round(cy + Math.sin(a) * ry);
+    ctx.fillStyle = c[1]; ctx.fillRect(x - (f < 0 ? 1 : 0), y, 2, 1);
+    ctx.fillStyle = c[0]; ctx.fillRect(x - f, y, 1, 1);
+  }
+  ctx.restore();
+}
+
 function draw() {
   // secousse de l'écran : décalage temporaire de la caméra
   const shake = fx.offset();
+  // (le revoir du duel : la caméra de l'instant rejoué)
+  const camera = (duel?.replaying && duel.replayCam()) || cameraLive;
   // une seule position, arrondie au pixel, pour tout ce qui est dessiné
   const cam = { x: Math.round(camera.x + shake.x), y: Math.round(camera.y + shake.y) };
   ctx.setTransform(GK, 0, 0, GK, 0, 0);
@@ -1418,18 +1593,22 @@ function draw() {
   for (const w of waras) w.draw(ctx, cam);
   drawScarecrows(cam);
   boss?.draw(ctx, cam);
-  multi?.draw(ctx, cam);
+  if (duel?.replaying) duel.drawReplay(ctx, cam);    // le revoir : les combattants des dernières secondes
+  else multi?.draw(ctx, cam);
   if (look.trail && !behindGate()) drawTrail(cam);
-  if (B && level.art && player.onGround && !behindGate() && !multi?.out) {   // une ombre douce sous ses pieds
+  if (arenaStats?.trail && !duel?.replaying) drawBladeTrail(cam);
+  if (B && level.art && player.onGround && !behindGate() && !multi?.out && !duel?.replaying) {   // une ombre douce sous ses pieds
     ctx.save(); ctx.globalAlpha = 0.22 * (1 - 0.5 * cycle.night); ctx.fillStyle = '#0c0e22';
     ctx.beginPath(); ctx.ellipse(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 9, 1.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
-  if (!behindGate() && !multi?.out) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
+  if (!behindGate() && !duel?.replaying) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
+  if (multi && arenaStats?.seal && !duel?.lock && player.state !== 'death') drawSeal(ctx, arenaStats.seal, Math.round(player.x - cam.x) - 3, Math.round(player.y - cam.y) - 50);
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   if (GL) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
   if (!behindGate()) mist.draw(W, cam);
   level.drawForeground(W, cam);
   arenaArt?.drawFront(W, cam, level.time);
+  duel?.drawWorld(W, cam);
   shurikens.drawFlying(W, look.projectiles.shuriken, cam, !!look.trail, { faces: look.projectileFaces, dust: look.projectileDust });
   fx.draw(W, cam);
   if (GL) brush.paint(ctx, passCanvas, GK, { cam, wide: null, soft: 0.2, ...FRONT, mask: BRUSH ? earthMask(cam, 'front') : null, light: LIGHT });   // (le premier plan)
@@ -1823,6 +2002,8 @@ if (CHAPTER) {
     chapters: Object.fromEntries(Object.values(LEVELS).filter((l) => l.chapter && !l.arena).map((l) => [l.chapter, (l.name ?? '').split('— ')[1] ?? l.name])),
     createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
+    vsBot(id) { go({ mode: 'bot', arena: id }); },
+    dojo(id) { go({ mode: 'dojo', arena: id }); },
     setBackdrop(on) { if (intro) intro.menuMode = on; },
     // sans l'intro (retour de l'arène…), les écrans peignent eux-mêmes la nuit des montagnes
     backdrop() {
@@ -2020,6 +2201,7 @@ function frame(now) {
     acc -= STEP;
   }
   draw();
+  drawDuelLayer();
   const ms = performance.now() - globalThis.__frameStart;
   perf.last.push(ms); if (perf.last.length > 240) perf.last.shift();
   if (gap > 0 && gap < 1) perf.fps += (1 / gap - perf.fps) * 0.05;
@@ -2028,6 +2210,7 @@ function frame(now) {
   if (perf.slow >= 180 && lights.quality > 0) { lights.quality--; perf.slow = 0; }
   requestAnimationFrame(frame);
 }
+if (level.arena) { setCloseUp(true); const cfg = roomConfig(); if (cfg) startRoom(cfg); }
 fit();
 setBrushText(PAINTED);
 pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
@@ -2041,7 +2224,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, get duel() { return duel; }, get bot() { return bot; }, arenaStats, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

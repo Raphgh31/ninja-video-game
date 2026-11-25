@@ -266,7 +266,7 @@ export class Player {
 
     switch (this.state) {
       case 'death':
-        if (this.anim.finished && this.timer > P.deathPause + 0.43) this.respawn();
+        if (this.anim.finished && this.timer > P.deathPause + 0.43 && !this.holdDeath) this.respawn();   // (duel : une vie par manche, il reste à terre)
         this.anim.update(dt);
         return;
       case 'respawn':

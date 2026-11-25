@@ -27,26 +27,41 @@ export const DUEL = {
   card: 1.1,           // s : le score de la manche (avant la suivante)
   mistAt: 40,          // s de manche avant que la brume d'encre ne resserre l'arène
   mistSpeed: 14,       // px/s
-  mistKeep: 7 * 16,    // demi-largeur laissée libre au centre
+  mistKeep: 12 * 16,   // demi-largeur laissée libre au centre (le bassin et ses deux rives)
   mistHurt: 1.1,       // s entre deux blessures dans la brume
   bars: 15,            // hauteur des bandes noires (px)
 };
 
 const ease = (k) => k * k * (3 - 2 * k);
 
-/** Le trait d'encre du coup fatal : un coup de pinceau oblique, épais au départ, qui s'effile, gouttes et franges sèches. */
-function inkStroke(w = 340, h = 70) {
+/**
+ * Le trait d'encre du coup fatal : un seul coup de pinceau en diagonale, qui traverse le vaincu — épais et
+ * chargé à l'attaque, il s'effile et se sèche (franges, poils écartés) ; un fil vermillon court le long de
+ * son bord haut ; quelques gouttes projetées au départ. (Orienté de gauche à droite : retourné pour l'autre sens.)
+ */
+function inkStroke(w = 300, h = 96) {
   const c = canvas(w, h), g = c.getContext('2d');
-  const INK = ['#0b0608', '#170a0d', '#2a0e14'], RED = '#7a1622';
+  const INK = ['#07040a', '#120910', '#1d0e16'];
+  const y0 = h * 0.78, y1 = h * 0.2;
   for (let x = 0; x < w; x++) {
-    const u = x / w, mid = h * 0.62 - u * h * 0.3, th = Math.max(1, Math.round(16 * Math.pow(1 - u, 0.7) + 2 * Math.sin(u * 9)));
-    for (let y = Math.round(mid - th); y <= Math.round(mid + th); y++) {
-      const dry = ih(x >> 1, y, 7) < 0.06 + u * 0.5;           // les franges sèches, de plus en plus vers la fin
-      if (dry) continue;
-      g.fillStyle = Math.abs(y - mid) < th * 0.35 && u < 0.7 ? RED : INK[(x + y) % 3 === 0 ? 1 : y < mid ? 0 : 2];
+    const u = x / (w - 1);
+    const mid = y0 + (y1 - y0) * (u + 0.08 * Math.sin(u * Math.PI));
+    const th = Math.max(0.6, 9 * Math.min(1, u / 0.12) * Math.pow(1 - u, 0.85) + 1.2 * Math.sin(u * 23) * (1 - u));
+    for (let y = Math.floor(mid - th); y <= Math.ceil(mid + th); y++) {
+      const e = Math.abs(y - mid) / th;
+      // le pinceau se sèche : des poils écartés (lignes claires) de plus en plus vers la fin
+      const hair = Math.floor((y - mid + 40) * 1.7) % 5 === 0 && ih(x >> 2, y, 3) < u * 1.2;
+      if (hair || ih(x, y, 7) < Math.max(0, u - 0.55) * 1.4 || (e > 0.8 && ih(x, y, 11) < 0.35)) continue;
+      g.fillStyle = INK[e < 0.4 ? 0 : e < 0.75 ? 1 : 2];
       g.fillRect(x, y, 1, 1);
     }
-    if (ih(x, 3, 9) < 0.05) { g.fillStyle = INK[0]; g.fillRect(x, Math.round(mid + th + 2 + ih(x, 4, 9) * 8), 2, 2); }   // gouttes
+    // le fil vermillon, sur le bord haut, jusqu'aux deux tiers
+    if (u > 0.05 && u < 0.68 && ih(x, 1, 13) > 0.12) { g.fillStyle = u < 0.5 ? '#b3242e' : '#7d1a22'; g.fillRect(x, Math.floor(mid - th) - 1, 1, 1); }
+  }
+  // gouttes projetées au départ du geste
+  for (let k = 0; k < 14; k++) {
+    const x = Math.round(ih(k, 0, 17) * w * 0.35), y = Math.round(y0 - 14 + ih(k, 1, 17) * 30), r = ih(k, 2, 17) < 0.3 ? 2 : 1;
+    g.fillStyle = INK[0]; g.fillRect(x, y, r, r);
   }
   return c;
 }
@@ -372,18 +387,23 @@ export class Duel {
       const u = t / DUEL.fatal, at = this.fatalAt;
       // le monde s'assombrit, l'encre tranche l'image au point de l'impact
       const dark = u < 0.1 ? u / 0.1 : u < 0.75 ? 1 : 1 - (u - 0.75) / 0.25;
-      ctx.globalAlpha = 0.5 * dark; ctx.fillStyle = '#12040a'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.6 * dark; ctx.fillStyle = '#0d0610'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
       bars(dark);
       if (at) {
-        const reveal = Math.min(1, u / 0.12), ink = this.ink;
-        const x = Math.round(at.x - this.camera.x - ink.width / 2), y = Math.round(at.y - 14 - this.camera.y - ink.height / 2);
-        ctx.globalAlpha = Math.min(1, dark * 1.3);
+        // le trait se tire en un éclair (du côté de l'attaquant vers l'autre), puis reste, puis s'efface
+        const reveal = Math.min(1, u / 0.09), ink = this.ink, iw = Math.round(ink.width * reveal);
+        // (le milieu du trait visible, aux deux cinquièmes du pinceau, passe sur le vaincu)
+        const ox = Math.round(ink.width * 0.42), cx = Math.round(at.x - this.camera.x), y = Math.round(at.y - 12 - this.camera.y - ink.height / 2);
+        const x = at.dir < 0 ? cx + ox - ink.width : cx - ox;
+        ctx.globalAlpha = Math.min(1, dark * 1.4);
         ctx.save();
-        if (at.dir < 0) { ctx.translate(x + ink.width, 0); ctx.scale(-1, 1); ctx.drawImage(ink, 0, 0, Math.round(ink.width * reveal), ink.height, 0, y, Math.round(ink.width * reveal), ink.height); }
-        else ctx.drawImage(ink, 0, 0, Math.round(ink.width * reveal), ink.height, x, y, Math.round(ink.width * reveal), ink.height);
+        if (at.dir < 0) { ctx.translate(x + ink.width, 0); ctx.scale(-1, 1); ctx.drawImage(ink, 0, 0, iw, ink.height, 0, y, iw, ink.height); }
+        else ctx.drawImage(ink, 0, 0, iw, ink.height, x, y, iw, ink.height);
         ctx.restore();
         ctx.globalAlpha = 1;
       }
+      // l'éclair blanc de l'impact (deux images)
+      if (t < 0.05) { ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff8ec'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
       return;
     }
     if (this.phase === 'replay') {
@@ -413,11 +433,12 @@ export class Duel {
     const rows = m.net.roster.map((p) => ({ name: p.name, wins: m.wins.get(p.id) ?? 0, seal: p.id === m.net.id ? this.stats?.seal : m.remotes.get(p.id)?.seal }));
     rows.forEach((r, i) => {
       const cv = this.text(`pip${i}`, r.name, { font: 'small', color: '#e9e5da', outline: '#14100c' });
-      const yy = Math.round(y + i * 12), x0 = Math.round(W / 2 - 50);
+      // le nom (et son sceau) à gauche du milieu, les manches gagnées à droite
+      const yy = Math.round(y + i * 12), x0 = Math.round(W / 2 - 8 - cv.width);
       if (r.seal) drawSeal(ctx, r.seal, x0 - 12, yy + 1);
       ctx.drawImage(cv, x0, yy);
       for (let k = 0; k < Math.max(need, r.wins); k++) {
-        const px = Math.round(W / 2 + 22 + k * 9), on = k < r.wins;
+        const px = Math.round(W / 2 + 8 + k * 9), on = k < r.wins;
         ctx.fillStyle = '#14100c'; ctx.fillRect(px - 1, yy, 7, 7);
         ctx.fillStyle = on ? '#e8b93c' : '#3a3630'; ctx.fillRect(px, yy + 1, 5, 5);
         if (on) { ctx.fillStyle = '#fff3c4'; ctx.fillRect(px + 1, yy + 2, 1, 1); }
@@ -435,16 +456,28 @@ export class Duel {
     el.innerHTML = `<p class="duel-end__title" data-end-title></p>
       <p class="duel-end__line" data-end-line></p>
       <p class="duel-end__new" data-end-new></p>
-      <div class="duel-end__acts"><button type="button" class="duel-end__btn duel-end__btn--main" data-again>Revanche</button>
-      <button type="button" class="duel-end__btn" data-lobby>Salon</button></div>
+      <div class="duel-end__acts"><button type="button" class="duel-end__btn duel-end__btn--main" data-revanche>Revanche</button>
+      <button type="button" class="duel-end__btn" data-salon>Salon</button></div>
       <p class="duel-end__wait" data-end-wait></p>`;
     this.uiLayer.append(el);
     this.endEl = el;
-    el.querySelector('[data-again]').addEventListener('click', () => {
+    el.querySelector('[data-revanche]').addEventListener('click', () => {
       this.multi?.askAgain();
-      el.querySelector('[data-again]').disabled = true;
+      el.querySelector('[data-revanche]').disabled = true;
     });
-    el.querySelector('[data-lobby]').addEventListener('click', () => { this.hideEnd(); this.onLobby?.(); });
+    el.querySelector('[data-salon]').addEventListener('click', () => { this.hideEnd(); this.onLobby?.(); });
+    // au clavier (et à la manette) : ← → pour choisir, Entrée ou Espace pour valider
+    addEventListener('keydown', (e) => {
+      if (el.hidden) return;
+      const items = [...el.querySelectorAll('button:not(:disabled)')];
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && items.length) {
+        const i = items.indexOf(document.activeElement), d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+        items[(i + d + items.length) % items.length].focus();
+      } else if ((e.key === 'Enter' || e.key === ' ') && items.includes(document.activeElement)) document.activeElement.click();
+      else if (e.key === 'Escape') el.querySelector('[data-salon]').click();
+      else return;
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
   }
 
   showEnd() {
@@ -468,10 +501,10 @@ export class Duel {
     const fresh = this.stats?.takeFresh() ?? [];
     set('new', fresh.length ? `Nouveau titre : ${fresh.map((t) => t.name).join(', ')}` : '');
     set('wait', '');
-    el.querySelector('[data-again]').disabled = false;
-    el.querySelector('[data-lobby]').textContent = this.bot ? 'Menu' : 'Salon';
+    el.querySelector('[data-revanche]').disabled = false;
+    el.querySelector('[data-salon]').textContent = this.bot ? 'Menu' : 'Salon';
     el.hidden = false;
-    requestAnimationFrame(() => { el.classList.add('on'); el.querySelector('[data-again]').focus(); });
+    requestAnimationFrame(() => { el.classList.add('on'); el.querySelector('[data-revanche]').focus(); });
   }
 
   /** La revanche : qui l'a demandée. */

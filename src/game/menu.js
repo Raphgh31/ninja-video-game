@@ -6,7 +6,8 @@
 //   Aventure  : sept lanternes, une par chapitre, reliées par un sentier ; allumées jusqu'au chapitre
 //               en cours, où se tient le ninja. En haut, « Aventure 1 · Aventure 2 ». « Reprendre »,
 //               « Effacer » (les flammes baissent : « Éteindre l'aventure ? »), « Nouvelle aventure » ;
-//   Arène     : le gong ; « Accueillir » (l'arène se choisit dessous : ← nom →) ou « Rejoindre » ;
+//   Arène     : le gong ; « Accueillir » (l'arène se choisit dessous : ← nom →) ou « Rejoindre » ; seul :
+//               « Contre l'ombre » (le ninja de l'ordinateur) ou « Dojo » (s'entraîner à parer) ;
 //   Rejoindre : le code de quatre signes s'écrit sur quatre tablettes de bois ;
 //   Mon ninja : le ninja en grand sur un rocher, son pseudo sur un panneau de bois, sa route.
 //
@@ -18,6 +19,7 @@ import { BrushedCanvas, brushView, smoothText } from '../engine/brushgl.js';
 import { measure, renderText, renderSmooth } from '../engine/pixelfont.js';
 import { play } from '../engine/sfx.js';
 import { cleanName } from './profile.js';
+import { ArenaStats, TITLES, drawSeal } from './arena/stats.js';
 import { canvas, noise1 } from './potager/paint.js';
 import {
   Pen, INK, flat, ground, stoneLantern, drawFlame, gong, drawGongRing, arenaFront, ema, drawSign,
@@ -535,6 +537,18 @@ export class Menu {
     }
     const join = this.act(s, 'Rejoindre', Math.round(W * 0.75), g0 + 10, () => this.open('rejoindre'), { align: 'center', stroke: true });
     join.dataset.joinScreen = '';
+    // seul : contre le ninja de l'ombre (l'ordinateur), ou au Dojo (parer, riposter) — dans l'arène choisie
+    const solo = (fn) => () => {
+      if (leaving) return;
+      leaving = true; ring = 0;
+      sfx('gong');
+      s.classList.add('m-go');
+      setTimeout(() => fn(list[pick]?.id), 650);
+    };
+    const shadow = this.act(s, "Contre l'ombre", Math.round(W * 0.75), g0 + 25, solo((id) => this.vsBot?.(id)), { align: 'center', stroke: true });
+    shadow.dataset.vsBot = '';
+    const dojo = this.act(s, 'Dojo', Math.round(W * 0.75), g0 + 38, solo((id) => this.dojo?.(id)), { align: 'center', stroke: true });
+    dojo.dataset.dojo = '';
     s.paint = (g, t, dt) => {
       if (s.old) {
         const k = clamp01((t - s.old.at) / 0.35);
@@ -690,6 +704,35 @@ export class Menu {
       this.text(s, `${shown.save.ryo ?? 0} ryō`, x0, y += 12, { cls: 'm-soft' });
       y += 18;
     }
+    // à droite, au-dessus du panneau : l'arène (si on y a combattu) — duels, victoires, le titre porté
+    // (← → pour en changer parmi ceux gagnés : il donne son sceau et la couleur de la lame), l'ennemi juré
+    const st = new ArenaStats(), sum = st.summary(), ax = Math.round(W * 0.53);
+    let sealAt = null;
+    if (sum.fights > 0) {
+      let ay = 30;
+      this.text(s, 'Arène', ax, ay, { cls: 'm-dim' });
+      this.text(s, `${sum.fights} duel${sum.fights > 1 ? 's' : ''} · ${sum.wins} victoire${sum.wins > 1 ? 's' : ''} · ${sum.rate} %`, ax, ay += 18, { cls: 'm-ink' }).dataset.arenaStats = '';
+      const lines = [`meilleure série : ${sum.best}`, `parades : ${sum.parries} · coups fatals : ${sum.fatals}`];
+      if (sum.nemesis) lines.push(`ennemi juré : ${sum.nemesis}`);
+      for (const l of lines) this.text(s, l, ax, ay += 12, { cls: 'm-soft' });
+      const won = TITLES.filter((t) => st.s.titles.includes(t.id));
+      if (won.length) {
+        ay += 16;
+        sealAt = { x: ax, y: ay + 1 };
+        const tx = ax + 12, tEl = this.text(s, st.title?.name ?? won[0].name, tx, ay, { cls: 'm-warm' });
+        tEl.dataset.arenaTitle = '';
+        if (won.length > 1) {
+          const turn = (d) => {
+            const i = won.findIndex((t) => t.id === st.s.title), n = won[(i + d + won.length) % won.length];
+            st.choose(n.id);
+            this.swap(tEl, n.name, tx, ay, 'left');
+          };
+          const nx = tx + Math.max(...won.map((t) => measure(t.name))) + 8;
+          const prev = this.act(s, '←', nx, ay, () => turn(-1), { cls: 'm-arrow' }), next = this.act(s, '→', nx + 12, ay, () => turn(1), { cls: 'm-arrow' });
+          prev.setAttribute('aria-label', 'Titre précédent'); next.setAttribute('aria-label', 'Titre suivant');
+        }
+      }
+    }
     const flip = (d) => {
       this.profile.shown = this.profile.shown === 1 ? 2 : 1;
       this.saveProfile(this.profile);
@@ -699,6 +742,7 @@ export class Menu {
     };
     s.paint = (g, t) => {
       this.art.draw(s.tg ?? g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4), crisp: !!s.tg });
+      if (sealAt && st.seal) { g.globalAlpha = clamp01((t - 0.3) / 0.3); drawSeal(g, st.seal, sealAt.x, sealAt.y); g.globalAlpha = 1; }
       if (!shown) return;
       // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
       for (let i = 0; i < LANTERNS; i++) {

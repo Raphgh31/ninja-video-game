@@ -16,6 +16,7 @@ import { renderText } from '../engine/pixelfont.js';
 import { drawWhiteFrame } from '../engine/silhouette.js';
 import { Shurikens } from './shuriken.js';
 import { HEALTH, IMPACT, PARRY } from './combat.js';
+import { drawSeal } from './arena/stats.js';
 
 const SEND_EVERY = 1 / 30;      // s : trente états par seconde
 const INTERP = 0.1;             // s de retard d'affichage des autres joueurs (interpolation entre deux états reçus)
@@ -26,6 +27,8 @@ export const MODES = {
   souffle: { name: 'Souffle unique', text: 'Une vie : le dernier debout gagne.', lives: 1 },
   trois: { name: 'Trois lames', text: 'Le premier à 3 éliminations gagne.', goal: 3 },
   dix: { name: 'Dix lames', text: 'Le premier à 10 éliminations gagne.', goal: 10 },
+  // l'entraînement contre le ninja de l'ombre (arena/bot.js) : sans fin, et absent du salon
+  dojo: { name: 'Dojo', text: 'Parer, riposter : sans fin.', endless: true, hidden: true },
 };
 export const ROUND_PAUSE = 5.2;  // s entre la fin d'une manche et le début de la suivante (coup fatal, revoir, score)
 
@@ -122,8 +125,10 @@ export class Multi {
 
   /** Notre point de départ : celui de notre place (les deux premières places se font face, au sol). */
   placeAtStart() {
-    const me = this.me, sp = this.level.arena.def.spawns;
+    const me = this.me, def = this.level.arena.def;
     if (!me) return;
+    // à deux : les places du duel, face à face (sinon, les points de départ de l'arène)
+    const sp = this.net.roster.length === 2 && def.duelSpawns ? def.duelSpawns : def.spawns;
     this.player.spawnAt = { ...sp[me.slot % sp.length] };
   }
 
@@ -302,6 +307,7 @@ export class Multi {
     const m = this.match;
     if (!m || m.over || m.roundOver) return false;
     const mode = MODES[m.mode];
+    if (mode.endless) return false;
     if (mode.goal) return (this.scores.get(killer) ?? 0) + 1 >= mode.goal;
     const alive = m.players.filter((id) => !m.out.has(id) && this.net.roster.some((p) => p.id === id));
     return alive.length <= 2;
@@ -339,6 +345,8 @@ export class Multi {
 
   startMatch(mode) {
     this.match = { mode, players: this.net.roster.map((p) => p.id), out: new Set(), over: false, round: 1, roundOver: false };
+    this.pendingRound = null;
+    this.player.holdDeath = this.oneLife;          // une vie par manche : le vaincu reste à terre jusqu'à la suivante
     this.again.clear();
     for (const id of this.scores.keys()) this.scores.set(id, 0);
     this.wins.clear();
@@ -369,6 +377,7 @@ export class Multi {
     const m = this.match;
     if (!m || m.over || m.roundOver) return;
     const mode = MODES[m.mode];
+    if (mode.endless) return;
     let done = false, winner = null;
     if (mode.goal) {
       for (const [id, n] of this.scores) if (n >= mode.goal) { done = true; winner = id; }
@@ -385,7 +394,7 @@ export class Multi {
         const next = m.round + 1;
         this.net.send({ t: 'round', winner, wins, next });
         this.roundEnd(winner, wins, next);
-        setTimeout(() => { if (this.match === m && !m.over) { this.net.send({ t: 'roundStart', n: next }); this.startRound(next); } }, ROUND_PAUSE * 1000);
+        this.pendingRound = { m, next, t: ROUND_PAUSE };     // (le temps du jeu : roundClock)
         return;
       }
       const scores = [...this.scores];
@@ -486,6 +495,19 @@ export class Multi {
 
   onThrow(x, y, dir, h) { this.net.send({ t: 'throw', x, y, dir, h, sid: this.shurikens.lastId }); }
 
+  /**
+   * L'hôte : le temps qui reste avant la manche suivante (appelé à chaque pas, même quand le duel fige le
+   * monde : revoir, score de la manche).
+   */
+  roundClock(dt) {
+    const r = this.pendingRound;
+    if (!r) return;
+    r.t -= dt;
+    if (r.t > 0) return;
+    this.pendingRound = null;
+    if (this.match === r.m && !r.m.over) { this.net.send({ t: 'roundStart', n: r.next }); this.startRound(r.next); }
+  }
+
   // --- image par image -----------------------------------------------------------------
   update(dt) {
     this.time += dt;
@@ -513,7 +535,7 @@ export class Multi {
     r.flashT = Math.max(0, r.flashT - dt);
     const b = r.buf;
     if (!b.length) return;
-    const t = this.time - (r.bot ? 0 : INTERP);
+    const t = this.time - (r.bot || this.noDelay ? 0 : INTERP);
     let i = b.length - 1;
     while (i > 0 && b[i - 1].t > t) i--;
     const s1 = b[i], s0 = b[i - 1];
@@ -558,6 +580,7 @@ export class Multi {
       if (!r.tag || r.tag.name !== r.name) r.tag = { name: r.name, cv: renderText(r.name, { font: 'small', color: '#f4efe2', outline: '#1a1410' }) };
       const tw = r.tag.cv.width, ty = y - 44 - r.tag.cv.height;
       ctx.drawImage(r.tag.cv, x - Math.round(tw / 2), ty);
+      if (r.seal) drawSeal(ctx, r.seal, x - Math.round(tw / 2) - 10, ty + 1);   // son sceau d'encre (titre d'arène)
       ctx.fillStyle = SLOT_COLORS[r.slot % 4];
       ctx.fillRect(x - 1, ty + r.tag.cv.height + 1, 3, 2);
       // sa vie : cinq petits traits
