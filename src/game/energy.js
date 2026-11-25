@@ -15,6 +15,9 @@ export const ENERGY = {
   jump: 0.1 * COST,
   attack: 0.12 * COST,       // coup de sabre (le shuriken est gratuit)
   kick: 0.15 * COST,         // coup de pied : un peu plus cher que le sabre
+  parry: 0.1 * COST,         // lever la garde (mode Arène) ; une parade réussie rend plus qu'elle ne coûte
+  parryGain: 0.25,           // énergie rendue par une parade réussie
+  hitGain: 0.06,             // énergie rendue en touchant un adversaire (arène) : l'attaque nourrit l'attaque
   recover: 0.4,              // à bout de souffle (mode marche) jusqu'à ce que l'énergie remonte ici
   tolerance: 0.15,           // une action passe s'il manque au plus 15 % de son coût
                              // (la course entre deux dashs ne doit pas empêcher le 3e)
@@ -47,6 +50,12 @@ export class Energy {
     this.value = Math.max(0, this.value - cost);
     this.idle = 0;
     if (this.value <= 0) this.exhausted = true;
+  }
+
+  /** Regain d'énergie (une parade réussie, un coup porté). */
+  gain(v) {
+    this.value = Math.min(1, this.value + v);
+    if (this.value >= ENERGY.recover) this.exhausted = false;
   }
 
   /** Dépense soumise à condition (dash, sabre) : refusée s'il n'y a pas assez d'énergie. */

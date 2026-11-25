@@ -6,7 +6,8 @@
 //   stick gauche ou croix : se déplacer ; stick poussé à fond sur le côté : sprint ;
 //   en diagonale bas-avant en courant : glissade ; haut franc : parler, tirer la corde, grimper ;
 //   Croix (A) : sauter (salto au 2e appui en l'air) · Carré (X) : sabre · Rond (B) : coup de pied ·
-//   Triangle (Y) : shuriken · R2 : dash à droite · L2 : dash à gauche · Options (Start) : pause.
+//   Triangle (Y) : shuriken · R2 : dash à droite · L2 : dash à gauche · R1 ou L1 : parade (arène) ·
+//   Options (Start) : pause.
 // Dans les menus (intro, menus, boutique, salon, pause), elle devient des touches : la croix et le stick
 // déplacent le choix (flèches, avec répétition), Croix valide (le bouton choisi), Rond revient (Échap).
 //
@@ -109,6 +110,7 @@ export class Gamepads {
     else if (this.sprint && side < PAD.sprintBack) this.sprint = false;
     this.hold('sprint', this.sprint);
     for (const [k, a] of Object.entries(ACT)) this.hold(a, now[k]);
+    this.hold('parry', now.l1 || now.r1);   // la parade (mode Arène) : R1 ou L1
     // dash : R2 vers la droite, L2 vers la gauche (dès la mi-course)
     for (const [k, a] of [['r2', 'dash_right'], ['l2', 'dash_left']]) {
       const on = val(k) > PAD.trigger;

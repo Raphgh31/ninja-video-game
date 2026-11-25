@@ -12,6 +12,7 @@ const KEYMAP = {
   KeyX: 'attack', KeyW: 'attack', Enter: 'attack',     // sabre : X ou W
   KeyC: 'throw', KeyV: 'throw',                         // shuriken : C ou V
   KeyB: 'kick', KeyN: 'kick',                           // coup de pied : B ou N
+  KeyF: 'parry', KeyG: 'parry',                         // parade (mode Arène) : F ou G
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyH: 'debug',
 };

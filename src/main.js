@@ -886,6 +886,8 @@ addEventListener('keydown', (e) => {
   items[(i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
 }, true);
 touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
+if (touch && level.arena) touch.setParry(true);   // la parade : en arène seulement
+player.canParry = !!level.arena;
 if (touch) touch.onTap = (u, v) => tapChest(u, v);
 if (MOBILE) {
   // plein écran au premier contact (refusé sans gravité si le navigateur ne le permet pas)

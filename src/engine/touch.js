@@ -3,7 +3,7 @@
 //   au-delà du cercle (contre un « mur » qui résiste) = sprinter ; bas = glissade ;
 //   coup très rapide et court vers un côté puis relâché = dash ;
 // - boutons ronds sous le pouce droit : saut (le plus gros), sabre, coup de pied,
-//   shuriken.
+//   shuriken ; en arène, la garde (parade), au-dessus du saut.
 // Les positions sont en pixels du jeu ; les doigts sont convertis via l'échelle.
 
 const STICK = {
@@ -63,6 +63,21 @@ const ICONS = {
     '..##.........',
     '..##.........',
     '.###.........',
+  ],
+  // la garde (mode Arène) : le sabre dressé devant soi, sa garde (tsuba) en travers
+  parry: [
+    '.....#.....',
+    '....###....',
+    '....###....',
+    '....###....',
+    '....###....',
+    '....###....',
+    '.#########.',
+    '.#########.',
+    '....###....',
+    '....###....',
+    '....###....',
+    '.....#.....',
   ],
   attack: [
     '...........##',
@@ -148,6 +163,14 @@ export class TouchControls {
       { action: 'kick', x: w - 97, y: h - 44, r: 12 },
       { action: 'throw', x: w - 56, y: h - 61, r: 12 },
     ];
+    // la parade (mode Arène seulement) : au-dessus du saut, sous le pouce sans le gêner
+    if (this.parryOn) this.buttons.push({ action: 'parry', x: w - 22, y: h - 68, r: 11 });
+  }
+
+  /** Le bouton de la parade (mode Arène) : présent ou non. */
+  setParry(on) {
+    this.parryOn = !!on;
+    this.layout(this.w, this.h, this.scale);
   }
 
   /** Portrait : le jeu est pivoté de 90° (son haut est à droite de l'écran). */
