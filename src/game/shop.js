@@ -1,9 +1,11 @@
 import { drawAura } from './aura.js';
 import { measure } from '../engine/pixelfont.js';
-import { canvas, bayer } from './potager/paint.js';
+import { canvas, bayer, pick, ih, noise1 } from './potager/paint.js';
+import { paintFar, paintMid } from './potager/backdrop.js';
+import { paintMoon } from './intro.js';
 import { BrushedCanvas, brushView } from '../engine/brushgl.js';
 import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
-import { Pen, INK, stroke, smooth, WOOD } from './menuart.js';
+import { Pen, INK, stroke, smooth, clamp01, ground, stoneLantern, drawFlame } from './menuart.js';
 /** Une feuille nette voilée de nuit (les skins de l'étagère qu'on ne regarde pas). */
 function dimmed(c) {
   const d = document.createElement('canvas'); d.width = c.width; d.height = c.height;
@@ -19,8 +21,11 @@ function dimmed(c) {
 //   - au milieu, le skin choisi, en grand, sous une lanterne de papier : il s'anime (repos, course, saut,
 //     sabre…) ; à droite, son nom, sa rareté (en couleur), son prix, et l'achat (à confirmer), « Porter »,
 //     « Porté », ou comment gagner une récompense ;
-//   - en bas, une étagère de bois où tous les skins se tiennent debout, du moins cher au plus cher : elle
-//     glisse pour garder le skin choisi au milieu ; ← / → (ou un clic) passent de l'un à l'autre ;
+//   - « Le sentier de nuit » (25 novembre 2026, choisi par Raph sur docs/menus/planche_boutique.jpg) : la
+//     nuit de l'intro (la lune, les deux chaînes, une forêt de pins et un hameau dans la brume au pied des
+//     montagnes) ; les skins attendent le long d'un sentier, du moins cher au plus cher, chacun près d'une
+//     lanterne de pierre : celle du skin choisi s'allume, et lui se tient en grand ; le sentier glisse pour
+//     garder le choix au milieu ; ← / → (ou un clic) passent de l'un à l'autre ;
 //   - « Reprendre la route », en bas à droite (ou Échap).
 // Menus sobres : le marchand ne parle pas, aucune ligne d'aide. Encre est toujours possédé.
 // Version de test (window.__KAGE_TEST) : tous les skins se portent sans achat.
@@ -47,7 +52,26 @@ export function skinOrder(skins) {
 const REWARDS = { karasu: 'Battre le corbeau' };
 // le skin choisi enchaîne ces animations
 const SHOWCASE = [['idle', 1800], ['run', 1600], ['jump', 900], ['attack', 1000], ['sprint', 1400], ['kick', 900], ['throw', 900]];
-const STEP = 44;                  // écart des skins sur l'étagère
+const STEP = 92;                  // écart des skins le long du sentier
+// les couleurs de la nuit (celles de l'intro)
+const SKY = ['#04060c', '#060a14', '#0a101f', '#0f182b', '#15203a'];
+const FAR = ['#04070b', '#0a111c', '#121c2c', '#1b293e', '#273a54', '#3a4f6c'];
+const MID = ['#04070b', '#081019', '#0e1824', '#152234', '#1f2e44', '#2a3c56'];
+const PINE = ['#060a0f', '#0a1118', '#0f1922', '#16232e'];
+/** Une chaîne du Potager, repeinte aux couleurs de la nuit (sa clarté devient une encre bleue). */
+function nightRange(img, ramp, dark = 0) {
+  const w = img.width, h = img.height, c = canvas(w, h), g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const id = g.getImageData(0, 0, w, h), d = id.data, p = new Pen(g);
+  p.g.putImageData(id, 0, 0);
+  p.shade(0, 0, w, h, (x, y) => {
+    const o = (y * w + x) * 4;
+    if (d[o + 3] < 8) return null;
+    const l = (0.3 * d[o] + 0.55 * d[o + 1] + 0.15 * d[o + 2]) / 255;
+    return pick(ramp, l * 0.95 - 0.12 - dark, x, y, 0.5);
+  });
+  return c;
+}
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -127,19 +151,68 @@ export class Shop {
     if (this.bc) { this.bc.size(W, H); this.g = this.bc.g; }
     else { this.cv.width = W; this.cv.height = H; this.g = this.cv.getContext('2d'); }
     this.g.imageSmoothingEnabled = false;
-    this.shelfY = H - 46;                  // le dessus de l'étagère
-    this.floorY = this.shelfY - 46;        // le sol du skin choisi : bien au-dessus de l'étagère, sous la lanterne
-    // la couche fixe : le voile sombre et l'étagère de bois (sur toute la largeur)
+    // le sentier : il monte doucement vers le milieu ; les skins s'y tiennent
+    const base = H - 40;
+    this.gy = (x) => Math.round(base - Math.sin(clamp01(x / W) * Math.PI) * 10);
+    const hz = base - 18;                  // l'horizon : le pied des montagnes
+    // la couche fixe : le ciel, les étoiles, la lune, les montagnes, la forêt, le hameau, la brume, le sol
     this.base = canvas(W, H);
-    const p = new Pen(this.base.getContext('2d'));
-    p.g.fillStyle = 'rgba(6, 8, 12, 0.9)'; p.g.fillRect(0, 0, W, H);
-    const y = this.shelfY;
-    p.shade(0, y, W, 5, (x, yy) => {
-      const j = yy - y;
-      const v = j === 0 ? 0.92 : j === 4 ? 0.1 : 0.5 + ((x * 7 + j * 13) % 23 === 0 ? -0.2 : 0) + (Math.sin(x * 0.11 + j) * 0.06);
-      return WOOD[Math.max(0, Math.min(WOOD.length - 1, Math.round(v * (WOOD.length - 1))))];
+    const g = this.base.getContext('2d'), p = new Pen(g);
+    p.shade(0, 0, W, H, (x, y) => pick(SKY, y / (H * 0.72), x, y, 0.6));
+    for (let i = 0; i < Math.round(W * 0.22); i++) {
+      const x = Math.floor(ih(i, 1, 81) * W), y = Math.floor(ih(i, 2, 81) ** 1.4 * hz * 0.6);
+      p.px(x, y, i % 7 ? '#3e4a66' : '#a7b2c8');
+    }
+    const moon = paintMoon(13);
+    g.drawImage(moon.c, Math.round(W - 84 - moon.o), Math.round(34 - moon.o));
+    this.ranges ??= { far: nightRange(paintFar(480).img, FAR), mid: nightRange(paintMid(480).img, MID, 0.04) };
+    g.drawImage(this.ranges.far, 380, 0, W, 236, 0, hz - 222 + 4, W, 236);
+    g.drawImage(this.ranges.mid, 120, 0, W, 176, 0, hz - 160 + 14, W, 176);
+    // au pied des montagnes (25 novembre 2026 : « moins nues et ternes ») : une brume bleutée où les sommets
+    // se posent, deux rangs de pins dont la lune (à droite) éclaire le flanc et la pointe, un hameau aux
+    // fenêtres chaudes dans la brume, et une brume plus basse entre les rangs
+    const mist = (y0, h, col, amax, up = true) => p.shade(0, y0, W, h, (x, y) => {
+      const f = up ? (y - y0) / h : 1 - Math.abs(y - y0 - h / 2) / (h / 2);
+      const a = clamp01(f) * amax * (0.8 + 0.4 * noise1(x / 40 + y / 9, 7));
+      return a > 0.02 && (x + y * 2) % 3 ? [col, a] : null;
     });
-    for (let x = 30; x < W; x += 120) { p.r(x, y + 5, 3, 10, WOOD[1]); p.r(x, y + 5, 1, 10, WOOD[3]); }   // les consoles
+    mist(hz - 40, 40, '#4a5d82', 0.34);
+    const pines = (y0, hMin, hMax, col, lit, tip, seed, gap) => {
+      for (let x = -8; x < W + 8; x += gap + Math.floor(ih(x, seed, 3) * gap)) {
+        const h = hMin + Math.floor(ih(x, seed, 4) * (hMax - hMin)), yb = y0 + Math.round(noise1(x / 23, seed) * 3);
+        for (let j = 0; j < h; j++) {
+          // des étages de branches : la largeur grandit vers le bas, et se resserre un peu à chaque étage
+          const half = Math.round((j / h) * h * 0.34 - ((j % 4) === 0 ? 1 : 0));
+          if (half < 0) { p.px(x, yb - h + j, col); continue; }
+          p.r(x - half, yb - h + j, half * 2 + 1, 1, col);
+          p.px(x + half, yb - h + j, lit);                  // le flanc tourné vers la lune
+        }
+        p.px(x, yb - h, tip); p.px(x, yb - h + 1, lit);
+        p.r(x, yb, 1, 2, col);
+      }
+    };
+    pines(hz + 2, 8, 17, '#1a283a', '#2b3d56', '#4a6084', 11, 4);
+    // le hameau : des toits sombres, des fenêtres chaudes et leur halo
+    const warm = [];
+    for (const [fx, n] of [[0.14, 2], [0.47, 1], [0.7, 3], [0.9, 1]]) {
+      for (let k = 0; k < n; k++) {
+        const hx = Math.round(W * fx) + k * 15, hy = hz + 3 + (k % 2);
+        p.r(hx - 5, hy - 6, 11, 7, '#111a26');
+        p.r(hx - 7, hy - 8, 15, 2, '#1b2738'); p.r(hx - 5, hy - 10, 11, 2, '#1b2738'); p.r(hx - 3, hy - 11, 7, 1, '#2a3a52');
+        p.px(hx - 8, hy - 7, '#2a3a52'); p.px(hx + 8, hy - 7, '#2a3a52');
+        const wx = hx - 2 + (k % 2) * 3;
+        p.r(wx, hy - 4, 2, 2, '#f0b45a'); p.px(wx, hy - 3, '#c9853a');
+        warm.push([wx + 1, hy - 3]);
+      }
+    }
+    for (const [wx, wy] of warm) p.shade(wx - 6, wy - 5, 13, 10, (x, y) => {
+      const d = Math.hypot(x - wx, (y - wy) * 1.4); return d < 6 && (x + y) % 2 ? ['#e8a050', (1 - d / 6) * 0.22] : null;
+    });
+    mist(hz + 4, 14, '#3e5070', 0.3, false);
+    pines(hz + 16, 12, 26, '#0f1824', '#1d2c40', '#33476a', 23, 5);
+    mist(hz + 14, 12, '#2c3c58', 0.22, false);
+    ground(p, this.gy);
+    this.lights = new Map();
   }
 
   /** Les textes et boutons (posés au pixel), refaits à chaque changement. */
@@ -173,38 +246,39 @@ export class Shop {
     const close = act('Reprendre la route', W - 16, H - 18, () => this.close(), { align: 'right', cls: 'm-main' });
     close.dataset.close = '';
 
-    // le skin choisi : nom, rareté, l'achat
-    const tx = Math.round(W * 0.55), ty = Math.round(H * 0.22);
-    text(rar.name, tx, ty, 'm-rar').style.color = rar.color;
-    const bigName = measure(sk.name, 'big') <= W - tx - 10;   // un nom trop long passe en petits caractères
-    text(sk.name, tx, ty + (bigName ? 12 : 18), bigName ? 'm-ink m-big' : 'm-ink', 'left', bigName ? 'big' : 'small');
+    // le skin choisi : sa rareté, son nom, l'achat — centrés au-dessus du sentier
+    const cx = Math.round(W / 2), ty = Math.round(H * 0.12);
+    text(rar.name, cx, ty, 'm-rar', 'center').style.color = rar.color;
+    const bigName = measure(sk.name, 'big') <= W - 40;
+    text(sk.name, cx, ty + (bigName ? 12 : 16), bigName ? 'm-ink m-big' : 'm-ink', 'center', bigName ? 'big' : 'small');
     const owned = this.owned(id), worn = save.skin === id;
     let first = null;
     if (this.confirming) {
-      text(`L'acheter pour ${sk.price} ryō ?`, tx, ty + 44, 'm-ink');
-      const yes = act('Oui', tx + 4, ty + 62, () => this.buy(id), { cls: 'm-main' });
+      text(`L'acheter pour ${sk.price} ryō ?`, cx, ty + 42, 'm-ink', 'center');
+      const yes = act('Oui', cx - 26, ty + 58, () => this.buy(id), { cls: 'm-main', align: 'center' });
       yes.dataset.confirm = '';
-      const no = act('Non', tx + 44, ty + 62, () => { this.confirming = false; this.render(); });
+      const no = act('Non', cx + 26, ty + 58, () => { this.confirming = false; this.render(); }, { align: 'center' });
       no.dataset.cancel = '';
       first = yes;
     } else {
       let b;
-      if (worn) { b = act('Porté', tx, ty + 44, () => {}, { st: false }); b.disabled = true; }
-      else if (owned) b = act('Porter', tx, ty + 44, () => { this.wardrobe.wear(id); this.render(); }, { cls: 'm-main' });
-      else if (sk.reward) { b = act(REWARDS[sk.reward] ?? 'Récompense', tx, ty + 44, () => {}, { st: false }); b.disabled = true; }
+      const o = { align: 'center' };
+      if (worn) { b = act('Porté', cx, ty + 44, () => {}, { ...o, st: false }); b.disabled = true; }
+      else if (owned) b = act('Porter', cx, ty + 44, () => { this.wardrobe.wear(id); this.render(); }, { ...o, cls: 'm-main' });
+      else if (sk.reward) { b = act(REWARDS[sk.reward] ?? 'Récompense', cx, ty + 44, () => {}, { ...o, st: false }); b.disabled = true; }
       else {
         const poor = save.ryo < sk.price;
-        b = act(`Acheter · ${sk.price} ryō`, tx, ty + 44, () => {
+        b = act(`Acheter · ${sk.price} ryō`, cx, ty + 44, () => {
           if (save.ryo < sk.price) return;
           this.confirming = true; this.render();
-        }, { cls: poor ? 'm-poor' : 'm-main', st: !poor });
+        }, { ...o, cls: poor ? 'm-poor' : 'm-main', st: !poor });
         if (poor) b.classList.add('m-poor');
       }
       b.dataset.action = '';
       first = b;
     }
 
-    // l'étagère : un bouton (invisible) sur chaque skin ; son prix, ou « porté », dessous
+    // le sentier : un bouton (invisible) sur chaque skin ; son prix, ou « porté », dessous
     this.cards = this.ids().map((sid) => {
       const s2 = this.wardrobe.skins[sid];
       const card = el('button', 'm-lamp shop__card');
@@ -217,7 +291,7 @@ export class Shop {
       tag.hidden = true;
       card.append(tag);
       card.addEventListener('click', () => { this.select(sid); this.layer.querySelector('[data-action]:not(:disabled), [data-confirm]')?.focus({ preventScroll: true }); });
-      card.style.cssText = `top:${this.shelfY - 38}px;width:30px;height:40px`;
+      card.style.cssText = 'width:34px;height:44px';
       L.append(card);
       const lbl = el('p', 'm-txt shop__price');
       lbl.textContent = tag.textContent;
@@ -229,18 +303,20 @@ export class Shop {
     if (this.isOpen) setTimeout(() => (first && !first.disabled ? first : close).focus({ preventScroll: true }), 20);
   }
 
-  /** L'étagère glisse : le skin choisi au milieu. */
+  /** Le sentier glisse : le skin choisi au milieu. */
   place() {
     const i = this.ids().indexOf(this.selected), target = this.W / 2 - i * STEP;
     this.cam ??= target;
     this.camTo = target;
     for (const [k, c] of (this.cards ?? []).entries()) {
-      const x = Math.round(this.cam + k * STEP);
-      c.card.style.left = `${x - 15}px`;
-      c.lbl.style.left = `${x - Math.round(c.w / 2)}px`;
-      c.lbl.style.top = `${this.shelfY + 8}px`;
+      const x = Math.round(this.cam + k * STEP), y = this.gy(x), on = c.sid === this.selected;
+      c.card.style.left = `${x - 17}px`;
+      c.card.style.top = `${y - (on ? 72 : 40)}px`;
+      c.card.style.height = `${on ? 72 : 40}px`;
+      c.lbl.style.left = `${x + 4 - Math.round(c.w / 2)}px`;
+      c.lbl.style.top = `${y + 5}px`;
       const out = x < 8 || x > this.W - 8;
-      c.card.hidden = out; c.lbl.hidden = out;
+      c.card.hidden = out; c.lbl.hidden = out || on;
     }
   }
 
@@ -288,49 +364,31 @@ export class Shop {
     else if (this.camTo != null && this.cam !== this.camTo) { this.cam = this.camTo; this.place(); }
     g.clearRect(0, 0, W, H);
     g.drawImage(this.base, 0, 0);
-    const sk = this.wardrobe.skins[this.selected];
-    const cx = Math.round(W * 0.3), fy = this.floorY;
-    // la lanterne de papier, au-dessus du skin choisi, et sa lumière
-    const sw = Math.sin(t * 1.4) * 1.2, lx = Math.round(cx + sw), ly = 20;
-    g.fillStyle = '#3a2616'; g.fillRect(cx, 0, 1, ly);
-    const fl = 0.92 + 0.05 * Math.sin(t * 7.3) + 0.03 * Math.sin(t * 13.1);
-    if (!this.halo) {                        // la lumière de la lanterne, tramée, peinte une fois
-      const R = 70, c = canvas(2 * R, 2 * R + 8), hp = new Pen(c.getContext('2d'));
-      hp.shade(0, 0, 2 * R, 2 * R + 8, (x, y) => {
-        const d = Math.hypot((x - R) / R, (y - R) / (R * 0.95));
-        let a = d < 1 ? Math.floor((Math.pow(1 - d, 1.8) * 5) + bayer(x, y)) / 5 * 0.28 : 0;
-        const e = Math.hypot((x - R) / 34, (y - 2 * R + 2) / 3);
-        if (e < 1) a = Math.max(a, Math.floor((1 - e) * 3 + bayer(x, y)) / 3 * 0.35);
-        return a > 0 ? ['#f0a848', a] : null;
-      });
-      this.halo = { c, R };
+    // quelques étoiles qui scintillent
+    for (let i = 0; i < 8; i++) {
+      const a = 0.5 + 0.5 * Math.sin(t * (1.3 + i * 0.37) + i * 2.1);
+      if (a < 0.6) continue;
+      g.fillStyle = `rgba(200,210,235,${((a - 0.6) * 2).toFixed(2)})`;
+      g.fillRect(Math.floor(ih(i, 5, 81) * W), Math.floor(ih(i, 6, 81) * H * 0.4), 1, 1);
     }
-    g.globalAlpha = fl;
-    g.drawImage(this.halo.c, cx - this.halo.R, fy + 1 - 2 * this.halo.R);
-    g.globalAlpha = 1;
-    g.fillStyle = '#1c1510'; g.fillRect(lx - 6, ly, 13, 18);
-    g.fillStyle = '#c8432f'; g.fillRect(lx - 5, ly + 1, 11, 16);
-    g.fillStyle = '#f4cf8a'; g.fillRect(lx - 4, ly + 3, 9, 12);
-    g.fillStyle = '#ffe9b0'; g.fillRect(lx - 2, ly + 5, 5, 8);
-    g.fillStyle = '#1c1510'; g.fillRect(lx - 5, ly + 1, 11, 1); g.fillRect(lx - 5, ly + 16, 11, 1);
-    for (let y = ly + 5; y < ly + 15; y += 3) { g.fillStyle = 'rgba(120,40,20,0.35)'; g.fillRect(lx - 4, y, 9, 1); }
-    // le skin choisi, en grand, qui s'anime
-    if (sk) {
-      const total = SHOWCASE.reduce((a, [, d]) => a + d, 0);
-      let tt = (performance.now() - (this.showT0 ?? 0)) % total, k = 0;
-      while (tt > SHOWCASE[k][1]) { tt -= SHOWCASE[k][1]; k++; }
-      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(cx - 18, fy, 36, 2);
-      const z = H < 236 ? 2 : 3;
-      this.ninja(g, sk, SHOWCASE[k][0], tt, cx, fy + 1, z, false);
-    }
-    // l'étagère : chaque skin debout, au repos ; celui qu'on regarde, éclairé
-    const ids = this.ids();
+    // les skins le long du sentier, chacun près de sa lanterne (celle du choix s'allume)
+    const ids = this.ids(), p = new Pen(g), big = H < 236 ? 1 : 2;
     ids.forEach((sid, i) => {
       const x = Math.round(this.cam + i * STEP);
-      if (x < -20 || x > W + 20) return;
-      const s2 = this.wardrobe.skins[sid], on = sid === this.selected;
-      this.ninja(g, s2, 'idle', performance.now() + i * 137, x, this.shelfY + 1, 1, !on);
-      if (!on) { g.fillStyle = 'rgba(6, 8, 12, 0.45)'; g.fillRect(x - 20, this.shelfY - 40, 40, 40); }
+      if (x < -60 || x > W + 60) return;
+      const on = sid === this.selected, y = this.gy(x);
+      const lan = stoneLantern(p, x - (on ? 28 : 17), y, on ? 1.3 : 0.9);
+      const v = this.lights.get(sid) ?? (on ? 0 : 0.16), to = on ? 1 : 0.16;
+      const nv = v + Math.sign(to - v) * Math.min(Math.abs(to - v), dt * 2.2);
+      this.lights.set(sid, nv);
+      drawFlame(g, lan, nv, on ? 1 : 0.45, t, i);
+      const s2 = this.wardrobe.skins[sid];
+      if (on) {
+        const total = SHOWCASE.reduce((a, [, d]) => a + d, 0);
+        let tt = (performance.now() - (this.showT0 ?? 0)) % total, k = 0;
+        while (tt > SHOWCASE[k][1]) { tt -= SHOWCASE[k][1]; k++; }
+        this.ninja(g, s2, SHOWCASE[k][0], tt, x + 4, y + 1, big, false);
+      } else this.ninja(g, s2, 'idle', performance.now() + i * 137, x + 3, y + 1, 1, true);
     });
     // la petite pièce de la bourse
     const px = this.purseX ?? W - 60;

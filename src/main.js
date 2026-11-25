@@ -26,6 +26,7 @@ import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsp
 import { BRUSH } from './engine/brush.js';
 import { Lights, DayCycle } from './game/daylight.js';
 import { Gamepads } from './engine/gamepad.js';
+import { PauseScene } from './game/pause.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -836,6 +837,7 @@ player.onRespawn = () => {
 const input = new Input();
 // ---- la manette (src/engine/gamepad.js) et la pause ----------------------------------------------
 const pauseEl = document.querySelector('.pause');
+const pauseScene = new PauseScene(pauseEl);
 const pads = new Gamepads(input, {
   // un menu a la main : la manette y choisit au lieu de jouer
   ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading,
@@ -858,11 +860,13 @@ function openPause() {
   pauseEl.wasPaused = run.paused;
   if (!multi) run.paused = true;
   pauseEl.querySelector('[data-quit]').textContent = multi ? 'Quitter l\'arène' : 'Menu principal';
+  pauseScene.open();
   requestAnimationFrame(() => pauseEl.querySelector('[data-resume]').focus());
 }
 function closePause() {
   if (pauseEl.hidden) return;
   pauseEl.hidden = true;
+  pauseScene.close();
   if (!multi) run.paused = !!pauseEl.wasPaused;
   document.activeElement?.blur?.();
 }
