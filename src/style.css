@@ -317,3 +317,11 @@ body.mobile .lab { top: 24px; }
 .ui .pause.m-lant button.m-act:focus, .ui .pause.m-lant button.m-act:hover { color: #f3d9a0; }
 /* une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher) */
 body.pad .touch-layer { display: none; }
+
+/* le bouton de la halte : le feu de camp, en haut à droite pendant le jeu (13 × 13 pixels de jeu, contour compris) */
+.ui .halt-btn { position: absolute; top: 5px; right: 6px; z-index: 3; width: 13px; height: 13px; padding: 0; margin: 0;
+  border: 0; background: none; cursor: pointer; opacity: .82; transition: opacity .2s; touch-action: manipulation; }
+.ui .halt-btn::after { content: ''; position: absolute; inset: -4px; }   /* (une cible un peu plus large pour le pouce) */
+.ui .halt-btn:hover, .ui .halt-btn:focus-visible { opacity: 1; outline: none; }
+.ui .halt-btn[hidden] { display: none; }
+.halt-btn__icon { display: block; width: 13px; height: 13px; image-rendering: pixelated; }

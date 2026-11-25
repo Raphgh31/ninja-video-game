@@ -26,7 +26,7 @@ import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsp
 import { BRUSH } from './engine/brush.js';
 import { Lights, DayCycle } from './game/daylight.js';
 import { Gamepads } from './engine/gamepad.js';
-import { PauseScene } from './game/pause.js';
+import { PauseScene, haltIcon } from './game/pause.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -838,6 +838,14 @@ const input = new Input();
 // ---- la manette (src/engine/gamepad.js) et la pause ----------------------------------------------
 const pauseEl = document.querySelector('.pause');
 const pauseScene = new PauseScene(pauseEl);
+// le bouton de la halte (le feu de camp, en haut à droite) : la pause au toucher ou à la souris
+const haltBtn = document.querySelector('.halt-btn');
+haltIcon(haltBtn);
+haltBtn.addEventListener('click', () => { haltBtn.blur(); openPause(); });
+function updateHaltBtn() {
+  const show = !MENU_ONLY && !intro && pauseEl.hidden && !run.title && !run.won && !shop.isOpen && !lobby?.visible && !globalThis.__loading;
+  if (haltBtn.hidden === show) haltBtn.hidden = !show;
+}
 const pads = new Gamepads(input, {
   // un menu a la main : la manette y choisit au lieu de jouer
   ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading,
@@ -2013,6 +2021,7 @@ function frame(now) {
   last = now;
   globalThis.__frameStart = performance.now();
   pads.poll();             // la manette, lue une fois par image (avant les pas de physique)
+  updateHaltBtn();
   while (acc >= STEP) {
     if (!manual) update(STEP);
     acc -= STEP;
