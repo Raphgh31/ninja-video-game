@@ -100,6 +100,7 @@ export class Duel {
     this.texts = new Map();
     this.leaf = null;
     this.zoomK = 1;
+    this.stains = [];       // les traces du combat : une tache d'encre au sol où chaque manche s'est jouée
     this.buildEnd();
   }
 
@@ -131,6 +132,7 @@ export class Duel {
     this.restoreLight();
     this.music?.active === 'duel' && this.music.switchTo('main', { fadeOut: 1.5, fadeIn: 2, delay: 0.2 });
     this.rivals = [...(this.multi?.remotes.values() ?? [])].map((r) => r.name);
+    this.stains = [];
     this.intro(1, false);
   }
 
@@ -163,6 +165,11 @@ export class Duel {
     this.phase = 'fatal';
     this.t = 0;
     this.fatalAt = { x, y, dir: dir || 1 };
+    // la trace : une tache d'encre au sol, sous le vaincu (elle reste jusqu'à la fin du duel)
+    const lv = this.level, tx = Math.floor(x / 16);
+    let ty = Math.floor((y + 10) / 16);
+    while (ty < lv.h && !lv.solid(tx, ty) && !lv.ledge(tx, ty)) ty++;
+    if (ty < lv.h && lv.at(tx, ty - 1) !== '~') this.stains.push({ x: Math.round(x), y: ty * 16, seed: this.stains.length * 7 + 3, dir: dir || 1 });
     this.sfx('fatal');
     this.fx.shake(3, 0.3);
     this.fx.flash(x, y, { size: 22, life: 0.5, halo: 16 });
@@ -180,6 +187,11 @@ export class Duel {
 
   end(d) {
     this.pending = { kind: 'end', ...d };
+    // (la dernière manche compte aussi : gagnée sans être touché, c'est une manche parfaite)
+    if (MODES[this.mode]?.rounds) {
+      this.stats?.add('rounds');
+      if (d.mine) { this.stats?.add('roundsWon'); if (this.player.hp >= HEALTH.max && !this.hitMe) this.stats?.add('perfect'); }
+    }
     this.stats?.match({ won: !!d.mine, arena: this.level.name.replace(/^Arène — /, ''), rivals: this.rivals ?? [] });
     if (this.phase !== 'fatal') { this.phase = 'wait'; this.t = 0; }
   }
@@ -329,6 +341,19 @@ export class Duel {
           ctx.restore();
         }
       }
+    }
+    // les traces du combat : des taches d'encre au sol, éclaboussées dans le sens du coup
+    for (const st of this.stains) {
+      const sx = Math.round(st.x - cam.x), sy = st.y - cam.y;
+      if (sx < -30 || sx > v.w + 30) continue;
+      for (let i = -9; i <= 9; i++) {
+        const w = ih(i, st.seed, 41);
+        if (Math.abs(i) > 6 && w < 0.5) continue;
+        ctx.fillStyle = w < 0.25 ? '#2a0e16' : '#120910';
+        ctx.fillRect(sx + i * st.dir, sy - 1, 1, 1);
+        if (Math.abs(i) < 4) ctx.fillRect(sx + i * st.dir, sy, 1, 1);
+      }
+      for (let k = 0; k < 5; k++) { ctx.fillStyle = '#120910'; ctx.fillRect(sx + st.dir * (10 + Math.round(ih(k, st.seed, 43) * 12)), sy - 1 - Math.round(ih(k, st.seed, 47) * 2), 1, 1); }
     }
     // la feuille de l'ouverture
     if (this.leaf) {

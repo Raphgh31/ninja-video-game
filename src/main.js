@@ -36,7 +36,7 @@ import { Multi, SLOT_COLORS, MODES } from './game/multi.js';
 import { Lobby } from './game/arena/lobby.js';
 import { Duel } from './game/arena/duel.js';
 import { ShadowBot, BOT } from './game/arena/bot.js';
-import { ArenaStats, TRAILS, drawSeal } from './game/arena/stats.js';
+import { ArenaStats } from './game/arena/stats.js';
 import { localPair } from './engine/localnet.js';
 import { Menu } from './game/menu.js';
 import { loadProfile, saveProfile } from './game/profile.js';
@@ -925,6 +925,8 @@ if (level.arena && !SKIN_LAB) { const s = loadSave(); if (s?.skin && (s.skins ??
 const music = new Music();
 music.load(level.music);
 music.add('boss', level.bossMusic);
+// le duel, dans l'arène de la Forêt : la manche décisive passe à la musique du combat (celle du corbeau)
+if (level.arena && level.theme === 'foret') music.add('duel', LEVELS['arene-potager']?.music);
 // (pendant l'introduction, c'est sa propre musique qui joue : celle du chapitre attend la fin)
 const onGesture = () => { unlockAudio(); if (!intro || intro.closing) music.start(); };
 for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
@@ -1608,7 +1610,6 @@ function draw() {
     ctx.beginPath(); ctx.ellipse(Math.round(player.x - cam.x), Math.round(player.y - cam.y), 9, 1.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
   if (!behindGate() && !duel?.replaying) player.draw(ctx, look.sheet, cam);   // (dans le passage, c'est la porte qui le dessine)
-  if (multi && arenaStats?.seal && !duel?.lock && player.state !== 'death') drawSeal(ctx, arenaStats.seal, Math.round(player.x - cam.x) - 3, Math.round(player.y - cam.y) - 50);
   if (look.aura && !behindGate() && player.state !== 'death') drawAura(cam);
   if (GL) passCtx.clearRect(0, 0, VIEW_W, VIEW_H);
   if (!behindGate()) mist.draw(W, cam);
