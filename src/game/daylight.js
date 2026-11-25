@@ -164,7 +164,10 @@ export class Lights {
   backdrop(bg, backdrop, level, cam, w, h, time, k, cycle) {
     const under = this.underAt(level, cam, w, h, time);
     backdrop.under = under;
-    const T = this.theme(level), n = T ? cycle.night * (1 - under) : 0, d = T ? cycle.dusk * (1 - under) : 0;
+    // (le ciel et les plans du fond gardent l'heure : seul ce qui est sous terre y échappe, dans night())
+    // (dans une zone toute souterraine, la caverne, le fond aussi reste hors du cycle)
+    const zc = level.art?.caveAt?.(cam.x + w / 2) ?? 0;
+    const T = this.theme(level), n = T ? cycle.night * (1 - zc) : 0, d = T ? cycle.dusk * (1 - zc) : 0;
     if (n < 0.01 || !backdrop.drawSkyOnly) {
       backdrop.draw(bg, cam, w, h, time, k);
     } else {
