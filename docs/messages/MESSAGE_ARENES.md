@@ -29,6 +29,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation est consacrée uniquement 
 - Vite et JavaScript (modules ES), Canvas 2D, aucune bibliothèque de rendu. Image interne 448×252, mise à l'échelle entière (pixels nets).
 - Tout le décor est **peint en code** : `src/game/potager/`, `src/game/foret/`.
 - **Rendu « pixel art lumineux »** (23-24 novembre 2026, après l'essai abandonné d'une aquarelle) : pixels nets, ninja compris ; la beauté vient de la lumière (étalonnage et liseré peints une fois par tranche de décor, rais, halos, brume, lucioles), **cycle jour-nuit** (5 min de jour, 3 de nuit, lune et étoiles) et **fluidité constante** (60 images/s visées partout ; mémoire constante, rien de lourd peint en pleine partie). Tout est décrit dans `CLAUDE.md` (§ Pile) ; code : `src/game/daylight.js`. Planches : `docs/textures/`.
+- **Depuis le 24-25 novembre 2026** : l'accueil arrive sans attente (le monde se charge au choix d'une aventure ou d'une arène, derrière un **écran de chargement** où le ninja court à travers une journée, `src/loading/loader.js`) ; **sous terre**, la lumière ne suit pas le cycle jour-nuit ; **manettes** (PS5, Xbox…) en jeu et dans les menus, avec un **écran de pause** (Options ou Échap) : `src/engine/gamepad.js`. Détails dans `CLAUDE.md`.
 - Les sprites sont **générés** par `tools/kage_forge/` (`npm run sprites`) : ne jamais éditer les PNG à la main.
 - Interface en police pixel (`src/engine/pixelfont.js`, `pixelui.js`).
 - Sur téléphone : plein écran, même échelle que sur ordinateur, et le jeu pivote en portrait.

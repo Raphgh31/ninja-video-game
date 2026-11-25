@@ -18,6 +18,7 @@
   // chapitre suivant, une adresse qui ouvre un monde) ; à l'ouverture du jeu, l'intro arrive tout de suite
   let busy = !!location.hash || /[?&]salle=/.test(location.search);
   try { busy = busy || !!sessionStorage.getItem('kage-charge'); } catch { /* rien */ }
+  if (window.__KAGE_SKIP_INTRO) busy = false;   // (les tests : le monde tout de suite, sans écran de chargement)
   // la fin (appelée par main.js quand le jeu est prêt) : la scène reste au moins un instant (elle ne clignote
   // pas), s'éteint en fondu vers le noir, puis le noir s'ouvre en fondu sur le jeu (qui attend : __loading)
   let scene0 = null, finishing = false;
