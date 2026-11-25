@@ -303,3 +303,15 @@ body.mobile .lab { top: 24px; }
 /* le fondu au noir avant un rechargement de page (main.js : fadeOut) */
 .fade-black { position: fixed; inset: 0; z-index: 70; background: #07090c; opacity: 0; pointer-events: none; transition: opacity .45s ease-in; }
 .fade-black.on { opacity: 1; pointer-events: auto; }
+
+/* la pause (Options de la manette, Échap) : un voile sombre, deux choix, sans cadre lourd */
+.pause { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; justify-items: center; gap: 8px;
+  background: rgba(8, 10, 14, .62); }
+.pause[hidden] { display: none; }
+.pause__title { color: var(--ink); letter-spacing: 1px; }
+.pause__actions { display: grid; gap: 4px; min-width: 110px; }
+.pause button { display: grid; justify-items: center; color: var(--ink); background: transparent;
+  border: 1px solid rgba(233, 229, 218, .45); padding: 2px 10px 3px; }
+.pause button:hover, .pause button:focus-visible { background: var(--ink); color: var(--bg); }
+/* une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher) */
+body.pad .touch-layer { display: none; }

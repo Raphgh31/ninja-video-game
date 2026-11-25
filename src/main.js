@@ -25,6 +25,7 @@ import { paintSheet } from './engine/brush.js';
 import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsprite.js';
 import { BRUSH } from './engine/brush.js';
 import { Lights, DayCycle } from './game/daylight.js';
+import { Gamepads } from './engine/gamepad.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -417,11 +418,13 @@ player.onEvent = (n, d) => {
     case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
+      pads.rumble(120, 0.6, 0.4);
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
     case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
     case 'death':
+      pads.rumble(240, 0.9, 0.6);
       sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls;
       if (level.arena) level.spawn = level.arena.nextSpawn();   // arène : on revient par un autre côté
       multi?.onDeath();                                          // à plusieurs : un point pour qui l'a touché, réapparition loin des autres
@@ -831,6 +834,53 @@ player.onRespawn = () => {
   kageBar.reset();
 };
 const input = new Input();
+// ---- la manette (src/engine/gamepad.js) et la pause ----------------------------------------------
+const pauseEl = document.querySelector('.pause');
+const pads = new Gamepads(input, {
+  // un menu a la main : la manette y choisit au lieu de jouer
+  ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading,
+  onPause: () => openPause(),
+  // une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher)
+  onActive: () => document.body.classList.add('pad'),
+  // pendant l'intro, Croix la lance puis la passe (comme une touche), avant de choisir dans le menu
+  confirm: () => {
+    if (!intro || intro.closing || (!intro.gated && intro.menuShown)) return false;
+    introGesture({ type: 'keydown', target: document.body });
+    return true;
+  },
+});
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.remove('pad'); }, { capture: true, passive: true });
+/** La pause (bouton Options de la manette, ou Échap en jeu) : Reprendre, ou revenir au menu principal. */
+function openPause() {
+  if (!pauseEl.hidden || run.title || run.won || shop.isOpen || lobby?.visible || globalThis.__loading) return;
+  pauseEl.hidden = false;
+  // à plusieurs, le combat continue chez les autres : on ne fige rien (seulement le choix)
+  pauseEl.wasPaused = run.paused;
+  if (!multi) run.paused = true;
+  pauseEl.querySelector('[data-quit]').textContent = multi ? 'Quitter l\'arène' : 'Menu principal';
+  requestAnimationFrame(() => pauseEl.querySelector('[data-resume]').focus());
+}
+function closePause() {
+  if (pauseEl.hidden) return;
+  pauseEl.hidden = true;
+  if (!multi) run.paused = !!pauseEl.wasPaused;
+  document.activeElement?.blur?.();
+}
+pauseEl.querySelector('[data-resume]').addEventListener('click', closePause);
+pauseEl.querySelector('[data-quit]').addEventListener('click', () => {
+  if (multi) { closePause(); multi.leave?.(); backToMenu('arene'); return; }
+  persist();
+  try { for (const k of ['kage-go', 'kage-salle', 'kage-sans-intro', 'kage-charge', 'kage-menu']) sessionStorage.removeItem(k); } catch { /* rien */ }
+  fadeOut(() => { if (location.hash) location.replace(location.pathname + location.search); else location.reload(); });
+});
+addEventListener('keydown', (e) => {
+  if (pauseEl.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closePause(); return; }
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const items = [...pauseEl.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  items[(i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+}, true);
 touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
 if (touch) touch.onTap = (u, v) => tapChest(u, v);
 if (MOBILE) {
@@ -988,7 +1038,8 @@ function setupSkinLab() {
   fps.className = 'lab__fps';
   setInterval(() => {
     const l = perf.last, avg = l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0;
-    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms`;
+    const pad = pads.pad ? ` · manette : ${pads.pad.id.replace(/\s*\(.*$/, '').split(' ').slice(0, 2).join(' ') || 'oui'}` : pads.list().length ? ' · manette : appuie sur un bouton' : '';
+    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms${pad}`;
   }, 500);
   quick.append(fps, sky, toggle);
   lab.append(quick, panel);
@@ -1035,6 +1086,7 @@ function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
   // écran titre, boutique ouverte, ou l'écran de chargement qui s'efface encore : le monde attend
+  if (!run.paused && !globalThis.__loading && input.wasPressed('escape') && CHAPTER) { input.endFrame(); openPause(); return; }
   if (run.paused || globalThis.__loading) {
     if (shop.isOpen && input.wasPressed('escape')) shop.close();
     input.endFrame();
@@ -1956,6 +2008,7 @@ function frame(now) {
   acc += Math.min(0.1, gap);
   last = now;
   globalThis.__frameStart = performance.now();
+  pads.poll();             // la manette, lue une fois par image (avant les pas de physique)
   while (acc >= STEP) {
     if (!manual) update(STEP);
     acc -= STEP;
@@ -1982,7 +2035,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, cycle, perf, lights, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
