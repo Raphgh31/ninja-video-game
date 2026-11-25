@@ -296,10 +296,22 @@ body.mobile .lab { top: 24px; }
    animé par le navigateur seul (il tourne même pendant que le jeu peint) */
 .loading { position: fixed; inset: 0; z-index: 50; background: #07090c; transition: opacity .6s ease-out; }
 .loading.done { opacity: 0; pointer-events: none; }
-.loading__moon { position: absolute; left: 50%; top: 38%; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%;
-  background: radial-gradient(circle at 40% 38%, #f2ecdc 0 55%, #d8d2c2 70%, #b9b4a6 100%);
-  box-shadow: 0 0 60px 18px rgba(230, 226, 210, .08); }
-.loading__ink { position: absolute; left: 50%; top: 58%; width: 180px; height: 6px; margin-left: -90px; border-radius: 3px 40% 40% 3px / 3px 50% 50% 3px;
-  background: linear-gradient(90deg, #e9e5da 0 70%, rgba(233, 229, 218, .55) 88%, transparent);
-  transform-origin: left center; animation: loading-ink 1.6s cubic-bezier(.6, 0, .3, 1) infinite; }
-@keyframes loading-ink { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+.loading__scene { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; image-rendering: crisp-edges; transform-origin: 0 0;
+  opacity: 0; transition: opacity .6s ease-out; }
+.loading__scene.on { opacity: 1; }
+.loading.done { transition: opacity .55s ease-in-out; }
+/* le fondu au noir avant un rechargement de page (main.js : fadeOut) */
+.fade-black { position: fixed; inset: 0; z-index: 70; background: #07090c; opacity: 0; pointer-events: none; transition: opacity .45s ease-in; }
+.fade-black.on { opacity: 1; pointer-events: auto; }
+
+/* la pause (Options de la manette, Échap) : un voile sombre, deux choix, sans cadre lourd */
+.pause { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; justify-items: center; gap: 8px;
+  background: rgba(8, 10, 14, .62); }
+.pause[hidden] { display: none; }
+.pause__title { color: var(--ink); letter-spacing: 1px; }
+.pause__actions { display: grid; gap: 4px; min-width: 110px; }
+.pause button { display: grid; justify-items: center; color: var(--ink); background: transparent;
+  border: 1px solid rgba(233, 229, 218, .45); padding: 2px 10px 3px; }
+.pause button:hover, .pause button:focus-visible { background: var(--ink); color: var(--bg); }
+/* une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher) */
+body.pad .touch-layer { display: none; }

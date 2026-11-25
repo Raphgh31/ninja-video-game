@@ -189,7 +189,8 @@ export class ForetProps {
         case 'canopy_trunk': {
           // un arbre de la canopée, posé à la main (foret.js) : ses branches voisines en sortent
           const top = Math.min(...level.props.filter((q) => q.type === 'branch' && Math.abs(q.x - p.x) <= 5).map((q) => q.y), p.y - 12) * TILE;
-          add('behind', X - 52, 0, 120, Y + 6, (pix) => branchTree(pix, X + 8, top, Y + 4, 0, p.seed ?? p.x * 3, p.w ?? 20));
+          // (assez large pour les masses de feuillage au-dessus de la plus haute branche : elles ne sont jamais coupées)
+          add('behind', X - 100, 0, 216, Y + 6, (pix) => branchTree(pix, X + 8, top, Y + 4, 0, p.seed ?? p.x * 3, p.w ?? 20));
           break;
         }
         case 'pearl_tree': {
@@ -225,11 +226,24 @@ export class ForetProps {
         // la voûte des lianes (arène de la Forêt) : deux branches hautes des grands arbres se rejoignent
         // au-dessus du bassin et s'entrecroisent ; les lianes y sont nouées
         case 'vine_arch': {
-          const xl = p.x * TILE + 8 + 10, xr = p.x1 * TILE + 8 - 11, Y0 = Y - 10;
-          add('behind', xl - 20, Y0 - 24, xr - xl + 40, 52, (pix) => {
-            limb(pix, xl, p.meet1 * TILE, Y, 1, p.x * 7 + 1, true);
-            limb(pix, p.meet0 * TILE, xr, Y + 4, -1, p.x1 * 7 + 3, true);
-          });
+          // on marche dessus (« - ») : le dessus des deux branches est plat, à la hauteur de la rangée
+          const xl = p.x * TILE + 8 + 10, xr = p.x1 * TILE + 8 - 11;
+          add('over', xl - 20, Y - 30, xr - xl + 40, 64, (pix) => archBough(pix, xl, xr, Y, p.meet0 * TILE, p.meet1 * TILE, p.x * 7 + 1));
+          break;
+        }
+        // le puits de racines de la grotte (arène de la Forêt) : un trou sombre sous le chêne, des racines
+        // en marche, un lacis de racines qui le ferme en haut (« - », on marche dessus)
+        case 'root_well': {
+          const W = p.w * TILE, bottom = p.bottom * TILE;
+          add('behind', X - 4, Y - 2, W + 8, bottom - Y + 4, (pix) => rootWell(pix, level, p, X, Y, W, bottom, 'behind'));
+          add('over', X - 14, Y - 10, W + 28, bottom - Y + 14, (pix) => rootWell(pix, level, p, X, Y, W, bottom, 'over'));
+          break;
+        }
+        // un grand champignon de la caverne (arène de la Forêt) : pied pâle, chapeau turquoise ou violet
+        // qui luit, lamelles qui pendent ; sa lueur est peinte sur le fond de la grotte
+        case 'cave_mushroom': {
+          const h = p.h ?? 24, r = Math.round(h * (p.small ? 0.42 : 0.55));
+          add('over', X + 8 - r - 6, Y - h - r, 2 * r + 12, h + r + 2, (pix) => caveMushroom(pix, X + 8, Y, h, r, !!p.violet, p.x));
           break;
         }
         // un fourré (arène de la Forêt) : fougères et buissons serrés, derrière KAGE, ou devant (front)
@@ -291,6 +305,8 @@ export class ForetProps {
         }
         // la grande branche de la statue : elle se dessine elle-même (prop rope_branch)
         if (lv.props.some((p) => p.type === 'rope_branch' && p.y === ty && tx >= p.x && tx < p.x1)) continue;
+        // la voûte des lianes et le puits de racines (arène de la Forêt) : ils dessinent leurs propres « - »
+        if (lv.props.some((p) => (p.type === 'vine_arch' && p.y === ty && tx >= p.x && tx <= p.x1) || (p.type === 'root_well' && tx >= p.x && tx < p.x + p.w && ty >= p.y && ty < p.bottom))) continue;
         // les racines en marche de l'arche (zone 3) : elle les dessine elle-même
         if (lv.props.some((p) => p.type === 'root_arch' && p.steps.some((q) => q[1] === ty && tx >= q[0] && tx < q[0] + q[2]))) continue;
         // la plateforme, l'échelle et le toit de la cabane du guetteur : elle les dessine elle-même
@@ -358,7 +374,8 @@ export class ForetProps {
     if (!it.img) {
       const pix = new Window(it.x, it.y, it.w, it.h);
       it.paint(pix);
-      it.img = bakeLight(pix.done(), this.level?.theme ?? 'foret');
+      const art = this.level?.art;
+      it.img = bakeLight(pix.done(), this.level?.theme ?? 'foret', art?.undergroundAt ? { x: it.x, y: it.y, under: (x, y) => art.undergroundAt(x, y) } : null);
     }
     return it.img;
   }
@@ -1033,6 +1050,84 @@ function sacredTree(pix, cx, base, seed) {
   }
 }
 
+/**
+ * La voûte des lianes : deux grosses branches des grands arbres se rejoignent au-dessus du bassin et se
+ * croisent (la gauche passe un peu au-dessus de la droite), liées par une liane enroulée. Leur dessus est
+ * plat et moussu (on y marche) ; elles s'effilent vers leur bout, des touffes et des brins pendent dessous.
+ */
+function archBough(pix, xl, xr, Y, meet0, meet1, seed) {
+  const one = (a, b, dir, dy, sd) => {
+    const len = b - a;
+    for (let x = a; x <= b; x++) {
+      const t = dir > 0 ? (x - a) / len : (b - x) / len;                   // 0 au tronc, 1 au bout
+      const th = Math.max(5, Math.round(12 - t * 6 + (noise1(x * 0.2, sd) - 0.5) * 2));
+      const y0 = Y + dy + (t > 0.92 ? Math.round((t - 0.92) * 40) * -1 : 0);   // le bout se relève un peu
+      for (let j = 0; j < th; j++) {
+        const v = 0.78 - (j / th) * 0.7 + (noise2(x * 0.35, j, sd) - 0.5) * 0.16;
+        const top = j === 0 ? (ih(x, 1, sd) < 0.65 ? C.MOSS[5] : C.MOSS[4]) : j === 1 ? (ih(x, 2, sd) < 0.6 ? C.MOSS[3] : C.MOSS[2]) : null;
+        pix.set(x, y0 + j, top ?? (Math.abs(fbm2(x * 0.06, j * 0.3, 2, sd) - 0.5) < 0.03 ? C.BARK[0] : pick(C.BARK, v, x, y0 + j)));
+      }
+    }
+  };
+  one(meet0 - 6, xr, -1, 1, seed + 5);                                     // la branche du cèdre, dessous
+  one(xl, meet1 + 6, 1, 0, seed);                                           // celle du chêne, par-dessus
+  // une liane enroulée lie les deux branches là où elles se croisent
+  const mx = Math.round((meet0 + meet1) / 2);
+  for (let k = -2; k <= 2; k++) for (let j = 0; j < 12; j++) pix.set(mx + k * 5 + Math.round(j * 0.45), Y + j - 1, j % 4 === 0 ? C.LEAF[5] : C.LEAF[3]);
+  // des touffes de feuilles le long, des brins de mousse et de petites lianes qui pendent dessous
+  for (let x = xl + 18; x < xr - 18; x += 23) L.bush(pix, x + Math.floor(ih(x, 3, seed) * 8), Y + 4, 9 + Math.floor(ih(x, 4, seed) * 5), 6, C.LEAF, seed + x);
+  for (let x = xl + 6; x < xr - 6; x += 4) if (ih(x, 5, seed) < 0.4) L.strand(pix, x, Y + 9, 4 + Math.floor(ih(x, 6, seed) * 12), C.LEAF, seed + x, 0.5);
+  for (let x = xl + 2; x < xr; x += 3) if (ih(x, 7, seed) < 0.5) L.grassTuft(pix, x, Y - 1, 2 + Math.floor(ih(x, 8, seed) * 2), C.FERN, x);
+}
+
+/** Le puits de racines : le trou sombre (behind) ; les racines en marche et le lacis du haut (over). */
+function rootWell(pix, level, p, X, Y, W, bottom, layer) {
+  const ROOT = ['#2a180e', '#3d2314', '#57301c', '#75402a', '#8f5a3a'];
+  if (layer === 'behind') {
+    // l'intérieur : de la terre sombre, des radicelles ; plus bas, la grotte (son fond est peint à part)
+    for (let y = Y; y < (level.forest?.def?.galleries?.y0 ?? Y + 48) + 32; y++) for (let x = X; x < X + W; x++) {
+      const k = (y - Y) / 48;
+      pix.set(x, y, Math.abs(fbm2(x * 0.1, y * 0.04, 2, 7) - 0.5) < 0.04 ? '#2a1c12' : L.mixHex('#24170e', '#06090b', Math.round(Math.min(1, k) * 12) / 12));
+    }
+    return;
+  }
+  const root = (x0, x1, y, th, sd) => {
+    for (let x = x0; x <= x1; x++) {
+      const yy = y + Math.round(Math.sin((x - x0) * 0.35 + sd) * 1.2);
+      for (let j = 0; j < th; j++) pix.set(x, yy + j, j === 0 ? ROOT[4] : ROOT[Math.max(0, 3 - j)]);
+    }
+  };
+  // le lacis du haut : trois racines entrecroisées, la mousse dessus
+  root(X - 10, X + W + 10, Y, 4, 1); root(X - 6, X + W + 4, Y + 3, 3, 2.4);
+  for (let x = X - 8; x < X + W + 8; x += 2) if (ih(x, 1, 41) < 0.6) pix.set(x, Y - 1, C.MOSS[4 + (ih(x, 2, 41) < 0.4 ? 1 : 0)]);
+  for (let i = 0; i < 4; i++) { const x = X + 4 + i * 7; for (let j = 0; j < 9; j++) pix.set(x + Math.round(Math.sin(j * 0.6 + i) * 1), Y + 5 + j, ROOT[1 + (j % 2)]); }
+  // les racines en marche, à leurs rangées (« - » sous le lacis)
+  for (let ty = p.y + 1; ty < p.bottom; ty++) for (let tx = p.x; tx < p.x + p.w; tx++) {
+    if (level.rows[ty]?.[tx] !== '-') continue;
+    const side = tx === p.x ? -1 : 1;
+    root(tx * TILE - (side < 0 ? 10 : 2), tx * TILE + TILE + (side > 0 ? 10 : 2), ty * TILE, 4, tx + ty);
+  }
+}
+
+/** Grand champignon de caverne : un pied pâle, un chapeau qui luit (turquoise ou violet), ses lamelles. */
+function caveMushroom(pix, cx, base, h, r, violet, seed) {
+  const T = ['#16404a', '#1f6a76', '#3fb0b8', '#8ff0ec'], V = ['#2c2058', '#4a3a9a', '#8f6ae0', '#d6c2ff'];
+  const cols = violet ? V : T, top = base - h;
+  for (let y = top; y < base; y++) {
+    const sway = Math.round(Math.sin((y - top) * 0.09 + seed) * 1.5);
+    for (let dx = -1; dx <= 1; dx++) pix.set(cx + dx + sway, y, dx < 0 ? '#cfe0e6' : dx === 0 ? '#9fb8c8' : '#5c7280');
+  }
+  for (let dx = -3; dx <= 3; dx++) pix.set(cx + dx, base - 1, '#5c7280');   // la volve, au ras du sol
+  const ry = Math.round(r * 0.55);
+  for (let yy = -ry; yy <= 0; yy++) {
+    const hw = Math.round(r * Math.sqrt(1 - (yy * yy) / (ry * ry + 1)));
+    for (let xx = -hw; xx <= hw; xx++) pix.set(cx + xx, top + yy, yy === 0 ? cols[0] : xx < -hw * 0.3 && yy < -ry * 0.35 ? cols[3] : cols[2]);
+  }
+  for (let xx = -r + 1; xx < r; xx++) pix.set(cx + xx, top + 1, cols[1]);
+  for (let xx = -r + 2; xx < r - 1; xx += 3) if (ih(xx, seed, 66) < 0.6) for (let q = 2; q < 3 + Math.floor(ih(xx, seed, 67) * 4); q++) pix.set(cx + xx, top + q, cols[1], 200);
+  for (let k = 0; k < 3; k++) pix.set(cx - Math.round(r * 0.4) + k * 3, top - ry + 2 + (k % 2), cols[3]);   // des points clairs sur le chapeau
+}
+
 /** Un fourré : un ou deux buissons ronds, des fougères devant, quelques brins d'herbe (en avant-plan : plus sombre). */
 function thicket(pix, X, base, W, seed, front) {
   const leaf = front ? [C.INK, C.LEAF[0], C.LEAF[1], C.LEAF[2], C.LEAF[3], C.LEAF[3], C.LEAF[4]] : C.LEAF;
@@ -1192,8 +1287,10 @@ function hollowGiant(pix, level, p, layer) {
   };
   const leftTop = (level.forest?.def?.hollows ? 0 : 0) + floorTop(level, p.x, p.top);
   wall(X - 10, 26, leftTop, -1);
-  wall(X + W - 16, 26, top - 60, 1);
-  L.bush(pix, X + W + 4, top - 52, 26, 20, C.LEAF, p.x + 3);
+  // (p.chicot : de combien le chicot droit dépasse le haut de sa paroi ; l'arène le veut à hauteur de la gauche)
+  const chicot = p.chicot ?? 60;
+  wall(X + W - 16, 26, top - chicot, 1);
+  if (chicot > 20) L.bush(pix, X + W + 4, top - 52, 26, 20, C.LEAF, p.x + 3);
 }
 function floorTop(level, col, from) {
   for (let r = from; r < level.h; r++) if (level.rows[r][col] === '|') return r * TILE;

@@ -180,39 +180,46 @@ Demande de l'utilisateur : une arène dans la direction artistique du chapitre 2
 
 Une clairière de la lisière, au **matin doré** (la lumière la plus lumineuse du chapitre). Au centre, **l'ancien bassin d'un sanctuaire**, bordé de pierres taillées, que la source remplit et vide lentement ; à gauche, **la vieille forêt** restée sauvage, dense ; à droite, **la coupe des bûcherons**, ouverte : des souches de toutes les hauteurs, des bûches, une passerelle de fortune — et l'arbre sacré, qu'ils ont épargné. Au loin, le temple d'où l'on vient et la statue oubliée, colossale, qui veille sur le bassin.
 
-### Les éléments (de gauche à droite)
+### Les éléments (de gauche à droite) — après les retouches du 24 novembre 2026
 
 | Colonnes | Élément | Rôle |
 |---|---|---|
-| 4-5, 64-65 | deux grands fûts moussus (`|`) | les bords : sauts muraux, on n'en sort pas ; plafond invisible à 15 cases |
-| 6 | fourré devant le fût, champignons | densité |
-| 8-9 | souche moyenne (2 cases) | premier palier |
-| 12-17 | **tronc couché sur deux rochers** (`fallen_log`), dessus à 3 cases | on monte dessus ; dessous, un passage d'une case : glissade (et les shurikens y passent) |
-| 19 | souche basse, fourré | |
-| 23 | **le vieux chêne** (`canopy_trunk`) : branche basse 17-25 (5 cases), grande branche 21-31 (8 cases) | étages du milieu et du haut |
-| 25 | petit sanctuaire de pierre (`hokora`), fourré | |
+| 4-5, 64-65 | deux grands fûts moussus (`|`) | les bords : sauts muraux, on n'en sort pas ; plafond invisible tout en haut (rangée 0) |
+| 6-8 | fourrés, champignons | densité ; point de départ |
+| 9-12 | **le tronc mort creux** (`hollow_giant` en miniature, `chicot: 6`) : cassé à 3 cases, deux parois à la même hauteur ; dedans, trois nœuds en quinconce | on y entre par le haut, on descend de nœud en nœud (3 cases à chaque fois) jusqu'à la grotte |
+| 8-22, sous le sol | **la petite grotte** (`F.galleries`, `shade: 1.9`) : salle basse de 5 cases, voûte plus haute au milieu, une butte ; grands champignons qui luisent (`cave_mushroom`), petits champignons, arbre à perles, rideaux de racines, rai de jour | un passage caché, un cœur au fond ; la caméra y descend (`cave`), le soleil s'y efface (`caveAt`) |
+| 21-22 | **le puits de racines** (`root_well`), sous le vieux chêne : deux racines en marche, un lacis de racines qui ferme le trou (`-`, on y marche) | la sortie de la grotte |
+| 15-16 | souche (2 cases) | palier vers la branche basse |
+| 23 | **le vieux chêne** : branche basse 14-25 (5 cases), grande branche 21-31 (8), **perchoir de la canopée** 19-25 (14) | |
+| 25 | petit sanctuaire de pierre (`hokora`) | |
 | 27 et 42 | bords du bassin en pierre taillée (`=`) | |
-| 28-41 | **le bassin** : deux rochers (30-31, 38-39, `rock_pillar`), chenal du tronc flottant (32-37) | le cœur stratégique (ci-dessous) |
-| 23 → 46, rangée 7 | **la voûte** (`vine_arch`) : deux branches hautes qui se rejoignent ; deux lianes (x 32,5 et 37,5) | relier les grandes branches par-dessus le bassin |
-| 43-44 | **le rocher de la source** (2 cases) | marche ; d'où coule le filet d'eau qui annonce la crue |
-| 46 | **le grand cèdre** : branche basse 44-51, grande branche 38-48 | |
-| 48-50 | pile de bûches (2 cases) | palier |
-| 53-54, 59-60 | **deux hautes souches** (4 cases) ; entre elles, **passerelle de planches vermoulues** (deux planches, `crumbles`) | elle cède sous le pied (0,7 s), se refait (2,6 s) : on n'y reste pas |
-| 55-57 | tronçons coupés, **l'arbre sacré** (corde de paille, papiers) | décor |
-| 62 | souche basse | |
+| 28-41 | **le bassin** : deux rochers (30-31, 38-39), chenal du tronc flottant (32-37) | le cœur stratégique |
+| 24-45, rangée 7 | **la voûte** (`vine_arch`, `-`) : deux grosses branches qui se croisent, liées par une liane ; deux lianes (x 32,5 et 37,5, ~6 cases) | on passe d'un arbre à l'autre par le haut ; on se lance sur les lianes |
+| 43-44 | **le rocher de la source** (2 cases) | marche ; le filet d'eau annonce la crue |
+| 46 | **le grand cèdre** : branche basse 44-51, grande branche 38-48, **branche haute** 41-46 (14) | |
+| 46 → 60, rangée 4 | **le pont suspendu** (`F.bridges`, `rotten: []`) | il ploie et oscille ; aucune planche ne lâche |
+| 49-50, 53-54 | une souche (2 cases), une haute souche (4 cases) | paliers |
+| 56 | l'arbre sacré épargné (décor) | |
+| 60 | **le tronc de remontée** (`climb_trunk`) : branches en quinconce toutes les 2 cases, de 2 à 12 ; son feuillage juste au-dessus du bout du pont | on monte de la coupe à la canopée |
 
-Arbres du décor (derrière) : bouleaux (7, 27, 51, 61), jeunes pins (15, 57). Fond (`backdrop.vista`) : le temple sur sa butte (glissé avant la nappe de brume, défilement 0,07, voilé à 40 %), la statue (avant la brume basse, défilement 0,24, voilée à 20 %, le menton dans la brume), la grande chaîne du chapitre.
+Retirés le 24 novembre 2026 (retours de l'utilisateur) : la pile de bûches et les tronçons (pas assez travaillés), le tronc couché (il coupait le tronc creux), la passerelle vermoulue et l'une des deux hautes souches (trop artificiel).
+
+Arbres du décor (derrière) : bouleaux, un jeune pin. Fond (`backdrop.vista`) : le temple sur sa butte, la statue, la grande chaîne.
 
 ### Le bassin qui respire (`ARENA.basin`)
 
-- **Cycle de 34 s**, le même chez tous les joueurs (horloge de l'arène, remise à zéro au lancement) : eau basse 15 s → l'eau monte (3,2 s : la source gronde et grossit, des bulles crèvent la surface) → elle affleure le dessus des rochers (2,2 s : on y tient encore) → elle les noie (2,4 s) → eau haute 9 s → elle redescend (4,5 s).
-- **Eau basse** : on traverse à pied, de rocher en tronc et de tronc en rocher (pas japonais). **Eau haute** : les rochers sont mortels ; on passe par le **tronc flottant** (il dérive, s'enfonce sous le poids : il faut un saut et un dash pour rejoindre la rive) ou **par le haut** (des grandes branches, on se lance sur les lianes de la voûte). Le bas des lianes est hors de portée d'un saut depuis le sol : on ne les attrape jamais en voulant sauter sur un rocher.
-- Les cases d'eau (`~`) suivent la surface : une rangée est mortelle dès que la surface dépasse son haut de 4 px. Le tronc flottant monte et descend avec l'eau (`l.y0`). La surface peinte par `live.js` suit le niveau (`syncWater`).
+- **Cycle de 30,8 s** (durci le 24 novembre 2026 : un débutant doit s'y faire prendre), le même chez tous (horloge de l'arène, remise à zéro au lancement) : eau basse 12 s → l'eau monte en 2,2 s (la source gronde, des bulles) → elle affleure le dessus des rochers 0,9 s → elle les noie en 1,2 s → eau haute 11 s (surface à 2 px sous le bord) → elle redescend en 3,5 s.
+- **Eau basse** : de rocher en tronc et de tronc en rocher. **Eau haute** : les rochers sont mortels, et le tronc flottant file 1,9 fois plus vite et s'enfonce 1,8 fois plus vite (`logSpeed`, `logSink` ; `sinkK` dans `mechanics.js`). On passe par le haut (la voûte, les lianes) ; depuis le tronc, on peut sauter à une liane.
+- Les cases d'eau (`~`) suivent la surface : une rangée est mortelle dès que la surface dépasse son haut de 4 px.
+
+### La caméra (`arenaCamY`)
+
+- Le sol à 80 % de l'image (`camGround`). Sur ordinateur, elle suit KAGE vers le haut jusqu'à la canopée (`camTop: -14`). Dans la grotte (`cave`), elle descend : le sol de la grotte en bas de l'image.
+- Sur téléphone, des paliers (jamais de suivi continu) : en bas ; en haut (dès 4,5 cases, jusqu'à la voûte : `camHigh: 11`) ; la canopée (dès 12 cases) ; la grotte.
 
 ### Réglages et leçons
 
-- **La caméra** : le sol à 80 % de l'image (`camGround`, au lieu de 85 %) pour voir le bassin, ses rochers et un peu de profondeur.
-- **Rien ne flotte** : chaque branche sort d'un tronc (le chêne, le cèdre) ; la voûte relie les deux grands arbres ; la passerelle repose sur les deux hautes souches ; le tronc couché sur deux rochers.
-- **Chaque étage par un vrai saut** (tests) : sol → souche → tronc couché → branche basse → grande branche ; à droite, rocher de la source → branche basse → grande branche ; pile de bûches → haute souche → bout de la branche basse.
+- **Rien ne flotte** : chaque branche sort d'un tronc (le chêne, le cèdre, le tronc de remontée) ; la voûte relie les deux grands arbres ; le pont est noué aux deux fûts, juste sous un feuillage (l'utilisateur l'a demandé : accroché au-dessus du feuillage, il semblait pendre dans le vide).
+- **Chaque étage par un vrai saut** (tests) : sol → souche → branche basse → grande branche → voûte → perchoir du chêne ou branche haute du cèdre ; à droite, rocher de la source → branche basse → grande branche ; souche → haute souche ; tronc de remontée → pont. Le tronc creux : on le franchit par-dessus, ou on y descend jusqu'à la grotte (sans dommage) ; on remonte par le puits.
 - Les tests pilotent les sauts par les commandes du jeu (`input.press`) : au clavier simulé, deux essais trop rapprochés font un double appui, donc un dash.
 - Le reflet de l'eau (`live.js`) ne copiait pas que la part visible quand l'eau sortait à gauche de l'image : il débordait sur la rive. Corrigé pour tout le jeu.

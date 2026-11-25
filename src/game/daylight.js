@@ -65,9 +65,12 @@ const MOON_RIM = [0.62, 0.7, 0.95];
  * lumières chaudes, un peu plus de couleur) et liseré de lumière sur le bord des formes, en pixels de jeu.
  * (Ce que faisait la carte graphique à chaque image : une fois pour toutes, c'est bien plus léger.)
  */
-export function bakeLight(c, themeName) {
+export function bakeLight(c, themeName, o = null) {
   const T = THEMES[themeName];
   if (!T || !c || !c.width || !c.height) return c;
+  // o = { x, y, under } : la place de la tranche dans le monde ; ce qui est sous terre (under ≥ 0,5) garde ses
+  // couleurs d'origine (la caverne, les galeries : leur ambiance ne change jamais)
+  const under = o?.under ?? null, ox = o?.x ?? 0, oy = o?.y ?? 0;
   const g = c.getContext('2d', { willReadFrequently: true }), w = c.width, h = c.height;
   const img = g.getImageData(0, 0, w, h), d = img.data, a0 = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) a0[i] = d[i * 4 + 3] > 127 ? 1 : 0;
@@ -75,6 +78,7 @@ export function bakeLight(c, themeName) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = y * w + x, o = i * 4;
     if (d[o + 3] < 3) continue;
+    if (under && under(ox + x, oy + y) >= 0.5) continue;
     let r = d[o] / 255, gg = d[o + 1] / 255, b = d[o + 2] / 255;
     const l = r * 0.3 + gg * 0.59 + b * 0.11;
     r = l + (r - l) * 1.12; gg = l + (gg - l) * 1.12; b = l + (b - l) * 1.12;
@@ -148,8 +152,22 @@ export class Lights {
    * Le fond : de jour, les plans puis la brume et le ciel d'estampe ; la nuit, le ciel, le ciel nocturne,
    * les étoiles et la lune, puis les plans (dessinés à part et assombris : la lune reste derrière eux).
    */
+  /** Sous terre (0 … 1, adouci) : là où est le ninja ; le cycle du jour et de la nuit ne descend pas sous terre. */
+  underAt(level, cam, w, h, time) {
+    const p = level.player, f = level.art?.undergroundAt;
+    const u = f ? (p ? level.art.undergroundAt(p.x, p.y - 14) : level.art.undergroundAt(cam.x + w / 2, cam.y + h / 2)) : 0;
+    const dt = Math.min(0.1, Math.max(0, time - (this.uT ?? time))); this.uT = time;
+    this.uS = this.uS == null ? u : this.uS + (u - this.uS) * Math.min(1, dt * 2.5);
+    return this.uS;
+  }
+
   backdrop(bg, backdrop, level, cam, w, h, time, k, cycle) {
-    const T = this.theme(level), n = T ? cycle.night : 0, d = T ? cycle.dusk : 0;
+    const under = this.underAt(level, cam, w, h, time);
+    backdrop.under = under;
+    // (le ciel et les plans du fond gardent l'heure : seul ce qui est sous terre y échappe, dans night())
+    // (dans une zone toute souterraine, la caverne, le fond aussi reste hors du cycle)
+    const zc = level.art?.caveAt?.(cam.x + w / 2) ?? 0;
+    const T = this.theme(level), n = T ? cycle.night * (1 - zc) : 0, d = T ? cycle.dusk * (1 - zc) : 0;
     if (n < 0.01 || !backdrop.drawSkyOnly) {
       backdrop.draw(bg, cam, w, h, time, k);
     } else {
@@ -196,7 +214,7 @@ export class Lights {
     if (!T) return;
     if (level.art?.caveAt?.(cam.x + w / 2)) return;   // (sous terre : ni brume ni ciel)
     // le jour : la brume des lointains (plus haut = plus loin) et le haut du ciel qui fonce (estampe)
-    const day = 1 - n;
+    const day = (1 - n) * (1 - under);
     if (day > 0.01) {
       const hz = bg.createLinearGradient(0, 0, 0, h * 0.82);
       hz.addColorStop(0, rgba(T.haze, T.hazeK * day)); hz.addColorStop(1, rgba(T.haze, 0));
@@ -222,6 +240,17 @@ export class Lights {
     if (d > 0.01) { dg.fillStyle = `rgba(255,130,70,${(0.14 * d).toFixed(3)})`; dg.fillRect(0, 0, w, h); }
     dg.globalCompositeOperation = 'destination-out';
     wg.clearRect(0, 0, w, h);
+    // sous terre, ni nuit ni soir : on y retire l'ombre (avec un fondu sous le bord haut)
+    for (const r of level.art?.undergroundRects?.() ?? []) {
+      const x0 = Math.max(-1, r.x0 - cam.x), x1 = Math.min(w + 1, r.x1 - cam.x), y0 = Math.max(-1, r.y0 - cam.y), y1 = Math.min(h + 1, r.y1 - cam.y);
+      if (x1 <= x0 || y1 <= y0) continue;
+      if (r.fade > 0 && r.y0 - cam.y > -r.fade) {
+        const top = r.y0 - cam.y, gr = dg.createLinearGradient(0, top, 0, top + r.fade);
+        gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+        dg.fillStyle = gr;
+      } else dg.fillStyle = '#000';
+      dg.fillRect(x0, y0, x1 - x0, y1 - y0);
+    }
     for (const s of sources) {
       const x = s.x - cam.x, y = s.y - cam.y, R = 52 * s.r;
       if (x < -R || x > w + R || y < -R || y > h + R) continue;
@@ -272,8 +301,13 @@ export class Lights {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, w, h);
     if (!T) return;
-    const n = cycle.night, d = cycle.dusk, cave = level.art?.caveAt?.(cam.x + w / 2) ?? 0, day = (1 - n) * (1 - cave);
+    const under = this.uS ?? 0, cave = Math.max(under, level.art?.caveAt?.(cam.x + w / 2) ?? 0);
+    const n = cycle.night * (1 - cave), d = cycle.dusk * (1 - cave), day = (1 - cycle.night) * (1 - cave);
     g.imageSmoothingEnabled = true;
+    // le soleil et ses rais sont accrochés au ciel : quand la caméra descend (sous terre, au fond d'un ravin),
+    // ils restent en haut et sortent de l'image au lieu de la suivre
+    const bd = level.art?.backdrop, sky = bd?.groundAt ? Math.min(0, bd.groundAt(1, cam, h) - Math.round(h * 0.86)) : 0;
+    g.save(); g.translate(0, sky);
     if (day > 0.01) {
       // le soleil qui baigne la scène depuis sa direction, et ses rais qui respirent lentement
       const sx = T.sun[0] * w, sy = T.sun[1] * h, R = Math.max(w, h) * 0.85;
@@ -286,6 +320,7 @@ export class Lights {
         g.globalAlpha = 1;
       }
     }
+    g.restore();
     if (d > 0.01) {
       const gw = g.createLinearGradient(0, h * 0.3, 0, h);
       gw.addColorStop(0, 'rgba(255,120,60,0)'); gw.addColorStop(1, `rgba(255,120,60,${(0.16 * d).toFixed(3)})`);
@@ -306,7 +341,7 @@ export class Lights {
       const x = Math.round(((m.x * w * 1.3 - cam.x * m.f + Math.sin(time * 0.3 * m.s + m.p) * 14 + time * 3 * m.s) % w + w) % w);
       const y = Math.round(m.y * h + Math.sin(time * 0.5 * m.s + m.p * 2) * 8 - (cam.y * m.f * 0.2) % 20);
       const tw = 0.5 + 0.5 * Math.sin(time * (n > 0.5 ? 2.2 : 1.2) * m.s + m.p);
-      const a = (day * 0.45 + n * 0.85) * tw;
+      const a = (day * 0.45 + n * 0.85) * tw * (1 - cave);
       if (a < 0.05) continue;
       const col = n > 0.5 ? [220, 255, 140] : T.mote;
       g.fillStyle = rgba(col, a * 0.25); g.fillRect(x - 2, y - 2, 5, 5);

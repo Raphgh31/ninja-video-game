@@ -25,6 +25,7 @@ import { paintSheet } from './engine/brush.js';
 import { crispSheet, atScale, NINJA_STYLES, NINJA_DEFAULT } from './engine/netsprite.js';
 import { BRUSH } from './engine/brush.js';
 import { Lights, DayCycle } from './game/daylight.js';
+import { Gamepads } from './engine/gamepad.js';
 import { brushGL, brushView, smoothText } from './engine/brushgl.js';
 import { ArenaArt } from './game/arena/art.js';
 import { ForetArenaArt } from './game/arena/art_foret.js';
@@ -267,7 +268,16 @@ const labSet = (k, v) => { try { localStorage.setItem(`kage.lab.${k}`, v); } cat
 const hashId = location.hash.slice(1);
 // sans ancre : le chapitre de la partie en cours (la sauvegarde suit KAGE d'un chapitre à l'autre)
 const save0 = !hashId && !TEST_BUILD ? loadSave() : null;
-const LEVEL_ID = LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
+// L'accueil sans attente (24 novembre 2026, demande de Raph) : à l'ouverture, le monde n'est pas construit
+// (un petit terrain vide, invisible derrière l'intro) ; l'intro et le menu sont là tout de suite. Le choix
+// d'une aventure ou d'une arène recharge la page sur ce monde, et c'est là que l'écran de chargement (le
+// ninja qui court, src/loading/loader.js) attend qu'il soit prêt. Les tests (__KAGE_SKIP_INTRO) construisent
+// le monde tout de suite, comme avant.
+const flag = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+const MENU_ONLY = !hashId && !flag('kage-go') && !flag('kage-salle') && !globalThis.__KAGE_SKIP_INTRO
+  && !(TEST_BUILD && flag('kage-sans-intro')) && !loadSave()?.intro && !new URLSearchParams(location.search).get('salle');
+try { sessionStorage.removeItem('kage-charge'); } catch { /* rien */ }
+const LEVEL_ID = MENU_ONLY ? 'terrain' : LEVELS[hashId] ? hashId : TEST_BUILD && LEVELS[labGet('chapter')] ? labGet('chapter')
   : save0 && LEVELS[save0.chapter] && !save0.done ? save0.chapter : 'potager';
 const level = new Level(LEVEL_ID);
 // style peint (essai sur le Potager, src/engine/brush.js) : le décor et les personnages repeints en touches
@@ -321,9 +331,9 @@ if (level.boss?.type === 'karasu') {
   shurikens.enemies.push(boss);
 }
 // partie : chronomètre, chutes, arrivée ; dans un chapitre, la partie s'ouvre sur l'écran titre
-const CHAPTER = level.chapter != null;
+const CHAPTER = MENU_ONLY || level.chapter != null;   // (l'accueil : le menu des chapitres, sans monde)
 const run = { time: 0, falls: 0, won: false, paused: CHAPTER };
-let save = CHAPTER ? emptySave(LEVEL_ID) : null;
+let save = CHAPTER && !MENU_ONLY ? emptySave(LEVEL_ID) : null;   // (l'accueil n'enregistre rien : la vraie partie est intacte)
 const ui = {
   zone: document.querySelector('.zone-banner'),
   hint: document.querySelector('.hint'),
@@ -408,11 +418,13 @@ player.onEvent = (n, d) => {
     case 'kick': sfx('kick'); if (!d.air) fx.dust(d.x - d.facing * 2, d.y, 2, { dir: -d.facing, spread: 15, up: 6, life: 0.25 }); break;
     case 'hurt':
       sfx('hurt');
+      pads.rumble(120, 0.6, 0.4);
       fx.shake(2, 0.2);
       fx.sparks(d.x, d.y - 14, 6, { palette: 'hit', dir: Math.sign(d.x - d.fromX) });
       break;
     case 'drown': sfx('logDip'); fx.sparks(d.x, d.y - 4, 12, { palette: 'water', speed: 80 }); break;   // tombé à l'eau : une gerbe, puis la mort
     case 'death':
+      pads.rumble(240, 0.9, 0.6);
       sfx('death'); fx.shake(2, 0.25); run.falls++; if (save) save.falls = run.falls;
       if (level.arena) level.spawn = level.arena.nextSpawn();   // arène : on revient par un autre côté
       multi?.onDeath();                                          // à plusieurs : un point pour qui l'a touché, réapparition loin des autres
@@ -703,7 +715,7 @@ function backToMenu(screen = null, extra = {}) {
     if (screen) sessionStorage.setItem('kage-menu', JSON.stringify({ screen, ...extra }));
   } catch { /* rien */ }
   if (TEST_BUILD) labSet('chapter', 'potager');
-  location.replace(location.pathname + location.search.replace(/[?&]salle=[^&]*/, ''));
+  fadeOut(() => location.replace(location.pathname + location.search.replace(/[?&]salle=[^&]*/, '')));
 }
 function startRoom(cfg) {
   const hud = document.querySelector('.salle'), codeEl = hud.querySelector('[data-salle-code]');
@@ -750,7 +762,7 @@ function startRoom(cfg) {
         // l'hôte a ouvert une autre arène : on la rejoint (même code)
         net.onStatus = () => {};
         net.close();
-        try { sessionStorage.setItem('kage-salle', JSON.stringify({ ...cfg, arena: d.id })); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
+        try { sessionStorage.setItem('kage-salle', JSON.stringify({ ...cfg, arena: d.id })); sessionStorage.setItem('kage-sans-intro', '1'); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
         if (TEST_BUILD) labSet('chapter', d.id);
         location.hash = `#${d.id}`;
       }
@@ -822,6 +834,53 @@ player.onRespawn = () => {
   kageBar.reset();
 };
 const input = new Input();
+// ---- la manette (src/engine/gamepad.js) et la pause ----------------------------------------------
+const pauseEl = document.querySelector('.pause');
+const pads = new Gamepads(input, {
+  // un menu a la main : la manette y choisit au lieu de jouer
+  ui: () => run.paused || run.title || run.won || !pauseEl.hidden || !!globalThis.__loading,
+  onPause: () => openPause(),
+  // une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher)
+  onActive: () => document.body.classList.add('pad'),
+  // pendant l'intro, Croix la lance puis la passe (comme une touche), avant de choisir dans le menu
+  confirm: () => {
+    if (!intro || intro.closing || (!intro.gated && intro.menuShown)) return false;
+    introGesture({ type: 'keydown', target: document.body });
+    return true;
+  },
+});
+addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.remove('pad'); }, { capture: true, passive: true });
+/** La pause (bouton Options de la manette, ou Échap en jeu) : Reprendre, ou revenir au menu principal. */
+function openPause() {
+  if (!pauseEl.hidden || run.title || run.won || shop.isOpen || lobby?.visible || globalThis.__loading) return;
+  pauseEl.hidden = false;
+  // à plusieurs, le combat continue chez les autres : on ne fige rien (seulement le choix)
+  pauseEl.wasPaused = run.paused;
+  if (!multi) run.paused = true;
+  pauseEl.querySelector('[data-quit]').textContent = multi ? 'Quitter l\'arène' : 'Menu principal';
+  requestAnimationFrame(() => pauseEl.querySelector('[data-resume]').focus());
+}
+function closePause() {
+  if (pauseEl.hidden) return;
+  pauseEl.hidden = true;
+  if (!multi) run.paused = !!pauseEl.wasPaused;
+  document.activeElement?.blur?.();
+}
+pauseEl.querySelector('[data-resume]').addEventListener('click', closePause);
+pauseEl.querySelector('[data-quit]').addEventListener('click', () => {
+  if (multi) { closePause(); multi.leave?.(); backToMenu('arene'); return; }
+  persist();
+  try { for (const k of ['kage-go', 'kage-salle', 'kage-sans-intro', 'kage-charge', 'kage-menu']) sessionStorage.removeItem(k); } catch { /* rien */ }
+  fadeOut(() => { if (location.hash) location.replace(location.pathname + location.search); else location.reload(); });
+});
+addEventListener('keydown', (e) => {
+  if (pauseEl.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closePause(); return; }
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const items = [...pauseEl.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  items[(i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+}, true);
 touch = MOBILE ? new TouchControls(touchCanvas, input) : null;
 if (touch) touch.onTap = (u, v) => tapChest(u, v);
 if (MOBILE) {
@@ -903,6 +962,7 @@ function setupSkinLab() {
       if (id === LEVEL_ID) { gotoZone(0); return; }
       labSet('chapter', id);
       sessionStorage.setItem('kage-sans-intro', '1');   // on change de chapitre : pas d'intro
+      sessionStorage.setItem('kage-charge', '1');       // (l'écran de chargement, le temps de construire le monde)
       location.hash = `#${id}`;
       location.reload();
     });
@@ -915,6 +975,7 @@ function setupSkinLab() {
     const b = button(`Arène ${{ potager: 'Potager', foret: 'Forêt' }[l.theme] ?? ''}`.trim(), l.name, () => {
       labSet('chapter', id);
       sessionStorage.setItem('kage-sans-intro', '1');
+      sessionStorage.setItem('kage-charge', '1');
       location.hash = `#${id}`;
       location.reload();
     });
@@ -977,7 +1038,8 @@ function setupSkinLab() {
   fps.className = 'lab__fps';
   setInterval(() => {
     const l = perf.last, avg = l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0;
-    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms`;
+    const pad = pads.pad ? ` · manette : ${pads.pad.id.replace(/\s*\(.*$/, '').split(' ').slice(0, 2).join(' ') || 'oui'}` : pads.list().length ? ' · manette : appuie sur un bouton' : '';
+    fps.textContent = `${Math.round(perf.fps)} i/s · ${avg.toFixed(1)} ms${pad}`;
   }, 500);
   quick.append(fps, sky, toggle);
   lab.append(quick, panel);
@@ -1023,8 +1085,9 @@ function lightSources() {
 function update(dt) {
   // touches d'interface : traitées même pendant un micro-arrêt
   if (input.wasPressed('debug')) { debug = !debug; input.pressed.delete('debug'); }
-  // écran titre ou boutique ouverte : le monde attend
-  if (run.paused) {
+  // écran titre, boutique ouverte, ou l'écran de chargement qui s'efface encore : le monde attend
+  if (!run.paused && !globalThis.__loading && input.wasPressed('escape') && CHAPTER) { input.endFrame(); openPause(); return; }
+  if (run.paused || globalThis.__loading) {
     if (shop.isOpen && input.wasPressed('escape')) shop.close();
     input.endFrame();
     return;
@@ -1256,27 +1319,37 @@ function groundBelow(x, y) {
  * on passe de l'une à l'autre d'un seul mouvement fluide (0,6 s, lent-rapide-lent), et il
  * faut redescendre à 3,5 cases ou moins pour revenir en bas.
  */
-let arenaY = null, arenaHigh = false, arenaMove = null;
+let arenaY = null, arenaHigh = false, arenaTop = false, arenaMove = null;
 const ARENA_CAM = { up: 4.5 * 16, down: 3.5 * 16, top: 9 * 16, head: 30, margin: 0.15, time: 0.6 };
 function arenaCamY(dt = 1) {
   // (le sol à 85 % de l'image ; une arène peut le remonter : camGround, la Forêt montre son bassin)
   const a = level.arena.def, low = Math.round(a.ground + VIEW_H * (1 - (a.camGround ?? 0.85)) - VIEW_H);
+  // une arène plus haute (camTop : son étage le plus haut, en cases) ; une grotte (cave) : la caméra y descend
+  const topTiles = a.camTop != null ? -a.camTop : null;
+  const cave = a.cave, inCave = !!cave && player.x >= cave.x0 - 8 && player.x < cave.x1 + 8 && player.y > cave.y;
+  const caveY = cave ? Math.round(cave.floor + VIEW_H * 0.14 - VIEW_H) : low;
   if (VIEW_H >= 236) {                                     // ordinateur : presque fixe
-    const top = Math.min(low, Math.round(a.ground - 15 * 16));
-    let want = low;
-    if (top < low) want = Math.max(top, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
+    const top = Math.min(low, Math.round(a.ground - (topTiles != null ? topTiles * 16 + 60 : 15 * 16)));
+    let want = inCave ? caveY : low;
+    if (!inCave && top < low) want = Math.max(top, Math.min(low, Math.round(player.y - VIEW_H * 0.62)));
     arenaY = arenaY == null ? want : arenaY + (want - arenaY) * Math.min(1, dt * 5);
     return clampCamY(Math.round(arenaY));
   }
   // en haut : une montée légère, juste ce qu'il faut pour que KAGE, debout sur l'étage le plus
-  // haut (9 cases), ait la tête dans l'image avec un peu de marge (15 % de l'image au-dessus)
-  const high = Math.min(low, Math.round(a.ground - ARENA_CAM.top - ARENA_CAM.head - VIEW_H * ARENA_CAM.margin));
+  // haut (9 cases ; camHigh pour une autre arène), ait la tête dans l'image avec un peu de marge
+  // (15 % de l'image au-dessus) ; une arène à canopée (camTop) a un palier de plus, tout en haut
+  const tierY = (tiles) => Math.min(low, Math.round(a.ground - tiles * 16 - ARENA_CAM.head - VIEW_H * ARENA_CAM.margin));
+  const high = tierY(a.camHigh ?? ARENA_CAM.top / 16), canopy = topTiles != null ? tierY(topTiles) : high;
   const feet = a.ground - player.y, alive = player.state !== 'death' && player.state !== 'respawn';
   if (alive && player.onGround) {
     if (feet >= ARENA_CAM.up) arenaHigh = true;
     else if (feet <= ARENA_CAM.down) arenaHigh = false;
+    if (topTiles != null) {
+      if (feet >= (topTiles - 2) * 16) arenaTop = true;
+      else if (feet <= (topTiles - 3) * 16) arenaTop = false;
+    }
   }
-  const want = arenaHigh ? high : low;
+  const want = inCave ? caveY : arenaTop ? canopy : arenaHigh ? high : low;
   if (arenaY == null) { arenaY = want; arenaMove = null; }
   if (!arenaMove || arenaMove.to !== want) arenaMove = { from: arenaY, to: want, t: arenaY === want ? 1 : 0 };
   arenaMove.t = Math.min(1, arenaMove.t + dt / ARENA_CAM.time);
@@ -1288,6 +1361,7 @@ function arenaCamera() {
   camera.x = clampCamX(Math.round(player.x - VIEW_W * 0.42));
   arenaY = null; arenaMove = null;
   arenaHigh = level.arena.def.ground - player.y >= ARENA_CAM.up;
+  arenaTop = level.arena.def.camTop != null && level.arena.def.ground - player.y >= (-level.arena.def.camTop - 2) * 16;
   camera.y = arenaCamY();
   camVX = 0;
 }
@@ -1690,18 +1764,31 @@ function chapterOf(sv) {
     zones: zones.length,
   };
 }
+/**
+ * Un fondu au noir sur tout l'écran, puis `then` (un rechargement de page : on n'y coupe jamais net). Le
+ * nouvel écran repart du même noir (l'écran de chargement, puis le jeu, s'ouvrent en fondu).
+ */
+function fadeOut(then, ms = 450) {
+  let f = document.querySelector('.fade-black');
+  if (!f) { f = document.createElement('div'); f.className = 'fade-black'; document.body.append(f); }
+  f.style.transitionDuration = `${ms}ms`;
+  requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('on')));
+  music?.setLevel?.(0, ms / 1000);
+  intro?.stopVoice?.(ms / 1000);
+  setTimeout(then, ms + 40);
+}
 /** Recharge la page sur le chapitre d'une aventure (la reprise se fait au chargement). */
 function goAdventure(chapter, how) {
-  try { sessionStorage.setItem('kage-go', how); } catch { /* rien */ }
+  try { sessionStorage.setItem('kage-go', how); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
   if (TEST_BUILD) labSet('chapter', chapter);
-  location.replace(location.pathname + location.search);
+  fadeOut(() => location.replace(location.pathname + location.search));
 }
 if (CHAPTER) {
   const title = document.querySelector('.title-screen');
   title.hidden = false;
   run.title = true;
   snapCamera();
-  title.querySelector('[data-chapter]').textContent = level.name;
+  title.querySelector('[data-chapter]').textContent = MENU_ONLY ? (LEVELS[loadSave()?.chapter]?.name ?? '') : level.name;
   menu = new Menu(title, {
     meta, skins, profile, saveProfile,
     saves: listSaves,
@@ -1709,7 +1796,8 @@ if (CHAPTER) {
     continueAdventure(slot) {
       setSlot(slot);
       const sv = loadSave(slot);
-      if (sv && sv.chapter !== LEVEL_ID) { goAdventure(sv.chapter, 'continue'); return; }
+      // (depuis l'accueil, le monde n'est pas construit : on recharge toujours sur celui de la partie)
+      if (MENU_ONLY || (sv && sv.chapter !== LEVEL_ID)) { goAdventure(sv && LEVELS[sv.chapter] ? sv.chapter : 'potager', 'continue'); return; }
       menu.closeAll();
       startChapter(true);
     },
@@ -1740,8 +1828,8 @@ if (CHAPTER) {
     },
   });
   function go(cfg) {
-    try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); } catch { /* rien */ }
-    location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`;
+    try { sessionStorage.setItem('kage-salle', JSON.stringify(cfg)); sessionStorage.setItem('kage-sans-intro', '1'); sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
+    fadeOut(() => { location.hash = `#${cfg.arena && LEVELS[cfg.arena]?.arena ? cfg.arena : 'arene-potager'}`; });
   }
   title.querySelector('[data-menu="aventure"]').focus();
   const existing = loadSave();
@@ -1759,7 +1847,7 @@ if (CHAPTER) {
     persist();
     chapterCard(level.intro, true);
   } else {
-    if (SKIN_LAB) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
+    if (SKIN_LAB && !MENU_ONLY) startChapter(false);   // cabine : on joue tout de suite (l'intro passe devant)
     // l'introduction, à chaque lancement ; pas pour les tests (__KAGE_SKIP_INTRO), ni quand on revient
     // de l'arène, ni dans la version de test quand on vient de changer de chapitre par le panneau
     // (« accueil » : le bouton maison du salon de l'arène ramène au menu principal, sur la fin de l'intro)
@@ -1806,6 +1894,7 @@ function nextChapter() {
   chapterCard(def.intro ?? { num: `Chapitre ${def.chapter}`, name: def.name }, false);
   music.setLevel(0, 2.5);
   setTimeout(() => {
+    try { sessionStorage.setItem('kage-charge', '1'); } catch { /* rien */ }
     if (location.hash) location.replace(location.pathname + location.search);
     else location.reload();
   }, 4600);
@@ -1919,6 +2008,7 @@ function frame(now) {
   acc += Math.min(0.1, gap);
   last = now;
   globalThis.__frameStart = performance.now();
+  pads.poll();             // la manette, lue une fois par image (avant les pas de physique)
   while (acc >= STEP) {
     if (!manual) update(STEP);
     acc -= STEP;
@@ -1938,12 +2028,14 @@ pixelUI([...document.querySelectorAll('.bar'), uiLayer]);
 requestAnimationFrame(frame);
 // le jeu est peint : l'écran de chargement s'efface (après la première image)
 requestAnimationFrame(() => requestAnimationFrame(() => {
+  // l'écran de chargement s'éteint en fondu (src/loading/loader.js : __loadingDone), puis s'ouvre sur le jeu
+  if (window.__loadingDone) { window.__loadingDone(); return; }
   const ld = document.querySelector('.loading');
   if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 700); }
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, cycle, perf, lights, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { get multi() { return multi; }, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },
