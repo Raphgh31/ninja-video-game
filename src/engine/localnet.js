@@ -2,8 +2,8 @@
 // Sert au ninja de l'ombre (arena/bot.js) : il joue par le même chemin qu'un vrai adversaire en ligne
 // (états, coups, parades, manches), sans aucun service extérieur.
 //
-// Les messages sont remis un peu plus tard (une micro-tâche) : jamais au milieu du calcul de celui qui les
-// envoie, comme sur un vrai réseau.
+// Les messages sont remis un peu plus tard (une micro-tâche, ou au début du pas suivant du jeu) : jamais au
+// milieu du calcul de celui qui les envoie, comme sur un vrai réseau.
 
 class LocalEnd {
   constructor(pair, id, name, host) {
@@ -15,6 +15,7 @@ class LocalEnd {
     this.transport = 'local';
     this.status = 'connexion';
     this.conns = new Map();
+    this.inbox = [];
   }
 
   get roster() { return this.pair.roster; }
@@ -27,11 +28,18 @@ class LocalEnd {
     return Promise.resolve();
   }
 
-  /** Envoyé à l'autre bout. */
+  /** Envoyé à l'autre bout : remis à la prochaine micro-tâche, ou au début du prochain pas du jeu (pump). */
   send(m) {
     if (this.closed) return;
-    const other = this.pair.other(this), copy = JSON.parse(JSON.stringify(m));
-    queueMicrotask(() => { if (!other.closed) other.onMessage?.(this.id, copy); });
+    const other = this.pair.other(this);
+    other.inbox.push([this.id, JSON.parse(JSON.stringify(m))]);
+    if (!other.queued) { other.queued = true; queueMicrotask(() => other.pump()); }
+  }
+
+  /** Remet les messages reçus (multi.js l'appelle au début de chaque pas : l'ordre reste celui du jeu). */
+  pump() {
+    this.queued = false;
+    while (this.inbox.length && !this.closed) { const [from, m] = this.inbox.shift(); this.onMessage?.(from, m); }
   }
 
   sendTo(id, m) { this.send(m); }

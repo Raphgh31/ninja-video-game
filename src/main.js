@@ -865,7 +865,7 @@ function startRoom(cfg) {
     level, player, fx, sfx: (n) => sfx(n), music, cycle, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), uiLayer,
     layers: () => [bgCanvas, canvas, lights.el, lights.vig], meta, stats: arenaStats, bot: solo,
     mySkin: () => look.id, sheetOf: (id) => (id === look.id ? look.sheet : (() => { const sk = skins[id] ?? skins.encre; return (PAINTED && (sk.paintedSheet ??= crispSheet(sk.sheet, NINJA_DEFAULT))) || sk.sheet; })()),
-    onLobby: toLobby,
+    onLobby: toLobby, foes: () => (bot ? [bot.player] : []),
   });
   duel.multi = multi;
   if (solo) {
@@ -873,6 +873,12 @@ function startRoom(cfg) {
     const skin = look.id === 'nocturne' ? 'encre' : skins.nocturne ? 'nocturne' : 'encre';
     bot = new ShadowBot({ level, meta, skins, net: botNet, skin, foe: player, foeShurikens: shurikens, dojo, rank: rank(),
       onEvent: botEvent, mist: () => duel?.mistEdges(), foeOut: () => multi?.out });
+    // le Dojo : le maître d'armes se tient à quatre pas du joueur, du même côté de l'arène
+    if (dojo) {
+      const sp = level.arena.def.duelSpawns?.[0] ?? level.arena.def.spawns[0];
+      bot.multi.placeAtStart = () => { bot.player.spawnAt = { x: sp.x - 4 * TILE, y: sp.y }; };
+      bot.multi.custom = sp.x; multi.custom = sp.x - 4 * TILE;     // (chacun face à l'autre)
+    }
     net.start();
     botNet.start();
     lobby = null;

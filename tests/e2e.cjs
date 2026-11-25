@@ -1785,6 +1785,201 @@ async function main() {
     } finally { await mctx.close(); }
   });
 
+  // ---- le duel (novembre 2026) : la parade, le choc des lames, le ninja de l'ombre, le Dojo, les statistiques ----
+  // ouvre une arène contre le ninja de l'ombre (ou au Dojo), le monde mené pas à pas
+  const openDuel = async (mode, arena = 'arene-potager', vp = { width: 1280, height: 800 }) => {
+    const ctx = await browser.newContext({ viewport: vp });
+    const p = await ctx.newPage(); p.on('pageerror', (e) => errors.push(`[duel ${mode}] ${e.message}`));
+    await p.addInitScript(([m, a]) => { localStorage.removeItem('ninja.arene'); sessionStorage.setItem('kage-salle', JSON.stringify({ mode: m, arena: a, name: 'Raph' })); }, [mode, arena]);
+    await p.goto(`${PAGE}#${arena}`);
+    await p.waitForFunction(() => window.__kage?.duel?.phase === 'intro' && !window.__loading, null, { timeout: 15000 });
+    return { p, ctx, step: (n) => p.evaluate((k) => window.__kage.step(k), n),
+      until: (ph, max = 4000) => p.evaluate(([ph, max]) => { const k = window.__kage; for (let i = 0; i < max; i++) { if (k.duel.phase === ph) return true; k.step(1); } return k.duel.phase === ph; }, [ph, max]) };
+  };
+
+  await test('duel : la parade — garde levée face au coup, la lame encaisse (étincelles), l\'attaquant est déséquilibré, la riposte porte un point de plus ; un coup de pied brise la garde', async () => {
+    const d = await openDuel('bot');
+    try {
+      await d.until('fight');
+      const r = await d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot, me = k.player;
+        bt.p = { ...bt.p, parry: 0, aggro: 0, throw: 0, react: 9, kick: 0 };
+        const face = () => { me.x = bt.player.x - 20; me.y = bt.player.y; me.facing = 1; bt.player.facing = -1; me.setState('idle'); bt.player.setState('idle'); me.vx = 0; bt.player.vx = 0; };
+        const run = (n) => { for (let i = 0; i < n; i++) k.step(1); };
+        // 1. je lève la garde, l'ombre frappe : paré, elle est déséquilibrée
+        face(); run(20); face();
+        k.input.press('parry'); run(1); k.input.release('parry');
+        const guard = me.state;
+        bt.input.tap('attack'); bt.player.update(1 / 120, bt.input); bt.input.endFrame();
+        let parried = false, stagger = false;
+        for (let i = 0; i < 60; i++) { run(1); parried ||= me.state === 'parry_hit'; stagger ||= bt.player.state === 'stagger'; }
+        const hpAfterParry = me.hp;
+        // 2. la riposte : juste après la parade, mon sabre (+1)
+        face(); run(10); face();
+        k.input.press('parry'); run(1); k.input.release('parry');
+        bt.input.tap('attack'); bt.player.update(1 / 120, bt.input); bt.input.endFrame();
+        let ok = false; for (let i = 0; i < 40 && !ok; i++) { run(1); ok = me.state === 'parry_hit' && me.anim.frame >= 1; }
+        const hp0 = bt.player.hp;
+        k.input.press('attack'); run(1); k.input.release('attack');
+        const riposte = me.riposte;
+        run(60);
+        const ripDmg = hp0 - bt.player.hp;
+        // 3. le coup de pied brise la garde
+        bt.player.hp = 5; run(200); face(); run(5); face();
+        bt.player.parryCd = 0; bt.input.tap('parry'); bt.player.update(1 / 120, bt.input); bt.input.endFrame();
+        const botGuard = bt.player.state;
+        k.input.press('kick'); run(1); k.input.release('kick');
+        run(60);
+        return { guard, parried, stagger, hpAfterParry, riposte, ripDmg, botGuard, kickDmg: 5 - bt.player.hp };
+      });
+      expect(r.guard === 'parry' && r.parried && r.stagger && r.hpAfterParry === 5 && r.riposte && r.ripDmg === 3 && r.botGuard === 'parry' && r.kickDmg === 3,
+        JSON.stringify(r));
+    } finally { await d.ctx.close(); }
+  });
+
+  await test('duel : le choc des lames — deux sabres qui se rencontrent, chacun recule', async () => {
+    const d = await openDuel('bot');
+    try {
+      await d.until('fight');
+      const r = await d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot, me = k.player;
+        bt.p = { ...bt.p, parry: 0, aggro: 0, throw: 0, react: 9, kick: 0 };
+        for (let i = 0; i < 20; i++) k.step(1);
+        me.x = bt.player.x - 26; me.y = bt.player.y; me.facing = 1; bt.player.facing = -1; me.setState('idle'); bt.player.setState('idle');
+        k.input.press('attack'); bt.input.tap('attack');
+        let clash = false, hpMe = 5, hpBot = 5;
+        for (let i = 0; i < 50; i++) { k.step(1); if (i === 0) k.input.release('attack'); clash ||= me.state === 'parry_hit' || bt.player.state === 'parry_hit'; }
+        return { clash, me: me.hp, bot: bt.player.hp, apart: Math.abs(bt.player.x - me.x) };
+      });
+      expect(r.clash && r.apart > 26, JSON.stringify(r));
+    } finally { await d.ctx.close(); }
+  });
+
+  await test('duel : un shuriken qui touche une garde levée est renvoyé vers son lanceur', async () => {
+    const d = await openDuel('bot');
+    try {
+      await d.until('fight');
+      const r = await d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot, me = k.player;
+        bt.p = { ...bt.p, parry: 0, aggro: 0, throw: 0, react: 9, kick: 0 };
+        for (let i = 0; i < 20; i++) k.step(1);
+        // (dans un endroit dégagé du Potager, entre les caisses et le canal)
+        me.x = 280; bt.player.x = 350; me.y = bt.player.y = 288; me.facing = 1; bt.player.facing = -1; me.setState('idle'); bt.player.setState('idle');
+        for (let i = 0; i < 3; i++) k.step(1);
+        bt.player.facing = -1; bt.input.tap('throw'); bt.player.update(1 / 120, bt.input); bt.input.endFrame();
+        let raised = false, back = 0;
+        for (let i = 0; i < 120; i++) {
+          const g = k.multi.ghosts.flying[0];
+          if (g && !raised && Math.abs(g.x - me.x) < 34) { k.input.press('parry'); raised = true; }
+          k.step(1); k.input.release('parry');
+          back = Math.max(back, k.shurikens.flying.filter((s) => s.back).length);
+        }
+        return { raised, back, deflects: k.arenaStats.s.deflects, hp: me.hp };
+      });
+      expect(r.raised && r.back >= 1 && r.deflects >= 1 && r.hp === 5, JSON.stringify(r));
+    } finally { await d.ctx.close(); }
+  });
+
+  await test('contre l\'ombre : l\'ouverture face à face, deux manches gagnantes, coup fatal (ralenti, zoom), revoir, manche décisive (le soir), fin (poses), revanche', async () => {
+    const d = await openDuel('bot', 'arene-foret');
+    try {
+      await d.step(150);
+      const open = await d.p.evaluate(() => { const k = window.__kage, r = [...k.multi.remotes.values()][0]; return { gap: Math.abs(r.x - k.player.x), cam: k.camera.x, mid: (r.x + k.player.x) / 2 - k.view().w / 2, lock: k.duel.lock }; });
+      const kill = () => d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot; bt.p = { ...bt.p, parry: 0, aggro: 0, throw: 0, react: 9 };
+        bt.player.hp = 1; k.player.x = bt.player.x - 20; k.player.y = bt.player.y; k.player.facing = 1; bt.player.setState('idle');
+        k.input.press('attack'); let slow = 1, zoom = '';
+        for (let i = 0; i < 200 && k.duel.phase !== 'fatal'; i++) { k.step(1); if (i === 0) k.input.release('attack'); }
+        k.step(30); slow = k.duel.timeScale; zoom = document.querySelector('#game').style.transform;
+        return { fatal: k.duel.phase === 'fatal', slow, zoom };
+      });
+      await d.until('fight');
+      const f1 = await kill();
+      const replay = await d.until('replay');
+      const card = await d.until('card');
+      await d.until('intro'); await d.until('fight');
+      await d.p.evaluate(() => { const k = window.__kage; k.player.hurt(99, k.player.x + 10, 'sword'); });
+      await d.until('intro');
+      const decisive = await d.p.evaluate(() => ({ dec: window.__kage.duel.decisive, soir: window.__kage.cycle.dusk > 0.5, wins: [...window.__kage.multi.wins].map((w) => w[1]).join('-') }));
+      await d.until('fight');
+      await kill();
+      await d.until('result', 8000);
+      await d.step(120);
+      const end = await d.p.evaluate(() => ({ title: document.querySelector('[data-end-title]').textContent, shown: !document.querySelector('.duel-end').hidden, pose: window.__kage.player.state,
+        bot: window.__kage.bot.player.state, titles: window.__kage.arenaStats.s.titles, fights: window.__kage.arenaStats.s.fights, rank: window.__kage.arenaStats.s.botRank }));
+      await d.p.click('[data-revanche]');
+      await d.p.waitForTimeout(700);
+      const again = await d.p.evaluate(() => ({ ph: window.__kage.duel.phase, wins: [...window.__kage.multi.wins].map((w) => w[1]).join('-'), hidden: document.querySelector('.duel-end').hidden }));
+      expect(open.gap < 448 && Math.abs(open.cam - open.mid) < 4 && open.lock && f1.fatal && f1.slow < 0.5 && /scale/.test(f1.zoom) && replay && card
+        && decisive.dec && decisive.soir && decisive.wins === '1-1' && end.title === 'Victoire' && end.shown && end.pose === 'victory' && end.bot === 'defeat'
+        && end.titles.includes('premier_sang') && end.fights === 1 && end.rank === 2 && again.ph === 'intro' && again.wins === '0-0' && again.hidden,
+        `ouverture ${JSON.stringify(open)}, fatal ${JSON.stringify(f1)}, revoir ${replay}, score ${card}, décisive ${JSON.stringify(decisive)}, fin ${JSON.stringify(end)}, revanche ${JSON.stringify(again)}`);
+    } finally { await d.ctx.close(); }
+  });
+
+  await test('contre l\'ombre : elle se bat sans se noyer (le bassin, le canal, les souches) et vise le joueur', async () => {
+    for (const arena of ['arene-foret', 'arene-potager']) {
+      const d = await openDuel('bot', arena);
+      try {
+        await d.until('fight');
+        const r = await d.p.evaluate(() => {
+          const k = window.__kage, bt = k.bot; let deaths = 0, swings = 0, minGap = 1e9, prev = bt.player.state;
+          k.player.invuln = 1e9;          // (le joueur ne fait rien : elle vient à lui, ou garde sa rive)
+          for (let i = 0; i < 120 * 25; i++) {
+            k.player.invuln = 1e9; k.step(1);
+            const s = bt.player.state;
+            if (s === 'death' && prev !== 'death') deaths++;
+            if ((s === 'attack' || s === 'throw' || s === 'kick') && s !== prev) swings++;
+            prev = s;
+            minGap = Math.min(minGap, Math.abs(bt.player.x - k.player.x));
+          }
+          return { deaths, swings, minGap: Math.round(minGap) };
+        });
+        expect(r.deaths === 0 && r.swings >= 2, `${arena} : ${JSON.stringify(r)}`);
+      } finally { await d.ctx.close(); }
+    }
+  });
+
+  await test('Dojo : l\'ombre frappe à un rythme régulier ; parer, riposter ; on n\'y meurt pas ; le bandeau compte les parades', async () => {
+    const d = await openDuel('dojo');
+    try {
+      await d.until('fight');
+      const r = await d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot, me = k.player; let attacks = 0, prev = '', parries = 0;
+        const near = Math.abs(bt.player.x - me.x);
+        for (let i = 0; i < 120 * 12; i++) {
+          const s = bt.player.state;
+          // le joueur lève la garde dès que la lame de l'ombre part
+          if (s === 'attack' && prev !== 'attack') { attacks++; k.input.press('parry'); }
+          if (me.state === 'parry_hit' && me.anim.frame >= 1 && !k.input.isHeld('attack')) k.input.press('attack');
+          k.step(1); k.input.release('parry'); k.input.release('attack');
+          if (me.state === 'parry_hit' && prev !== 'parry_hit_seen') parries = Math.max(parries, 1);
+          prev = s;
+        }
+        return { near, attacks, hp: me.hp, alive: me.state !== 'death', line: document.querySelector('[data-salle-msg]').textContent, mode: k.multi.match.mode, title: document.querySelector('[data-salle-code]').textContent };
+      });
+      expect(r.near <= 70 && r.attacks >= 3 && r.alive && r.mode === 'dojo' && r.title === 'Dojo' && /Parades [1-9]/.test(r.line) && /Ripostes [1-9]/.test(r.line), JSON.stringify(r));
+    } finally { await d.ctx.close(); }
+  });
+
+  await test('Mon ninja : les statistiques d\'arène, le titre porté et son sceau (← → parmi ceux gagnés) ; menu Arène : « Contre l\'ombre » et « Dojo »', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const p = await ctx.newPage(); p.on('pageerror', (e) => errors.push('[mon ninja] ' + e.message));
+      await p.addInitScript(() => localStorage.setItem('ninja.arene', JSON.stringify({ fights: 4, wins: 3, losses: 1, bestStreak: 3, parries: 12, fatals: 2, rivals: { Kenji: { won: 1, lost: 1 } }, arenas: {}, titles: ['premier_sang', 'mur_acier'], title: 'premier_sang', trail: 'argent', seal: 'goutte' })));
+      await p.goto(PAGE); await p.waitForFunction(() => window.__kage); await p.waitForTimeout(400);
+      await p.click('[data-menu="arene"]'); await p.waitForTimeout(500);
+      const solo = await p.evaluate(() => [!!document.querySelector('[data-vs-bot]'), !!document.querySelector('[data-dojo]')]);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+      await p.click('[data-menu="ninja"]'); await p.waitForTimeout(600);
+      const shown = await p.evaluate(() => ({ stats: document.querySelector('[data-arena-stats]')?.textContent, title: document.querySelector('[data-arena-title]')?.textContent }));
+      await p.click('[aria-label="Titre suivant"]'); await p.waitForTimeout(300);
+      const after = await p.evaluate(() => JSON.parse(localStorage.getItem('ninja.arene')));
+      expect(solo[0] && solo[1] && /4 duels · 3 victoires · 75 %/.test(shown.stats) && shown.title === 'Premier sang' && after.title === 'mur_acier' && after.seal === 'garde' && after.trail === 'acier',
+        `menu ${solo}, ${JSON.stringify(shown)}, après ${after.title}/${after.seal}`);
+    } finally { await ctx.close(); }
+  });
+
   // ---- jouer à plusieurs : une arène à deux (transport local, deux onglets servis en http) ----
   await test('à plusieurs : salon (code, places, mode choisi par l\'hôte), combat lancé, coup de sabre, gong partagé, Trois lames puis Souffle unique', async () => {
     const http = require('node:http'), fs = require('node:fs');
@@ -1819,7 +2014,9 @@ async function main() {
       await B.waitForFunction(() => !window.__kage.run.paused && document.querySelector('[data-salon]').hidden, null, { timeout: 3000 });
       const hud = await B.evaluate(() => document.querySelector('.salle').textContent.replace(/\s+/g, ' ').trim());
       for (const P of [A, B]) await P.waitForFunction(() => [...window.__kage.multi.remotes.values()][0]?.seen, null, { timeout: 3000 });
-      await A.waitForTimeout(300);
+      // l'ouverture du duel (face à face, « Combattez ») : les commandes attendent la fin
+      const opening = await A.evaluate(() => window.__kage.duel.phase);
+      for (const P of [A, B]) await P.waitForFunction(() => window.__kage.duel.phase === 'fight', null, { timeout: 5000 });
       // Raph rejoint Kenji et frappe : Kenji perd 2 points de vie
       await A.evaluate(() => { const r = [...window.__kage.multi.remotes.values()][0], pl = window.__kage.player; pl.x = r.x - 16; pl.y = r.y; pl.facing = 1; pl.vx = 0; pl.onGround = true; pl.setState('idle'); });
       await A.waitForTimeout(250);
@@ -1838,18 +2035,22 @@ async function main() {
         await B.evaluate(() => window.__kage.player.die());
         await A.waitForFunction((n) => window.__kage.multi.scores.get(window.__kage.multi.net.id) === n, i, { timeout: 3000 });
       }
-      await B.waitForFunction(() => document.querySelector('[data-salon] [data-winner]')?.textContent === 'Raph', null, { timeout: 4000 });
+      // la fin : la dernière mort rejouée (revoir), puis le résultat sur l'image du combat, la revanche ou le salon
+      await B.waitForFunction(() => !document.querySelector('.duel-end').hidden && document.querySelector('[data-end-title]').textContent === 'Victoire de Raph', null, { timeout: 8000 });
+      await A.waitForFunction(() => !document.querySelector('.duel-end').hidden && document.querySelector('[data-end-title]').textContent === 'Victoire' && window.__kage.player.state === 'victory', null, { timeout: 8000 });
+      const endPose = await B.evaluate(() => window.__kage.player.state);
+      await A.click('[data-duel-salon]');
       await A.waitForFunction(() => !!document.querySelector('[data-launch]'), null, { timeout: 8000 });
-      // Souffle unique : une seule vie ; Kenji éliminé ne réapparaît pas, Raph gagne
+      // Souffle unique : une seule vie ; Kenji éliminé reste à terre, Raph gagne
       await A.click('[data-mode="souffle"]'); await A.click('[data-launch]');
-      await B.waitForFunction(() => !window.__kage.run.paused, null, { timeout: 3000 });
-      await B.waitForTimeout(300);
+      await B.waitForFunction(() => !window.__kage.run.paused && window.__kage.duel.phase === 'fight', null, { timeout: 6000 });
       await B.evaluate(() => window.__kage.player.die());
-      await B.waitForFunction(() => window.__kage.multi.out && document.querySelector('[data-salon] [data-winner]')?.textContent === 'Raph', null, { timeout: 4000 });
+      await B.waitForFunction(() => window.__kage.multi.match.out.has(window.__kage.multi.net.id) && document.querySelector('[data-end-title]').textContent === 'Victoire de Raph' && !document.querySelector('.duel-end').hidden, null, { timeout: 8000 });
       const sudden = await B.evaluate(() => window.__kage.multi.match.over);
       expect(salon.shown && salon.code === 'T3ST' && /Raph/.test(salon.text) && salon.me === 'Kenji' && /toi/.test(salon.text) && salon.paused && !salon.launch && hostLaunch
-        && rule[0] === 3 && /premier à 3/.test(rule[1]) && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud),
-        `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}`);
+        && rule[0] === 4 && /premier à 3/.test(rule[1]) && /Trois lames · T3ST/.test(hud) && score === 1 && sudden && !/KAGE/i.test(salon.text + hud)
+        && opening === 'intro' && endPose === 'defeat',
+        `salon ${JSON.stringify(salon)}, bandeau « ${hud} », score de Raph ${score}, souffle unique fini ${sudden}, ouverture ${opening}, pose du vaincu ${endPose}`);
     } finally { await ctx.close(); srv.close(); }
   });
 

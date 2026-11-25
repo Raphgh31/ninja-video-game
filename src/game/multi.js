@@ -363,10 +363,11 @@ export class Multi {
     this.placeAtStart();
     if (!this.shared) this.level.arena.reset();
     this.player.respawn(true);
-    // les deux premières places se font face
+    // les deux premières places se font face (à deux : face à l'autre, d'où qu'il parte)
     const other = [...this.remotes.values()][0];
     const sp = this.level.arena.def.spawns, me = this.me;
-    if (me && sp.length > 1) this.player.facing = me.slot % 2 === 0 ? 1 : -1;
+    if (this.remotes.size === 1 && this.custom) this.player.facing = Math.sign(this.custom - this.player.x) || 1;
+    else if (me && sp.length > 1) this.player.facing = me.slot % 2 === 0 ? 1 : -1;
     else if (other) this.player.facing = Math.sign(other.x - this.player.x) || 1;
     this.shurikens.reset();
     this.ghosts.reset();
@@ -510,6 +511,7 @@ export class Multi {
 
   // --- image par image -----------------------------------------------------------------
   update(dt) {
+    this.net.pump?.();              // (réseau dans la page : les messages en attente, avant ce pas)
     this.time += dt;
     const p = this.player, a = this.level.arena;
     // pas hôte : les bonus et les caisses du ciel viennent de l'hôte

@@ -145,7 +145,7 @@ export class ShadowBot {
     if (m && (pl.x < m.l + 30 || pl.x > m.r - 30)) { this.goTo((m.l + m.r) / 2, pl.y); return; }
 
     // 5. de loin : un shuriken, ou se rapprocher
-    if (adx > 90 && Math.abs(dy) < 18 && this.throwCd <= 0 && pl.onGround) {
+    if (adx > 90 && Math.abs(dy) < 36 && this.throwCd <= 0 && pl.onGround) {
       this.throwCd = 1.2 + Math.random() * 2;
       if (Math.random() < P.throw * 3) { pl.facing = to; inp.tap('throw'); return; }
     }
@@ -156,6 +156,8 @@ export class ShadowBot {
       this.safety(to);
       return;
     }
+    // perché au-dessus de lui (une caisse, une souche) : il descend de son côté
+    if (dy > 20 && adx < 48) { this.move(to); this.safety(to); return; }
     const [near, far] = BOT.range;
     if (adx > far + 4) {
       this.move(to);
@@ -256,7 +258,7 @@ export class ShadowBot {
     this.input.held.delete(dir < 0 ? 'left' : 'right');
     this.blocked = this.t + 0.6;
     this.stuckT = 0;
-    if (this.throwCd <= 0 && this.shurikens.stock > 0 && Math.abs(this.foe.y - pl.y) < 20) { this.throwCd = 1 + Math.random() * 1.5; pl.facing = dir; this.input.tap('throw'); }
+    if (this.throwCd <= 0 && this.shurikens.stock > 0 && Math.abs(this.foe.y - pl.y) < 40) { this.throwCd = 1 + Math.random() * 1.5; pl.facing = dir; this.input.tap('throw'); }
   }
 
   /** Un shuriken du joueur qui arrive sur lui. */

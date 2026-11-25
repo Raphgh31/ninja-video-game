@@ -457,7 +457,7 @@ export class Duel {
       <p class="duel-end__line" data-end-line></p>
       <p class="duel-end__new" data-end-new></p>
       <div class="duel-end__acts"><button type="button" class="duel-end__btn duel-end__btn--main" data-revanche>Revanche</button>
-      <button type="button" class="duel-end__btn" data-salon>Salon</button></div>
+      <button type="button" class="duel-end__btn" data-duel-salon>Salon</button></div>
       <p class="duel-end__wait" data-end-wait></p>`;
     this.uiLayer.append(el);
     this.endEl = el;
@@ -465,7 +465,7 @@ export class Duel {
       this.multi?.askAgain();
       el.querySelector('[data-revanche]').disabled = true;
     });
-    el.querySelector('[data-salon]').addEventListener('click', () => { this.hideEnd(); this.onLobby?.(); });
+    el.querySelector('[data-duel-salon]').addEventListener('click', () => { this.hideEnd(); this.onLobby?.(); });
     // au clavier (et à la manette) : ← → pour choisir, Entrée ou Espace pour valider
     addEventListener('keydown', (e) => {
       if (el.hidden) return;
@@ -474,7 +474,7 @@ export class Duel {
         const i = items.indexOf(document.activeElement), d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
         items[(i + d + items.length) % items.length].focus();
       } else if ((e.key === 'Enter' || e.key === ' ') && items.includes(document.activeElement)) document.activeElement.click();
-      else if (e.key === 'Escape') el.querySelector('[data-salon]').click();
+      else if (e.key === 'Escape') el.querySelector('[data-duel-salon]').click();
       else return;
       e.preventDefault(); e.stopImmediatePropagation();
     }, true);
@@ -493,6 +493,11 @@ export class Duel {
       p.vx = 0; p.vy = 0; p.hp = Math.max(1, p.hp);
       p.setState('defeat');
     }
+    // (le ninja de l'ombre : sa pose aussi ; un adversaire en ligne prend la sienne sur son propre écran)
+    for (const f of this.foes?.() ?? []) {
+      f.vx = 0; f.hp = Math.max(1, f.hp);
+      f.setState(d.mine ? 'defeat' : 'victory');
+    }
     this.restoreLight();
     const set = (k, s) => { el.querySelector(`[data-end-${k}]`).textContent = s; };
     set('title', d.mine ? 'Victoire' : d.name ? `Victoire de ${d.name}` : 'Fin du combat');
@@ -502,7 +507,7 @@ export class Duel {
     set('new', fresh.length ? `Nouveau titre : ${fresh.map((t) => t.name).join(', ')}` : '');
     set('wait', '');
     el.querySelector('[data-revanche]').disabled = false;
-    el.querySelector('[data-salon]').textContent = this.bot ? 'Menu' : 'Salon';
+    el.querySelector('[data-duel-salon]').textContent = this.bot ? 'Menu' : 'Salon';
     el.hidden = false;
     requestAnimationFrame(() => { el.classList.add('on'); el.querySelector('[data-revanche]').focus(); });
   }
@@ -517,7 +522,7 @@ export class Duel {
   hideEnd() {
     this.endEl.classList.remove('on');
     this.endEl.hidden = true;
-    if (this.player.state === 'victory' || this.player.state === 'defeat') this.player.endSpecial();
+    for (const f of [this.player, ...(this.foes?.() ?? [])]) if (f.state === 'victory' || f.state === 'defeat') f.endSpecial();
     this.phase = 'idle';
   }
 }
