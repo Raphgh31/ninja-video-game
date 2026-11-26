@@ -37,11 +37,12 @@ h1 { margin: 0; --pxs: 2; }
 /* calque du paysage, exactement sous le jeu */
 .bg-layer { image-rendering: pixelated; image-rendering: crisp-edges; display: block; background: #8d99a8; }
 .bg-layer[hidden] { display: none; }
-.stage > #game, .stage > .bg-layer, .stage > .ui, .stage > .light-layer, .stage > .vignette { grid-area: 1 / 1; }
+.stage > #game, .stage > .bg-layer, .stage > .ui, .stage > .light-layer, .stage > .grade-layer, .stage > .vignette { grid-area: 1 / 1; }
 /* la lumière du monde (src/game/daylight.js) : douce, posée en « écran » sur le jeu et le fond */
 .light-layer { display: block; mix-blend-mode: screen; pointer-events: none; image-rendering: auto; }
 .vignette { pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 58%, rgba(14, 12, 34, 0.26) 100%); }
-.light-layer[hidden], .vignette[hidden] { display: none; }
+.grade-layer { display: block; mix-blend-mode: multiply; pointer-events: none; image-rendering: auto; }
+.light-layer[hidden], .grade-layer[hidden], .vignette[hidden] { display: none; }
 /* le calque du duel (arena/duel.js) : au-dessus de la lumière, sous l'interface */
 .stage > .duel-layer { grid-area: 1 / 1; }
 .duel-layer { position: relative; z-index: 1; display: block; pointer-events: none; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -49,7 +50,7 @@ h1 { margin: 0; --pxs: 2; }
 body.mobile .duel-layer { position: absolute; left: 0; top: 0; }
 #game.over-bg { background: transparent; }
 body.mobile .bg-layer { position: absolute; left: 0; top: 0; }
-body.mobile .light-layer, body.mobile .vignette { position: absolute; left: 0; top: 0; }
+body.mobile .light-layer, body.mobile .grade-layer, body.mobile .vignette { position: absolute; left: 0; top: 0; }
 
 .keys { display: flex; flex-wrap: wrap; gap: 0 20px; margin: 0; }
 .keys div { display: flex; gap: 8px; }
@@ -323,6 +324,14 @@ body.mobile .lab { top: 24px; }
 .ui .pause.m-lant button.m-act:focus, .ui .pause.m-lant button.m-act:hover { color: #f3d9a0; }
 /* une manette sert : les commandes tactiles s'effacent (elles reviennent au premier toucher) */
 body.pad .touch-layer { display: none; }
+
+/* le bouton de la halte : le feu de camp, en haut à droite pendant le jeu (13 × 13 pixels de jeu, contour compris) */
+.ui .halt-btn { position: absolute; top: 5px; right: 6px; z-index: 3; width: 13px; height: 13px; padding: 0; margin: 0;
+  border: 0; background: none; cursor: pointer; opacity: .82; transition: opacity .2s; touch-action: manipulation; }
+.ui .halt-btn::after { content: ''; position: absolute; inset: -4px; }   /* (une cible un peu plus large pour le pouce) */
+.ui .halt-btn:hover, .ui .halt-btn:focus-visible { opacity: 1; outline: none; }
+.ui .halt-btn[hidden] { display: none; }
+.halt-btn__icon { display: block; width: 13px; height: 13px; image-rendering: pixelated; }
 
 /* la fin du duel (src/game/arena/duel.js) : le combat reste visible (le vainqueur rengaine, le vaincu à genou) ;
    un lavis d'encre monte du bas, le résultat s'y écrit à gauche, la revanche d'un geste */

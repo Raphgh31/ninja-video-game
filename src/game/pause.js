@@ -9,6 +9,34 @@ import { Pen, stoneLantern, drawFlame, ground, flat, stroke, smooth, clamp01 } f
 
 const GOLD = '#f3d9a0', GOLD_TAIL = '#b08a5a';
 
+/**
+ * Le bouton de la halte (25 novembre 2026, choisi par Raph sur docs/menus/planche_bouton_pause.png : le feu de
+ * camp, plutôt que les deux barres de tous les jeux) : 11 × 11 pixels de jeu, flamme chaude sur des bûches
+ * croisées, cerné d'un pixel sombre pour rester lisible sur un ciel clair. En haut à droite pendant le jeu.
+ */
+const CAMPFIRE = [
+  '.....o.....', '....oo.....', '....oo.o...', '...ooo.oo..', '..oooooooo.', '..ooo##ooo.',
+  '...oo##oo..', '#..oooooo.#', '.##.oooo.##', '...######..', '.##......##'];
+export function haltIcon(btn) {
+  const c = canvas(13, 13), g = c.getContext('2d'), on = (i, j) => CAMPFIRE[j]?.[i] && CAMPFIRE[j][i] !== '.';
+  g.fillStyle = '#16141e';
+  for (let j = -1; j <= 11; j++) for (let i = -1; i <= 11; i++) {
+    if (on(i, j)) continue;
+    let near = false;
+    for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) if (on(i + a, j + b)) near = true;
+    if (near) g.fillRect(i + 1, j + 1, 1, 1);
+  }
+  CAMPFIRE.forEach((row, j) => { for (let i = 0; i < 11; i++) {
+    if (row[i] === '.') continue;
+    g.fillStyle = row[i] === '#' ? '#e8dec4' : '#f3b45a';
+    g.fillRect(i + 1, j + 1, 1, 1);
+  } });
+  // le cœur de la flamme, plus clair
+  g.fillStyle = '#ffe2a0'; g.fillRect(6, 7, 1, 1); g.fillRect(5, 8, 2, 1);
+  c.className = 'halt-btn__icon';
+  btn.append(c);
+}
+
 export class PauseScene {
   /** root : la section .pause (elle contient la toile, puis les textes et les boutons). */
   constructor(root) {
