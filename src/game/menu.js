@@ -6,7 +6,8 @@
 //   Aventure  : sept lanternes, une par chapitre, reliées par un sentier ; allumées jusqu'au chapitre
 //               en cours, où se tient le ninja. En haut, « Aventure 1 · Aventure 2 ». « Reprendre »,
 //               « Effacer » (les flammes baissent : « Éteindre l'aventure ? »), « Nouvelle aventure » ;
-//   Arène     : le gong ; « Accueillir » (l'arène se choisit dessous : ← nom →) ou « Rejoindre » ;
+//   Arène     : le gong ; « Accueillir » (l'arène se choisit dessous : ← nom →) ou « Rejoindre » ; seul :
+//               « Contre l'ombre » (le ninja de l'ordinateur) ou « Dojo » (s'entraîner à parer) ;
 //   Rejoindre : le code de quatre signes s'écrit sur quatre tablettes de bois ;
 //   Mon ninja : le ninja en grand sur un rocher, son pseudo sur un panneau de bois, sa route.
 //
@@ -18,6 +19,7 @@ import { BrushedCanvas, brushView, smoothText } from '../engine/brushgl.js';
 import { measure, renderText, renderSmooth } from '../engine/pixelfont.js';
 import { play } from '../engine/sfx.js';
 import { cleanName } from './profile.js';
+import { ArenaStats, TITLES, drawSeal } from './arena/stats.js';
 import { canvas, noise1 } from './potager/paint.js';
 import {
   Pen, INK, flat, ground, stoneLantern, drawFlame, gong, drawGongRing, arenaFront, ema, drawSign,
@@ -493,9 +495,13 @@ export class Menu {
   // Arène : le gong
   // =================================================================================================
   build_arene() {
+    // (26 novembre 2026, demande de Raph : plus d'air, plus clair) trois colonnes sous le gong — à gauche, à
+    // plusieurs (Accueillir, Rejoindre) ; au milieu, l'arène (← nom →), pour tous les choix ; à droite, seul
+    // (Contre l'ombre et son niveau, 1 à 3, une petite barre de trois crans ; le Dojo). Une ligne tous les 18 px.
     const s = this.scene('Arène');
     const { W, H } = s;
-    const g0 = H - 56, r = H < 236 ? 24 : 30, cy = g0 - r - 38;
+    const short = H < 236, g0 = H - (short ? 70 : 82), r = short ? 20 : 26, cy = g0 - r - (short ? 26 : 32);
+    const row = (k) => g0 + 10 + k * (short ? 15 : 18);
     const list = this.arenas ?? [];
     let pick = Math.max(0, list.findIndex((a) => a.id === this.arenaPick));
     const paintBase = () => {
@@ -506,16 +512,22 @@ export class Menu {
     };
     paintBase();
     let ring = -1, leaving = false;
-    const create = this.act(s, 'Accueillir', Math.round(W * 0.25), g0 + 10, () => {
+    const go = (fn) => () => {
       if (leaving) return;
       leaving = true; ring = 0;
       sfx('gong');
       s.classList.add('m-go');
-      setTimeout(() => this.createArena(list[pick]?.id), 650);
-    }, { align: 'center', stroke: true, cls: 'm-main' });
+      setTimeout(() => fn(list[pick]?.id), 650);
+    };
+    // à plusieurs
+    const L = Math.round(W * 0.17), M = Math.round(W / 2), R = Math.round(W * 0.83);
+    const create = this.act(s, 'Accueillir', L, row(0), go((id) => this.createArena(id)), { align: 'center', stroke: true, cls: 'm-main' });
     create.dataset.create = ''; create.dataset.first = '';
+    const join = this.act(s, 'Rejoindre', L, row(1), () => this.open('rejoindre'), { align: 'center', stroke: true });
+    join.dataset.joinScreen = '';
+    // l'arène
     if (list.length > 1) {
-      const y = g0 + 26, cx = Math.round(W * 0.25);
+      const y = row(0), cx = M;
       const name = this.text(s, list[pick].name, cx, y, { align: 'center', cls: 'm-soft' });
       name.dataset.arenaName = '';
       const turn = (d) => {
@@ -533,8 +545,40 @@ export class Menu {
       prev.setAttribute('aria-label', 'Arène précédente'); next.setAttribute('aria-label', 'Arène suivante');
       prev.dataset.arenaPrev = ''; next.dataset.arenaNext = '';
     }
-    const join = this.act(s, 'Rejoindre', Math.round(W * 0.75), g0 + 10, () => this.open('rejoindre'), { align: 'center', stroke: true });
-    join.dataset.joinScreen = '';
+    // seul : contre le ninja de l'ombre (l'ordinateur), à son niveau, ou au Dojo
+    let level = this.botLevel?.() ?? 2, mode = this.botMode?.() ?? 'duel';
+    const NAMES = ['Apprenti', 'Rōnin', 'Maître'];      // (les trois niveaux de l'ombre : arena/bot.js, BOT.levels)
+    const shadow = this.act(s, "Contre l'ombre", R, row(0), go((id) => this.vsBot?.(id, level, mode)), { align: 'center', stroke: true });
+    shadow.dataset.vsBot = '';
+    const ly = row(1), lx = R - 6, lvl = this.text(s, NAMES[level - 1], lx, ly, { align: 'center', cls: 'm-soft' });
+    lvl.dataset.botLevel = '';
+    const setLevel = (d) => {
+      level = Math.max(1, Math.min(3, level + d));
+      this.setBotLevel?.(level);
+      this.swap(lvl, NAMES[level - 1], lx, ly, 'center');
+    };
+    const lw = Math.max(...NAMES.map((n) => measure(n))) / 2;
+    const lPrev = this.act(s, '←', Math.round(lx - lw - 12), ly, () => setLevel(-1), { align: 'center', cls: 'm-arrow' });
+    const lNext = this.act(s, '→', Math.round(lx + lw + 26), ly, () => setLevel(1), { align: 'center', cls: 'm-arrow' });
+    lPrev.setAttribute('aria-label', 'Niveau plus facile'); lNext.setAttribute('aria-label', 'Niveau plus fort');
+    lPrev.dataset.levelDown = ''; lNext.dataset.levelUp = '';
+    // le type de combat contre l'ombre, comme contre un ami : Duel, Souffle unique, Trois lames, Dix lames
+    const MODE_LIST = this.botModes ?? [['duel', 'Duel']];
+    const my = row(2), mEl = this.text(s, (MODE_LIST.find((m) => m[0] === mode) ?? MODE_LIST[0])[1], R, my, { align: 'center', cls: 'm-soft' });
+    mEl.dataset.botMode = '';
+    const setMode = (d) => {
+      const i = Math.max(0, MODE_LIST.findIndex((m) => m[0] === mode)), n = MODE_LIST[(i + d + MODE_LIST.length) % MODE_LIST.length];
+      mode = n[0];
+      this.setBotMode?.(mode);
+      this.swap(mEl, n[1], R, my, 'center');
+    };
+    const mw = Math.max(...MODE_LIST.map((m) => measure(m[1]))) / 2 + 12;
+    const mPrev = this.act(s, '←', Math.round(R - mw), my, () => setMode(-1), { align: 'center', cls: 'm-arrow' });
+    const mNext = this.act(s, '→', Math.round(R + mw), my, () => setMode(1), { align: 'center', cls: 'm-arrow' });
+    mPrev.setAttribute('aria-label', 'Type de combat précédent'); mNext.setAttribute('aria-label', 'Type de combat suivant');
+    mPrev.dataset.modePrev = ''; mNext.dataset.modeNext = '';
+    const dojo = this.act(s, 'Dojo', R, row(3), go((id) => this.dojo?.(id)), { align: 'center', stroke: true });
+    dojo.dataset.dojo = '';
     s.paint = (g, t, dt) => {
       if (s.old) {
         const k = clamp01((t - s.old.at) / 0.35);
@@ -542,6 +586,12 @@ export class Menu {
         else { g.globalAlpha = 1 - k; g.drawImage(s.old.c, 0, 0); g.globalAlpha = 1; }
       }
       if (ring >= 0) { ring += dt; drawGongRing(g, s.gong, ring); }
+      // la barre du niveau : trois crans qui montent, allumés jusqu'au niveau choisi
+      for (let i = 0; i < 3; i++) {
+        const x = Math.round(lx + lw + 4) + i * 4, h = 2 + i * 2, y = ly + 10 - h;
+        g.fillStyle = i < level ? (level === 3 ? '#e0805a' : '#e8b25a') : '#2c3446';
+        g.fillRect(x, y, 3, h);
+      }
     };
     return s;
   }
@@ -690,6 +740,35 @@ export class Menu {
       this.text(s, `${shown.save.ryo ?? 0} ryō`, x0, y += 12, { cls: 'm-soft' });
       y += 18;
     }
+    // à droite, au-dessus du panneau : l'arène (si on y a combattu) — duels, victoires, le titre porté
+    // (← → pour en changer parmi ceux gagnés : il donne son sceau et la couleur de la lame), l'ennemi juré
+    const st = new ArenaStats(), sum = st.summary(), ax = Math.round(W * 0.53);
+    let sealAt = null;
+    if (sum.fights > 0) {
+      let ay = 30;
+      this.text(s, 'Arène', ax, ay, { cls: 'm-dim' });
+      this.text(s, `${sum.fights} duel${sum.fights > 1 ? 's' : ''} · ${sum.wins} victoire${sum.wins > 1 ? 's' : ''} · ${sum.rate} %`, ax, ay += 18, { cls: 'm-ink' }).dataset.arenaStats = '';
+      const lines = [`meilleure série : ${sum.best}`, `parades : ${sum.parries} · coups fatals : ${sum.fatals}`];
+      if (sum.nemesis) lines.push(`ennemi juré : ${sum.nemesis}`);
+      for (const l of lines) this.text(s, l, ax, ay += 12, { cls: 'm-soft' });
+      const won = TITLES.filter((t) => st.s.titles.includes(t.id));
+      if (won.length) {
+        ay += 16;
+        sealAt = { x: ax, y: ay + 1 };
+        const tx = ax + 12, tEl = this.text(s, st.title?.name ?? won[0].name, tx, ay, { cls: 'm-warm' });
+        tEl.dataset.arenaTitle = '';
+        if (won.length > 1) {
+          const turn = (d) => {
+            const i = won.findIndex((t) => t.id === st.s.title), n = won[(i + d + won.length) % won.length];
+            st.choose(n.id);
+            this.swap(tEl, n.name, tx, ay, 'left');
+          };
+          const nx = tx + Math.max(...won.map((t) => measure(t.name))) + 8;
+          const prev = this.act(s, '←', nx, ay, () => turn(-1), { cls: 'm-arrow' }), next = this.act(s, '→', nx + 12, ay, () => turn(1), { cls: 'm-arrow' });
+          prev.setAttribute('aria-label', 'Titre précédent'); next.setAttribute('aria-label', 'Titre suivant');
+        }
+      }
+    }
     const flip = (d) => {
       this.profile.shown = this.profile.shown === 1 ? 2 : 1;
       this.saveProfile(this.profile);
@@ -699,6 +778,7 @@ export class Menu {
     };
     s.paint = (g, t) => {
       this.art.draw(s.tg ?? g, skin, rx, g0 + 1, { k: 2, t, tint: 'rgba(10,14,30,0.15)', alpha: clamp01((t - 0.15) / 0.4), crisp: !!s.tg });
+      if (sealAt && st.seal) { g.globalAlpha = clamp01((t - 0.3) / 0.3); drawSeal(g, st.seal, sealAt.x, sealAt.y); g.globalAlpha = 1; }
       if (!shown) return;
       // la route : sept petites flammes, allumées jusqu'au chapitre de l'aventure
       for (let i = 0; i < LANTERNS; i++) {

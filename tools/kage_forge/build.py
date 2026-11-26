@@ -263,6 +263,8 @@ def main():
                      "note": "coup de pied de côté (détente et impact)"},
             "air_kick": {"x": 19, "y": 13, "w": 20, "h": 12, "frames": [2],
                          "note": "coup de pied sauté (en l'air) : la jambe tendue, talon en avant"},
+            "parry": {"x": 17, "y": 0, "w": 15, "h": 30, "frames": [0, 1, 2],
+                      "note": "la garde de la parade (mode Arène) : un coup ou un shuriken qui la touche est paré"},
             "attack": {"x": 19, "y": 0, "w": 20, "h": 31, "frames": [2, 3, 4],
                        "note": "zone de frappe du sabre, active sur les frames listées"},
         }.items()},

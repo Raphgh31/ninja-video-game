@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8">
+<style>
+body { margin: 0; background: #0d0f14; color: #d9d3c4; font: 14px sans-serif; }
+canvas { display: block; image-rendering: pixelated; }
+</style>
+<body>
+<script type="module">
+import { renderText, renderSmooth } from '/src/engine/pixelfont.js';
+const FONTS = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+const menu = await load('/tools/maquettes/polices/bg_menu.png'), duel = await load('/tools/maquettes/polices/bg_duel.png');
+for (const f of FONTS) if (f.file) { const ff = new FontFace(f.fam, `url(/tools/maquettes/polices/${f.file})`); await ff.load(); document.fonts.add(ff); }
+// un texte, en pixels de jeu (net) ou à 2× (lisse) ; renvoie une toile à l'échelle 2
+function txt(f, s, big, color, outline) {
+  if (f.game) { const c = (f.game === 'pixel' ? renderText : renderSmooth)(s, { font: big ? 'big' : 'small', color, outline }); const P = c.P ?? 1; const o = document.createElement('canvas'); o.width = c.width / P * 2; o.height = c.height / P * 2; const g = o.getContext('2d'); g.imageSmoothingEnabled = P > 1; g.drawImage(c, 0, 0, o.width, o.height); return o; }
+  const px = big ? f.big : f.small, K = f.pixel ? 1 : 2, size = px * K;
+  const m = document.createElement('canvas').getContext('2d'); m.font = `${size}px "${f.fam}"`;
+  const w = Math.ceil(m.measureText(s).width) + 6, h = Math.ceil(size * 1.5) + 4;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.font = `${size}px "${f.fam}"`; g.textBaseline = 'top';
+  if (outline) { g.lineJoin = 'round'; g.lineWidth = f.pixel ? 2 : 3; g.strokeStyle = outline; g.strokeText(s, 3, 2); }
+  g.fillStyle = color; g.fillText(s, 3, 2);
+  if (f.pixel) {          // net : chaque pixel tout ou rien
+    const d = g.getImageData(0, 0, w, h);
+    for (let i = 3; i < d.data.length; i += 4) d.data[i] = d.data[i] > 110 ? 255 : 0;
+    g.putImageData(d, 0, 0);
+  }
+  const o = document.createElement('canvas'); o.width = w * 2 / K; o.height = h * 2 / K;
+  const go = o.getContext('2d'); go.imageSmoothingEnabled = !f.pixel; go.drawImage(c, 0, 0, o.width, o.height); return o;
+}
+const put = (g, c, x, y, align = 'left') => g.drawImage(c, Math.round(align === 'center' ? x - c.width / 2 : x), Math.round(y));
+for (const [i, f] of FONTS.entries()) {
+  const c = document.createElement('canvas'); c.width = 896; c.height = 504 + 190 + 34;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.fillStyle = '#0d0f14'; g.fillRect(0, 0, c.width, c.height);
+  // l'étiquette
+  g.fillStyle = '#e8b25a'; g.font = 'bold 18px sans-serif'; g.fillText(`${i + 1}. ${f.name}`, 12, 24);
+  g.fillStyle = '#8f8a7e'; g.font = '14px sans-serif'; g.fillText(f.note, 12 + g.measureText(`${i + 1}. ${f.name}`).width + 260, 24);
+  g.save(); g.translate(0, 34);
+  g.drawImage(menu, 0, 0);
+  put(g, txt(f, 'Arène', false, '#e9e5da'), 32, 22);
+  put(g, txt(f, 'Accueillir', false, '#f3e9d2'), 224, 404, 'center');
+  g.fillStyle = '#e8d9b0'; g.fillRect(186, 432, 76, 2); g.fillRect(262, 433, 8, 1);
+  put(g, txt(f, '←   La rizière du gong   →', false, '#8d8a80'), 224, 436, 'center');
+  put(g, txt(f, 'Rejoindre', false, '#8d8a80'), 672, 404, 'center');
+  put(g, txt(f, "Contre l'ombre", false, '#8d8a80'), 672, 436, 'center');
+  put(g, txt(f, 'Dojo', false, '#8d8a80'), 672, 468, 'center');
+  // la fin du duel (le bas de l'image du combat)
+  g.drawImage(duel, 0, 280, 896, 224, 0, 504, 896, 224);
+  const grd = g.createLinearGradient(0, 504, 0, 694); grd.addColorStop(0, 'rgba(7,7,12,0.15)'); grd.addColorStop(0.6, 'rgba(7,7,12,0.85)'); grd.addColorStop(1, 'rgba(7,7,12,0.92)');
+  g.fillStyle = grd; g.fillRect(0, 504, 896, 190);
+  put(g, txt(f, 'Manche décisive', true, '#f2b8a8', '#14100c'), 448, 512, 'center');
+  put(g, txt(f, 'Victoire', true, '#f0d18a'), 48, 572);
+  put(g, txt(f, "Raph 2  ·  L'ombre 1", false, '#d9d3c4'), 48, 616);
+  put(g, txt(f, 'Revanche', true, '#e8ddc4'), 48, 642);
+  put(g, txt(f, 'Salon', false, '#9c968a'), 260, 654);
+  g.restore();
+  c.dataset.i = i;
+  document.body.append(c);
+}
+document.body.dataset.done = '1';
+</script>

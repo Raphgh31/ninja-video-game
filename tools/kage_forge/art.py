@@ -1024,6 +1024,8 @@ WALK = [
 # lianes du chapitre 2 (poses dans vine.py) : accroché, balancé (image choisie
 # par l'angle de la liane, pas par le temps), grimpe
 from vine import VINE_CLIMB, VINE_HANG, VINE_SWING  # noqa: E402
+from duel import (PARRY, PARRY_DURATIONS, PARRY_HIT, PARRY_HIT_DURATIONS, STAGGER, STAGGER_DURATIONS,  # noqa: E402
+                  VICTORY, VICTORY_DURATIONS, DEFEAT, DEFEAT_DURATIONS)
 
 ANIMS = {
     "idle":          dict(frames=IDLE,    fps=6,  loop=True,  state="idle"),
@@ -1055,6 +1057,12 @@ ANIMS = {
     # tirer la corde de la statue (zone 9 de la Forêt) : rope.py ; la corde est tracée par le jeu
     "rope_pull":     dict(frames=ROPE_PULL, fps=5, loop=True, state="rope_pull",
                           durations=ROPE_PULL_DURATIONS, grip=ROPE_GRIP, shoulder=ROPE_SHOULDER),
+    # les gestes du duel (mode Arène) : duel.py
+    "parry":         dict(frames=PARRY, fps=10, loop=False, state="parry", durations=PARRY_DURATIONS),
+    "parry_hit":     dict(frames=PARRY_HIT, fps=8, loop=False, state="parry_hit", durations=PARRY_HIT_DURATIONS),
+    "stagger":       dict(frames=STAGGER, fps=8, loop=False, state="stagger", durations=STAGGER_DURATIONS),
+    "victory":       dict(frames=VICTORY, fps=6, loop=False, state="victory", durations=VICTORY_DURATIONS),
+    "defeat":        dict(frames=DEFEAT, fps=6, loop=False, state="defeat", durations=DEFEAT_DURATIONS),
     "walk":          dict(frames=WALK,    fps=5,  loop=True,  state="walk"),
     "slide":         dict(frames=SLIDE,   fps=12, loop=True,  loop_start=1, state="slide"),
     "death":         dict(frames=DEATH,   fps=14, loop=False, state="death"),

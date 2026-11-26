@@ -465,7 +465,11 @@ export class Arena {
       const used = new Set(this.pickups.map((p) => p.spot));
       const free = spots.map((s, i) => [s, `${kind}${i}`]).filter(([, id]) => !used.has(id));
       if (!free.length) return;
-      const [s, id] = free[Math.floor(Math.random() * free.length)];
+      // (le duel : un cœur apparaît plutôt près de celui qui est derrière — favorX, posé par arena/duel.js ;
+      // deux fois sur trois la place la plus proche de lui, sinon au hasard : un coup de pouce léger)
+      let pick = free[Math.floor(Math.random() * free.length)];
+      if (kind === 'heart' && this.favorX != null && Math.random() < 0.65) pick = free.reduce((b, c) => (Math.abs(c[0].x - this.favorX) < Math.abs(b[0].x - this.favorX) ? c : b));
+      const [s, id] = pick;
       this.pickups.push({ kind, x: s.x, y: s.y, spot: id, t: 0 });
       this.onEvent?.('pickupAppear', { kind, x: s.x, y: s.y - 10, spot: id });
     };

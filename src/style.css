@@ -43,6 +43,11 @@ h1 { margin: 0; --pxs: 2; }
 .vignette { pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 58%, rgba(14, 12, 34, 0.26) 100%); }
 .grade-layer { display: block; mix-blend-mode: multiply; pointer-events: none; image-rendering: auto; }
 .light-layer[hidden], .grade-layer[hidden], .vignette[hidden] { display: none; }
+/* le calque du duel (arena/duel.js) : au-dessus de la lumière, sous l'interface */
+.stage > .duel-layer { grid-area: 1 / 1; }
+.duel-layer { position: relative; z-index: 1; display: block; pointer-events: none; image-rendering: pixelated; image-rendering: crisp-edges; }
+.duel-layer[hidden] { display: none; }
+body.mobile .duel-layer { position: absolute; left: 0; top: 0; }
 #game.over-bg { background: transparent; }
 body.mobile .bg-layer { position: absolute; left: 0; top: 0; }
 body.mobile .light-layer, body.mobile .grade-layer, body.mobile .vignette { position: absolute; left: 0; top: 0; }
@@ -187,6 +192,8 @@ body.mobile .talk { padding-left: 6px; }
   padding: 2px 6px 3px; background: rgba(12, 14, 18, .55); border: 1px solid rgba(233, 229, 218, .25); pointer-events: auto;
 }
 .salle[hidden] { display: none; }
+.salle { transition: opacity .3s ease-out; }
+.salle.duel-hide { opacity: 0; }
 .salle__code { margin: 0; --pxs: 1; color: #f3e3c3; }
 .salle__list { display: flex; gap: 8px; }
 .salle__list p { margin: 0; color: var(--slot, #e9e5da); }
@@ -325,3 +332,25 @@ body.pad .touch-layer { display: none; }
 .ui .halt-btn:hover, .ui .halt-btn:focus-visible { opacity: 1; outline: none; }
 .ui .halt-btn[hidden] { display: none; }
 .halt-btn__icon { display: block; width: 13px; height: 13px; image-rendering: pixelated; }
+
+/* la fin du duel (src/game/arena/duel.js) : le combat reste visible (le vainqueur rengaine, le vaincu à genou) ;
+   un lavis d'encre monte du bas, le résultat s'y écrit à gauche, la revanche d'un geste */
+.ui .duel-end { position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity .5s ease-out;
+  background: linear-gradient(to top, rgba(7, 7, 12, .9) 0, rgba(7, 7, 12, .78) 34%, rgba(7, 7, 12, 0) 62%); }
+.ui .duel-end.on { opacity: 1; }
+.ui .duel-end[hidden] { display: none; }
+.duel-end > * { position: absolute; left: 24px; margin: 0; pointer-events: auto; }
+.duel-end__title { bottom: 64px; --pxf: big; color: #f0d18a; }
+.duel-end__line { bottom: 52px; color: #d9d3c4; }
+.duel-end__new { bottom: 40px; color: #e0a07a; }
+.duel-end__new:empty, .duel-end__wait:empty { display: none; }
+.duel-end__acts { bottom: 14px; display: flex; gap: 22px; align-items: baseline; }
+.duel-end__btn { background: none; border: 0; padding: 0 0 3px; color: #9c968a; cursor: pointer; border-bottom: 1px solid transparent; }
+.duel-end__btn--main { --pxf: big; color: #e8ddc4; }
+.duel-end__btn:focus, .duel-end__btn:hover { color: #f3d9a0; border-bottom-color: #b8863c; outline: none; }
+.duel-end__btn:disabled { color: #6c675e; cursor: default; border-bottom-color: transparent; }
+.duel-end__wait { bottom: 4px; color: #8f8a7e; }
+.ui.short .duel-end__title { bottom: 56px; }
+.ui.short .duel-end__line { bottom: 45px; }
+.ui.short .duel-end__new { bottom: 34px; }
+.ui.short .duel-end__acts { bottom: 11px; }
