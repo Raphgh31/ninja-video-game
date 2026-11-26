@@ -961,7 +961,7 @@ const haltBtn = document.querySelector('.halt-btn');
 haltIcon(haltBtn);
 haltBtn.addEventListener('click', () => { haltBtn.blur(); openPause(); });
 function updateHaltBtn() {
-  const show = !MENU_ONLY && !intro && pauseEl.hidden && !run.title && !run.won && !shop.isOpen && !lobby?.visible && !globalThis.__loading;
+  const show = !MENU_ONLY && !intro && pauseEl.hidden && !run.title && !run.won && !shop.isOpen && !lobby?.visible && !globalThis.__loading && !(duel && !duel.endEl.hidden);
   if (haltBtn.hidden === show) haltBtn.hidden = !show;
 }
 const pads = new Gamepads(input, {

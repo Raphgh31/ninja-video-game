@@ -417,3 +417,16 @@ Demandes de l'utilisateur, dans l'ordre.
 - **Autres ennemis proposés** (non commencés) : Kunoichi de l'ombre (Kage-mane, lance des kunaïs), Lanterne volante (Chōchin, à vaincre au shuriken), Corbeau messager (Karasu, obstacle rapide), Sumo de pierre (Ishi, mini-boss avec onde de choc).
 - Valider les sons, ajuster si besoin ; rééquilibrer vie et dégâts en jouant.
 - Plus tard : skins, manette (écartée pour l'instant), vues de face et de dos dans la garde basse, musique.
+
+## 10. Sortie sur Steam et sur téléphones, et les sons (26 novembre 2026)
+
+**But de l'utilisateur** : une fois le jeu fini (dans quelques mois), le sortir **sur Steam** (PC, Mac, Steam Deck) et **en application de téléphone** (iPhone, Android). Décisions prises avec lui :
+
+- **Pas de Godot.** Le jeu reste en JavaScript et Canvas ; il sera *emballé* à la fin, sans réécriture : **Electron ou Tauri** pour Steam (succès et sauvegarde dans le nuage par `steamworks.js`), **Capacitor** pour les téléphones. Le même code sert au site, à Steam et aux téléphones. La manette (Steam Deck), le tactile, le plein écran et la rotation sont déjà là.
+- **À régler avant la sortie** :
+  1. **les droits de la musique** : les morceaux du Potager, de la Forêt, du corbeau et de l'intro viennent de vidéos fournies par l'utilisateur ; pour vendre le jeu, chaque morceau doit être sous licence (ou remplacé) ;
+  2. **les sauvegardes** dans un fichier (au lieu du `localStorage` du navigateur) ;
+  3. **le jeu à plusieurs** : la mise en relation de Steam (invitations d'amis) plutôt que le service gratuit de PeerJS ;
+  4. **les comptes** : Steam (100 $ par jeu), Google Play (25 $, une fois), Apple (99 $ par an), une politique de confidentialité pour les boutiques de téléphones ;
+  5. **le nom** : vérifier que « The Ninja Adventure » est libre sur les boutiques.
+- **Connecteurs** : le seul vraiment utile est **Splice** (bibliothèque de sons et de boucles, libres de droits pour un jeu vendu), connecté par l'utilisateur le 26 novembre 2026. La recherche marche avec le compte gratuit ; **chaque téléchargement coûte un crédit** (abonnement) : ne jamais télécharger sans son accord. Plan : faire la liste des sons à remplacer, proposer trois candidats Splice par son (liens à écouter), puis tout télécharger en une fois. Une conversation dédiée s'en occupe (`docs/messages/MESSAGE_SONS.md`). Figma (déjà connecté) peut générer des images d'ambiance pour préparer un chapitre, jamais pour le pixel art du jeu, qui reste peint en code.
