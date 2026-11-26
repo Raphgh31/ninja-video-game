@@ -16,7 +16,8 @@
 //     riposter, lancer un shuriken de loin, reculer pour reprendre son souffle, aller chercher un cœur ;
 //   - le Maître s'adapte : contre qui pare souvent, il frappe du pied ; contre qui attaque souvent, il pare et
 //     punit ; il feinte (entre, s'arrête, ressort) et entre en dash.
-// Trois niveaux, choisis au menu Arène (la barre de trois crans). Le Dojo : il frappe à un rythme régulier.
+// Trois niveaux, choisis au menu Arène (la barre de trois crans) : l'Apprenti (un débutant cohérent, lent, qui frappe
+// parfois trop tôt), le Rōnin (solide, il pare la moitié des coups), le Maître (il pare presque tout et punit tout). Le Dojo : il frappe à un rythme régulier.
 import { Player } from '../player.js';
 import { Shurikens } from '../shuriken.js';
 import { Multi } from '../multi.js';
@@ -30,9 +31,9 @@ import { NavGraph } from './nav.js';
 // space : la distance qu'il garde (px) ; slop : sa précision (px) ; air : coups sautés ; adapt : il s'adapte.
 export const BOT = {
   levels: [
-    { name: 'Niveau 1', react: 0.38, think: 0.6, parry: 0.12, punish: 0.2, riposte: 0.3, kick: 0.1, aggro: 0.32, feint: 0, dash: 0, throw: 0.08, space: 46, slop: 14, air: 0.03, adapt: 0, whiff: 0.3 },
-    { name: 'Niveau 2', react: 0.22, think: 0.4, parry: 0.5, punish: 0.6, riposte: 0.7, kick: 0.4, aggro: 0.55, feint: 0.15, dash: 0.3, throw: 0.25, space: 40, slop: 5, air: 0.15, adapt: 0.5, whiff: 0.08 },
-    { name: 'Niveau 3', react: 0.1, think: 0.28, parry: 0.88, punish: 0.95, riposte: 0.95, kick: 0.7, aggro: 0.7, feint: 0.3, dash: 0.6, throw: 0.45, space: 38, slop: 2, air: 0.25, adapt: 1, whiff: 0 },
+    { name: "L'Apprenti", react: 0.38, think: 0.6, parry: 0.12, punish: 0.2, riposte: 0.3, kick: 0.1, aggro: 0.32, feint: 0, dash: 0, throw: 0.08, space: 46, slop: 14, air: 0.03, adapt: 0, whiff: 0.3 },
+    { name: 'Le Rōnin', react: 0.22, think: 0.4, parry: 0.5, punish: 0.6, riposte: 0.7, kick: 0.4, aggro: 0.55, feint: 0.15, dash: 0.3, throw: 0.25, space: 40, slop: 5, air: 0.15, adapt: 0.5, whiff: 0.08 },
+    { name: 'Le Maître', react: 0.1, think: 0.28, parry: 0.88, punish: 0.95, riposte: 0.95, kick: 0.7, aggro: 0.7, feint: 0.3, dash: 0.6, throw: 0.45, space: 38, slop: 2, air: 0.25, adapt: 1, whiff: 0 },
   ],
   dojo: { name: 'Dojo', react: 0.3, think: 0.5, parry: 0.35, punish: 0.3, riposte: 0.5, kick: 0, aggro: 1, feint: 0, dash: 0, throw: 0, space: 30, slop: 4, air: 0, adapt: 0, every: 1.7 },
   reach: 30,              // px : la portée du sabre (boîte de frappe de « attack » contre la boîte du corps)

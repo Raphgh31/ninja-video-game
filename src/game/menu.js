@@ -500,8 +500,8 @@ export class Menu {
     // (Contre l'ombre et son niveau, 1 à 3, une petite barre de trois crans ; le Dojo). Une ligne tous les 18 px.
     const s = this.scene('Arène');
     const { W, H } = s;
-    const short = H < 236, g0 = H - (short ? 66 : 74), r = short ? 22 : 28, cy = g0 - r - (short ? 30 : 36);
-    const row = (k) => g0 + 10 + k * (short ? 16 : 18);
+    const short = H < 236, g0 = H - (short ? 70 : 82), r = short ? 20 : 26, cy = g0 - r - (short ? 26 : 32);
+    const row = (k) => g0 + 10 + k * (short ? 15 : 18);
     const list = this.arenas ?? [];
     let pick = Math.max(0, list.findIndex((a) => a.id === this.arenaPick));
     const paintBase = () => {
@@ -546,21 +546,38 @@ export class Menu {
       prev.dataset.arenaPrev = ''; next.dataset.arenaNext = '';
     }
     // seul : contre le ninja de l'ombre (l'ordinateur), à son niveau, ou au Dojo
-    let level = this.botLevel?.() ?? 2;
-    const shadow = this.act(s, "Contre l'ombre", R, row(0), go((id) => this.vsBot?.(id, level)), { align: 'center', stroke: true });
+    let level = this.botLevel?.() ?? 2, mode = this.botMode?.() ?? 'duel';
+    const NAMES = ['Apprenti', 'Rōnin', 'Maître'];      // (les trois niveaux de l'ombre : arena/bot.js, BOT.levels)
+    const shadow = this.act(s, "Contre l'ombre", R, row(0), go((id) => this.vsBot?.(id, level, mode)), { align: 'center', stroke: true });
     shadow.dataset.vsBot = '';
-    const ly = row(1), lx = R - 6, lvl = this.text(s, `Niveau ${level}`, lx, ly, { align: 'center', cls: 'm-soft' });
+    const ly = row(1), lx = R - 6, lvl = this.text(s, NAMES[level - 1], lx, ly, { align: 'center', cls: 'm-soft' });
     lvl.dataset.botLevel = '';
     const setLevel = (d) => {
       level = Math.max(1, Math.min(3, level + d));
       this.setBotLevel?.(level);
-      this.swap(lvl, `Niveau ${level}`, lx, ly, 'center');
+      this.swap(lvl, NAMES[level - 1], lx, ly, 'center');
     };
-    const lPrev = this.act(s, '←', lx - 32, ly, () => setLevel(-1), { align: 'center', cls: 'm-arrow' });
-    const lNext = this.act(s, '→', lx + 46, ly, () => setLevel(1), { align: 'center', cls: 'm-arrow' });
+    const lw = Math.max(...NAMES.map((n) => measure(n))) / 2;
+    const lPrev = this.act(s, '←', Math.round(lx - lw - 12), ly, () => setLevel(-1), { align: 'center', cls: 'm-arrow' });
+    const lNext = this.act(s, '→', Math.round(lx + lw + 26), ly, () => setLevel(1), { align: 'center', cls: 'm-arrow' });
     lPrev.setAttribute('aria-label', 'Niveau plus facile'); lNext.setAttribute('aria-label', 'Niveau plus fort');
     lPrev.dataset.levelDown = ''; lNext.dataset.levelUp = '';
-    const dojo = this.act(s, 'Dojo', R, row(2), go((id) => this.dojo?.(id)), { align: 'center', stroke: true });
+    // le type de combat contre l'ombre, comme contre un ami : Duel, Souffle unique, Trois lames, Dix lames
+    const MODE_LIST = this.botModes ?? [['duel', 'Duel']];
+    const my = row(2), mEl = this.text(s, (MODE_LIST.find((m) => m[0] === mode) ?? MODE_LIST[0])[1], R, my, { align: 'center', cls: 'm-soft' });
+    mEl.dataset.botMode = '';
+    const setMode = (d) => {
+      const i = Math.max(0, MODE_LIST.findIndex((m) => m[0] === mode)), n = MODE_LIST[(i + d + MODE_LIST.length) % MODE_LIST.length];
+      mode = n[0];
+      this.setBotMode?.(mode);
+      this.swap(mEl, n[1], R, my, 'center');
+    };
+    const mw = Math.max(...MODE_LIST.map((m) => measure(m[1]))) / 2 + 12;
+    const mPrev = this.act(s, '←', Math.round(R - mw), my, () => setMode(-1), { align: 'center', cls: 'm-arrow' });
+    const mNext = this.act(s, '→', Math.round(R + mw), my, () => setMode(1), { align: 'center', cls: 'm-arrow' });
+    mPrev.setAttribute('aria-label', 'Type de combat précédent'); mNext.setAttribute('aria-label', 'Type de combat suivant');
+    mPrev.dataset.modePrev = ''; mNext.dataset.modeNext = '';
+    const dojo = this.act(s, 'Dojo', R, row(3), go((id) => this.dojo?.(id)), { align: 'center', stroke: true });
     dojo.dataset.dojo = '';
     s.paint = (g, t, dt) => {
       if (s.old) {
@@ -571,7 +588,7 @@ export class Menu {
       if (ring >= 0) { ring += dt; drawGongRing(g, s.gong, ring); }
       // la barre du niveau : trois crans qui montent, allumés jusqu'au niveau choisi
       for (let i = 0; i < 3; i++) {
-        const x = lx + 22 + i * 4, h = 2 + i * 2, y = ly + 10 - h;
+        const x = Math.round(lx + lw + 4) + i * 4, h = 2 + i * 2, y = ly + 10 - h;
         g.fillStyle = i < level ? (level === 3 ? '#e0805a' : '#e8b25a') : '#2c3446';
         g.fillRect(x, y, 3, h);
       }

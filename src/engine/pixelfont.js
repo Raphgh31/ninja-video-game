@@ -1,4 +1,4 @@
-import { GAME_FONT, GAME_FONT_WOFF2 } from './fontdata.js';
+import { MODERN } from './pixelglyphs.js';
 // Police en pixels du jeu, dessinée à la main : tout ce qui s'écrit à l'écran
 // (titres, bannières, aides, boutique…) est tracé avec elle, un pixel de police
 // pour un pixel de jeu. Chasse variable, capitales de 5×7, bas de casse de
@@ -166,6 +166,12 @@ function buildSmall() {
     });
     g[ch] = { w, rows };
   }
+  // la version moderne (26 novembre 2026, choix de Raph : « une police pixel moderne, bien lisible ») : Pixelify
+  // Sans relue au pixel près (tools/police_pixel.py) ; les signes qu'elle n'a pas gardent le dessin d'origine
+  for (const [ch, src] of Object.entries(MODERN)) {
+    const lines = src.split('/'), w = Math.max(...lines.map((l) => l.length));
+    g[ch] = { w, rows: lines.map((l) => Array.from({ length: w }, (_, x) => (l[x] === '#' ? 1 : 0))) };
+  }
   return g;
 }
 
@@ -322,15 +328,12 @@ export function renderText(text, options = {}) {
  * en page ne bouge pas), P fois plus fin ; la lettre est centrée dans la largeur de chaque ligne, et
  * resserrée si elle est plus large. Rend une toile, avec .P.
  */
-// la police (26 novembre 2026, choix de Raph sur les planches docs/polices/ : n° 17, Yusei Magic, un trait de
-// feutre à main levée) : embarquée dans le code (fontdata.js, tools/police_jeu.py), chargée avant tout dessin
-export const SMOOTH_FONT = `"${GAME_FONT}", "Palatino Linotype", Palatino, Georgia, serif`;
-try {
-  const face = new FontFace(GAME_FONT, `url(data:font/woff2;base64,${GAME_FONT_WOFF2})`);
-  await Promise.race([face.load(), new Promise((ok) => setTimeout(ok, 1500))]);
-  document.fonts.add(face);
-} catch { /* (sans elle, la police de secours) */ }
+// (l'écriture lisse : Palatino, puis Yusei Magic le 26 novembre 2026 ; le même jour, Raph revient aux pixels :
+// renderSmooth trace désormais le texte en pixels, comme renderText — SMOOTH remet l'écriture lisse)
+export const SMOOTH = false;
+export const SMOOTH_FONT = '"Palatino Linotype", Palatino, Georgia, serif';
 export function renderSmooth(text, options = {}, P = 4) {
+  if (!SMOOTH) { const c = renderText(text, options); c.P = 1; return c; }
   const box = renderText(text, options);
   const { font: fontName = 'small', color = '#e9e5da', outline = '', maxW = 0, spacing = 0, align = 'left', leading = 0 } = options;
   const font = FONTS[fontName] ?? FONTS.small, k = font.k;

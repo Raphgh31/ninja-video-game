@@ -36,12 +36,14 @@ export const DAMAGE_DEALT = {
 
 /** Par coup : arrêt sur image (s), recul de la victime (px/s), secousse (amplitude, durée). */
 export const IMPACT = {
-  sword:    { stop: 0.065, push: 150, lift: 150, shake: 0, shakeT: 0 },
-  air:      { stop: 0.1, push: 200, lift: 170, shake: 1.5, shakeT: 0.16 },
-  flip:     { stop: 0.15, push: 270, lift: 200, shake: 3, shakeT: 0.24 },
-  kick:     { stop: 0.075, push: 0, lift: 120, shake: 1, shakeT: 0.12 },   // (le recul du coup de pied est le sien : kickPush)
-  shuriken: { stop: 0.035, push: 80, lift: 90, shake: 0, shakeT: 0 },
-  riposte:  { stop: 0.12, push: 240, lift: 180, shake: 2.5, shakeT: 0.2 },  // le coup porté juste après une parade réussie
+  // (26 novembre 2026, retour de Raph : le sabre ne fait presque pas reculer — un petit à-coup, un léger arrêt
+  // pour sentir le coup ; c'est le coup de pied qui repousse loin : un recul au sol qui glisse, pas un bond)
+  sword:    { stop: 0.075, push: 40, lift: 0, shake: 0, shakeT: 0 },
+  air:      { stop: 0.1, push: 55, lift: 20, shake: 1.5, shakeT: 0.16 },
+  flip:     { stop: 0.15, push: 80, lift: 30, shake: 3, shakeT: 0.24 },
+  kick:     { stop: 0.085, push: 300, lift: 45, shake: 1, shakeT: 0.12 },
+  shuriken: { stop: 0.035, push: 25, lift: 0, shake: 0, shakeT: 0 },
+  riposte:  { stop: 0.12, push: 60, lift: 10, shake: 2.5, shakeT: 0.2 },  // le coup porté juste après une parade réussie
   flash: 0.09,                     // s d'éclair blanc sur la victime
 };
 

@@ -833,7 +833,7 @@ function startRoom(cfg) {
         lobby?.hide();
         setCloseUp(true);
         hud.hidden = false;
-        setText(codeEl, solo ? (dojo ? 'Dojo' : `Contre l'ombre · Niveau ${rank() + 1}`) : `${MODES[d.mode].name} · ${net.code}`);
+        setText(codeEl, solo ? (dojo ? 'Dojo' : `${BOT.levels[rank()].name} · ${MODES[d.mode].name}`) : `${MODES[d.mode].name} · ${net.code}`);
         showList();
         if (dojo) dojoLine();
         run.paused = false;
@@ -885,7 +885,7 @@ function startRoom(cfg) {
     net.start();
     botNet.start();
     lobby = null;
-    setTimeout(() => multi.launch(dojo ? 'dojo' : 'duel'), 60);
+    setTimeout(() => multi.launch(dojo ? 'dojo' : MODES[cfg.botMode] && !MODES[cfg.botMode].hidden ? cfg.botMode : 'duel'), 60);
     return;
   }
   lobby = new Lobby(uiLayer, { net, multi, meta, skins, arenaName: level.name.replace(/^Arène — /, ''),
@@ -932,7 +932,9 @@ music.add('boss', level.bossMusic);
 if (level.arena && level.theme === 'foret') music.add('duel', LEVELS['arene-potager']?.music);
 // (pendant l'introduction, c'est sa propre musique qui joue : celle du chapitre attend la fin)
 const onGesture = () => { unlockAudio(); if (!intro || intro.closing) music.start(); };
-for (const t of ['keydown', 'pointerdown', 'touchstart']) addEventListener(t, onGesture, { capture: true, passive: true });
+// (sur téléphone, un toucher ne débloque le son qu'à son lever — touchend, pointerup — : en arène, les commandes
+// tactiles ne produisent jamais de « click », le son restait muet ; d'où ces événements en plus)
+for (const t of ['keydown', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'click']) addEventListener(t, onGesture, { capture: true, passive: true });
 
 // barres de vie fines au-dessus de chaque personnage
 const kageBar = new HealthBar(HEALTH.max);
@@ -2013,7 +2015,10 @@ if (CHAPTER) {
     chapters: Object.fromEntries(Object.values(LEVELS).filter((l) => l.chapter && !l.arena).map((l) => [l.chapter, (l.name ?? '').split('— ')[1] ?? l.name])),
     createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
-    vsBot(id, lv) { go({ mode: 'bot', arena: id, level: lv }); },
+    vsBot(id, lv, md) { go({ mode: 'bot', arena: id, level: lv, botMode: md }); },
+    botModes: Object.entries(MODES).filter(([, m]) => !m.hidden).map(([id, m]) => [id, m.name]),
+    botMode() { const v = localStorage.getItem('ninja.ombre.mode'); return MODES[v] && !MODES[v].hidden ? v : 'duel'; },
+    setBotMode(v) { try { localStorage.setItem('ninja.ombre.mode', v); } catch { /* rien */ } },
     // le niveau de l'ombre (1 à 3), gardé d'une partie à l'autre
     botLevel() { const v = Number(localStorage.getItem('ninja.ombre')); return v >= 1 && v <= 3 ? v : 2; },
     setBotLevel(v) { try { localStorage.setItem('ninja.ombre', String(v)); } catch { /* rien */ } },

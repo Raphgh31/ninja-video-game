@@ -231,7 +231,9 @@ bons jeux de duel (Nidhogg, Samurai Gunn, TowerFall, Divekick, Smash, Street Fig
 
 ### 1. La sensation des coups (`combat.js` : `IMPACT`)
 - Chaque coup a sa force : `sword`, `air`, `flip`, `riposte`, `kick`, `shuriken` → micro-arrêt (`stop`, le même chez
-  l'attaquant et chez la victime), recul (`push`, `lift`), secousse seulement pour les lourds (`shake`).
+  l'attaquant et chez la victime), recul (`push`, `lift`), secousse seulement pour les lourds (`shake`). Le 26 novembre
+  2026 : **le sabre fait à peine reculer** (un petit à-coup, `push` 40, sans soulever) ; **le coup de pied repousse
+  loin** (`push` 300, à peine soulevé : un recul au sol qui glisse et ralentit, état `hurt`), pas un bond.
 - La victime brille une ou deux images en blanc (`src/engine/silhouette.js`, `IMPACT.flash`), aussi chez les autres.
 - Son en couches : `bladeHit` (le claquement de la lame) + `impact` (le coup sourd dans le corps) ; vibration courte.
 - Toucher rend un peu d'énergie (`ENERGY.hitGain`) : l'attaque nourrit l'attaque.
@@ -275,7 +277,9 @@ bons jeux de duel (Nidhogg, Samurai Gunn, TowerFall, Divekick, Smash, Street Fig
 - **Le ninja de l'ombre** (`src/game/arena/bot.js`, menu Arène « Contre l'ombre ») : un vrai KAGE aux commandes
   virtuelles, par le même chemin qu'un adversaire en ligne (`src/engine/localnet.js`). **Refait le 26 novembre 2026**
   (retour de Raph : mouvements incohérents, bloqué contre les obstacles) :
-  - **niveau 1, 2 ou 3**, choisi au menu (« ← Niveau 2 → », barre de trois crans ; `ninja.ombre`, `cfg.level`) ;
+  - **trois niveaux** choisis au menu : **l'Apprenti, le Rōnin, le Maître** (« ← Rōnin → », barre de trois crans ;
+    `ninja.ombre`, `cfg.level`), et le **type de combat** comme contre un ami (« ← Duel → » : Duel, Souffle unique,
+    Trois lames, Dix lames ; `ninja.ombre.mode`, `cfg.botMode`) ;
     réglages `BOT.levels` (réaction 0,38 / 0,22 / 0,10 s ; parade 12 / 50 / 88 % ; punition, riposte, coup de pied,
     feinte, dash, shuriken, distance, précision, adaptation) ;
   - **graphe des appuis** (`src/game/arena/nav.js`) : les appuis (cases où l'on tient debout), les sauts qu'il sait

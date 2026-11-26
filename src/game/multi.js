@@ -251,7 +251,6 @@ export class Multi {
     if (broke) dmg += PARRY.guardBreakBonus;      // le coup de pied brise la garde
     const killing = p.hp - dmg <= 0 && p.invuln <= 0;
     if (p.hurt(dmg, m.fromX, kind)) {
-      if (m.push) p.vx = m.push;
       this.lastHit = { by: from, t: this.time, kind };
       this.onEvent?.('hurtBy', { by: from, kind, dmg, broke, killing, x: p.x, y: p.y - 16, dir: Math.sign(p.x - m.fromX) || 1, final: killing && this.wouldEnd(from) });
     }

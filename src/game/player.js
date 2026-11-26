@@ -326,6 +326,8 @@ export class Player {
         this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
         break;
       case 'hurt':
+        // (au sol, le recul glisse et ralentit : celui du coup de pied, surtout)
+        if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), 760 * dt);
         if (this.timer >= HEALTH.hurtLock && this.onGround) this.endSpecial();
         else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
@@ -725,8 +727,8 @@ export class Player {
     const away = Math.sign(this.x - fromX) || -this.facing;
     // le recul dépend du coup (combat.js : IMPACT) : franc pour un coup lourd
     const k = IMPACT[kind] ?? null;
-    this.vx = away * (k?.push || HEALTH.knockback);
-    this.vy = -(k?.lift || HEALTH.knockup);
+    this.vx = away * (k ? k.push : HEALTH.knockback);
+    this.vy = -(k ? k.lift : HEALTH.knockup);
     this.onGround = false;
     this.setState('hurt');
     return true;

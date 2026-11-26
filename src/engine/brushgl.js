@@ -264,7 +264,7 @@ export function smoothText(ctx, renderSmooth, text, x, y, opts = {}, align = 'le
   const w = c.width / c.P, h = c.height / c.P;
   const X = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
   const s = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingEnabled = c.P > 1;   // (le texte en pixels reste net)
   ctx.drawImage(c, X, y, w, h);
   ctx.imageSmoothingEnabled = s;
   return w;

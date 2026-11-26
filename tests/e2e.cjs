@@ -1837,6 +1837,31 @@ async function main() {
     } finally { await d.ctx.close(); }
   });
 
+  await test('duel : le sabre fait à peine reculer (un petit à-coup) ; le coup de pied repousse loin, au sol (un recul, pas un bond)', async () => {
+    const d = await openDuel('bot');
+    try {
+      await d.until('fight');
+      const r = await d.p.evaluate(() => {
+        const k = window.__kage, bt = k.bot, me = k.player;
+        bt.p = { ...bt.p, parry: 0, aggro: 0, throw: 0, react: 9, kick: 0 };
+        const hit = (key) => {
+          me.x = 300; bt.player.x = 322; me.y = bt.player.y = 288; me.facing = 1; bt.player.facing = -1; me.setState('idle'); bt.player.setState('idle');
+          bt.landX = null; bt.route = null; bt.jumpHold = 0; bt.player.vy = 0; bt.player.onGround = true; bt.player.invuln = 0; bt.player.hp = 5;
+          for (let i = 0; i < 2; i++) k.step(1);
+          const x0 = bt.player.x; let top = bt.player.y;
+          k.input.press(key);
+          for (let i = 0; i < 90; i++) { k.step(1); if (i === 0) k.input.release(key); top = Math.min(top, bt.player.y); }
+          return { dx: Math.round(bt.player.x - x0), rise: Math.round(288 - top), hp: bt.player.hp };
+        };
+        const sword = hit('attack');
+        for (let i = 0; i < 160; i++) k.step(1);
+        const kick = hit('kick');
+        return { sword, kick };
+      });
+      expect(r.sword.hp < 5 && r.sword.dx <= 16 && r.sword.rise <= 2 && r.kick.hp < 5 && r.kick.dx >= 40 && r.kick.rise <= 8, JSON.stringify(r));
+    } finally { await d.ctx.close(); }
+  });
+
   await test('duel : le choc des lames — deux sabres qui se rencontrent, chacun recule', async () => {
     const d = await openDuel('bot');
     try {
@@ -1912,7 +1937,7 @@ async function main() {
       const again = await d.p.evaluate(() => ({ ph: window.__kage.duel.phase, wins: [...window.__kage.multi.wins].map((w) => w[1]).join('-'), hidden: document.querySelector('.duel-end').hidden }));
       expect(open.gap < 448 && Math.abs(open.cam - open.mid) < 4 && open.lock && f1.fatal && f1.slow < 0.5 && /scale/.test(f1.zoom) && replay && card
         && decisive.dec && decisive.soir && decisive.wins === '1-1' && end.title === 'Victoire' && end.shown && end.pose === 'victory' && end.bot === 'defeat'
-        && end.titles.includes('premier_sang') && end.fights === 1 && end.hud === "Contre l'ombre · Niveau 2" && again.ph === 'intro' && again.wins === '0-0' && again.hidden,
+        && end.titles.includes('premier_sang') && end.fights === 1 && end.hud === 'Le Rōnin · Duel' && again.ph === 'intro' && again.wins === '0-0' && again.hidden,
         `ouverture ${JSON.stringify(open)}, fatal ${JSON.stringify(f1)}, revoir ${replay}, score ${card}, décisive ${JSON.stringify(decisive)}, fin ${JSON.stringify(end)}, revanche ${JSON.stringify(again)}`);
     } finally { await d.ctx.close(); }
   });
@@ -2006,7 +2031,7 @@ async function main() {
       const shown = await p.evaluate(() => ({ stats: document.querySelector('[data-arena-stats]')?.textContent, title: document.querySelector('[data-arena-title]')?.textContent }));
       await p.click('[aria-label="Titre suivant"]'); await p.waitForTimeout(300);
       const after = await p.evaluate(() => JSON.parse(localStorage.getItem('ninja.arene')));
-      expect(solo[0] && solo[1] && lvl[0] === 'Niveau 3' && lvl[1] === '3' && /4 duels · 3 victoires · 75 %/.test(shown.stats) && shown.title === 'Premier sang' && after.title === 'mur_acier' && after.seal === 'garde' && after.trail === 'acier',
+      expect(solo[0] && solo[1] && lvl[0] === 'Maître' && lvl[1] === '3' && /4 duels · 3 victoires · 75 %/.test(shown.stats) && shown.title === 'Premier sang' && after.title === 'mur_acier' && after.seal === 'garde' && after.trail === 'acier',
         `menu ${solo} ${lvl}, ${JSON.stringify(shown)}, après ${after.title}/${after.seal}`);
     } finally { await ctx.close(); }
   });
