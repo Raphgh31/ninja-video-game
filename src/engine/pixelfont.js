@@ -1,3 +1,4 @@
+import { GAME_FONT, GAME_FONT_WOFF2 } from './fontdata.js';
 // Police en pixels du jeu, dessinée à la main : tout ce qui s'écrit à l'écran
 // (titres, bannières, aides, boutique…) est tracé avec elle, un pixel de police
 // pour un pixel de jeu. Chasse variable, capitales de 5×7, bas de casse de
@@ -321,7 +322,14 @@ export function renderText(text, options = {}) {
  * en page ne bouge pas), P fois plus fin ; la lettre est centrée dans la largeur de chaque ligne, et
  * resserrée si elle est plus large. Rend une toile, avec .P.
  */
-export const SMOOTH_FONT = '"Palatino Linotype", "Book Antiqua", Palatino, "URW Palladio L", "P052", Georgia, serif';
+// la police (26 novembre 2026, choix de Raph sur les planches docs/polices/ : n° 17, Yusei Magic, un trait de
+// feutre à main levée) : embarquée dans le code (fontdata.js, tools/police_jeu.py), chargée avant tout dessin
+export const SMOOTH_FONT = `"${GAME_FONT}", "Palatino Linotype", Palatino, Georgia, serif`;
+try {
+  const face = new FontFace(GAME_FONT, `url(data:font/woff2;base64,${GAME_FONT_WOFF2})`);
+  await Promise.race([face.load(), new Promise((ok) => setTimeout(ok, 1500))]);
+  document.fonts.add(face);
+} catch { /* (sans elle, la police de secours) */ }
 export function renderSmooth(text, options = {}, P = 4) {
   const box = renderText(text, options);
   const { font: fontName = 'small', color = '#e9e5da', outline = '', maxW = 0, spacing = 0, align = 'left', leading = 0 } = options;

@@ -11,7 +11,8 @@
 //     quand une manche traîne ; un cœur qui apparaît plutôt près de celui qui perd (léger) ;
 //   - la fin : une pose de victoire, un genou à terre pour le vaincu, la revanche d'un geste.
 // Le dessin est fait dans l'image du jeu (en pixels, police du jeu) ; l'écran de fin est une page de l'interface.
-import { renderText } from '../../engine/pixelfont.js';
+import { renderText, renderSmooth } from '../../engine/pixelfont.js';
+import { brushView } from '../../engine/brushgl.js';
 import { canvas, ih } from '../potager/paint.js';
 import { MODES } from '../multi.js';
 import { HEALTH } from '../combat.js';
@@ -119,8 +120,17 @@ export class Duel {
 
   text(key, s, o) {
     let c = this.texts.get(key);
-    if (!c || c.s !== s) { c = { s, cv: renderText(s, o) }; this.texts.set(key, c); }
+    // (la police du jeu, lisse, sur le calque du duel à la finesse de l'écran ; en pixels si le jeu l'est)
+    if (!c || c.s !== s) { const cv = (brushView.on ? renderSmooth : renderText)(s, o), P = cv.P ?? 1; c = { s, cv: { img: cv, width: cv.width / P, height: cv.height / P } }; this.texts.set(key, c); }
     return c.cv;
+  }
+
+  /** Un texte (toile fine) posé à sa taille en pixels de jeu. */
+  blit(ctx, t, x, y) {
+    const s = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = t.img.P > 1;
+    ctx.drawImage(t.img, x, y, t.width, t.height);
+    ctx.imageSmoothingEnabled = s;
   }
 
   // ---- les événements du combat (multi.js) --------------------------------------------------
@@ -393,7 +403,7 @@ export class Duel {
   drawOver(ctx) {
     const v = this.view(), W = v.w, H = v.h, t = this.t;
     const bars = (k) => { const b = Math.round(DUEL.bars * k); if (b <= 0) return; ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, W, b); ctx.fillRect(0, H - b, W, b); };
-    const center = (cv, y, a = 1) => { ctx.globalAlpha = a; ctx.drawImage(cv, Math.round((W - cv.width) / 2), Math.round(y)); ctx.globalAlpha = 1; };
+    const center = (cv, y, a = 1) => { ctx.globalAlpha = a; this.blit(ctx, cv, Math.round((W - cv.width) / 2), Math.round(y)); ctx.globalAlpha = 1; };
     if (this.phase === 'intro') {
       const k = t < 0.3 ? ease(t / 0.3) : t > DUEL.intro - 0.4 ? 1 - ease((t - (DUEL.intro - 0.4)) / 0.4) : 1;
       bars(k);
@@ -436,7 +446,7 @@ export class Duel {
       // le revoir : un léger voile froid, un mot discret dans la bande du haut
       ctx.globalAlpha = 0.12; ctx.fillStyle = '#1a2a40'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
       const cv = this.text('rev', 'Revoir', { font: 'small', color: '#a8a296' });
-      ctx.drawImage(cv, 8, Math.round((DUEL.bars - cv.height) / 2));
+      this.blit(ctx, cv, 8, Math.round((DUEL.bars - cv.height) / 2));
       if (Math.floor(t * 2) % 2 === 0) { ctx.fillStyle = '#b8282e'; ctx.fillRect(4, Math.round(DUEL.bars / 2) - 1, 2, 2); }
       return;
     }
@@ -461,7 +471,7 @@ export class Duel {
       // le nom (et son sceau) à gauche du milieu, les manches gagnées à droite
       const yy = Math.round(y + i * 12), x0 = Math.round(W / 2 - 8 - cv.width);
       if (r.seal) drawSeal(ctx, r.seal, x0 - 12, yy + 1);
-      ctx.drawImage(cv, x0, yy);
+      this.blit(ctx, cv, x0, yy);
       for (let k = 0; k < Math.max(need, r.wins); k++) {
         const px = Math.round(W / 2 + 8 + k * 9), on = k < r.wins;
         ctx.fillStyle = '#14100c'; ctx.fillRect(px - 1, yy, 7, 7);

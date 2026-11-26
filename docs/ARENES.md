@@ -273,8 +273,18 @@ bons jeux de duel (Nidhogg, Samurai Gunn, TowerFall, Divekick, Smash, Street Fig
   parades, coups fatals, ennemi juré. **Neuf titres** gagnés par des exploits ; chacun donne un **sceau d'encre**
   (à côté du nom, au-dessus de la tête, au score) et une **couleur de lame** (`TRAILS`) — rien qui change le combat.
 - **Le ninja de l'ombre** (`src/game/arena/bot.js`, menu Arène « Contre l'ombre ») : un vrai KAGE aux commandes
-  virtuelles, par le même chemin qu'un adversaire en ligne (`src/engine/localnet.js`). Trois niveaux ; il monte d'un
-  cran quand on le bat (`botRank`). Il ne se noie pas (sauts visés vers un appui, il garde sa rive devant le bassin).
+  virtuelles, par le même chemin qu'un adversaire en ligne (`src/engine/localnet.js`). **Refait le 26 novembre 2026**
+  (retour de Raph : mouvements incohérents, bloqué contre les obstacles) :
+  - **niveau 1, 2 ou 3**, choisi au menu (« ← Niveau 2 → », barre de trois crans ; `ninja.ombre`, `cfg.level`) ;
+    réglages `BOT.levels` (réaction 0,38 / 0,22 / 0,10 s ; parade 12 / 50 / 88 % ; punition, riposte, coup de pied,
+    feinte, dash, shuriken, distance, précision, adaptation) ;
+  - **graphe des appuis** (`src/game/arena/nav.js`) : les appuis (cases où l'on tient debout), les sauts qu'il sait
+    réussir (vraie physique du saut, plafonds vérifiés), les chutes, les glissades sous un passage bas ; Dijkstra ;
+    refait toutes les 2 s (le bassin, les échafaudages) ; jamais un saut vers l'eau ou le vide ;
+  - **perception** avec un temps de réaction (il voit les gestes passés, jamais les touches) et un **plan** tenu un
+    moment (garder la distance, entrer, punir, feinter, reculer, lancer) ; dos à l'eau il ne recule plus ; il ne saute
+    pas se poser sous un sabre ; pas de dash ni de coup de sabre qui le jetterait à l'eau ;
+  - mesuré par des **matchs entre niveaux** (`brain()` : un cerveau mène le joueur) : le 3 bat le 2, le 2 bat le 1.
 - **Le Dojo** (menu Arène) : l'ombre à quatre pas frappe à un rythme régulier ; on n'y meurt pas ; le bandeau compte
   les parades et les ripostes.
 

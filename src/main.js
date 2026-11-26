@@ -35,7 +35,7 @@ import { Net, randomCode, cleanCode } from './engine/net.js';
 import { Multi, SLOT_COLORS, MODES } from './game/multi.js';
 import { Lobby } from './game/arena/lobby.js';
 import { Duel } from './game/arena/duel.js';
-import { ShadowBot, BOT } from './game/arena/bot.js';
+import { ShadowBot, BOT, brain } from './game/arena/bot.js';
 import { ArenaStats } from './game/arena/stats.js';
 import { localPair } from './engine/localnet.js';
 import { Menu } from './game/menu.js';
@@ -190,7 +190,8 @@ function fit() {
   bgCanvas.style.width = canvas.style.width;
   bgCanvas.style.height = canvas.style.height;
   lights.resize(VIEW_W, VIEW_H, canvas.style.width, canvas.style.height);
-  if (duelCanvas.width !== VIEW_W || duelCanvas.height !== VIEW_H) { duelCanvas.width = VIEW_W; duelCanvas.height = VIEW_H; }
+  // (à la finesse de l'écran, comme le paysage : les textes du duel y sont lisses)
+  if (duelCanvas.width !== VIEW_W * bgK || duelCanvas.height !== VIEW_H * bgK) { duelCanvas.width = VIEW_W * bgK; duelCanvas.height = VIEW_H * bgK; }
   duelCanvas.style.width = canvas.style.width;
   duelCanvas.style.height = canvas.style.height;
   // taille de l'image de jeu, pour placer l'interface du chapitre sur elle (et non sur la page)
@@ -784,7 +785,8 @@ function startRoom(cfg) {
     }));
   };
   const dojoLine = () => say(`Parades ${dojoCount.parries} · Ripostes ${dojoCount.ripostes}`, true);
-  const rank = () => Math.max(0, Math.min(2, arenaStats?.s.botRank ?? 1));
+  // le niveau de l'ombre (1 à 3) : choisi au menu Arène (la barre de trois crans), gardé d'une partie à l'autre
+  const rank = () => Math.max(0, Math.min(2, (cfg.level ?? (Number(localStorage.getItem('ninja.ombre')) || 2)) - 1));
   run.paused = true;                       // le salon d'abord : le combat attend que l'hôte le lance
   setCloseUp(false);                       // (le salon à l'échelle des menus)
   net.onStatus = (st, detail) => {
@@ -831,7 +833,7 @@ function startRoom(cfg) {
         lobby?.hide();
         setCloseUp(true);
         hud.hidden = false;
-        setText(codeEl, solo ? (dojo ? 'Dojo' : `Contre l'ombre · ${BOT.levels[rank()].name}`) : `${MODES[d.mode].name} · ${net.code}`);
+        setText(codeEl, solo ? (dojo ? 'Dojo' : `Contre l'ombre · Niveau ${rank() + 1}`) : `${MODES[d.mode].name} · ${net.code}`);
         showList();
         if (dojo) dojoLine();
         run.paused = false;
@@ -846,7 +848,6 @@ function startRoom(cfg) {
       } else if (n === 'out') { if (net.roster.length > 2) say('Éliminé : tu regardes la fin de la manche', true); }
       else if (n === 'end') {
         showList();
-        if (solo && !dojo && arenaStats) { arenaStats.s.botRank = Math.max(0, Math.min(2, rank() + (d.mine ? 1 : -1))); arenaStats.add('botMatches', 0); }
         duel.end(d);
       } else if (n === 'strike') { fx.sparks(d.x, d.y, 6, { palette: 'hit', dir: d.dir }); duel.strike(d); }
       else if (n === 'hurtBy') duel.hurt(d);
@@ -857,7 +858,7 @@ function startRoom(cfg) {
       else if (n === 'again') {
         duel.again(d);
         // (contre l'ombre : elle accepte toujours la revanche, à son nouveau niveau)
-        if (solo && d.id === net.id) setTimeout(() => { if (bot) { bot.setRank(rank()); bot.multi.askAgain(); } }, 400);
+        if (solo && d.id === net.id) setTimeout(() => bot?.multi.askAgain(), 400);
       }
     },
   });
@@ -878,6 +879,8 @@ function startRoom(cfg) {
       const sp = level.arena.def.duelSpawns?.[0] ?? level.arena.def.spawns[0];
       bot.multi.placeAtStart = () => { bot.player.spawnAt = { x: sp.x - 4 * TILE, y: sp.y }; };
       bot.multi.custom = sp.x; multi.custom = sp.x - 4 * TILE;     // (chacun face à l'autre)
+      // au Dojo, un coup ne tue jamais (il laisse au moins un point de vie ; la vie revient ensuite)
+      for (const f of [player, bot.player]) { const hurt = f.hurt.bind(f); f.hurt = (d, x, k) => hurt(Math.min(d, Math.max(0, f.hp - 1)), x, k); }
     }
     net.start();
     botNet.start();
@@ -1543,7 +1546,8 @@ function drawDuelLayer() {
   document.querySelector('.salle')?.classList.toggle('duel-hide', on);   // (le cadre de la salle s'efface pendant ces moments)
   if (!on && !duelCanvas.dirty) return;
   duelCtx.setTransform(1, 0, 0, 1, 0, 0);
-  duelCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+  duelCtx.clearRect(0, 0, duelCanvas.width, duelCanvas.height);
+  duelCtx.setTransform(bgK, 0, 0, bgK, 0, 0);
   duelCtx.imageSmoothingEnabled = false;
   duelCanvas.dirty = on;
   if (on) duel.drawOver(duelCtx);
@@ -2009,7 +2013,10 @@ if (CHAPTER) {
     chapters: Object.fromEntries(Object.values(LEVELS).filter((l) => l.chapter && !l.arena).map((l) => [l.chapter, (l.name ?? '').split('— ')[1] ?? l.name])),
     createArena(id) { go({ mode: 'host', code: randomCode(), arena: id }); },
     joinArena(code) { go({ mode: 'join', code }); },
-    vsBot(id) { go({ mode: 'bot', arena: id }); },
+    vsBot(id, lv) { go({ mode: 'bot', arena: id, level: lv }); },
+    // le niveau de l'ombre (1 à 3), gardé d'une partie à l'autre
+    botLevel() { const v = Number(localStorage.getItem('ninja.ombre')); return v >= 1 && v <= 3 ? v : 2; },
+    setBotLevel(v) { try { localStorage.setItem('ninja.ombre', String(v)); } catch { /* rien */ } },
     dojo(id) { go({ mode: 'dojo', arena: id }); },
     setBackdrop(on) { if (intro) intro.menuMode = on; },
     // sans l'intro (retour de l'arène…), les écrans peignent eux-mêmes la nuit des montagnes
@@ -2231,7 +2238,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 }));
 
 // Accès pour les tests automatisés.
-window.__kage = { get multi() { return multi; }, get duel() { return duel; }, get bot() { return bot; }, arenaStats, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
+window.__kage = { brain, get multi() { return multi; }, get duel() { return duel; }, get bot() { return bot; }, arenaStats, cycle, perf, lights, pads, openPause, closePause, music, player, input, level, shurikens, mist, touch, tate: tates[0], tates, wara: waras[0], waras, boss, fx, run, camera, view: () => ({ w: VIEW_W, h: VIEW_H }), get save() { return save; }, get skin() { return look.id; }, skins, get intro() { return intro; },
   /** Tests : fait avancer le jeu de n pas de 1/120 s, d'un coup (le temps réel est alors suspendu). */
   step(n = 1) { manual = true; for (let i = 0; i < n; i++) update(STEP); },
   resume() { manual = false; },

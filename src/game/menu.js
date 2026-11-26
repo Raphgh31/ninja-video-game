@@ -495,9 +495,13 @@ export class Menu {
   // Arène : le gong
   // =================================================================================================
   build_arene() {
+    // (26 novembre 2026, demande de Raph : plus d'air, plus clair) trois colonnes sous le gong — à gauche, à
+    // plusieurs (Accueillir, Rejoindre) ; au milieu, l'arène (← nom →), pour tous les choix ; à droite, seul
+    // (Contre l'ombre et son niveau, 1 à 3, une petite barre de trois crans ; le Dojo). Une ligne tous les 18 px.
     const s = this.scene('Arène');
     const { W, H } = s;
-    const g0 = H - 56, r = H < 236 ? 24 : 30, cy = g0 - r - 38;
+    const short = H < 236, g0 = H - (short ? 66 : 74), r = short ? 22 : 28, cy = g0 - r - (short ? 30 : 36);
+    const row = (k) => g0 + 10 + k * (short ? 16 : 18);
     const list = this.arenas ?? [];
     let pick = Math.max(0, list.findIndex((a) => a.id === this.arenaPick));
     const paintBase = () => {
@@ -508,16 +512,22 @@ export class Menu {
     };
     paintBase();
     let ring = -1, leaving = false;
-    const create = this.act(s, 'Accueillir', Math.round(W * 0.25), g0 + 10, () => {
+    const go = (fn) => () => {
       if (leaving) return;
       leaving = true; ring = 0;
       sfx('gong');
       s.classList.add('m-go');
-      setTimeout(() => this.createArena(list[pick]?.id), 650);
-    }, { align: 'center', stroke: true, cls: 'm-main' });
+      setTimeout(() => fn(list[pick]?.id), 650);
+    };
+    // à plusieurs
+    const L = Math.round(W * 0.17), M = Math.round(W / 2), R = Math.round(W * 0.83);
+    const create = this.act(s, 'Accueillir', L, row(0), go((id) => this.createArena(id)), { align: 'center', stroke: true, cls: 'm-main' });
     create.dataset.create = ''; create.dataset.first = '';
+    const join = this.act(s, 'Rejoindre', L, row(1), () => this.open('rejoindre'), { align: 'center', stroke: true });
+    join.dataset.joinScreen = '';
+    // l'arène
     if (list.length > 1) {
-      const y = g0 + 26, cx = Math.round(W * 0.25);
+      const y = row(0), cx = M;
       const name = this.text(s, list[pick].name, cx, y, { align: 'center', cls: 'm-soft' });
       name.dataset.arenaName = '';
       const turn = (d) => {
@@ -535,19 +545,22 @@ export class Menu {
       prev.setAttribute('aria-label', 'Arène précédente'); next.setAttribute('aria-label', 'Arène suivante');
       prev.dataset.arenaPrev = ''; next.dataset.arenaNext = '';
     }
-    const join = this.act(s, 'Rejoindre', Math.round(W * 0.75), g0 + 10, () => this.open('rejoindre'), { align: 'center', stroke: true });
-    join.dataset.joinScreen = '';
-    // seul : contre le ninja de l'ombre (l'ordinateur), ou au Dojo (parer, riposter) — dans l'arène choisie
-    const solo = (fn) => () => {
-      if (leaving) return;
-      leaving = true; ring = 0;
-      sfx('gong');
-      s.classList.add('m-go');
-      setTimeout(() => fn(list[pick]?.id), 650);
-    };
-    const shadow = this.act(s, "Contre l'ombre", Math.round(W * 0.75), g0 + 25, solo((id) => this.vsBot?.(id)), { align: 'center', stroke: true });
+    // seul : contre le ninja de l'ombre (l'ordinateur), à son niveau, ou au Dojo
+    let level = this.botLevel?.() ?? 2;
+    const shadow = this.act(s, "Contre l'ombre", R, row(0), go((id) => this.vsBot?.(id, level)), { align: 'center', stroke: true });
     shadow.dataset.vsBot = '';
-    const dojo = this.act(s, 'Dojo', Math.round(W * 0.75), g0 + 38, solo((id) => this.dojo?.(id)), { align: 'center', stroke: true });
+    const ly = row(1), lx = R - 6, lvl = this.text(s, `Niveau ${level}`, lx, ly, { align: 'center', cls: 'm-soft' });
+    lvl.dataset.botLevel = '';
+    const setLevel = (d) => {
+      level = Math.max(1, Math.min(3, level + d));
+      this.setBotLevel?.(level);
+      this.swap(lvl, `Niveau ${level}`, lx, ly, 'center');
+    };
+    const lPrev = this.act(s, '←', lx - 32, ly, () => setLevel(-1), { align: 'center', cls: 'm-arrow' });
+    const lNext = this.act(s, '→', lx + 46, ly, () => setLevel(1), { align: 'center', cls: 'm-arrow' });
+    lPrev.setAttribute('aria-label', 'Niveau plus facile'); lNext.setAttribute('aria-label', 'Niveau plus fort');
+    lPrev.dataset.levelDown = ''; lNext.dataset.levelUp = '';
+    const dojo = this.act(s, 'Dojo', R, row(2), go((id) => this.dojo?.(id)), { align: 'center', stroke: true });
     dojo.dataset.dojo = '';
     s.paint = (g, t, dt) => {
       if (s.old) {
@@ -556,6 +569,12 @@ export class Menu {
         else { g.globalAlpha = 1 - k; g.drawImage(s.old.c, 0, 0); g.globalAlpha = 1; }
       }
       if (ring >= 0) { ring += dt; drawGongRing(g, s.gong, ring); }
+      // la barre du niveau : trois crans qui montent, allumés jusqu'au niveau choisi
+      for (let i = 0; i < 3; i++) {
+        const x = lx + 22 + i * 4, h = 2 + i * 2, y = ly + 10 - h;
+        g.fillStyle = i < level ? (level === 3 ? '#e0805a' : '#e8b25a') : '#2c3446';
+        g.fillRect(x, y, 3, h);
+      }
     };
     return s;
   }

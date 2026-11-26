@@ -12,7 +12,7 @@
 // sont partagés ; le bassin de la Forêt suit l'horloge du combat (remise à zéro au départ, chez tous) ;
 // les bonus, c'est l'hôte qui les décide. Le duel (manches, fin, revanche) : l'hôte l'arbitre.
 import { crispSheet, NINJA_DEFAULT } from '../engine/netsprite.js';
-import { renderText } from '../engine/pixelfont.js';
+import { renderText, renderSmooth } from '../engine/pixelfont.js';
 import { drawWhiteFrame } from '../engine/silhouette.js';
 import { Shurikens } from './shuriken.js';
 import { HEALTH, IMPACT, PARRY } from './combat.js';
@@ -579,12 +579,13 @@ export class Multi {
       }
       if (r.state === 'death' || this.hideTags) continue;
       // son nom au-dessus de la tête, et sa couleur de place
-      if (!r.tag || r.tag.name !== r.name) r.tag = { name: r.name, cv: renderText(r.name, { font: 'small', color: '#f4efe2', outline: '#1a1410' }) };
-      const tw = r.tag.cv.width, ty = y - 44 - r.tag.cv.height;
-      ctx.drawImage(r.tag.cv, x - Math.round(tw / 2), ty);
+      // (la police du jeu, lisse quand le jeu l'est : la toile du jeu est alors à la finesse de l'écran)
+      if (!r.tag || r.tag.name !== r.name) { const cv = (this.painted ? renderSmooth : renderText)(r.name, { font: 'small', color: '#f4efe2', outline: '#1a1410' }), P = cv.P ?? 1; r.tag = { name: r.name, cv, w: cv.width / P, h: cv.height / P }; }
+      const tw = r.tag.w, ty = y - 44 - r.tag.h;
+      { const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = r.tag.cv.P > 1; ctx.drawImage(r.tag.cv, x - Math.round(tw / 2), ty, tw, r.tag.h); ctx.imageSmoothingEnabled = sm; }
       if (r.seal) drawSeal(ctx, r.seal, x - Math.round(tw / 2) - 10, ty + 1);   // son sceau d'encre (titre d'arène)
       ctx.fillStyle = SLOT_COLORS[r.slot % 4];
-      ctx.fillRect(x - 1, ty + r.tag.cv.height + 1, 3, 2);
+      ctx.fillRect(x - 1, ty + r.tag.h + 1, 3, 2);
       // sa vie : cinq petits traits
       for (let i = 0; i < HEALTH.max; i++) { ctx.fillStyle = i < r.hp ? '#d23c3c' : 'rgba(30, 20, 20, 0.5)'; ctx.fillRect(x - 7 + i * 3, ty - 4, 2, 2); }
     }
