@@ -254,6 +254,52 @@ const SOUNDS = {
     noise({ dur: 0.11, vol: 0.14 * k, type: 'lowpass', f: 750, to: 200, attack: 0.002 });
     tone({ f: heavy ? 120 : 150, to: 55, dur: 0.12, type: 'sine', vol: 0.1 * k, attack: 0.002 });
   },
+  // ---- le duel (mode Arène) : chaque son en couches (le claquement, l'impact dans le corps, la traîne) ----
+  // le coup qui porte : le claquement de la lame, puis un coup sourd dans le corps (plus lourd selon le coup)
+  impact: ({ k = 1 } = {}) => {
+    tone({ f: 95 * (1.1 - 0.15 * k), to: 42, dur: 0.14 + 0.05 * k, type: 'sine', vol: 0.12 * k, attack: 0.002 });
+    noise({ dur: 0.07 + 0.04 * k, vol: 0.1 * k, type: 'lowpass', f: 420, to: 140, attack: 0.002 });
+  },
+  // la parade réussie : un tintement clair, sec, puis l'acier qui chante longtemps
+  parry: () => {
+    noise({ dur: 0.025, vol: 0.2, type: 'highpass', f: 4200, attack: 0.001 });
+    ring({ f: 3300, vol: 0.06, dur: 0.55 });
+    ring({ f: 1650, vol: 0.03, dur: 0.4, delay: 0.01 });
+    tone({ f: 180, to: 90, dur: 0.08, type: 'sine', vol: 0.06 });
+  },
+  // lever la garde : l'acier qui glisse hors du fourreau, court
+  guard: () => {
+    air({ dur: 0.12, vol: 0.05, q: 2.5, f: [[0, 5200], [1, 3000]], g: [[0, 0], [0.2, 1], [1, 0]] });
+    tone({ f: 2900, dur: 0.05, type: 'sine', vol: 0.012, delay: 0.05 });
+  },
+  // le choc des lames : deux aciers qui se heurtent, un « tching » qui tremble
+  clash: () => {
+    noise({ dur: 0.04, vol: 0.22, type: 'highpass', f: 3600, attack: 0.001 });
+    ring({ f: 2450, vol: 0.06, dur: 0.6 });
+    ring({ f: 2600, vol: 0.045, dur: 0.5, delay: 0.004 });
+    noise({ dur: 0.12, vol: 0.08, type: 'bandpass', f: 1600, q: 2 });
+  },
+  // déséquilibré : le tissu qui claque, le pied qui glisse
+  stagger: () => {
+    air({ dur: 0.2, vol: 0.06, q: 0.8, f: [[0, 900], [1, 380]], g: [[0, 0], [0.2, 1], [1, 0]] });
+    noise({ dur: 0.12, vol: 0.05, f: 2400, q: 3, delay: 0.1 });
+  },
+  // le coup fatal : la lame qui siffle, puis un grand coup sourd qui résonne
+  fatal: () => {
+    air({ dur: 0.45, vol: 0.09, q: 1.5, f: [[0, 600], [0.7, 4200], [1, 5200]], g: [[0, 0], [0.8, 1], [1, 0]] });
+    tone({ f: 70, to: 30, dur: 1.1, type: 'sine', vol: 0.18, attack: 0.005, delay: 0.4 });
+    noise({ dur: 0.5, vol: 0.12, type: 'lowpass', f: 380, to: 90, delay: 0.4 });
+    ring({ f: 1900, vol: 0.04, dur: 1.2, delay: 0.42 });
+  },
+  // la manche décisive : un battement de cœur (deux coups sourds)
+  heartbeat: () => {
+    tone({ f: 58, to: 40, dur: 0.12, type: 'sine', vol: 0.12, attack: 0.004 });
+    tone({ f: 52, to: 36, dur: 0.14, type: 'sine', vol: 0.09, attack: 0.004, delay: 0.2 });
+  },
+  // le vent de l'ouverture du duel (face à face)
+  duelWind: () => air({ dur: 1.6, vol: 0.05, q: 0.6, f: [[0, 500], [0.5, 900], [1, 400]], g: [[0, 0], [0.4, 1], [1, 0]] }),
+  // la fin d'une manche : un roulement grave
+  roundEnd: () => { tone({ f: 110, to: 55, dur: 0.9, type: 'triangle', vol: 0.06, attack: 0.02 }); noise({ dur: 0.6, vol: 0.05, type: 'lowpass', f: 300 }); },
   hit: () => {
     noise({ dur: 0.1, vol: 0.22, type: 'lowpass', f: 1000 });
     tone({ f: 150, to: 60, dur: 0.12, vol: 0.1 });

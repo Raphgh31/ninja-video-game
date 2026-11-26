@@ -27,7 +27,7 @@ export class Lobby {
   constructor(root, deps) {
     Object.assign(this, deps);
     this.root = root;
-    this.mode = 'souffle';
+    this.mode = 'duel';
     this.status = '';
     this.art = new NinjaArt(this.meta, this.skins);
     this.el = el('section', 'm-screen m-lant solid');
@@ -228,8 +228,8 @@ export class Lobby {
       if (tag) this.text(tag, S.cx, g0 + 17, 'm-warm', 'center');
     }
     // les modes, sur une ligne ; la règle du mode choisi, dessous, une seule fois
-    const xs = [0.26, 0.46, 0.62];
-    Object.entries(MODES).forEach(([id, m], i) => {
+    const xs = [0.2, 0.34, 0.5, 0.64];   // (Duel, Souffle unique, Trois lames, Dix lames)
+    Object.entries(MODES).filter(([, m]) => !m.hidden).forEach(([id, m], i) => {
       const b = this.act('', Math.round(W * xs[i]), g0 + 36, () => { this.mode = id; net.send({ t: 'mode', mode: id }); this.render(); },
         { align: 'center', cls: `m-mode${id === this.mode ? ' m-on' : ''}`, stroke: host, tag: host ? 'button' : 'div' });
       b.dataset.mode = id;

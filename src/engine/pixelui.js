@@ -50,7 +50,7 @@ function paint(el) {
   const px = renderText(shown, opts);
   let cv = px;
   if (brushText) cv = renderSmooth(shown, opts);   // (style peint : une écriture lisse, élégante)
-  cv.className = cv !== px ? 'pxt brush' : 'pxt';
+  cv.className = (cv.P ?? 1) > 1 ? 'pxt brush' : 'pxt';
   cv.setAttribute('aria-hidden', 'true');
   cv.style.setProperty('--pw', cv.width / (cv.P ?? 1));
   cv.style.setProperty('--ph', cv.height / (cv.P ?? 1));

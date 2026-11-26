@@ -1,8 +1,9 @@
 // KAGE : physique de plateforme + machine d'états reliée aux animations.
 import { Animator } from '../engine/sprites.js';
+import { drawWhite } from '../engine/silhouette.js';
 import { TILE } from './level.js';
 import { ENERGY, Energy } from './energy.js';
-import { DAMAGE_TAKEN, HEALTH } from './combat.js';
+import { DAMAGE_TAKEN, HEALTH, IMPACT, PARRY } from './combat.js';
 
 const P = {
   run: 96,           // px/s (course normale)
@@ -59,7 +60,7 @@ export class Player {
   }
 
   respawn(instant = false) {
-    const s = this.level.spawn;
+    const s = this.spawnAt ?? this.level.spawn;   // (arène : chaque combattant a son point, multi.js)
     this.x = s.x;
     this.y = s.y;       // y = sous les pieds (point d'ancrage du sprite)
     this.vx = 0;
@@ -252,6 +253,9 @@ export class Player {
     this.wallCoyote = Math.max(0, this.wallCoyote - dt);
     this.throwCd = Math.max(0, this.throwCd - dt);
     this.kickCd = Math.max(0, (this.kickCd ?? 0) - dt);
+    this.parryCd = Math.max(0, (this.parryCd ?? 0) - dt);
+    this.riposteT = Math.max(0, (this.riposteT ?? 0) - dt);
+    this.flashT = Math.max(0, (this.flashT ?? 0) - dt);
     this.vineCd = Math.max(0, this.vineCd - dt);
     this.fastTimer = Math.max(0, this.fastTimer - dt);
     this.fxTimer += dt;
@@ -262,7 +266,7 @@ export class Player {
 
     switch (this.state) {
       case 'death':
-        if (this.anim.finished && this.timer > P.deathPause + 0.43) this.respawn();
+        if (this.anim.finished && this.timer > P.deathPause + 0.43 && !this.holdDeath) this.respawn();   // (duel : une vie par manche, il reste à terre)
         this.anim.update(dt);
         return;
       case 'respawn':
@@ -297,7 +301,33 @@ export class Player {
           }
         }
         break;
+      // ---- le duel (mode Arène) ----
+      case 'parry':
+        // la garde levée : on se plante sur ses appuis (en l'air, on garde son élan) ; la fenêtre de la
+        // parade, ce sont les trois premières images ; la dernière (relâche) laisse à découvert
+        if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
+        if (this.anim.finished) this.endSpecial();
+        break;
+      case 'parry_hit':
+        // la parade a réussi (ou les lames se sont choquées) : on recule d'un pas ; dès la seconde
+        // image, la riposte est prête : un coup de sabre part tout de suite
+        this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * 0.6 * dt);
+        if (this.anim.frame >= 1 && input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) { this.startSword(); break; }
+        if (this.anim.finished) this.endSpecial();
+        break;
+      case 'stagger':
+        // déséquilibré : aucune commande tant qu'il n'a pas retrouvé ses appuis
+        this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * 0.5 * dt);
+        if (this.anim.finished) this.endSpecial();
+        break;
+      case 'victory':
+      case 'defeat':
+        // la fin du duel : il tient la pose (le duel le libère)
+        this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.friction * dt);
+        break;
       case 'hurt':
+        // (au sol, le recul glisse et ralentit : celui du coup de pied, surtout)
+        if (this.onGround) this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), 760 * dt);
         if (this.timer >= HEALTH.hurtLock && this.onGround) this.endSpecial();
         else if (this.timer >= HEALTH.hurtLock * 2) this.setState('fall');
         break;
@@ -479,12 +509,14 @@ export class Player {
           break;
         }
         if (input.wasPressed('attack') && this.energy.trySpend(ENERGY.attack)) {
-          this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
-          // en l'air juste après un salto (ou pendant) : le coup du salto, le plus puissant
-          const power = !this.onGround && this.flipDone;
-          this.flipDone = false;
-          this.emit(this.onGround ? 'swing' : power ? 'swing_power' : 'swing_heavy');
-          this.setState(this.onGround ? 'attack' : power ? 'flip_attack' : 'air_attack');
+          this.startSword();
+          break;
+        }
+        // la parade (mode Arène) : lever la garde
+        if (input.wasPressed('parry') && this.canParry && this.parryCd <= 0 && this.energy.trySpend(ENERGY.parry)) {
+          this.parryCd = PARRY.cooldown;
+          this.emit('parry', { air: !this.onGround });
+          this.setState('parry');
           break;
         }
         if (input.wasPressed('kick') && this.kickCd <= 0 && this.energy.trySpend(ENERGY.kick)) {
@@ -617,6 +649,62 @@ export class Player {
     }
   }
 
+  /** Un coup de sabre part (au sol, en l'air, ou le coup du salto juste après un salto). */
+  startSword() {
+    this.attackId = (this.attackId ?? 0) + 1;   // un coup = une seule touche par ennemi
+    // en l'air juste après un salto (ou pendant) : le coup du salto, le plus puissant
+    const power = !this.onGround && this.flipDone;
+    this.flipDone = false;
+    // juste après une parade réussie : c'est une riposte (main.js lui donne +1 et un coup plus lourd)
+    this.riposte = this.riposteT > 0;
+    this.riposteT = 0;
+    this.emit(this.onGround ? 'swing' : power ? 'swing_power' : 'swing_heavy', { riposte: this.riposte });
+    this.setState(this.onGround ? 'attack' : power ? 'flip_attack' : 'air_attack');
+  }
+
+  // ---- le duel (mode Arène) : parade, déséquilibre, choc des lames --------------------
+  /** La garde est-elle levée (fenêtre de la parade) ? */
+  isParrying() {
+    return this.state === 'parry' && this.anim.frame < PARRY.window;
+  }
+
+  /** La garde fait-elle face à un coup venu de fromX (ou de dos : un coup dans le dos passe) ? */
+  guards(fromX) {
+    return this.isParrying() && (Math.abs(fromX - this.x) < 6 || Math.sign(fromX - this.x) === this.facing);
+  }
+
+  /** La parade a réussi : la lame encaisse, la riposte est prête, un peu d'énergie revient. */
+  parried(fromX) {
+    if (Math.abs(fromX - this.x) >= 6) this.facing = Math.sign(fromX - this.x);
+    this.vx = -this.facing * 60;
+    this.riposteT = PARRY.riposte;
+    this.energy.gain(ENERGY.parryGain);
+    this.parryCd = 0;
+    this.emit('parry_ok', { x: this.x + this.facing * 8, y: this.y - 20, dir: this.facing });
+    this.setState('parry_hit');
+  }
+
+  /** Déséquilibré (son coup a été paré, ou sa garde brisée) : rejeté loin de fromX. */
+  stagger(fromX, push = PARRY.staggerPush) {
+    if (this.state === 'death' || this.state === 'respawn') return;
+    const away = Math.sign(this.x - fromX) || -this.facing;
+    this.facing = -away;
+    this.vx = away * push;
+    this.riposteT = 0;
+    this.emit('stagger', { x: this.x, y: this.y - 16 });
+    this.setState('stagger');
+  }
+
+  /** Les deux lames se sont choquées : chacun recule, la lame vibre (on peut riposter aussitôt). */
+  clash(fromX) {
+    if (this.state === 'death' || this.state === 'respawn') return;
+    const away = Math.sign(this.x - fromX) || -this.facing;
+    this.facing = -away;
+    this.vx = away * PARRY.clashPush;
+    this.emit('clash', { x: (this.x + fromX) / 2, y: this.y - 20 });
+    this.setState('parry_hit');
+  }
+
   endSpecial() {
     this.setState(this.onGround ? (Math.abs(this.vx) > 10 ? 'run' : 'idle') : 'fall');
   }
@@ -625,19 +713,22 @@ export class Player {
    * KAGE est touché : perd `dmg` points de vie, recule à l'opposé de `fromX`,
    * clignote et devient invincible un instant. Renvoie true si le coup a porté.
    */
-  hurt(dmg, fromX) {
-    if (this.invuln > 0 || this.state === 'death' || this.state === 'respawn') return false;
+  hurt(dmg, fromX, kind = null) {
+    if (this.invuln > 0 || this.state === 'death' || this.state === 'respawn' || this.state === 'victory' || this.state === 'defeat') return false;
     this.hp = Math.max(0, this.hp - dmg);
+    this.flashT = IMPACT.flash;            // l'éclair blanc (dessin) : la victime brille un instant
     this.onHurt?.(dmg);
-    this.emit('hurt', { dmg, fromX });
+    this.emit('hurt', { dmg, fromX, kind });
     if (this.hp <= 0) {
       this.die();
       return true;
     }
     this.invuln = HEALTH.invulnerable;
     const away = Math.sign(this.x - fromX) || -this.facing;
-    this.vx = away * HEALTH.knockback;
-    this.vy = -HEALTH.knockup;
+    // le recul dépend du coup (combat.js : IMPACT) : franc pour un coup lourd
+    const k = IMPACT[kind] ?? null;
+    this.vx = away * (k ? k.push : HEALTH.knockback);
+    this.vy = -(k ? k.lift : HEALTH.knockup);
     this.onGround = false;
     this.setState('hurt');
     return true;
@@ -753,6 +844,8 @@ export class Player {
   }
 
   draw(ctx, sheet, cam) {
+    // l'éclair blanc du coup reçu passe avant le clignotement
+    if (this.flashT > 0) { drawWhite(ctx, sheet, this.anim, this.x - Math.round(cam.x), this.y - Math.round(cam.y), this.facing); return; }
     if (this.invuln > 0 && Math.floor(this.invuln * 16) % 2 === 0) return;   // clignote
     this.anim.draw(ctx, sheet, this.x - Math.round(cam.x), this.y - Math.round(cam.y), this.facing);
   }

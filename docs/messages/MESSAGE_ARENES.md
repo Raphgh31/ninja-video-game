@@ -85,16 +85,17 @@ Commence par `npm install`, `npm run sprites` et `npm test` pour connaître l'é
 - **une arène par chapitre**, dans le style du chapitre ;
 - l'arène du Potager est faite (« la rizière du gong ») : deux fois la largeur de l'image, trois étages, un canal mortel au centre, une grue et son rocher ficelé, un gong qui lâche une vague, des échafaudages qui s'effondrent sous le rocher, du foin, des caisses, des cœurs ;
 - on joue jusqu'à quatre (PeerJS : l'hôte accueille et relaie), dans un salon plein écran (code, mode, quatre places). L'hôte lance ; un mort donne un point à l'autre ;
-- modes : **Souffle unique**, **Trois lames**, **Dix lames** (`MODES` dans `src/game/multi.js`) ;
+- modes : **Duel** (deux manches gagnantes), **Souffle unique**, **Trois lames**, **Dix lames** (`MODES` dans `src/game/multi.js`) ;
+- **le duel** (25 novembre 2026, `docs/ARENES.md` § 8) : parade (F/G, L1/R1, bouton tactile), riposte, choc des lames, shuriken renvoyé ; ouverture face à face, coup fatal (ralenti, zoom, trait d'encre), revoir, manche décisive, brume d'encre, poses de fin, revanche ; le ninja de l'ombre (« Contre l'ombre », niveau 1, 2 ou 3 au menu ; refait le 26 novembre 2026 : graphe des appuis `nav.js`, temps de réaction, plans de combat ; `brain()` pour faire se battre deux niveaux) et le Dojo ; statistiques et titres dans « Mon ninja » ;
+- **la police du jeu** : Yusei Magic (choisie par Raph, `docs/polices/`), embarquée (`tools/police_jeu.py`) ;
 - **sur téléphone, en combat, l'image est un cran plus proche**, et la caméra n'a que deux hauteurs : en bas, et en haut, une montée légère d'un seul mouvement. **Jamais de suivi vertical continu** ;
 - tout piège nouveau doit être **partagé en réseau** (`hookArena` dans `multi.js`) et testé (`tests/e2e.cjs`, combat à deux en transport local `?net=local`) ;
 - **propose-moi les éléments d'une arène avant de la construire** : j'ai validé puis corrigé chaque élément de la première. Pas d'objets étrangers au monde du jeu, rien qui flotte, chaque plateforme atteignable par un vrai saut ;
 - le service PeerJS n'est pas joignable depuis ton environnement : seul le transport local s'y teste.
 
 **Ce qui attend** :
-- **l'arène de la Forêt** (chapitre 2), à proposer d'abord ;
-- le choix de l'arène dans le salon quand il y en aura plusieurs ;
-- plus tard : des adversaires pilotés par l'ordinateur, les statistiques d'arène dans « Mon ninja » (combats, victoires, titres) ;
-- les retouches que je te demanderai sur l'arène du Potager.
+- les retouches que je te demanderai sur le duel (essais : version de test, « Contre l'ombre » et « Dojo ») ;
+- l'arène du chapitre 3 quand il existera ;
+- plus tard : un relais réseau (TURN) pour les réseaux qui refusent les connexions directes ; un vrai « rollback » si le jeu en ligne devient compétitif.
 
 Dis-moi quand tu as lu et compris, en quelques lignes, puis attends ma première demande.

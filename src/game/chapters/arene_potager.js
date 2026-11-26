@@ -92,6 +92,8 @@ function build() {
     arena: {
       // caméra : elle suit KAGE en largeur, sans sortir de l'arène ; le sol en bas de l'image
       center: (C0 + CW / 2) * TILE, ground: G * TILE, walls: [L, R],
+      // le duel (deux combattants) : face à face, assez près pour tenir ensemble dans l'image à l'ouverture
+      duelSpawns: [{ x: px(24), y: G * TILE }, { x: px(47), y: G * TILE }],
       spawns: [
         { x: px(23), y: G * TILE }, { x: px(50), y: G * TILE },
         { x: px(L + 2), y: (G - 9) * TILE }, { x: px(R - 2), y: (G - 9) * TILE },

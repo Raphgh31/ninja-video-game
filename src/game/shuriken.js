@@ -72,7 +72,26 @@ export class Shurikens {
     }
     const t = SHURIKEN.range / SHURIKEN.speed;
     const gravity = (2 * height) / (t * t);
-    this.flying.push({ x, y, vx: dir * SHURIKEN.speed, vy: 0, gravity, dir, t: 0 });
+    this.flying.push({ x, y, vx: dir * SHURIKEN.speed, vy: 0, gravity, dir, t: 0, id: (this.nextId = (this.nextId ?? 0) + 1) });
+  }
+
+  /** Le dernier shuriken lancé (son identifiant part avec le message « throw » : arène). */
+  get lastId() { return this.flying[this.flying.length - 1]?.id ?? null; }
+
+  /**
+   * Un shuriken renvoyé d'un coup de sabre ou d'une parade (mode Arène) : il repart, tendu, vers celui qui
+   * l'a lancé, sans rien coûter au stock (il retombera et se ramassera comme les autres).
+   */
+  sendBack(x, y, dir) {
+    this.flying.push({ x, y, vx: dir * SHURIKEN.speed * 1.15, vy: -30, gravity: 220, dir, t: 0, id: (this.nextId = (this.nextId ?? 0) + 1), back: true });
+    return this.lastId;
+  }
+
+  /** Retire un shuriken en vol (renvoyé par l'adversaire avant de toucher : arène). */
+  drop(id) {
+    const n = this.flying.length;
+    this.flying = this.flying.filter((s) => s.id !== id);
+    if (this.flying.length < n) this.stock = Math.min(SHURIKEN.stock, this.stock + 1);
   }
 
   update(dt) {
@@ -92,7 +111,7 @@ export class Shurikens {
       if (!s.deflected) {
         const box = { x: s.x - 2, y: s.y - 2, w: 4, h: 4 };
         for (const e of this.enemies) {
-          if (e.takeHit(box, s.x - s.dir * 20, null, DAMAGE_DEALT.shuriken)) {
+          if (e.takeHit(box, s.x - s.dir * 20, s.id != null ? `s${s.id}` : null, DAMAGE_DEALT.shuriken)) {
             s.deflected = true;
             this.onEvent?.('deflect', { x: s.x, y: s.y, dir: -s.dir });
             s.vx *= -0.2;

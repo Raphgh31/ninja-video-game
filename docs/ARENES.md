@@ -223,3 +223,82 @@ Arbres du décor (derrière) : bouleaux, un jeune pin. Fond (`backdrop.vista`) :
 - **Chaque étage par un vrai saut** (tests) : sol → souche → branche basse → grande branche → voûte → perchoir du chêne ou branche haute du cèdre ; à droite, rocher de la source → branche basse → grande branche ; souche → haute souche ; tronc de remontée → pont. Le tronc creux : on le franchit par-dessus, ou on y descend jusqu'à la grotte (sans dommage) ; on remonte par le puits.
 - Les tests pilotent les sauts par les commandes du jeu (`input.press`) : au clavier simulé, deux essais trop rapprochés font un double appui, donc un dash.
 - Le reflet de l'eau (`live.js`) ne copiait pas que la part visible quand l'eau sortait à gauche de l'image : il débordait sur la rive. Corrigé pour tout le jeu.
+
+## 8. Le duel (25 novembre 2026) : ce qui fait d'un combat un moment
+
+Demande de Raph : rendre les combats plus addictifs, « jeu professionnel » plutôt que « jeu cheap », d'après les
+bons jeux de duel (Nidhogg, Samurai Gunn, TowerFall, Divekick, Smash, Street Fighter 6). Six chantiers, tous faits.
+
+### 1. La sensation des coups (`combat.js` : `IMPACT`)
+- Chaque coup a sa force : `sword`, `air`, `flip`, `riposte`, `kick`, `shuriken` → micro-arrêt (`stop`, le même chez
+  l'attaquant et chez la victime), recul (`push`, `lift`), secousse seulement pour les lourds (`shake`). Le 26 novembre
+  2026 : **le sabre fait à peine reculer** (un petit à-coup, `push` 40, sans soulever) ; **le coup de pied repousse
+  loin** (`push` 300, à peine soulevé : un recul au sol qui glisse et ralentit, état `hurt`), pas un bond.
+- La victime brille une ou deux images en blanc (`src/engine/silhouette.js`, `IMPACT.flash`), aussi chez les autres.
+- Son en couches : `bladeHit` (le claquement de la lame) + `impact` (le coup sourd dans le corps) ; vibration courte.
+- Toucher rend un peu d'énergie (`ENERGY.hitGain`) : l'attaque nourrit l'attaque.
+
+### 2. La parade, le choc des lames, le shuriken renvoyé
+- Images : `tools/kage_forge/duel.py` (planche `duel_board.py`) → animations `parry` (4), `parry_hit` (2), `stagger` (3),
+  `victory` (4), `defeat` (2) ; boîte de la garde : `hitbox.parry` (`build.py`).
+- Commandes : **F ou G** au clavier, **L1/R1** à la manette, un bouton de plus sur téléphone (lame tenue en travers,
+  au-dessus du saut) ; en arène seulement (`player.canParry`, `touch.setParry`).
+- Règles (`PARRY`) : la garde pare pendant ses trois premières images (~0,3 s), face au coup ; la parade réussie fait
+  encaisser la lame (`parry_hit`), déséquilibre l'attaquant (`stagger`, sans commande) et ouvre la riposte
+  (`riposteT`, 0,7 s : le sabre suivant porte **+1**, `kind: 'riposte'`) ; ratée, elle laisse à découvert
+  (`PARRY.cooldown`) ; **le coup de pied brise la garde** (+1). Deux sabres actifs qui se rencontrent : **le choc des
+  lames** (`clash` : chacun recule, riposte possible). Un shuriken qui touche une lame ou une garde levée est renvoyé
+  vers son lanceur (`deflectGhosts`, `Shurikens.sendBack`, message `deflect`).
+- En ligne : la parade est jugée **sur l'écran du défenseur** (là où il a appuyé) : message `hit` → `parried` ;
+  le choc, sur l'écran de celui qui le voit (message `clash`).
+
+### 3. Le rythme (`multi.js` : `MODES.duel`, manches)
+- Mode **Duel** : deux manches gagnantes, une vie par manche (le vaincu reste à terre : `player.holdDeath`) ; places du
+  duel face à face (`duelSpawns` des arènes). L'hôte arbitre : `round` → (coup fatal, revoir, score) → `roundStart`
+  après `ROUND_PAUSE` (5,2 s, horloge du jeu : `roundClock`).
+- **Manche décisive** (`decisive()`) : la lumière tombe (le soir), le cœur bat, la musique du combat.
+- **La brume d'encre** (`DUEL.mistAt` : après 40 s de manche, modes à une vie) : elle avance des deux bords ; on s'y
+  blesse ; elle laisse libre le bassin et ses deux rives.
+- **Coup de pouce léger** : le cœur bonus apparaît plutôt près de celui qui est derrière (`arena.favorX`).
+
+### 4. Le spectacle (`src/game/arena/duel.js`, calque `.duel-layer`)
+- **L'ouverture** : bandes noires, vent, une feuille, « Manche 1 », le gong, « Combattez » ; la caméra entre les deux.
+- **Le coup fatal** (le coup qui finit une manche : `final`) : ralenti à 16 %, zoom ×1,7 sur l'impact (les calques du
+  jeu ensemble), le monde s'assombrit, un trait d'encre en diagonale traverse le vaincu, puis le retour.
+- **Le revoir** : les 2,2 dernières secondes rejouées à 85 % (30 instantanés par seconde, la caméra de l'instant).
+- **Les traces** : une tache d'encre éclaboussée reste au sol, sous chaque vaincu, jusqu'à la fin du duel.
+- **La fin** : le vainqueur rengaine (`victory`), le vaincu met un genou à terre (`defeat`) ; le résultat s'écrit sur
+  l'image du combat (`.duel-end`) : **Revanche** (quand tous l'ont demandée, l'hôte relance) ou **Salon**.
+
+### 5. Ce qui fait revenir (`src/game/arena/stats.js`)
+- Statistiques (localStorage `ninja.arene`), montrées dans **Mon ninja** (en haut à droite) : duels, victoires, série,
+  parades, coups fatals, ennemi juré. **Neuf titres** gagnés par des exploits ; chacun donne un **sceau d'encre**
+  (à côté du nom, au-dessus de la tête, au score) et une **couleur de lame** (`TRAILS`) — rien qui change le combat.
+- **Le ninja de l'ombre** (`src/game/arena/bot.js`, menu Arène « Contre l'ombre ») : un vrai KAGE aux commandes
+  virtuelles, par le même chemin qu'un adversaire en ligne (`src/engine/localnet.js`). **Refait le 26 novembre 2026**
+  (retour de Raph : mouvements incohérents, bloqué contre les obstacles) :
+  - **trois niveaux** choisis au menu : **l'Apprenti, le Rōnin, le Maître** (« ← Rōnin → », barre de trois crans ;
+    `ninja.ombre`, `cfg.level`), et le **type de combat** comme contre un ami (« ← Duel → » : Duel, Souffle unique,
+    Trois lames, Dix lames ; `ninja.ombre.mode`, `cfg.botMode`) ;
+    réglages `BOT.levels` (réaction 0,38 / 0,22 / 0,10 s ; parade 12 / 50 / 88 % ; punition, riposte, coup de pied,
+    feinte, dash, shuriken, distance, précision, adaptation) ;
+  - **graphe des appuis** (`src/game/arena/nav.js`) : les appuis (cases où l'on tient debout), les sauts qu'il sait
+    réussir (vraie physique du saut, plafonds vérifiés), les chutes, les glissades sous un passage bas ; Dijkstra ;
+    refait toutes les 2 s (le bassin, les échafaudages) ; jamais un saut vers l'eau ou le vide ;
+  - **perception** avec un temps de réaction (il voit les gestes passés, jamais les touches) et un **plan** tenu un
+    moment (garder la distance, entrer, punir, feinter, reculer, lancer) ; dos à l'eau il ne recule plus ; il ne saute
+    pas se poser sous un sabre ; pas de dash ni de coup de sabre qui le jetterait à l'eau ;
+  - mesuré par des **matchs entre niveaux** (`brain()` : un cerveau mène le joueur) : le 3 bat le 2, le 2 bat le 1.
+- **Le Dojo** (menu Arène) : l'ombre à quatre pas frappe à un rythme régulier ; on n'y meurt pas ; le bandeau compte
+  les parades et les ripostes.
+
+### 6. Le réseau
+- États trente fois par seconde, horodatés ; les autres ninjas sont dessinés **un dixième de seconde dans le passé**,
+  interpolés entre deux états (`INTERP`, `place`) : un mouvement fluide malgré le réseau. Ce n'est pas un « rollback »
+  complet (à envisager si le jeu en ligne devient compétitif).
+- La revanche d'un geste (`askAgain`, `again`).
+
+### Réglages
+`IMPACT`, `PARRY` (combat.js), `ENERGY.parry`/`parryGain`/`hitGain` (energy.js), `DUEL` (duel.js), `BOT` (bot.js),
+`MODES`, `ROUND_PAUSE`, `INTERP` (multi.js). Tests : « duel : … », « contre l'ombre : … », « Dojo », « Mon ninja » dans
+`tests/e2e.cjs`.

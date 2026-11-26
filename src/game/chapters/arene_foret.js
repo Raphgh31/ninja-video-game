@@ -163,6 +163,8 @@ function build() {
       camHigh: 11,                     // sur téléphone, le palier « en haut » montre jusqu'à la voûte (11 cases)
       // la grotte : quand KAGE y est, la caméra descend (son sol en bas de l'image)
       cave: { x0: CAVE.x0 * TILE, x1: CAVE.x1 * TILE, y: (G + 2) * TILE, floor: CAVE.floor * TILE },
+      // le duel (deux combattants) : face à face, assez près pour tenir ensemble dans l'image à l'ouverture
+      duelSpawns: [{ x: px(24), y: G * TILE }, { x: px(47), y: G * TILE }],
       spawns: [
         { x: px(7), y: G * TILE }, { x: px(62), y: G * TILE },
         { x: px(24), y: (G - 8) * TILE }, { x: px(45), y: (G - 8) * TILE },
