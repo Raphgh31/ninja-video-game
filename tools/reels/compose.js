@@ -125,7 +125,7 @@ export async function setup({ track, n }) {
       g.fillStyle = gr; g.fillRect(0, Math.min(y0, y0 + dir * 90), W, 90);
     }
     // « I'm making a video game. » lettre à lettre, puis « Alone. » (doré)
-    const out1 = 1 - ss((s - 3.7) / 0.45);
+    const out1 = 1 - ss((s - 4.2) / 0.45);
     if (s > 0.3 && out1 > 0) {
       const n1 = Math.floor((s - 0.3) * 26);
       typed(g, L1, 'big', CREAM, 3, W / 2, 310, n1, out1);
@@ -136,18 +136,18 @@ export async function setup({ track, n }) {
     }
     // la carte de titre : une tache d'encre sur le ciel, le titre qui se découvre, un trait doré, la semaine
     const cy = GY + 290;
-    if (s > 4.75) {
-      inkBlot(g, W / 2, cy, 500, 168, (s - 4.75) / 0.42, 3);
-      if (s > 5.0) {
-        const r = easeOut((s - 5.0) / 0.45), x0 = W / 2 - title.w / 2, y0 = cy - title.h / 2 - 34;
+    if (s > 5.15) {
+      inkBlot(g, W / 2, cy, 500, 168, (s - 5.15) / 0.42, 3);
+      if (s > 5.4) {
+        const r = easeOut((s - 5.4) / 0.45), x0 = W / 2 - title.w / 2, y0 = cy - title.h / 2 - 34;
         g.save(); g.beginPath(); g.rect(x0, y0 - 8, title.w * r, title.h + 16); g.clip();
         drawText(g, title, x0, y0); g.restore();
-        if (s > 5.35) brush(g, Math.round((W / 2 - 300) / K) * K, Math.round((cy + 26) / K) * K, 600, 12, (s - 5.35) / 0.4, GOLD, 5);
-        if (s > 5.9) drawText(g, sub, W / 2 - sub.w / 2, cy + 58, ss((s - 5.9) / 0.4));
+        if (s > 5.75) brush(g, Math.round((W / 2 - 300) / K) * K, Math.round((cy + 26) / K) * K, 600, 12, (s - 5.75) / 0.4, GOLD, 5);
+        if (s > 6.3) drawText(g, sub, W / 2 - sub.w / 2, cy + 58, ss((s - 6.3) / 0.4));
       }
     }
     // la sortie : un grand coup d'encre balaie tout, vers la suite de la vidéo
-    inkWipe(g, (s - 7.95) / 0.75);
+    inkWipe(g, (s - 8.35) / 0.75);
     return cv.toDataURL('image/png');
   };
 }

@@ -12,10 +12,12 @@ const fs = require('fs');
   await pg.goto('http://localhost:5290/');
   for (let i = 0; i < 40 && !(await pg.evaluate(() => !!window.__kage?.level && !window.__kage.run.title)); i++) await pg.clock.runFor(100);
   await pg.addStyleTag({ content: '.ui, header, footer, .state { visibility: hidden !important; }' });
+  // l'horloge du jeu ne bouge plus d'elle-même : seul runFor la fait avancer (sinon chaque capture, lente, laisse le jeu tourner)
+  await pg.clock.pauseAt(await pg.evaluate(() => Date.now() + 200));
   await pg.evaluate(() => { const k = window.__kage, d = k.player.draw; k.player.draw = function (...a) { if (!window.__hide) d.apply(this, a); }; window.__hide = true; k.cycle.t = 464; });
   await pg.clock.runFor(1200);
   const box = await pg.locator('#game').boundingBox();
-  const N = 276, log = [], ENTRYF = 75;
+  const N = 285, log = [], ENTRYF = 75;
   // l'heure : de la fin de la nuit (t = −16) au matin (t = +38), de plus en plus lentement
   const T = (s) => { const u = Math.min(1, s / 7.5); return ((-16 + 54 * (1 - (1 - u) ** 1.6)) + 480) % 480; };
   let phase = 0, jf = 0;
