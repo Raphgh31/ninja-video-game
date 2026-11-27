@@ -5,7 +5,7 @@ const fs = require('fs');
 (async () => {
   const [, , S, mode = 'dry', JUMPX = '230', ENTRY = '20'] = process.argv;
   const b = await chromium.launch();
-  const pg = await b.newPage({ viewport: { width: 1800, height: 1180 } });
+  const pg = await b.newPage({ viewport: { width: 2250, height: 1440 } });
   pg.on('pageerror', e => console.log('ERR', e.message));
   await pg.clock.install();
   await pg.addInitScript(() => { window.__KAGE_SKIP_INTRO = true; window.__KAGE_CLEAN = true; sessionStorage.setItem('kage-go', 'new'); });

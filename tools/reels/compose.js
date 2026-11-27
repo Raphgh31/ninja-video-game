@@ -5,10 +5,11 @@
 import { renderText } from '/src/engine/pixelfont.js';
 
 const W = 1080, H = 1920, FPS = 30;
-const K = 4;                       // pixels d'écran par pixel de jeu (le jeu est tourné en 4×)
-const GW = 1792, GH = 1008;        // image tournée (448 × 252 pixels de jeu)
-const CW = 1080;                   // largeur du cadre du jeu dans le Reel (270 pixels de jeu)
-const GY = 520;                    // haut du cadre du jeu
+const K = 5;                       // pixels d'écran par pixel de jeu (le jeu est tourné en 5×)
+const GW = 2240, GH = 1260;        // image tournée (448 × 252 pixels de jeu)
+const CW = 1080;                   // largeur du cadre du jeu dans le Reel (216 pixels de jeu)
+const VW = CW / K, PAN = 448 - VW; // (la largeur vue, en pixels de jeu, et le panoramique possible)
+const GY = 440;                    // haut du cadre du jeu
 const INK = [9, 9, 14], BG = '#0b0c12', CREAM = '#efe6d2', GOLD = '#f2b866';
 
 const ss = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -60,6 +61,30 @@ function inkBlot(g, cx, cy, rx, ry, p, seed, color = INK, alpha = 0.94) {
   }
 }
 
+/**
+ * Un large coup de pinceau horizontal à l'encre (sumi-e), en pixels de jeu : il se tire de gauche à droite,
+ * les bords haut et bas irréguliers, la queue qui s'effile et se sépare en fibres (brosse sèche).
+ */
+function brushBand(g, x0, x1, cy, h, p, seed, color = INK, alpha = 0.93) {
+  if (p <= 0) return;
+  const cols = Math.round((x1 - x0) / K), shown = Math.round(cols * easeOut(p)), rows = Math.round(h / K);
+  g.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
+  for (let i = 0; i < shown; i++) {
+    const u = i / cols;
+    const body = Math.min(1, u / 0.06) ** 0.6 * (1 - Math.max(0, (u - 0.82) / 0.18) ** 1.4 * 0.75);   // attaque ronde, queue effilée
+    const hh = (rows / 2) * body;
+    const top = -hh * (1 + 0.1 * (noise(i * 0.09, seed) - 0.5) * 2) + Math.sin(u * 2.6) * 1.6;
+    const bot = hh * (1 + 0.1 * (noise(i * 0.09 + 40, seed) - 0.5) * 2) + Math.sin(u * 2.6) * 1.6;
+    for (let j = Math.floor(top); j <= Math.ceil(bot); j++) {
+      // brosse sèche : des fibres (lignes) qui s'interrompent, surtout dans la queue et sur les bords
+      const edge = Math.min(j - top, bot - j);
+      const dry = Math.max(0, (u - 0.6) / 0.4) * 0.75 + (edge < 1.5 ? 0.25 : 0);
+      if (dry > 0 && noise(i * 0.22 + hash(j, 0, seed) * 50, seed + j) < dry * 0.8) continue;
+      g.fillRect(x0 + i * K, Math.round(cy / K + j) * K, K, K);
+    }
+  }
+}
+
 /** Un trait de pinceau horizontal (pixels de jeu), qui se tire de gauche à droite et s'effile. */
 function brush(g, x0, y, w, thick, p, color, seed) {
   const n = Math.round((w * easeOut(p)) / K);
@@ -96,17 +121,18 @@ export async function setup({ track, n }) {
   g.imageSmoothingEnabled = false;
   // le recadrage : d'abord le soleil, puis un lent panoramique qui accompagne le ninja (amorti, au pixel d'écran)
   const crop = [];
-  let c = 20, v = 0;
+  let c = 22, v = 0;
   for (let f = 0; f < n; f++) {
     const l = track[f], s = f / FPS;
-    let want = 20 + 22 * ss((s - 1.4) / 1.6);
-    if (!l.hide) want = Math.max(want, Math.min(178, (l.x - l.cx) - 0.46 * 270));
+    let want = 22 + 26 * ss((s - 1.3) / 1.8);
+    if (!l.hide) want = Math.max(want, Math.min(PAN, (l.x - l.cx) - 0.44 * VW));
     v += ((want - c) * 7 - v * 4.2) / FPS; c += v / FPS;
-    crop.push(Math.max(0, Math.min(178, c)));
+    crop.push(Math.max(0, Math.min(PAN, c)));
   }
-  const L1 = "I'm making a video game.", L2 = 'Alone.', T1 = 'THE NINJA ADVENTURE', T2 = "Week 1 — I'll show you everything.";
+  const L1 = "I'm making a video game.", L2 = 'Alone.', T1 = 'THE NINJA ADVENTURE';
   const title = text(T1, 'title', CREAM, 2);
-  const sub = text(T2, 'big', CREAM, 2);
+  const week = text('WEEK 1', 'big', GOLD, 4);
+  const sub = text("I'll show you everything.", 'big', CREAM, 3);
 
   window.frame = async (f, src) => {
     const img = new Image(); img.src = src; await img.decode();
@@ -128,23 +154,28 @@ export async function setup({ track, n }) {
     const out1 = 1 - ss((s - 4.2) / 0.45);
     if (s > 0.3 && out1 > 0) {
       const n1 = Math.floor((s - 0.3) * 26);
-      typed(g, L1, 'big', CREAM, 3, W / 2, 310, n1, out1);
+      typed(g, L1, 'big', CREAM, 4, W / 2, 236, n1, out1);
       if (s > 1.55) {
-        const a = easeOut((s - 1.55) / 0.3), t2 = text(L2, 'big', GOLD, 5);
-        drawText(g, t2, W / 2 - t2.w / 2, 392 + Math.round((1 - a) * 3) * K, a * out1);
+        const a = easeOut((s - 1.55) / 0.3), t2 = text(L2, 'big', GOLD, 6);
+        drawText(g, t2, W / 2 - t2.w / 2, 318 + Math.round((1 - a) * 3) * 4, a * out1);
       }
     }
-    // la carte de titre : une tache d'encre sur le ciel, le titre qui se découvre, un trait doré, la semaine
-    const cy = GY + 290;
+    // la carte de titre : un coup de pinceau à l'encre sur le ciel, le titre qui se découvre, un trait doré ;
+    // puis, au-dessus du cadre, « WEEK 1 » et la promesse
+    const cy = GY + 300;
     if (s > 5.15) {
-      inkBlot(g, W / 2, cy, 500, 168, (s - 5.15) / 0.42, 3);
+      brushBand(g, 20, 1060, cy, 150, (s - 5.15) / 0.38, 3);
       if (s > 5.4) {
-        const r = easeOut((s - 5.4) / 0.45), x0 = W / 2 - title.w / 2, y0 = cy - title.h / 2 - 34;
+        const r = easeOut((s - 5.4) / 0.45), x0 = Math.round((W / 2 - title.w / 2) / 2) * 2, y0 = cy - title.h / 2 - 12;
         g.save(); g.beginPath(); g.rect(x0, y0 - 8, title.w * r, title.h + 16); g.clip();
         drawText(g, title, x0, y0); g.restore();
-        if (s > 5.75) brush(g, Math.round((W / 2 - 300) / K) * K, Math.round((cy + 26) / K) * K, 600, 12, (s - 5.75) / 0.4, GOLD, 5);
-        if (s > 6.3) drawText(g, sub, W / 2 - sub.w / 2, cy + 58, ss((s - 6.3) / 0.4));
+        if (s > 5.75) brush(g, Math.round((W / 2 - 260) / K) * K, Math.round((cy + 44) / K) * K, 520, 10, (s - 5.75) / 0.4, GOLD, 5);
       }
+      if (s > 6.15) {
+        const a = easeOut((s - 6.15) / 0.35);
+        drawText(g, week, W / 2 - week.w / 2, 226 + Math.round((1 - a) * 3) * 4, a);
+      }
+      if (s > 6.55) drawText(g, sub, W / 2 - sub.w / 2, 320, ss((s - 6.55) / 0.4));
     }
     // la sortie : un grand coup d'encre balaie tout, vers la suite de la vidéo
     inkWipe(g, (s - 8.35) / 0.75);
