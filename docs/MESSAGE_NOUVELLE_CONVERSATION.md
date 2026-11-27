@@ -2,11 +2,12 @@
 
 Copier-coller le texte ci-dessous comme premier message d'une nouvelle session Claude Code sur le dépôt `raphgh31/ninja-video-game`, **branche `main`**.
 
-**Quatre messages spécialisés** existent, pour une conversation consacrée à un seul sujet :
+**Cinq messages spécialisés** existent, pour une conversation consacrée à un seul sujet :
 - `docs/messages/MESSAGE_SKINS.md` : la création des skins du ninja ;
 - `docs/messages/MESSAGE_ARENES.md` : les arènes, le duel, le mode combat à plusieurs ;
 - `docs/messages/MESSAGE_CHAPITRES.md` : la création des chapitres de l'aventure ;
 - `docs/messages/MESSAGE_SONS.md` : les sons et la musique, avec le connecteur **Splice**.
+- `docs/messages/MESSAGE_COMMUNITY.md` : le community manager (les Reels Instagram, `docs/REELS.md`).
 
 Celui-ci sert à la **conversation principale** : menus, interface, lumière, réglages, manettes, corrections, mises en ligne, et la préparation de la sortie sur Steam et sur téléphones.
 
@@ -46,7 +47,7 @@ Bonjour ! On reprend mon jeu. Tu es la **conversation principale** du projet.
 - Les sprites sont **générés** par `tools/kage_forge/` (`npm run sprites`) : ne jamais éditer les PNG à la main.
 - Sur téléphone : plein écran, même échelle que sur ordinateur, et le jeu pivote en portrait.
 
-**Dépôt** : `raphgh31/ninja-video-game`, branche `main`. Travaille sur **une nouvelle branche**. D'autres conversations travaillent en parallèle (skins, arènes, chapitres, sons) : **avant de fusionner ou de publier, regarde leurs branches** (`git fetch`, branches `claude/…` en avance sur `main`) et **fusionne-les au lieu de les écraser** ; avant de publier un artefact, lis sa version en ligne (`get_artifact`) pour ne pas écraser une publication d'une autre conversation.
+**Dépôt** : `raphgh31/ninja-video-game`, branche `main`. Travaille sur **une nouvelle branche**. D'autres conversations travaillent en parallèle (skins, arènes, chapitres, sons, community manager) : **avant de fusionner ou de publier, regarde leurs branches** (`git fetch`, branches `claude/…` en avance sur `main`) et **fusionne-les au lieu de les écraser** ; avant de publier un artefact, lis sa version en ligne (`get_artifact`) pour ne pas écraser une publication d'une autre conversation.
 
 **Site** : https://raphgh31.github.io/ninja-video-game/ (mis en ligne à chaque push sur `main` par `.github/workflows/deploy.yml`). Si la mise en ligne échoue côté GitHub, ne force pas : dis-le-moi, je la relance à la main.
 
