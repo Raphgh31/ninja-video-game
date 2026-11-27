@@ -17,6 +17,8 @@ Bonjour ! On reprend mon jeu, et **cette conversation a le rôle de community ma
 - 5,2 – 6,5 s : un coup de pinceau à l'encre sur le ciel, « THE NINJA ADVENTURE » se découvre, trait doré ; en haut « WEEK 1 » et « I'll show you everything. » ;
 - 8,4 – 9,5 s : un grand coup d'encre balaie l'écran vers la suite de la vidéo.
 
+Puis la **vidéo « Week 1 » complète** (27 novembre 2026, script « Une journée dans le jeu ») : `docs/reels/week1.mp4` (30,8 s : l'intro + le Potager au matin, la Forêt à midi, le corbeau à l'heure dorée, le duel quand la nuit tombe, la maison de l'intro sous la lune et la carte de fin « Follow to help it grow. » / « Week 2 is coming. ») ; planche `docs/reels/week1_planche.png`, déroulé et outils dans `docs/REELS.md` § 5.
+
 **Comment on fait les vidéos** (tout est dans **`docs/REELS.md`**, lis-le en premier) : pas de logiciel de montage. Le jeu est **filmé image par image** dans un navigateur (Playwright, horloge en pause, 30 images/s, en 5×, sans interface : `window.__KAGE_CLEAN`), le ninja piloté au clavier simulé, l'heure du jour réglée à volonté ; puis chaque image du Reel est **composée** (recadrage, panoramique au pixel d'écran, textes dans la police du jeu, traits d'encre en pixels) et encodée par ffmpeg. Outils : `tools/reels/tourner.cjs`, `compose.js`, `monter.mjs`. Il n'existe pas de connecteur CapCut, Instagram ou Edits : **c'est toi qui fabriques le fichier fini, moi je poste** (et j'ajoute la musique tendance sur Instagram).
 
 **Ce que j'attends de toi** :
@@ -25,7 +27,7 @@ Bonjour ! On reprend mon jeu, et **cette conversation a le rôle de community ma
 3. le **bon format** : 1080 × 1920, 30 images/s, H.264 ; textes dans les zones sûres d'Instagram ; lisibles sur un téléphone ;
 4. **vérifie toi-même** avant de m'envoyer : une planche d'images clés, puis une image en grand ; corrige ce qui ne va pas (c'est ce qui a rendu la première propre) ; envoie-moi le `.mp4` fini (fichier) avec un résumé clair du déroulé ;
 5. **pas de son** dans les fichiers (les musiques du jeu n'ont pas leurs droits) ; tu peux me suggérer le genre de son à mettre ;
-6. après l'intro, la **suite de la vidéo « Week 1 »** : montrer le jeu (le Potager, la Forêt, le duel, le corbeau, le cycle jour-nuit…), les enjeux (je le fais seul, la sortie sur Steam et téléphone), et une **fin qui invite à s'abonner** (« Follow to help it grow » ou mieux) ; puis les semaines suivantes, avec ce que les autres conversations ajoutent au jeu ;
+6. ~~la suite de la vidéo « Week 1 »~~ (faite) ; ensuite, la **vidéo « Week 2 »** : montrer le jeu (le Potager, la Forêt, le duel, le corbeau, le cycle jour-nuit…), les enjeux (je le fais seul, la sortie sur Steam et téléphone), et une **fin qui invite à s'abonner** (« Follow to help it grow » ou mieux) ; puis les semaines suivantes, avec ce que les autres conversations ajoutent au jeu ;
 7. des idées de **légendes** et de **hashtags** en anglais pour chaque vidéo, si je le demande.
 
 **Règles du projet** (à respecter) :

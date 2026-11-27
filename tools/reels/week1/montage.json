@@ -1,0 +1,11 @@
+{
+  "module": "/tools/reels/week1_suite.js",
+  "n": 648,
+  "plans": [
+    { "nom": "1_potager", "a": 0, "n": 132 },
+    { "nom": "2_foret", "a": 122, "n": 112 },
+    { "nom": "3_corbeau", "a": 224, "n": 116 },
+    { "nom": "4_duel", "a": 330, "n": 122 },
+    { "nom": "5_nuit", "a": 442, "n": 206 }
+  ]
+}
