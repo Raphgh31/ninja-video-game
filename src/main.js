@@ -1641,7 +1641,7 @@ function draw() {
     lights.night(ctx, level, cam, VIEW_W, VIEW_H, src, cycle);
     lights.frame(level, cam, VIEW_W, VIEW_H, level.time, src, cycle);
   }
-  if (run.title) return;   // écran titre : le décor seul, sans interface
+  if (run.title || globalThis.__KAGE_CLEAN) return;   // écran titre (ou tournage d'une vidéo : __KAGE_CLEAN) : le décor seul, sans interface
   // l'interface : peinte aussi, avec des touches fines accrochées à l'écran
   const U = ctx;   // (l'interface n'est pas repeinte : ses textes sont lisses)
   // barres de vie : au-dessus de la tête, elles suivent chaque personnage

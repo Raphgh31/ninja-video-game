@@ -5,7 +5,7 @@ Jeu de plateforme 2D rapide (esprit Geometry Dash), pixel art. Répondre en fran
 ## Reprise
 - Messages d'introduction pour une nouvelle conversation (à tenir à jour en fin de série) :
   - `docs/MESSAGE_NOUVELLE_CONVERSATION.md` (général) ;
-  - quatre messages spécialisés dans `docs/messages/` : `MESSAGE_SKINS.md` (skins), `MESSAGE_ARENES.md` (arènes), `MESSAGE_CHAPITRES.md` (chapitres), `MESSAGE_SONS.md` (sons et musique avec le connecteur **Splice** : chaque téléchargement coûte un crédit, jamais sans l'accord de Raph).
+  - cinq messages spécialisés dans `docs/messages/` : `MESSAGE_SKINS.md` (skins), `MESSAGE_ARENES.md` (arènes), `MESSAGE_CHAPITRES.md` (chapitres), `MESSAGE_SONS.md` (sons et musique avec le connecteur **Splice** : chaque téléchargement coûte un crédit, jamais sans l'accord de Raph), `MESSAGE_COMMUNITY.md` (community manager : les Reels Instagram, en anglais à l'écran, tournés image par image dans le jeu ; méthode `docs/REELS.md`, outils `tools/reels/`, Reels faits dans `docs/reels/`).
 - **Sortie prévue sur Steam et en application de téléphone** (décision du 26 novembre 2026, `docs/REPRISE.md` § 10) : pas de Godot ; le même jeu sera emballé à la fin (Electron ou Tauri pour Steam, Capacitor pour les téléphones). À régler avant : droits des musiques, sauvegardes en fichier, mise en relation de Steam pour le jeu à plusieurs.
 - Guides par sujet : `docs/SKINS.md`, `docs/ARENES.md`, `docs/GUIDE_CHAPITRE.md` (+ `docs/FORET.md`).
 - **Pour construire un nouveau chapitre : lire `docs/GUIDE_CHAPITRE.md`** (méthode par phases, leçons du chapitre 1 à anticiper, architecture d'un chapitre, liste de contrôle).
