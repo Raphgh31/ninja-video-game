@@ -71,14 +71,15 @@ function brushBand(g, x0, x1, cy, h, p, seed, color = INK, alpha = 0.93) {
   g.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
   for (let i = 0; i < shown; i++) {
     const u = i / cols;
-    const body = Math.min(1, u / 0.06) ** 0.6 * (1 - Math.max(0, (u - 0.82) / 0.18) ** 1.4 * 0.75);   // attaque ronde, queue effilée
+    const body = Math.min(1, u / 0.05) ** 0.6 * (1 - Math.max(0, (u - 0.9) / 0.1) ** 1.4 * 0.7);   // attaque ronde, queue effilée
     const hh = (rows / 2) * body;
     const top = -hh * (1 + 0.1 * (noise(i * 0.09, seed) - 0.5) * 2) + Math.sin(u * 2.6) * 1.6;
     const bot = hh * (1 + 0.1 * (noise(i * 0.09 + 40, seed) - 0.5) * 2) + Math.sin(u * 2.6) * 1.6;
     for (let j = Math.floor(top); j <= Math.ceil(bot); j++) {
       // brosse sèche : des fibres (lignes) qui s'interrompent, surtout dans la queue et sur les bords
       const edge = Math.min(j - top, bot - j);
-      const dry = Math.max(0, (u - 0.6) / 0.4) * 0.75 + (edge < 1.5 ? 0.25 : 0);
+      const lead = Math.max(0, (i - (shown - 7)) / 7);        // le bord avant, qui avance : plus léger
+      const dry = Math.max(0, (u - 0.8) / 0.2) * 0.75 + (edge < 1.5 ? 0.25 : 0) + lead * 0.6;
       if (dry > 0 && noise(i * 0.22 + hash(j, 0, seed) * 50, seed + j) < dry * 0.8) continue;
       g.fillRect(x0 + i * K, Math.round(cy / K + j) * K, K, K);
     }
