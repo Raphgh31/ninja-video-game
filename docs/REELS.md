@@ -1,6 +1,6 @@
 # Les Reels Instagram du jeu — guide technique
 
-Comment on fabrique une vidéo de promotion de *The Ninja Adventure* (format Reel 9:16) **directement à partir du jeu**, sans logiciel de montage. Premier essai : l'intro « Week 1 » (27 novembre 2026), `docs/reels/week1_intro.mp4`, validée par Raph (« plutôt très propre »).
+Comment on fabrique une vidéo de promotion de *The Ninja Adventure* (format Reel 9:16) **directement à partir du jeu**, sans logiciel de montage. Premier essai : l'intro « Week 1 » (27 novembre 2026), `docs/reels/week1_intro.mp4`, validée par Raph (« plutôt très propre »). Puis la vidéo « Week 1 » complète (intro + suite, script A « Une journée dans le jeu », 27 novembre 2026) : `docs/reels/week1.mp4` (30,8 s).
 
 ## 1. Le principe
 
@@ -36,3 +36,36 @@ Le tournage demande le jeu construit et servi : `npm run build` puis `npx vite p
 - Textes du haut : police du jeu, corps `big` ×4 (crème `#efe6d2`) et ×6 (doré `#f2b866`) ; lettre à lettre à 26 lettres/s.
 - Carte de titre : coup de pinceau sumi-e (`brushBand`) sur le ciel, *THE NINJA ADVENTURE* (corps `title` ×2) découvert de gauche à droite, trait doré dessous ; « WEEK 1 » (`big` ×4, doré) et la promesse (`big` ×3) au-dessus du cadre.
 - Sortie : grand coup d'encre en diagonale (`inkWipe`) vers le noir, raccord pour la suite.
+
+## 5. La vidéo « Week 1 » complète (script A : une journée dans le jeu)
+
+`docs/reels/week1.mp4` (30,8 s, 1080 × 1920, 30 images/s, sans son) = l'intro (coupée à 9,2 s : moins de noir avant la suite) + la suite (21,6 s), planche `docs/reels/week1_planche.png`, recadrages des plans dans `docs/reels/week1/`. Déroulé de la suite (temps de la vidéo entière) :
+
+| Temps | Plan (heure du jeu) | Textes |
+|---|---|---|
+| 9,2 – 13,5 | Le Potager au matin, le vieux verger : course, un épouvantail abattu au sabre, saut sur le talus, un second | « Two worlds so far. » · « WORLD 1 · THE GARDEN » |
+| 13,3 – 16,9 | La Forêt à midi, « Le souffle des lianes » : balancier, lâcher, atterrissage, saut sur la liane suivante | « WORLD 2 · THE FOREST » |
+| 16,7 – 20,6 | Le corbeau à l'heure dorée : sur la plateforme fragile, saut + sabre, il tombe, les plateformes s'effondrent, un dernier coup | « A crow boss. » · « It throws rocks. » |
+| 20,2 – 24,3 | Le duel dans la rizière : la nuit tombe pendant le combat, la lune se lève, coup fatal (ralenti du jeu) | « Online duels. » · « Best of three. » |
+| 23,9 – 30,8 | La maison du début de l'intro, la nuit, sous la lune ; le ninja s'y arrête ; carte de fin : coup de pinceau sur le ciel, le titre, trait doré ; fondu au noir (la boucle d'Instagram repart du noir de l'intro) | « Soon on Steam & mobile. » · « Made alone, week by week. » puis « Follow to help it grow. » · « Week 2 is coming. » |
+
+**Les outils (pour tous les Reels à plusieurs plans)** :
+- `tools/reels/plan.cjs <plan> <dossier> dry|shoot` : un plan (fichier `tools/reels/week1/*.cjs` : lieu, heure image par image, mise en place, `ctl` joué dans la page à chaque image). Le jeu n'avance que par `__kage.step` (4 pas de 1/120 s par image), le ninja est piloté **dans la page** (le pilote des tests, `tests/foret_bot.js` et `tests/foret_pilotes.js` : `bot.runner`, `P.vise` pour les lianes, `bot.tap`…), et **`Math.random` a une graine** : le réglage à blanc et le tournage donnent exactement les mêmes images. `debut` : images jouées sans être tournées (la mise en place). `dry` : une vignette toutes les 5 images, en 2×, et la planche `dry.png` (~10 s par plan au lieu de ~3 min).
+- `tools/reels/jeu.cjs` : ouvrir le jeu (aventure neuve ou arène contre l'ombre : `salle`), le figer, poser le ninja.
+- `tools/reels/monter_plans.mjs <montage.json> <dossier des tournages> <sortie.mp4>` (ou `<planche.png> --images 0,30,…` pour vérifier quelques images sans tout monter) ; `tools/reels/week1/montage.json` place les plans dans le temps (chevauchement de 10 images aux raccords).
+- `tools/reels/week1_suite.js` : le montage (recadrage amorti par plan, raccords, textes, carte de fin) ; `tools/reels/encre.js` : les outils communs (textes, pinceaux, balayage), partagés avec `compose.js` (l'intro).
+
+Commandes (le jeu servi sur le port 5290) :
+```bash
+node tools/reels/plan.cjs tools/reels/week1/3_corbeau.cjs /tmp/w1/3_corbeau dry
+node tools/reels/plan.cjs tools/reels/week1/3_corbeau.cjs /tmp/w1/3_corbeau shoot
+node tools/reels/monter_plans.mjs tools/reels/week1/montage.json /tmp/w1 /tmp/w1/suite.mp4
+```
+
+**Leçons** :
+- **Le raccord au pinceau** (`brushCut`) : le plan suivant se découvre derrière un bord déchiqueté qui balaie le cadre de gauche à droite (le haut d'abord), avec un liseré d'encre de 2-3 pixels de jeu ; 10 images (0,33 s). Vif, dans le style du jeu, jamais une coupe sèche.
+- **Textes** : la phrase du haut en `big` ×5 si elle tient dans 1000 px (sinon ×4 : au-delà de ~21 lettres) ; la ligne dorée toujours un cran plus petite. ×3 est trop petit sur un téléphone pour une phrase principale.
+- **À éviter à l'image** : les textes du jeu en français (« Manche 1 », « Combattez », « Revoir », « Manche à … » : couper le duel avant `duel.phase === 'replay'`), les noms au-dessus des ninjas (`multi.hideTags = true`), le clignotement d'invincibilité (rendre le ninja intouchable par `player.hurt = () => false`, pas par `invuln`), la pose « vaincu » du corbeau (pâle : lui laisser des points de vie).
+- **Lisibilité de nuit** : la canopée de l'arène de la Forêt, la nuit, est trop sombre (ninjas noirs sur fond sombre) ; la rizière de l'arène du Potager, du coucher du soleil à la nuit, se lit bien.
+- **Plusieurs tournages en parallèle** : la machine chargée dépasse les délais (chargement, `clock.pauseAt`) ; `jeu.cjs` attend et réessaie. Trois tournages en même temps : ~6 min pour les cinq plans.
+- **Assemblage** : `ffmpeg … -filter_complex "[0:v]trim=end_frame=276…concat"` (une seule réencodage, CRF 14).
